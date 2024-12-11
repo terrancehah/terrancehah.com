@@ -1,7 +1,8 @@
 {
-  "/api/chat-update": "pages/api/chat-update.js",
+  "/api/chat": "pages/api/chat.js",
   "/_app": "pages/_app.js",
-  "/_document": "pages/_document.js",
   "/_error": "pages/_error.js",
-  "/chat": "pages/chat.js"
+  "/_document": "pages/_document.js",
+  "/": "pages/index.js",
+  "/api/maps-key": "pages/api/maps-key.js"
 }

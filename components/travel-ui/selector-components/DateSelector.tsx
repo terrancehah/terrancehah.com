@@ -2,32 +2,34 @@ import React from 'react';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
-interface DatePickerProps {
-  startDate: string;
-  endDate: string;
+export interface DatePickerProps {
+  dates?: { startDate: string; endDate: string };
   onUpdate?: (dates: { startDate: string; endDate: string }) => void;
+  style?: React.CSSProperties;
 }
 
-export const DatePicker: React.FC<DatePickerProps> = ({ startDate, endDate, onUpdate }) => {
+export const DatePicker: React.FC<DatePickerProps> = ({ dates, onUpdate, style }) => {
   const dateInputRef = React.useRef<HTMLInputElement>(null);
   const [displayDates, setDisplayDates] = React.useState({
-    startDate: startDate || '',
-    endDate: endDate || ''
+    startDate: '',
+    endDate: ''
   });
 
   React.useEffect(() => {
-    setDisplayDates({
-      startDate: startDate || '',
-      endDate: endDate || ''
-    });
-  }, [startDate, endDate]);
+    if (dates?.startDate && dates?.endDate) {
+      setDisplayDates({
+        startDate: dates.startDate,
+        endDate: dates.endDate
+      });
+    }
+  }, [dates]);
 
   React.useEffect(() => {
     if (dateInputRef.current) {
       const fp = flatpickr(dateInputRef.current, {
         mode: "range",
-        dateFormat: "d-m-Y",
-        defaultDate: [startDate, endDate],
+        dateFormat: "d/m/Y",
+        defaultDate: [displayDates.startDate, displayDates.endDate].filter(Boolean),
         inline: true,
         minDate: "today",
         onChange: (selectedDates) => {
@@ -36,7 +38,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ startDate, endDate, onUp
               const day = String(date.getDate()).padStart(2, '0');
               const month = String(date.getMonth() + 1).padStart(2, '0');
               const year = date.getFullYear();
-              return `${day}-${month}-${year}`;
+              return `${day}/${month}/${year}`;
             };
 
             const newStartDate = formatDate(selectedDates[0]);
@@ -59,11 +61,11 @@ export const DatePicker: React.FC<DatePickerProps> = ({ startDate, endDate, onUp
         fp.destroy();
       };
     }
-  }, [startDate, endDate, onUpdate]);
+  }, [dates, onUpdate, displayDates]);
 
   return (
-    <div className="w-min max-w-[600px] mx-auto bg-white rounded-3xl shadow-md">
-      <div className="px-8 py-5">
+    <div className="w-min mx-auto bg-white rounded-3xl shadow-md">
+      <div className="w-min px-8 py-5">
         <h3 className="text-lg font-raleway font-semibold text-gray-700 mb-3">Travel Dates</h3>
         
         {/* Date display box */}

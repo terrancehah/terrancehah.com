@@ -1,7 +1,7 @@
 import React from 'react';
-import { TravelPreference } from '../../../managers/types';
+import { TravelPreference, PREFERENCE_OPTIONS } from '../../../managers/types';
 
-interface PreferenceSelectorProps {
+export interface PreferenceSelectorProps {
   currentPreferences?: TravelPreference[];
   onUpdate?: (preferences: TravelPreference[]) => void;
 }
@@ -10,60 +10,43 @@ export const PreferenceSelector: React.FC<PreferenceSelectorProps> = ({
   currentPreferences = [], 
   onUpdate 
 }) => {
-  const allPreferences: TravelPreference[] = [
-    'Culture and Heritage',
-    'Nature',
-    'Foodie',
-    'Leisure',
-    'Adventure',
-    'Arts and Museums'
-  ];
-
   const [tempPreferences, setTempPreferences] = React.useState<TravelPreference[]>(() => {
-    // Ensure initial preferences are valid TravelPreference values
-    return (currentPreferences || []).filter((pref): pref is TravelPreference => 
-      allPreferences.includes(pref)
-    );
+    return currentPreferences || [];
   });
 
   // Update tempPreferences when currentPreferences changes
   React.useEffect(() => {
     console.log('Current preferences updated:', currentPreferences); // Debug log
-    // Filter out any invalid preferences
-    const validPreferences = (currentPreferences || []).filter((pref): pref is TravelPreference => 
-      allPreferences.includes(pref)
-    );
-    setTempPreferences(validPreferences);
+    setTempPreferences(currentPreferences || []);
   }, [currentPreferences]);
 
   const handleConfirm = () => {
-    console.log('Confirming preferences:', tempPreferences); // Debug log
     onUpdate?.(tempPreferences);
   };
 
-  const togglePreference = (pref: TravelPreference) => {
+  const togglePreference = (preference: TravelPreference) => {
     setTempPreferences(prev => {
-      const newPrefs = prev.includes(pref)
-        ? prev.filter(p => p !== pref)
-        : [...prev, pref];
-      console.log('Toggled preferences:', newPrefs); // Debug log
-      return newPrefs;
+      if (prev.includes(preference)) {
+        return prev.filter(p => p !== preference);
+      } else {
+        return [...prev, preference];
+      }
     });
   };
 
   return (
-    <div className="w-full mb-3 max-w-[600px] bg-white rounded-3xl shadow-md">
+    <div className="w-full max-w-[600px] bg-white rounded-3xl shadow-md">
       <div className="px-6 py-4">
         <h3 className="text-lg font-raleway font-semibold text-gray-700 mb-3">Travel Preferences</h3>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          {allPreferences.map(pref => (
+          {PREFERENCE_OPTIONS.map(option => (
             <div 
-              key={pref}
-              onClick={() => togglePreference(pref)}
+              key={option.value}
+              onClick={() => togglePreference(option.value)}
               className={`
                 cursor-pointer flex align-middle text-left p-3 rounded-lg font-raleway text-sm
                 transition-all duration-200 ease-in-out
-                ${tempPreferences.includes(pref)
+                ${tempPreferences.includes(option.value)
                   ? 'bg-[#4798cc] bg-opacity-20 text-[#4798cc] shadow-sm'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }
@@ -72,28 +55,29 @@ export const PreferenceSelector: React.FC<PreferenceSelectorProps> = ({
               <div className="flex items-center gap-2">
                 <div className={`
                   min-w-4 h-4 rounded border flex items-center justify-center
-                  ${tempPreferences.includes(pref)
+                  ${tempPreferences.includes(option.value)
                     ? 'border-[#4798cc] bg-[#4798cc]'
                     : 'border-gray-300 bg-white'
                   }
                 `}>
-                  {tempPreferences.includes(pref) && (
+                  {tempPreferences.includes(option.value) && (
                     <svg className="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
                 </div>
-                <span>{pref}</span>
+                <span>{option.icon}</span>
+                <span>{option.label}</span>
               </div>
             </div>
           ))}
         </div>
-        <div className="flex justify-center">
+        <div className="flex justify-end">
           <button
             onClick={handleConfirm}
-            className="px-6 py-2 bg-[#4798cc] text-white rounded-lg font-raleway hover:bg-[#3787bb] transition-colors"
+            className="px-4 py-2 bg-[#4798cc] text-white rounded font-raleway text-sm hover:bg-[#3a7aa3] transition-colors duration-200"
           >
-            Confirm Selection
+            Confirm
           </button>
         </div>
       </div>

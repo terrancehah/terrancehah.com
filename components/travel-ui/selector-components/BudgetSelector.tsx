@@ -1,24 +1,18 @@
 import React from 'react';
+import { BudgetLevel, BUDGET_OPTIONS } from '../../../managers/types';
 
-interface BudgetSelectorProps {
-  currentBudget: string;
-  onUpdate?: (budget: string) => void;
+export interface BudgetSelectorProps {
+  currentBudget?: BudgetLevel;
+  onUpdate?: (budget: BudgetLevel) => void;
 }
 
 export const BudgetSelector: React.FC<BudgetSelectorProps> = ({ currentBudget, onUpdate }) => {
-  const budgetLevels = [
-    { value: '$', label: 'Budget', description: 'Basic accommodations and local food' },
-    { value: '$$', label: 'Moderate', description: 'Mid-range hotels and restaurants' },
-    { value: '$$$', label: 'Luxury', description: 'High-end hotels and fine dining' },
-    { value: '$$$$', label: 'Ultra Luxury', description: 'Exclusive resorts and experiences' }
-  ];
-
   return (
-    <div className="w-full mb-3 max-w-[600px] bg-white rounded-3xl shadow-md">
+    <div className="w-full max-w-[600px] bg-white rounded-3xl shadow-md">
       <div className="px-8 py-5">
         <h3 className="text-lg font-raleway font-semibold text-gray-700 mb-3">Budget Level</h3>
         <div className="grid grid-cols-2 gap-3">
-          {budgetLevels.map(({ value, label, description }) => (
+          {BUDGET_OPTIONS.map(({ value, label, description }) => (
             <button
               key={value}
               onClick={() => onUpdate?.(value)}

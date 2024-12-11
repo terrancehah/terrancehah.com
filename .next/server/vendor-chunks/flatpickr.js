@@ -10,6 +10,16 @@ exports.id = "vendor-chunks/flatpickr";
 exports.ids = ["vendor-chunks/flatpickr"];
 exports.modules = {
 
+/***/ "./node_modules/flatpickr/dist/flatpickr.css":
+/*!***************************************************!*\
+  !*** ./node_modules/flatpickr/dist/flatpickr.css ***!
+  \***************************************************/
+/***/ (() => {
+
+
+
+/***/ }),
+
 /***/ "./node_modules/flatpickr/dist/flatpickr.min.css":
 /*!*******************************************************!*\
   !*** ./node_modules/flatpickr/dist/flatpickr.min.css ***!

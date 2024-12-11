@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Place } from '../../../utils/places-utils';
 import { PlaceCard } from './PlaceCard';
 
@@ -13,25 +13,45 @@ const Carousel = ({ places }: { places: Place[] }) => {
         setCurrentIndex((currentIndex + 1) % places.length);
     };
 
+    // Add all places to map when carousel is shown
+    useEffect(() => {
+        places.forEach(place => {
+            if (place?.location && window.addPlaceToMap) {
+                window.addPlaceToMap({
+                    latitude: place.location.latitude,
+                    longitude: place.location.longitude,
+                    title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+                    place // Pass the full place object for click handling
+                });
+            }
+        });
+    }, [places]);
+
     return (
-        <div className="carousel-wrapper w-full flex justify-center">
-            <div className="relative w-full flex justify-center max-w-2xl mx-auto">
-                <button className="absolute left-0 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={prevSlide}>
+        <div className="carousel-wrapper p-0 w-full max-h-min flex justify-center">
+
+            <div className="relative w-full p-0 max-h-min flex justify-center max-w-2xl mx-auto">
+
+                <button className="absolute left-5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={prevSlide}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                 </button>
 
-                <button className="absolute right-0 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={nextSlide}>
+                <button className="absolute right-5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={nextSlide}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
                 </button>
 
-                <div className="carousel-container w-[80%] shadow-md rounded-2xl overflow-hidden">
-                    <div className="carousel flex transition-transform duration-500 ease-in-out" style={{ transform: `translateX(-${currentIndex * 100}%)` }}>
+                <div className="carousel-container w-[100%] overflow-hidden">
+                    <div className="carousel flex transition-transform duration-500 ease-in-out" 
+                        style={{ 
+                            transform: `translateX(-${currentIndex * 100}%)`,
+                            height: 'min-content'
+                        }}>
                         {places.map((place: Place, index: number) => (
-                            <div key={place.id || index} className="flex-none w-full flex justify-center">
+                            <div key={place.id || index} className="flex-none max-h-min w-full mb-2 flex justify-center">
                                 <PlaceCard place={place} />
                             </div>
                         ))}

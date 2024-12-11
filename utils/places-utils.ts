@@ -1,7 +1,10 @@
 // Place related interfaces
 export interface Place {
     id: string;
-    displayName: string;
+    displayName: {
+        text: string;
+        languageCode: string;
+    } | string;
     formattedAddress?: string;
     location?: {
         latitude: number;
@@ -24,54 +27,56 @@ export interface Place {
     }[];
 }
 
+import { TravelPreference } from '../managers/types';
+
 // Updated preference to place types mapping based on travel-rizz.html
-export const preferenceToPlaceTypes: Record<string, string[]> = {
-    'Culture and Heritage': [
-        'historical_landmark',
-        'historical_place',
-        'cultural_landmark',
-        'cultural_center',
-        'monument'
+export const preferenceToPlaceTypes: Record<TravelPreference, string[]> = {
+    [TravelPreference.Culture]: [
+        'tourist_attraction',  // For historical sites
+        'museum',             // For museums and cultural institutions
+        'cultural_center',    // For cultural venues
+        'monument',           // For monuments and landmarks
+        'historical_landmark' // For historical places
     ],
-    'Nature': [
+    [TravelPreference.Nature]: [
         'national_park',
         'park',
-        'garden',
-        'botanical_garden',
-        'beach'
+        'tourist_attraction', // For natural attractions
+        'wildlife_park',
+        'botanical_garden'
     ],
-    'Foodie': [
+    [TravelPreference.Food]: [
         'restaurant',
         'cafe',
         'bakery',
-        'food_court',
+        'bar',
         'fine_dining_restaurant'
     ],
-    'Leisure': [
+    [TravelPreference.Relaxation]: [
         'shopping_mall',
-        'plaza',
+        'tourist_attraction',  // For general attractions
         'spa',
-        'tourist_attraction',
-        'marketplace'
+        'department_store',
+        'store'               // For retail locations
     ],
-    'Adventure': [
+    [TravelPreference.Adventure]: [
         'amusement_park',
-        'adventure_sports_center',
+        'tourist_attraction', // For adventure sites
         'sports_complex',
-        'water_park',
+        'sports_activity_location',
         'hiking_area'
     ],
-    'Arts and Museums': [
+    [TravelPreference.Shopping]: [
         'museum',
         'art_gallery',
-        'art_studio',
+        'tourist_attraction', // For art installations
         'performing_arts_theater',
-        'concert_hall'
+        'cultural_center'
     ]
 };
 
 // Helper function to get place types based on preferences
-export const getPlaceTypesFromPreferences = (preferences: string[]): string[] => {
+export function getPlaceTypesFromPreferences(preferences: TravelPreference[]): string[] {
     try {
         // Get unique types from all preferences
         const types = new Set(preferences.reduce((types: string[], pref) => {
@@ -102,26 +107,24 @@ export const getPlaceTypeDisplayName = (place: any): string => {
     return place.primaryType ? formatPrimaryType(place.primaryType) : 'Place';
 };
 
-// Fetch places from Google Places API
-export const fetchPlaces = async (
-    latitude: number,
-    longitude: number,
-    preferences?: string[],
-    maxResults: number = 10
-): Promise<Place[]> => {
+// Search for a single place by text query
+export const searchPlaceByText = async (
+    searchText: string,
+    location: { latitude: number; longitude: number }
+): Promise<Place | null> => {
     try {
-        const includedTypes = preferences ? 
-            getPlaceTypesFromPreferences(preferences) : 
-            ['tourist_attraction'];
+        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+            console.error('Google Maps API key is missing');
+            return null;
+        }
 
         const requestBody = {
-            includedTypes,
-            maxResultCount: maxResults,
-            locationRestriction: {
+            textQuery: searchText,
+            locationBias: {
                 circle: {
                     center: {
-                        latitude,
-                        longitude
+                        latitude: location.latitude,
+                        longitude: location.longitude
                     },
                     radius: 20000.0 // 20km radius
                 }
@@ -130,50 +133,251 @@ export const fetchPlaces = async (
 
         const headers = new Headers({
             'Content-Type': 'application/json',
-            'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos'
+            'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
         });
 
-        const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+        const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
-            console.error('Failed to fetch places:', response.statusText);
             const errorData = await response.text();
-            console.error('Error details:', errorData);
+            console.error('Failed to search place:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
+            return null;
+        }
+
+        const data = await response.json();
+        // console.log('Places API text search response:', data);
+        
+        if (!data.places || !Array.isArray(data.places) || data.places.length === 0) {
+            console.error('No places found for text search:', searchText);
+            return null;
+        }
+
+        // Return the first result as we only need one place
+        const place = data.places[0];
+        return {
+            id: place.id,
+            displayName: place.displayName?.text ? {
+                text: place.displayName.text,
+                languageCode: place.displayName.languageCode
+            } : place.displayName,
+            primaryType: place.primaryType || 'place',
+            photos: place.photos?.map((photo: any) => ({ 
+                name: photo.name,
+                widthPx: photo.widthPx,
+                heightPx: photo.heightPx,
+                authorAttributions: photo.authorAttributions
+            })) || [],
+            formattedAddress: place.formattedAddress,
+            location: place.location,
+            primaryTypeDisplayName: place.primaryTypeDisplayName ? {
+                text: place.primaryTypeDisplayName.text,
+                languageCode: place.primaryTypeDisplayName.languageCode
+            } : undefined
+        };
+    } catch (error) {
+        console.error('Error searching for place:', error);
+        return null;
+    }
+};
+
+// Search for multiple places by text query
+export const searchMultiplePlacesByText = async (
+    searchText: string,
+    location: { latitude: number; longitude: number },
+    maxResults: number = 5
+): Promise<Place[]> => {
+    try {
+        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+            console.error('Google Maps API key is missing');
+            return [];
+        }
+
+        console.log('Executing searchMultiplePlacesByText with params:', {
+            searchText,
+            location,
+            maxResults
+        });
+
+        const requestBody = {
+            textQuery: searchText,
+            locationBias: {
+                circle: {
+                    center: {
+                        latitude: location.latitude,
+                        longitude: location.longitude
+                    },
+                    radius: 20000.0 // 20km radius
+                }
+            },
+            maxResultCount: maxResults
+        };
+
+        const headers = new Headers({
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+        });
+
+        const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('Failed to search places:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
             return [];
         }
 
         const data = await response.json();
         
-        // For debugging
-        if (data.places?.length > 0) {
-            console.log('Sample place data:', {
-                name: data.places[0].displayName?.text,
-                type: data.places[0].primaryType,
-                typeDisplay: data.places[0].primaryTypeDisplayName
-            });
+        if (!data.places || !Array.isArray(data.places) || data.places.length === 0) {
+            console.log('No places found for text search:', searchText);
+            return [];
         }
+
+        return data.places.map((place: any) => ({
+            id: place.id,
+            displayName: place.displayName?.text ? {
+                text: place.displayName.text,
+                languageCode: place.displayName.languageCode
+            } : place.displayName,
+            primaryType: place.primaryType || 'place',
+            photos: place.photos?.map((photo: any) => ({ 
+                name: photo.name
+            })) || [],
+            formattedAddress: place.formattedAddress,
+            location: place.location,
+            primaryTypeDisplayName: place.primaryTypeDisplayName ? {
+                text: place.primaryTypeDisplayName.text,
+                languageCode: place.primaryTypeDisplayName.languageCode
+            } : undefined
+        }));
+    } catch (error) {
+        console.error('Error searching for places:', error);
+        return [];
+    }
+};
+
+// Fetch places from Google Places API
+export const fetchPlaces = async (
+    latitude: number,
+    longitude: number,
+    preferences?: TravelPreference[],
+    maxResults: number = 5,
+    placeTypes?: string[]
+): Promise<Place[]> => {
+    try {
+        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+            console.error('Google Maps API key is missing');
+            return [];
+        }
+
+        const fromPreferences = !!preferences && preferences.length > 0;
+        const fromPlaceTypes = !!placeTypes && placeTypes.length > 0;
         
-        return data.places ? data.places.map((place: any): Place => {
-            const mappedPlace: Place = {
-                id: place.id,
-                displayName: place.displayName?.text || 'Unnamed Place',
-                primaryType: place.primaryType || 'place',
-                photos: place.photos?.map((photo: any) => ({ name: photo.name })) || [],
-                formattedAddress: place.formattedAddress,
-                location: place.location,
-                primaryTypeDisplayName: place.primaryTypeDisplayName ? {
-                    text: place.primaryTypeDisplayName.text,
-                    languageCode: place.primaryTypeDisplayName.languageCode
-                } : undefined
+        if (!fromPreferences && !fromPlaceTypes) {
+            console.error('No preferences or place types provided');
+            return [];
+        }
+
+        // Use preferences if provided, otherwise use placeTypes, otherwise use defaults
+        let includedTypes: string[] = [];
+        if (fromPreferences) {
+            includedTypes = getPlaceTypesFromPreferences(preferences!);
+        } else if (fromPlaceTypes) {
+            includedTypes = placeTypes!;
+        }
+
+        console.log('Executing fetchplaces with params:', {
+            latitude,
+            longitude,
+            includedTypes,
+            maxResults,
+            fromPreferences: !!preferences?.length,
+            fromPlaceTypes: !!placeTypes?.length
+        });
+
+        // First try nearby search
+        try {
+            const requestBody = {
+                includedTypes,
+                maxResultCount: maxResults,
+                locationRestriction: {
+                    circle: {
+                        center: {
+                            latitude: latitude,
+                            longitude: longitude
+                        },
+                        radius: 20000.0 // 20km radius
+                    }
+                }
             };
 
-            return mappedPlace;
-        }) : [];
+            const headers = new Headers({
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+                'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+            });
+
+            const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(requestBody)
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.places && Array.isArray(data.places) && data.places.length > 0) {
+                    return data.places.map((place: any) => ({
+                        id: place.id,
+                        displayName: place.displayName?.text ? {
+                            text: place.displayName.text,
+                            languageCode: place.displayName.languageCode
+                        } : place.displayName,
+                        primaryType: place.primaryType || 'place',
+                        photos: place.photos?.map((photo: any) => ({ 
+                            name: photo.name
+                        })) || [],
+                        formattedAddress: place.formattedAddress,
+                        location: place.location,
+                        primaryTypeDisplayName: place.primaryTypeDisplayName ? {
+                            text: place.primaryTypeDisplayName.text,
+                            languageCode: place.primaryTypeDisplayName.languageCode
+                        } : undefined
+                    }));
+                }
+            }
+
+            const errorData = await response.text();
+            console.error('Failed to fetch places:', {
+                status: response.status,
+                statusText: response.statusText,
+                error: errorData
+            });
+        } catch (error) {
+            console.error('Error in nearby search:', error);
+        }
+
+        // If nearby search fails, try text search as fallback
+        console.log('Falling back to text search...');
+        const searchQuery = fromPlaceTypes ? placeTypes![0] : preferences![0];
+        return await searchMultiplePlacesByText(searchQuery, { latitude, longitude }, maxResults);
+
     } catch (error) {
         console.error('Error fetching places:', error);
         return [];

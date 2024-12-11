@@ -3,46 +3,66 @@ document.getElementById("trip-form").addEventListener("submit", function(e) {
     e.preventDefault();
 
     // Show loading spinner
-    document.getElementById("loadingSpinner").style.display = "flex";
+    const spinner = document.getElementById("loadingSpinner");
+    if (spinner) spinner.style.display = "flex";
 
     // Get form values
     var city = document.getElementById("destination").value;
     var startDate = document.getElementById("start-date").value.split(" to ")[0];  // Get only the start date
-    var endDate = document.getElementById("hidden-end-date").value;  // Changed from end-date to hidden-end-date
+    var endDate = document.getElementById("hidden-end-date").value;
     var language = document.getElementById("language").value;
     var budget = document.getElementById("budget").value;
     var travelPreferences = Array.from(document.querySelectorAll('input[name="travel-preference"]:checked'))
         .map(checkbox => checkbox.value);
 
+    // Debug log
+    console.log('Form values:', { city, startDate, endDate, language, budget, travelPreferences });
+
     // Validate form data
-    if (!city || !startDate || !endDate || !language || !budget) {
-        document.getElementById("loadingSpinner").style.display = "none";
-        alert('Please fill in all required fields');
+    if (!city || !startDate || !endDate || !language || !budget || travelPreferences.length === 0) {
+        if (spinner) spinner.style.display = "none";
+        alert('Please fill in all required fields and select at least one travel preference');
         return;
     }
 
-    // Create the base URL
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const chatUrl = isLocal 
-        ? 'http://localhost:3000/chat' 
-        : 'https://terrancehah.com/chat';
+    // Convert language to code format
+    const languageMap = {
+        'English': 'en',
+        'Malay (Bahasa Melayu)': 'ms',
+        'Espanol': 'es',
+        'Francais': 'fr',
+        'Deutsch': 'de',
+        'Italiano': 'it',
+        'Czech (Cestina)': 'cs',
+        'Simplified Chinese (简体中文)': 'zh-CN',
+        'Traditional Chinese (繁體中文)': 'zh-TW',
+        'Japanese (日本語)': 'ja',
+        'Korean (한国어)': 'ko'
+    };
 
-    // Build the URL with parameters
-    const url = new URL(chatUrl);
-    url.searchParams.set('city', city);
-    url.searchParams.set('startDate', startDate);
-    url.searchParams.set('endDate', endDate);
-    url.searchParams.set('language', language);
-    url.searchParams.set('budget', budget);
-    
-    // Add each preference as a separate parameter
-    travelPreferences.forEach((pref, index) => {
-        url.searchParams.append('travel-preference[]', pref);
-    });
+    try {
+        // Create the URL for the Next.js app
+        const nextJsUrl = new URL('http://localhost:3000/');
+        
+        // Add query parameters
+        nextJsUrl.searchParams.set('city', city);
+        nextJsUrl.searchParams.set('startDate', startDate);
+        nextJsUrl.searchParams.set('endDate', endDate);
+        nextJsUrl.searchParams.set('language', languageMap[language] || 'en');
+        nextJsUrl.searchParams.set('budget', budget);
+        
+        // Add travel preferences
+        travelPreferences.forEach(pref => {
+            nextJsUrl.searchParams.append('travel-preference[]', pref);
+        });
 
-    // Hide loading spinner before redirect
-    document.getElementById("loadingSpinner").style.display = "none";
+        console.log('Redirecting to:', nextJsUrl.toString());
 
-    // Redirect to chat page
-    window.location.href = url.toString();
+        // Redirect to the Next.js app
+        window.location.href = nextJsUrl.toString();
+    } catch (error) {
+        console.error('Error during form submission:', error);
+        if (spinner) spinner.style.display = "none";
+        alert('An error occurred while submitting the form. Please try again.');
+    }
 });

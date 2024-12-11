@@ -19,7 +19,9 @@ import {
     BUDGET_DESCRIPTIONS,
     PREFERENCE_ICONS,
     LANGUAGE_LABELS,
-    ComponentState
+    ComponentState,
+    ComponentTransition,
+    ComponentUpdate
 } from './types';
 
 export class AIComponentManager extends EventEmitter {
@@ -91,7 +93,44 @@ export class AIComponentManager extends EventEmitter {
     }
 
     private generateComponentId(type: ComponentType): string {
-        return `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000);
+        return `${type}-${timestamp}-${random}`;
+    }
+
+    public getActiveComponents(): ComponentState[] {
+        return Array.from(this.activeComponents)
+            .map(id => this.componentStates.get(id)!)
+            .filter(state => state.isVisible)
+            .sort((a, b) => a.order - b.order);
+    }
+
+    public updateComponent(update: ComponentUpdate): void {
+        const state = this.componentStates.get(update.id);
+        if (!state) {
+            console.warn(`No component found with id ${update.id}`);
+            return;
+        }
+
+        Object.assign(state, update.updates);
+        this.emit('componentUpdated', state);
+    }
+
+    public transitionComponent(transition: ComponentTransition): void {
+        const state = this.componentStates.get(transition.id);
+        if (!state) {
+            console.warn(`No component found with id ${transition.id}`);
+            return;
+        }
+
+        // Apply the transition
+        Object.assign(state, transition.to);
+        this.emit('componentTransitioned', {
+            id: transition.id,
+            from: transition.from,
+            to: transition.to,
+            duration: transition.duration
+        });
     }
 
     public destroy(): void {
@@ -104,89 +143,77 @@ export class AIComponentManager extends EventEmitter {
     private initializeRegistry(): Map<ComponentType, ComponentRegistration<any>> {
         const registry = new Map();
 
-        registry.set('datePicker', {
+        registry.set(ComponentType.DatePicker, {
             component: DatePicker,
             defaultProps: {
-                onUpdate: (dates: { startDate: string; endDate: string }) => {
-                    this.emit('dateUpdate', dates);
-                }
+                startDate: undefined,
+                endDate: undefined,
+                onDateChange: () => {}
             }
         });
 
-        registry.set('preferenceSelector', {
+        registry.set(ComponentType.PreferenceSelector, {
             component: PreferenceSelector,
             defaultProps: {
-                preferences: Object.keys(PREFERENCE_ICONS) as TravelPreference[],
-                preferenceIcons: PREFERENCE_ICONS,
-                onUpdate: (preferences: TravelPreference[]) => {
-                    this.emit('preferencesUpdate', preferences);
-                }
+                selectedPreferences: [],
+                onPreferenceChange: () => {}
             }
         });
 
-        registry.set('budgetSelector', {
+        registry.set(ComponentType.BudgetSelector, {
             component: BudgetSelector,
             defaultProps: {
-                options: Object.entries(BUDGET_DESCRIPTIONS).map(([value, label]) => ({
-                    value: value as BudgetLevel,
-                    label
-                })),
-                onUpdate: (budget: BudgetLevel) => {
-                    this.emit('budgetUpdate', budget);
-                }
+                selectedBudget: undefined,
+                onBudgetChange: () => {}
             }
         });
 
-        registry.set('languageSelector', {
+        registry.set(ComponentType.LanguageSelector, {
             component: LanguageSelector,
             defaultProps: {
-                languages: Object.entries(LANGUAGE_LABELS).map(([code, name]) => ({
-                    code: code as SupportedLanguage,
-                    name
-                })),
-                onUpdate: (language: SupportedLanguage) => {
-                    this.emit('languageUpdate', language);
-                }
+                selectedLanguage: undefined,
+                onLanguageChange: () => {}
             }
         });
 
-        registry.set('placeCard', {
+        registry.set(ComponentType.PlaceCard, {
             component: PlaceCard,
             defaultProps: {
-                onSelect: (place: any) => {
-                    this.emit('placeSelect', place);
-                }
+                title: '',
+                description: '',
+                imageUrl: '',
+                onClick: () => {}
             }
         });
 
-        registry.set('carousel', {
-            component: Carousel,
-            defaultProps: {
-                onPlaceSelect: (place: any) => {
-                    this.emit('placeSelect', place);
-                }
-            }
-        });
-
-        registry.set('detailsCard', {
-            component: DetailsCard,
-            defaultProps: {
-                onClose: () => {
-                    this.emit('detailsClose');
-                }
-            }
-        });
-
-        registry.set('transportSelector', {
+        registry.set(ComponentType.TransportSelector, {
             component: TransportSelector,
             defaultProps: {
-                onMethodSelect: (method: string) => {
-                    this.emit('transportUpdate', method);
-                }
+                options: [],
+                onSelect: () => {}
+            }
+        });
+
+        registry.set(ComponentType.Carousel, {
+            component: Carousel,
+            defaultProps: {
+                items: []
+            }
+        });
+
+        registry.set(ComponentType.DetailsCard, {
+            component: DetailsCard,
+            defaultProps: {
+                title: '',
+                content: null
             }
         });
 
         return registry;
+    }
+
+    public hasComponent(type: ComponentType): boolean {
+        return this.componentRegistry.has(type);
     }
 
     renderComponent<T extends ComponentType>(

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Place, getPlaceTypeDisplayName } from '../../../utils/places-utils';
 
 interface PlaceCardProps {
@@ -26,15 +26,26 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     return getPlaceTypeDisplayName(place);
   };
 
+  // Add marker to map when card is shown
+  useEffect(() => {
+    if (place?.location && window.addPlaceToMap) {
+      window.addPlaceToMap({
+        latitude: place.location.latitude,
+        longitude: place.location.longitude,
+        title: place.name,
+        place // Pass the full place object for click handling
+      });
+    }
+  }, [place]);
+
   return (
-    <div 
-      className={`place-card w-full h-min rounded-lg overflow-hidden ${className}`}
-    >
+    <div className={`place-card w-[70%] mx-auto h-min shadow-md rounded-2xl overflow-hidden ${className}`}>
+
       <div className="bg-gray-200 h-48 flex items-center justify-center">
-        {place.photos && place.photos.length > 0 ? (
+        {place.photos && place.photos[0] ? (
           <img
             src={`https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=500&maxWidthPx=400&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
-            alt={place.displayName}
+            alt={typeof place.displayName === 'string' ? place.displayName : place.displayName.text}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -43,8 +54,13 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
           </div>
         )}
       </div>
+
       <div className="p-4 bg-white">
-        <h3 className="text-lg font-bold text-gray-900">{place.displayName}</h3>
+        <h3 className="text-lg font-bold text-gray-900">
+          {typeof place.displayName === 'string' 
+            ? place.displayName 
+            : place.displayName.text}
+        </h3>
         <p className="text-sm text-gray-500 mb-3 font-medium">{getTypeDisplay()}</p>
         <p className="text-sm text-gray-600">{place.formattedAddress}</p>
       
