@@ -16,7 +16,7 @@
         "api/travel-rizz-conclusion.js": {
             "maxDuration": 60
         },
-        "api/maps-key.js": {
+        "api/maps-key.ts": {
             "maxDuration": 10
         }
     }
