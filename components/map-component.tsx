@@ -9,17 +9,13 @@ interface MapComponentProps {
 
 declare global {
     interface Window {
-        google: {
-            maps: {
-                Map: typeof google.maps.Map;
-                Geocoder: typeof google.maps.Geocoder;
-                marker: {
-                    AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement;
-                };
-                InfoWindow: typeof google.maps.InfoWindow;
-            };
-        };
         initMap: () => void;
+        currentSlide: number;
+        updateCarousel: () => void;
+        nextSlide: () => void;
+        prevSlide: () => void;
+        goToSlide: (index: number) => void;
+        google: typeof google;
         addPlaceToMap: (place: { 
             latitude: number; 
             longitude: number; 
