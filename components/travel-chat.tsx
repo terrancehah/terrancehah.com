@@ -1,23 +1,25 @@
+// components/travel-chat.tsx
+
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
 import { useChat } from 'ai/react';
 import { TravelDetails } from '../managers/types';
-import { BudgetSelector } from '@/components/travel-ui/selector-components/BudgetSelector';
-import { PreferenceSelector } from '@/components/travel-ui/selector-components/PreferenceSelector';
-import { DatePicker } from '@/components/travel-ui/selector-components/DateSelector';
-import { LanguageSelector } from '@/components/travel-ui/selector-components/LanguageSelector';
-import { PlaceCard } from '@/components/travel-ui/place-components/PlaceCard';
-import Carousel from '@/components/travel-ui/place-components/PlaceCarousel';
+import { BudgetSelector } from '@/components/selector-components/BudgetSelector';
+import { PreferenceSelector } from '@/components/selector-components/PreferenceSelector';
+import { DatePicker } from '@/components/selector-components/DateSelector';
+import { LanguageSelector } from '@/components/selector-components/LanguageSelector';
+import { PlaceCard } from '@/components/place-components/PlaceCard';
+import Carousel from '@/components/place-components/PlaceCarousel';
 import HistoricalWeatherChart from '@/components/weather/historical-weather-chart';
+import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 
 const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [currentDetails, setCurrentDetails] = useState<TravelDetails>(initialDetails);
     const [toolVisibility, setToolVisibility] = useState<Record<string, boolean>>({});
-    const [localComponent, setLocalComponent] = useState<string | null>(null);
-    const [localWeatherVisible, setLocalWeatherVisible] = useState(false);
 
     const {
         messages,
@@ -36,6 +38,10 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
             currentDetails
         }
     });
+
+    const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+
+
 
     // Scroll to bottom when new messages arrive
     useEffect(() => {
@@ -177,10 +183,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
 
     // Quick button handler - directly sends message to AI
     const handleQuickButton = async (type: string) => {
-        if (type === 'weatherChart') {
-            setLocalWeatherVisible(true);
-            return;
-        }
+        
         const message = getQuickMessage(type);
         await append({
             role: 'user',
@@ -190,85 +193,122 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
 
     return (
 
-        //Header
         <div className="flex flex-col h-[100vh]">
-            <div className="bg-white px-6 py-4 border-b border-gray-200">
-                <div className="max-w-7xl mx-auto">
 
-                    <h1 className="text-2xl font-semibold text-gray-900 mb-4">
-                        Trip to {currentDetails.destination}
-                    </h1>
-                    
-                    <div className="grid grid-cols-2 gap-x-16 gap-y-6">
-                        <div>
-                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                                </svg>
-                                Date
-                            </div>
-                            <div className="text-gray-900">{currentDetails.startDate} to {currentDetails.endDate}</div>
-                        </div>
-
-                        <div>
-                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                                </svg>
-                                Language
-                            </div>
-                            <div className="text-gray-900">{currentDetails.language}</div>
-                        </div>
+            {/* Header */}
+            <div className="bg-background border-b border-border transition-all duration-300 ease-in-out">
+                <div className=" mx-auto p-4 px-6 relative">
+                    <div 
+                        className={` transition-all duration-300 ease-in-out ${
+                            isCollapsed ? 'max-h-36' : 'max-h-[500px]'
+                        }`}
+                    >
+                        <h1 className="text-2xl font-semibold text-foreground mb-2">
+                            Trip to {currentDetails.destination}
+                        </h1>
                         
+                        {isCollapsed ? (
 
-                        <div>
-                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                </svg>
-                                Preferences
+                            // Collapsed mode
+                            <div className="flex flex-col gap-y-1.5 text-muted-foreground mb-4">
+                                
+                                {/* <div className="flex gap-x-16 text-left">
+                                    <div className="text-base">
+                                        {currentDetails.startDate} - {currentDetails.endDate}
+                                    </div>
+                                    <div className="text-base">
+                                        {currentDetails.language}
+                                    </div>
+                                    <div className="text-base">
+                                        {currentDetails.budget}
+                                    </div>
+                                </div>
+                                
+                                <div className="flex gap-x-10 text-left">
+                                    <div className="text-base">
+                                        {currentDetails.preferences?.join(', ')}
+                                    </div>
+                                    
+                                </div> */}
+                                
                             </div>
-                            <div className="text-gray-900">
-                                {currentDetails.preferences ? currentDetails.preferences.join(', ') : '-'}
-                            </div>
-                        </div>
+                        ) : (
 
-                        <div>
-                            <div className="flex items-center gap-2 text-gray-600 mb-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Budget
+                            // Expanded mode
+                            <div className="grid grid-cols-2 gap-x-16 gap-y-4">
+                                <div>
+                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                                        </svg>
+                                        Date
+                                    </div>
+                                    <div className="text-foreground">{currentDetails.startDate} to {currentDetails.endDate}</div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                                        </svg>
+                                        Language
+                                    </div>
+                                    <div className="text-foreground">{currentDetails.language}</div>
+                                </div>
+                                
+                                <div>
+                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                        </svg>
+                                        Preferences
+                                    </div>
+                                    <div className="text-foreground">
+                                        {currentDetails.preferences?.join(', ') || '-'}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Budget
+                                    </div>
+                                    <div className="text-foreground">
+                                        {currentDetails.budget || '-'}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="text-gray-900">
-                                {currentDetails.budget || '-'}
-                            </div>
-                        </div>
-
+                        )}
                     </div>
+                    <button
+                        onClick={() => setIsCollapsed(!isCollapsed)}
+                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 px-2 py-0.5 mb-2 text-gray-500 hover:text-black hover:bg-slate-200 transition-colors bg-slate-50 rounded-full duration-200 focus:outline-none"
+                        aria-label={isCollapsed ? "Expand header" : "Collapse header"}
+                    >
+                        {isCollapsed ? (
+                            <ChevronDownIcon className="h-6 w-6" />
+                        ) : (
+                            <ChevronUpIcon className="h-6 w-6" />
+                        )}
+                    </button>
                 </div>
-            </div>
+    </div>
 
+
+            {/* Chat Messages Container */}
             <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
                 <div className="flex gap-3 flex-col p-4">
-                    {error && (
-                        <div className="p-3 bg-red-50 rounded-lg">
-                            <p className="text-red-600 text-sm">{error.toString()}</p>
-                            <button 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    reload();
-                                }} 
-                                className="text-sm text-red-700 hover:text-red-800 underline"
-                            >
-                                Try Again
-                            </button>
-                        </div>
-                    )}
+                    
 
                     {messages.map((message) => {
+
                         // Filter visible tools first
                         const visibleTools = message.toolInvocations?.filter(t => toolVisibility[t.toolCallId]) || [];
+
+                        // If this message only had tools (no content) and all tools are now hidden, skip rendering
+                        if (!message.content && message.toolInvocations && message.toolInvocations.length > 0 && visibleTools.length === 0) {
+                            return null;
+                        }
                         
                         return (
                             <div key={message.id} className="w-full flex flex-col gap-3">
@@ -290,6 +330,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                                     if (state === 'result') {
                                         switch (toolName) {
                                             case 'budgetSelector':
+                                                if(!toolInvocation.result?.props) return null;
                                                 return (
                                                     <div key={toolCallId} className="flex justify-start">
                                                         <div className="w-full">
@@ -301,7 +342,9 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                                                         </div>
                                                     </div>
                                                 );
+
                                             case 'preferenceSelector':
+                                                if(!toolInvocation.result) return null;
                                                 return (
                                                     <div key={toolCallId} className="flex justify-start">
                                                         <div className="w-full">
@@ -313,7 +356,9 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                                                         </div>
                                                     </div>
                                                 );
+
                                             case 'datePicker':
+                                                if(!toolInvocation.result?.props) return null;
                                                 return (
                                                     <div key={toolCallId} className="flex justify-start">
                                                         <div className="w-full">
@@ -328,7 +373,9 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                                                         </div>
                                                     </div>
                                                 );
+
                                             case 'languageSelector':
+                                                if(!toolInvocation.result?.props) return null;
                                                 return (
                                                     <div key={toolCallId} className="flex justify-start">
                                                         <div className="w-full">
@@ -340,6 +387,54 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                                                         </div>
                                                     </div>
                                                 );
+
+                                            case 'placeCard':
+                                                if(!toolInvocation.result?.props?.place) return null;
+                                                return (
+                                                    <div key={toolCallId} className="flex justify-start">
+                                                        <div className="w-full">
+                                                            {toolInvocation.result?.props?.place && (
+                                                                <PlaceCard
+                                                                    place={toolInvocation.result.props.place}
+                                                                    showActions={false}
+                                                                    onSelect={(place) => handleToolUpdate('placeCard', { selectedPlace: place }, toolCallId, message.id)}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+
+                                            case 'carousel':
+                                                if(!toolInvocation.result?.props) return null;
+                                                return (
+                                                    <div key={toolCallId} className="flex justify-start">
+                                                        <div className="w-full">
+                                                            {toolInvocation.result?.props?.places && toolInvocation.result.props.places.length > 0 && (
+                                                                <Carousel 
+                                                                    places={toolInvocation.result.props.places}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+
+                                                case 'weatherChart':
+                                                    if(!toolInvocation.result?.props) return null;
+                                                    return (
+                                                        <div key={toolCallId} className="flex justify-start">
+                                                            <div className="w-full">
+                                                                <HistoricalWeatherChart 
+                                                                    lat={toolInvocation.result.props.lat}
+                                                                    lon={toolInvocation.result.props.lon}
+                                                                    startDate={toolInvocation.result.props.startDate}
+                                                                    endDate={toolInvocation.result.props.endDate}
+                                                                    city={toolInvocation.result.props.city}
+                                                                    units={toolInvocation.result.props.units}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    );
+
                                             default:
                                                 return null;
                                         }
@@ -355,18 +450,19 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                         );
                     })}
 
-                    {localWeatherVisible && (
-                        <div className="flex justify-start">
-                            <div className="w-full max-w-4xl mx-auto">
-                                {currentDetails.destinationLat && currentDetails.destinationLng && currentDetails.destination && (
-                                    <HistoricalWeatherChart 
-                                        lat={currentDetails.destinationLat}
-                                        lon={currentDetails.destinationLng}
-                                        city={currentDetails.destination}
-                                        units="metric"
-                                    />
-                                )}
-                            </div>
+                    {/* Error display */}
+                    {error && (
+                        <div className="p-3 bg-red-50 rounded-lg">
+                            <p className="text-red-600 text-sm">{error.toString()}</p>
+                            <button 
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    reload();
+                                }} 
+                                className="text-sm text-red-700 hover:text-red-800 underline"
+                            >
+                                Try Again
+                            </button>
                         </div>
                     )}
 
@@ -374,8 +470,11 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row gap-2.5 px-4 py-3 bg-white">
+            {/* Quick Buttons Container */}
+            <div className="flex flex-col xl:flex-row gap-2.5 px-4 py-3 bg-white">
                 <div className="flex flex-row gap-2.5">
+
+                    {/* Dates */}
                     <button
                         onClick={() => handleQuickButton('datePicker')}
                         className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
@@ -385,6 +484,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                         </svg> Dates
                     </button>
 
+                    {/* Budget */}
                     <button
                         onClick={() => handleQuickButton('budgetSelector')}
                         className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
@@ -396,6 +496,8 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                 </div>
 
                 <div className="flex flex-row gap-2.5">
+
+                    {/* Preferences */}
                     <button
                         onClick={() => handleQuickButton('preferenceSelector')}
                         className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
@@ -405,6 +507,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                         </svg> Preferences
                     </button>
 
+                    {/* Language */}
                     <button
                         onClick={() => handleQuickButton('languageSelector')}
                         className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
@@ -413,6 +516,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                         </svg> Language
                     </button>
+
 
                     <button
                         onClick={() => handleQuickButton('weatherChart')}
@@ -446,7 +550,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        className="inline-flex items-center rounded-md bg-sky-blue px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                        className="inline-flex items-center rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                     >
                         Send
                     </button>

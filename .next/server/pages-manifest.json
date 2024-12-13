@@ -1,7 +1,10 @@
 {
+  "/api/weather/historical": "pages/api/weather/historical.js",
+  "/api/chat": "pages/api/chat.js",
   "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/_error": "pages/_error.js",
   "/": "pages/index.js",
-  "/api/maps-key": "pages/api/maps-key.js"
+  "/api/maps-key": "pages/api/maps-key.js",
+  "/travel-form": "pages/travel-form.js"
 }

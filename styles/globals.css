@@ -30,7 +30,7 @@
 /* Custom components */
 @layer components {
   #backgroundVideo {
-    @apply fixed right-0 bottom-0 min-w-full min-h-full w-auto h-auto -z-10;
+    @apply fixed right-0 bottom-0 w-full h-full -z-10;
     object-fit: cover;
     opacity: 0.5;
   }

@@ -26,10 +26,19 @@ declare global {
     }
 }
 
+declare global {
+    namespace google.maps {
+        interface MarkerLibrary {
+            AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement;
+            PinElement: typeof google.maps.marker.PinElement;
+        }
+    }
+}
+
 const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
-    const [markers, setMarkers] = useState<google.maps.marker.AdvancedMarkerElement[]>([]);
+    const [markers, setMarkers] = useState<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
     const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +65,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             try {
                 // Import required libraries
                 const { Map } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
-                const { AdvancedMarkerElement } = await window.google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+                const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
                 const geocoder = new window.google.maps.Geocoder();
 
                 geocoder.geocode(
@@ -140,7 +149,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                                         window.updateCarousel = () => {
                                             const track = document.querySelector('.carousel-track');
                                             if (track) {
-                                                track.style.transform = `translateX(-${window.currentSlide * 100}%)`;
+                                                (track as HTMLElement).style.transform = `translateX(-${window.currentSlide * 100}%)`;
                                                 // Update dots
                                                 document.querySelectorAll('.carousel-dot').forEach((dot, index) => {
                                                     if (index === window.currentSlide) {
@@ -188,24 +197,24 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                             };
 
                             // Create a marker for the city
-                            const cityMarker = new AdvancedMarkerElement({
+                            const cityMarker = new google.maps.marker.AdvancedMarkerElement({
                                 map: newMap,
                                 position: location,
                                 title: city
                             });
 
                             // Add click listener to the marker
-                            cityMarker.addListener('click', () => {
+                            cityMarker.addListener('click', async () => {
                                 if (infoWindow) {
                                     const content = createCityInfoWindowContent(city, location);
                                     if (content) {
-                                        infoWindow.setContent(content);
+                                        infoWindow.setContent(await content);
                                         infoWindow.open(newMap, cityMarker);
                                     }
                                 }
                             });
 
-                            setMarkers([cityMarker]);
+                            markers.set(city, cityMarker);
                             
                             // Add click listener for future interaction
                             cityMarker.addListener('click', async () => {
@@ -240,28 +249,45 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
         window.addPlaceToMap = async (placeData) => {
             try {
-                const marker = new AdvancedMarkerElement({
-                    map: map,
+                // Import both marker and pin libraries
+                const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
+                    google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
+                    google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>
+                ]);
+
+                // Create a custom pin element
+                const pinElement = new google.maps.marker.PinElement({
+                    // background: "#FBBC04",
+                    // borderColor: "#EA4335",
+                    // glyphColor: "#000000",
+                    scale: 1
+                });
+
+                const marker = new google.maps.marker.AdvancedMarkerElement({
+                    map,
                     position: {
                         lat: placeData.latitude,
                         lng: placeData.longitude
                     },
                     title: placeData.title,
+                    content: pinElement.element,
+                    gmpDraggable: false,
                 });
 
-                // Add click listener to show InfoWindow
+                // Add click listener
                 marker.addListener('click', () => {
-                    if (infoWindow && placeData.place) {
-                        const content = createInfoWindowContent(placeData.place);
-                        infoWindow.setContent(content);
-                        infoWindow.open({
-                            anchor: marker,
-                            map,
-                        });
+                    if (placeData.place) {
+                        // Your existing click handler logic
+                        const content = createPlaceInfoWindowContent(placeData.place);
+                        if (content && infoWindow) {
+                            infoWindow.setContent(content);
+                            infoWindow.open(map, marker);
+                        }
                     }
                 });
 
-                setMarkers(prev => [...prev, marker]);
+                // Store the marker reference
+                markers.set(placeData.title || 'unnamed', marker);
             } catch (err) {
                 console.error('Error adding place marker:', err);
             }
@@ -271,7 +297,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             markers.forEach(marker => {
                 marker.setMap(null);
             });
-            setMarkers([]);
+            markers.clear();
         };
 
         return () => {
@@ -280,7 +306,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
     }, [map, infoWindow]);
 
-    const createInfoWindowContent = (place: Place) => {
+    const createPlaceInfoWindowContent = (place: Place) => {
         const photoUrl = place.photos && place.photos[0] 
             ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=200&maxWidthPx=300&key=${apiKey}`
             : '';
@@ -304,12 +330,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                     ${place.primaryTypeDisplayName 
                         ? `<div class="text-sm text-gray-600 mb-1">
                             ${place.primaryTypeDisplayName.text}
-                           </div>`
+                            </div>`
                         : ''}
                     ${place.formattedAddress 
                         ? `<p class="text-sm text-gray-500">
                             ${place.formattedAddress}
-                           </p>`
+                            </p>`
                         : ''}
                 </div>
             </div>
@@ -347,12 +373,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 </div>
             )}
             <div ref={mapRef} className="w-full h-full" />
-            {selectedPlace && (
+            {/* {selectedPlace && (
                 <SmallPlaceCard 
                     place={selectedPlace} 
                     onClose={() => setSelectedPlace(null)} 
                 />
-            )}
+            )} */}
         </div>
     );
 };

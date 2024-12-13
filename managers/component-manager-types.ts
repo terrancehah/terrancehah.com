@@ -1,9 +1,9 @@
 import { Place } from '../utils/places-utils';
 import { TravelDetails } from './types';
-import { DatePickerProps } from '../components/travel-ui/selector-components/DateSelector';
-import { PreferenceSelectorProps } from '../components/travel-ui/selector-components/PreferenceSelector';
-import { BudgetSelectorProps } from '../components/travel-ui/selector-components/BudgetSelector';
-import { LanguageSelectorProps } from '../components/travel-ui/selector-components/LanguageSelector';
+import { DatePickerProps } from '../components/selector-components/DateSelector';
+import { PreferenceSelectorProps } from '../components/selector-components/PreferenceSelector';
+import { BudgetSelectorProps } from '../components/selector-components/BudgetSelector';
+import { LanguageSelectorProps } from '../components/selector-components/LanguageSelector';
 
 export type ComponentType =
     | 'datePicker'

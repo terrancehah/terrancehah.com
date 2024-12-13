@@ -1,3 +1,5 @@
+///Users/terrancehah/Documents/terrancehah.com/ai/tools.ts
+
 import { tool as createTool } from 'ai';
 import { z } from 'zod';
 import { 
@@ -212,66 +214,65 @@ export const detailsCardTool = createTool({
     }
 });
 
-// Tool for Weather Chart
 export const weatherChartTool = createTool({
-    description: 'Display historical weather data including temperature and precipitation for a location. Since we cannot provide future weather data, we will show historical data from the same month last year. For example, if a user asks about December 2024, we will show data from December 2023. Use this when discussing weather patterns or climate for a destination.',
+    description: 'Display historical weather data including temperature and precipitation for a location.',
     parameters: z.object({
         lat: z.number().min(-90).max(90).describe('Latitude of the location'),
         lon: z.number().min(-180).max(180).describe('Longitude of the location'),
-        targetMonth: z.number().min(1).max(12).describe('Target month (1-12)'),
-        units: z.enum(['standard', 'metric', 'imperial'] as const).optional().default('metric')
+        city: z.string().describe('City name for display'),
+        startDate: z.string().describe('Trip start date in DD/MM/YYYY format'),
+        endDate: z.string().describe('Trip end date in DD/MM/YYYY format'),  // Added this param
+        units: z.enum(['us', 'uk', 'metric'] as const).optional().default('metric')
     }),
-    execute: async function ({ lat, lon, targetMonth, units = 'metric' }) {
-        // Calculate date range for the same month last year
-        const now = new Date('2024-12-11T03:04:40+08:00'); // Use provided time
-        const lastYear = now.getFullYear() - 1;
-        const startDate = new Date(lastYear, targetMonth - 1, 1);
-        const endDate = new Date(lastYear, targetMonth, 0); // Last day of the month
+    execute: async function ({ lat, lon, city, startDate, endDate, units = 'metric' }) {
+        // Parse DD/MM/YYYY dates
+        const [startDay, startMonth, startYear] = startDate.split('/').map(Number);
+        const [endDay, endMonth, endYear] = endDate.split('/').map(Number);
+        
+        // Format dates for API (YYYY-MM-DD)
+        const formattedStartDate = `${startYear}-${String(startMonth).padStart(2, '0')}-${String(startDay).padStart(2, '0')}`;
+        const formattedEndDate = `${endYear}-${String(endMonth).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`;
 
-        console.log('[weatherChartTool] Fetching weather data:', {
-            lat,
-            lon,
-            targetMonth,
-            units,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString()
+        // Calculate number of days in the range
+        const start = new Date(formattedStartDate);
+        const end = new Date(formattedEndDate);
+        const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        
+        // Calculate how many extra days we need for 30 days total
+        const extraDays = Math.max(0, 30 - daysDiff);
+        const daysToAddBefore = Math.floor(extraDays / 2);
+        const daysToAddAfter = extraDays - daysToAddBefore;
+
+        // Extend dates to get 30 days
+        start.setDate(start.getDate() - daysToAddBefore);
+        end.setDate(end.getDate() + daysToAddAfter);
+
+        // Format extended dates for API
+        const extendedStartDate = start.toISOString().split('T')[0];
+        const extendedEndDate = end.toISOString().split('T')[0];
+
+        console.log('[weatherChartTool] Date conversion:', {
+            originalDate: startDate,
+            originalEndDate: endDate,
+            formattedStartDate: extendedStartDate,
+            formattedEndDate: extendedEndDate,
+            totalDays: 30,
+            originalRange: daysDiff,
+            addedBefore: daysToAddBefore,
+            addedAfter: daysToAddAfter
         });
 
-        // Format dates in YYYY-MM-DD format as required by the API
-        const formattedStartDate = startDate.toISOString().split('T')[0];
-        const formattedEndDate = endDate.toISOString().split('T')[0];
-
-        // Fetch weather data
-        const baseUrl = typeof window === 'undefined' ? process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000' : window.location.origin;
-        const url = `${baseUrl}/api/weather/historical?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}&startDate=${formattedStartDate}&endDate=${formattedEndDate}&units=${units}`;
-        console.log('[weatherChartTool] API URL:', url);
-
-        try {
-            const response = await fetch(url);
-            console.log('[weatherChartTool] API response status:', response.status);
-            
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('[weatherChartTool] API error:', errorText);
-                throw new Error(`Failed to fetch weather data: ${response.statusText}`);
+        return {
+            type: 'weatherChart',
+            props: {
+                lat,
+                lon,
+                city,
+                startDate: extendedStartDate,
+                endDate: extendedEndDate,
+                units,
             }
-
-            const weatherData = await response.json();
-            console.log('[weatherChartTool] Weather data:', weatherData);
-
-            return {
-                type: 'weatherChart',
-                props: {
-                    lat,
-                    lon,
-                    units,
-                    initialData: weatherData
-                }
-            };
-        } catch (error) {
-            console.error('[weatherChartTool] Error:', error);
-            throw error;
-        }
+        };
     }
 });
 

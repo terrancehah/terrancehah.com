@@ -1,141 +1,156 @@
+///Users/terrancehah/Documents/terrancehah.com/components/weather/historical-weather-chart.tsx
+
 'use client';
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Bar, Line, ComposedChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart"
-import { WeatherData, WeatherChartProps } from "@/managers/types"
+import { OpenWeatherDayResponse, WeatherChartProps, WeatherResponse } from "@/managers/types"
 
 interface ChartDataPoint {
   date: string;
-  tempMax: number;
+  temp: number;
   precipitation: number;
-  monthYear: string;
 }
 
-interface OpenWeatherDayResponse {
-  date: string;
-  temperature: {
-    max: number;
-  };
-  precipitation: {
-    total: number;
-  };
-}
+export default function HistoricalWeatherChart({ lat, lon, city, startDate, endDate, units = 'metric' }: WeatherChartProps) {
+  const [weatherData, setWeatherData] = useState<ChartDataPoint[]>([]);
+  const [historicalYear, setHistoricalYear] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-// Generate sample weather data for 30 days following OpenWeather API format
-const generateWeatherData = (days: number): OpenWeatherDayResponse[] => {
-  const data: OpenWeatherDayResponse[] = []
-  const now = new Date()
-  const startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1) // Same month last year
-  
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate)
-    date.setDate(startDate.getDate() + i)
-    
-    data.push({
-      date: date.toISOString().split('T')[0],
-      temperature: {
-        max: Math.round(Math.random() * 10 + 15), // Random temperature between 15-25°C
-      },
-      precipitation: {
-        total: Math.round(Math.random() * 20), // Random precipitation between 0-20mm
-      },
-    })
-  }
-  return data
-}
+  useEffect(() => {
+    const fetchWeather = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(
+          `/api/weather/historical?lat=${lat}&lon=${lon}&startDate=${startDate}&endDate=${endDate}&units=${units}`
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to fetch weather data');
+        }
 
-// Transform API data to chart format
-const transformWeatherData = (data: OpenWeatherDayResponse[]): ChartDataPoint[] => {
-  // Get the month and year from the last date in the data
-  const lastDate = new Date(data[data.length - 1].date);
-  const monthYear = lastDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        const { data, year } = await response.json();
+        
+        // Transform API response to chart data format
+        const chartData = data.map((item: WeatherResponse) => ({
+          date: new Date(item.data.date).toLocaleDateString(),
+          temp: item.data.temperature.max,
+          precipitation: item.data.precipitation.total
+        }));
 
-  return data.map(day => ({
-    date: day.date, // Keep the full date for tooltip
-    tempMax: day.temperature.max,
-    precipitation: day.precipitation.total,
-    monthYear // Add the month-year label to be used in the chart
-  }))
-}
+        setWeatherData(chartData);
+        setHistoricalYear(year);
+      } catch (err) {
+        console.error('Weather chart error:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load weather data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-export default function HistoricalWeatherChart({ lat, lon, city, units = 'metric', initialData }: WeatherChartProps) {
-  // Use initialData if provided, otherwise use sample data for 30 days
-  const weatherData = transformWeatherData(initialData || generateWeatherData(30))
-  const monthYear = weatherData[0].monthYear
+    if (lat && lon && startDate && endDate) {
+      fetchWeather();
+    }
+  }, [lat, lon, startDate, endDate, units]);
+
+  if (loading) return <div>Loading weather data...</div>;
+  if (error) return <div>Error loading weather data: {error}</div>;
+
+  const tempUnit = units === 'us' ? '°F' : '°C';
+  const precipUnit = 'mm';
+
+  // Get the year we're showing data for
+  const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+  const formattedStartDate = dateFormatter.format(new Date(startDate));
+  const formattedEndDate = dateFormatter.format(new Date(endDate));
 
   return (
-    <Card className="w-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-lg">{city} Weather History</CardTitle>
-        <CardDescription className="text-sm">30-day historical data from {monthYear}</CardDescription>
+    <div className="w-[80%] max-w-4xl mx-auto rounded-3xl border border-gray-100 shadow-md">
+      <CardHeader>
+        <CardTitle>{city} Historical Weather</CardTitle>
+        <CardDescription>
+          from {formattedStartDate} to {formattedEndDate}, {historicalYear}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="h-[250px]">
+      <CardContent className="p-0">
+        <ChartContainer
+          config={{
+            temp: {
+              label: "Temperature",
+              color: "hsl(var(--primary))",
+            },
+            precipitation: {
+              label: "Precipitation",
+              color: "hsl(var(--blue-100))",
+            },
+          }}
+          className="h-[200px]"
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={weatherData} margin={{ top: 15, right: 30, left: 25, bottom: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" />
+            <ComposedChart
+              data={weatherData}
+              margin={{
+                top: 10,
+                right: 10,
+                bottom: 10,
+                left: 10,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" opacity={0.5} vertical={false} />
               <XAxis 
                 dataKey="date"
-                axisLine={true}
-                tickLine={false}
+                axisLine={{ stroke: 'rgb(226 232 240)' }}
                 tick={false}
-                height={30}
-                label={{ 
-                  value: monthYear,
-                  position: 'insideBottom',
-                  offset: 0,
-                  style: { textAnchor: 'middle' }
-                }}
+                tickLine={false}
               />
-              <YAxis 
+              <YAxis
                 yAxisId="temp"
                 orientation="left"
+                tickFormatter={(value) => `${value}${tempUnit}`}
                 domain={[0, 40]}
-                tick={{ fontSize: 12 }}
-                label={{ 
-                  value: 'Temperature (°C)', 
-                  angle: -90, 
-                  position: 'insideLeft',
-                  offset: 10,
-                  style: { textAnchor: 'middle' }
-                }}
+                ticks={[0, 10, 20, 30, 40]}
+                tick={{ fill: 'rgb(100 116 139)' }}
+                axisLine={{ stroke: 'rgb(226 232 240)' }}
+                tickLine={{ stroke: 'rgb(226 232 240)' }}
               />
-              <YAxis 
-                yAxisId="precip"
+              <YAxis
+                yAxisId="precipitation"
                 orientation="right"
+                tickFormatter={(value) => `${value}${precipUnit}`}
                 domain={[0, 'auto']}
-                tick={{ fontSize: 12 }}
-                label={{ 
-                  value: 'Precipitation (mm)', 
-                  angle: 90, 
-                  position: 'insideRight',
-                  offset: 10,
-                  style: { textAnchor: 'middle' }
-                }}
+                tick={{ fill: 'rgb(100 116 139)' }}
+                axisLine={{ stroke: 'rgb(226 232 240)' }}
+                tickLine={{ stroke: 'rgb(226 232 240)' }}
               />
               <ChartTooltip />
-              <Bar 
-                dataKey="precipitation" 
-                fill="#E2E8F0"  
-                yAxisId="precip"
-                name="Precipitation"
+              <Bar
+                dataKey="precipitation"
+                yAxisId="precipitation"
+                fill="rgb(219 234 254)" // bg-blue-100
                 opacity={0.7}
+                barSize={40}
               />
               <Line
-                type="monotone"
-                dataKey="tempMax"
-                stroke="#0EA5E9"  
-                strokeWidth={2.5}  
+                type="natural"
+                dataKey="temp"
                 yAxisId="temp"
-                name="Max Temperature"
+                stroke="rgb(74 136 198)" // sky-blue
+                strokeWidth={3}
                 dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+                connectNulls
               />
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </CardContent>
-    </Card>
-  )
+    </div>
+  );
 }

@@ -594,13 +594,11 @@ video {
   position: fixed;
   right: 0;
   bottom: 0;
-  min-width: 100%;
-  min-height: 100%;
-  width: auto;
-  height: auto;
+  width: 100%;
+  height: 100%;
   z-index: -1;
   -o-object-fit: cover;
-     object-fit: cover;
+  object-fit: cover;
   opacity: 0.5;
 }
 
@@ -735,6 +733,7 @@ video {
 /* Flatpickr Calendar */
 
 .flatpickr-calendar {
+  padding: 4px;
   border-radius: 0.5rem;
   border-width: 1px;
   --tw-border-opacity: 1;
@@ -2118,8 +2117,8 @@ video {
   line-height: 1.25;
 }
 
-.text-\[\#1234576\] {
-  color: #1234576;
+.text-\[\#123456\] {
+  color: #123456;
 }
 
 .text-\[\#1D3557\] {

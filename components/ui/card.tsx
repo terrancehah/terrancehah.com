@@ -12,13 +12,13 @@ export function Card({ className, ...props }: CardProps) {
 }
 
 export function CardHeader({ className, ...props }: CardProps) {
-  return <div className={`flex flex-col space-y-1.5 p-6 ${className}`} {...props} />
+  return <div className={`flex flex-col space-y-1.5 pt-4 pb-2 px-6 ${className}`} {...props} />
 }
 
 export function CardTitle({ className, ...props }: CardProps) {
   return (
     <h3
-      className={`text-2xl font-semibold leading-none tracking-tight ${className}`}
+      className={`text-lg text-gray-700 font-semibold leading-none tracking-tight ${className}`}
       {...props}
     />
   )
@@ -26,10 +26,10 @@ export function CardTitle({ className, ...props }: CardProps) {
 
 export function CardDescription({ className, ...props }: CardProps) {
   return (
-    <p className={`text-sm text-muted-foreground ${className}`} {...props} />
+    <p className={`text-md text-muted-foreground ${className}`} {...props} />
   )
 }
 
 export function CardContent({ className, ...props }: CardProps) {
-  return <div className={`p-6 pt-0 ${className}`} {...props} />
+  return <div className={`px-2 pt-0 ${className}`} {...props} />
 }

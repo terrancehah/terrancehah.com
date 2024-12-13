@@ -65,7 +65,7 @@ export default function TravelForm() {
     const city = destinationRef.current?.value || '';
     const formattedStartDate = dateRangeRef.current?.value.split(' to ')[0] || '';
     const formattedEndDate = hiddenEndDateRef.current?.value || '';
-    const language = (document.getElementById('language') as HTMLSelectElement)?.value || 'en';
+    const language = (document.getElementById('language') as HTMLSelectElement)?.value || 'English';
     const budget = (document.getElementById('budget') as HTMLSelectElement)?.value || '$$';
     
     // Get travel preferences and ensure they match the expected format
@@ -139,7 +139,7 @@ export default function TravelForm() {
         content={generatedContent}
       />
 
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen flex flex-col bg-gray-100">
         <header className="w-full inline-block relative z-50 bg-white backdrop-blur-sm">
           <div className="flex flex-col md:flex-row justify-between items-center p-2.5 sm:p-3">
             {/* Left: Title */}
@@ -178,12 +178,11 @@ export default function TravelForm() {
           </div>
         </header>
 
-        <main className="relative z-10">
-          <div className="fixed top-0 left-0 w-full h-full -z-10">
+        <main className="relative flex flex-grow z-10">
             <video 
               key={currentVideo}
               id="backgroundVideo" 
-              className="opacity-50 object-cover w-full h-full"
+              className="opacity-35 object-cover w-full h-full absolute"
               autoPlay 
               muted 
               loop
@@ -195,9 +194,8 @@ export default function TravelForm() {
               <source src={currentVideo} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
-          </div>
 
-          <form id="trip-form" onSubmit={handleSubmit} className="flex flex-col w-full mx-auto justify-center items-center">
+          <form id="trip-form" onSubmit={handleSubmit} className="flex flex-col w-full h-full my-auto mx-auto justify-center items-center">
             {/* Title and subtitle */}
             <div className="relative space-y-2 p-3 text-center w-90% lg:w-4/5 md:w-4/5 mx-auto z-2">
               <div>
@@ -215,6 +213,7 @@ export default function TravelForm() {
 
             {/* Destination, Calendar and filters */}
             <div className="flex flex-wrap w-[90%] lg:min-w-[930px] 2xl:w-[60%] relative bg-white mx-2 my-2 justify-center p-0 rounded-3xl items-center h-min shadow-all group/mainContainer">
+              
               {/* Destination div */}
               <div className="destination-input-form flex flex-col px-10 py-5 w-full lg:basis-1/2 rounded-t-3xl md:rounded-tr-none z-10 focus-within:z-20 order-1 group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all focus-within:shadow-all hover:bg-slate-200">
                 <label className="text-lg font-raleway font-semibold text-gray-700 text-left w-80 sm:w-80 md:w-[60%] lg:w-[50%] xl:w-96 px-0 py-0">
@@ -227,7 +226,7 @@ export default function TravelForm() {
                   ref={destinationRef}
                   placeholder="🔍 Search your destination here"
                   autoComplete="off"
-                  className="w-full xl:w-96 relative cursor-text text-md px-0 py-0 pt-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway"
+                  className="w-full xl:w-96 relative cursor-text text-md px-2 py-1 bg-inherit rounded-md text-gray-700 focus:border-light-blue-500 font-normal font-raleway"
                 />
               </div>
 
@@ -250,7 +249,7 @@ export default function TravelForm() {
                   name="start-date"
                   ref={dateRangeRef}
                   placeholder="📅 Select dates here"
-                  className="w-full relative cursor-pointer text-md px-0 py-0 pt-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway"
+                  className="w-full relative cursor-pointer text-md px-0 py-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway"
                   required
                 />
                 <input

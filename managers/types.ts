@@ -1,3 +1,5 @@
+///Users/terrancehah/Documents/terrancehah.com/managers/types.ts
+
 import { Message as AiMessage, JSONValue } from 'ai';
 import { Place } from '../utils/places-utils';
 import { ReactNode } from 'react';
@@ -87,10 +89,10 @@ export const LANGUAGE_LABELS: Record<SupportedLanguage, string> = {
 };
 
 export const BUDGET_OPTIONS = [
-    { value: BudgetLevel.Budget, label: 'Budget ($)', description: 'Budget-friendly options with basic amenities' },
-    { value: BudgetLevel.Moderate, label: 'Moderate ($$)', description: 'Mid-range options with good value' },
-    { value: BudgetLevel.Luxury, label: 'Luxury ($$$)', description: 'High-end options with premium services' },
-    { value: BudgetLevel.UltraLuxury, label: 'Ultra Luxury ($$$$)', description: 'Exclusive luxury experiences' }
+    { value: BudgetLevel.Budget, label: 'Budget', description: 'Budget-friendly options with basic amenities' },
+    { value: BudgetLevel.Moderate, label: 'Moderate', description: 'Mid-range options with good value' },
+    { value: BudgetLevel.Luxury, label: 'Luxury', description: 'High-end options with premium services' },
+    { value: BudgetLevel.UltraLuxury, label: 'Ultra Luxury', description: 'Exclusive luxury experiences' }
 ];
 
 export const LANGUAGE_OPTIONS = Object.entries(SupportedLanguage).map(([key, value]) => ({
@@ -265,21 +267,47 @@ export interface WeatherChartProps {
     lat: number;
     lon: number;
     city: string;
-    units?: 'standard' | 'metric' | 'imperial';
-    initialData?: WeatherData[];
+    startDate: string;
+    endDate: string;
+    units?: 'us' | 'uk' | 'metric';
 }
 
 export interface OpenWeatherDayResponse {
+    lat: number;
+    lon: number;
+    tz: string;
     date: string;
+    units: string;
+    cloud_cover: {
+    afternoon: number;
+    };
+    humidity: {
+    afternoon: number;
+    };
     precipitation: {
-        total: number;
+    total: number;
     };
     temperature: {
-        max: number;
+    min: number;
+    max: number;
+    afternoon: number;
+    night: number;
+    evening: number;
+    morning: number;
     };
+    pressure: {
+    afternoon: number;
+    };
+    wind: {
+    max: {
+        speed: number;
+        direction: number;
+    }
+    }
 }
 
-export type WeatherResponse = {
+export interface WeatherResponse {
     data: OpenWeatherDayResponse;
+    year: number;  // Add this field
     error?: string;
-};
+}

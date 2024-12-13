@@ -1,12 +1,12 @@
 import { EventEmitter } from 'events';
 import React from 'react';
-import { DatePicker } from '../components/travel-ui/selector-components/DateSelector';
-import { PreferenceSelector } from '../components/travel-ui/selector-components/PreferenceSelector';
-import { BudgetSelector } from '../components/travel-ui/selector-components/BudgetSelector';
-import { LanguageSelector } from '../components/travel-ui/selector-components/LanguageSelector';
-import { PlaceCard } from '../components/travel-ui/place-components/PlaceCard';
-import { TransportSelector } from '../components/travel-ui/transport-components/TransportSelector';
-import Carousel from '../components/travel-ui/place-components/PlaceCarousel';
+import { DatePicker } from '../components/selector-components/DateSelector';
+import { PreferenceSelector } from '../components/selector-components/PreferenceSelector';
+import { BudgetSelector } from '../components/selector-components/BudgetSelector';
+import { LanguageSelector } from '../components/selector-components/LanguageSelector';
+import { PlaceCard } from '../components/place-components/PlaceCard';
+import { TransportSelector } from '../components/transport-components/TransportSelector';
+import Carousel from '../components/place-components/PlaceCarousel';
 import DetailsCard from '../components/travel-ui/DetailsCard';
 import { 
     ComponentType,
