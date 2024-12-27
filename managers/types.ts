@@ -6,15 +6,16 @@ import { ReactNode } from 'react';
 
 export interface TravelDetails {
     destination?: string;
-    destinationLat?: number;
-    destinationLng?: number;
+    location?: {
+        latitude: number;
+        longitude: number;
+    };
     startDate?: string;
     endDate?: string;
-    budget?: BudgetLevel;
-    preferences?: TravelPreference[];
-    language?: SupportedLanguage;
+    preferences?: string[];
+    budget?: string;
+    language?: string;
     transport?: string[];
-    dining?: string[];
 }
 
 export enum ComponentType {
@@ -25,7 +26,9 @@ export enum ComponentType {
     PlaceCard = 'PlaceCard',
     TransportSelector = 'TransportSelector',
     Carousel = 'Carousel',
-    DetailsCard = 'DetailsCard'
+    DetailsCard = 'DetailsCard',
+    SavedPlacesCarousel = 'SavedPlacesCarousel',
+    QuickResponse = 'QuickResponse'
 }
 
 export enum BudgetLevel {
@@ -147,6 +150,14 @@ export interface ComponentProps {
     [ComponentType.DetailsCard]: {
         title: string;
         content: ReactNode;
+    };
+    [ComponentType.SavedPlacesCarousel]: {
+        places: Place[];
+        onDelete: (placeId: string) => void;
+    };
+    [ComponentType.QuickResponse]: {
+        responses: string[];
+        onResponseSelect: (text: string) => void;
     };
 }
 
@@ -311,3 +322,49 @@ export interface WeatherResponse {
     year: number;  // Add this field
     error?: string;
 }
+
+// Currency related types
+export interface CurrencyRate {
+    code: string;
+    name: string;
+    rate: number;
+    symbol?: string;
+}
+
+export interface CurrencyConverterProps {
+    baseCurrency?: string;
+    baseAmount?: number;
+    onAmountChange?: (amount: number) => void;
+    defaultCurrencies?: string[];
+}
+
+export interface CurrencyInfo {
+    name: string;
+    symbol: string;
+    position: 'before' | 'after';
+}
+
+export const CURRENCY_INFO: { [key: string]: CurrencyInfo } = {
+    'USD': { name: 'US Dollar', symbol: '$', position: 'before' },
+    'EUR': { name: 'Euro', symbol: '€', position: 'before' },
+    'GBP': { name: 'British Pound', symbol: '£', position: 'before' },
+    'CNY': { name: 'Chinese Yuan', symbol: '¥', position: 'before' },
+    'JPY': { name: 'Japanese Yen', symbol: '¥', position: 'before' },
+    'SGD': { name: 'Singapore Dollar', symbol: 'S$', position: 'before' },
+    'MYR': { name: 'Malaysian Ringgit', symbol: 'RM', position: 'before' },
+    'KRW': { name: 'South Korean Won', symbol: '₩', position: 'before' },
+    'AUD': { name: 'Australian Dollar', symbol: 'A$', position: 'before' },
+    'CAD': { name: 'Canadian Dollar', symbol: 'C$', position: 'before' }
+};
+
+export interface CurrencyCache {
+    timestamp: number;
+    rates: Record<string, number>;
+    baseCurrency: string;
+}
+
+export interface CurrencyApiResponse {
+    data: { [key: string]: number };
+}
+
+export const DEFAULT_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'JPY'];

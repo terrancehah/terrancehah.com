@@ -32,64 +32,93 @@ import { TravelPreference } from '../managers/types';
 // Updated preference to place types mapping based on travel-rizz.html
 export const preferenceToPlaceTypes: Record<TravelPreference, string[]> = {
     [TravelPreference.Culture]: [
-        'tourist_attraction',  // For historical sites
-        'museum',             // For museums and cultural institutions
-        'cultural_center',    // For cultural venues
-        'monument',           // For monuments and landmarks
-        'historical_landmark' // For historical places
+        'museum',
+        'cultural_center',
+        'cultural_landmark',
+        'historical_landmark',
+        'monument',
+        'art_gallery',
+        'historical_place'
     ],
     [TravelPreference.Nature]: [
         'national_park',
-        'park',
-        'tourist_attraction', // For natural attractions
+        'state_park',
+        'botanical_garden',
         'wildlife_park',
-        'botanical_garden'
+        'garden',
+        'hiking_area',
+        'wildlife_refuge'
     ],
     [TravelPreference.Food]: [
         'restaurant',
+        'fine_dining_restaurant',
         'cafe',
+        'food_court',
         'bakery',
-        'bar',
-        'fine_dining_restaurant'
+        'dessert_shop',
+        'bar_and_grill'
     ],
     [TravelPreference.Relaxation]: [
-        'shopping_mall',
-        'tourist_attraction',  // For general attractions
         'spa',
-        'department_store',
-        'store'               // For retail locations
+        'wellness_center',
+        'shopping_mall',
+        'beach',
+        'garden',
+        'plaza',
+        'yoga_studio'
     ],
     [TravelPreference.Adventure]: [
+        'adventure_sports_center',
         'amusement_park',
-        'tourist_attraction', // For adventure sites
+        'hiking_area',
         'sports_complex',
-        'sports_activity_location',
-        'hiking_area'
+        'water_park',
+        'off_roading_area',
+        'sports_activity_location'
     ],
-    [TravelPreference.Shopping]: [
-        'museum',
+    [TravelPreference.Shopping]: [ // Arts & Museum
         'art_gallery',
-        'tourist_attraction', // For art installations
+        'art_studio',
         'performing_arts_theater',
-        'cultural_center'
+        'auditorium',
+        'concert_hall',
+        'museum',
+        'opera_house'
     ]
 };
 
 // Helper function to get place types based on preferences
 export function getPlaceTypesFromPreferences(preferences: TravelPreference[]): string[] {
     try {
-        // Get unique types from all preferences
-        const types = new Set(preferences.reduce((types: string[], pref) => {
-            const placeTypes = preferenceToPlaceTypes[pref] || [];
-            return [...types, ...placeTypes];
-        }, []));
+        // Track used types to avoid repeats
+        const usedTypes = new Set<string>();
+        const resultTypes: string[] = [];
+        
+        // Process each preference
+        preferences.forEach(pref => {
+            const availableTypes = preferenceToPlaceTypes[pref]?.filter(
+                type => !usedTypes.has(type)
+            ) || [];
+            
+            // Take 2-3 random types from each preference
+            const numTypes = Math.min(Math.floor(Math.random() * 2) + 2, availableTypes.length);
+            const selectedTypes = availableTypes
+                .sort(() => Math.random() - 0.5)
+                .slice(0, numTypes);
+                
+            // Add to results and mark as used
+            selectedTypes.forEach(type => {
+                resultTypes.push(type);
+                usedTypes.add(type);
+            });
+        });
 
-        return Array.from(types);
+        return resultTypes;
     } catch (error) {
         console.error('Error getting place types from preferences:', error);
         return ['tourist_attraction']; // Default fallback
     }
-};
+}
 
 // Helper function to format primary type
 export const formatPrimaryType = (type: string): string => {

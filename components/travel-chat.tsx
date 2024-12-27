@@ -2,62 +2,261 @@
 
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { useChat } from 'ai/react';
-import { TravelDetails } from '../managers/types';
-import { BudgetSelector } from '@/components/selector-components/BudgetSelector';
-import { PreferenceSelector } from '@/components/selector-components/PreferenceSelector';
-import { DatePicker } from '@/components/selector-components/DateSelector';
-import { LanguageSelector } from '@/components/selector-components/LanguageSelector';
-import { PlaceCard } from '@/components/place-components/PlaceCard';
-import Carousel from '@/components/place-components/PlaceCarousel';
-import HistoricalWeatherChart from '@/components/weather/historical-weather-chart';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { BudgetLevel, SupportedLanguage, TravelDetails, TravelPreference, WeatherChartProps } from '../managers/types';
+import { BudgetSelector } from '../components/selector-components/BudgetSelector';
+import { PreferenceSelector } from '../components/selector-components/PreferenceSelector';
+import { DatePicker } from '../components/selector-components/DateSelector';
+import { LanguageSelector } from '../components/selector-components/LanguageSelector';
+import { PlaceCard } from '../components/place-components/PlaceCard';
+import { Carousel } from '../components/place-components/PlaceCarousel';
+import { SavedPlacesCarousel } from './place-components/SavedPlacesCarousel';
+import HistoricalWeatherChart from '../components/weather/historical-weather-chart';
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
+import { QuickResponse } from '../components/chat-components/QuickResponse';
+import ReactMarkdown from 'react-markdown';
+import { validateStageProgression, UserInteractionMetrics } from '../managers/stage-manager';
+import { CurrencyConverter } from '../components/currency/CurrencyConverter';
+import { useTravelChat } from '../hooks/useTravelChat';
+import { useTravelTools } from '../hooks/useTravelTools';
+import { Place } from '../utils/places-utils';
+import { ToolInvocation } from '../managers/types';
+import { checkInputLimits, updateStoredMetrics, getStoredMetrics } from '../utils/local-metrics';
 
-const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+interface TravelChatProps {
+    initialDetails: TravelDetails;
+    onPlaceRemoved: (placeId: string) => void;
+    currentStage: number;
+    onStageUpdate: (nextStage: number) => void;
+}
+
+// Add type for stage progress result
+interface StageProgressResult {
+    type: 'stageProgress';
+    props: {
+        nextStage: number;
+        reason: string;
+        criteria: string[];
+    };
+}
+
+export function TravelChat({ 
+    initialDetails, 
+    onPlaceRemoved, 
+    currentStage,
+    onStageUpdate 
+}: TravelChatProps) {
+    const [isCollapsed, setIsCollapsed] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [currentDetails, setCurrentDetails] = useState<TravelDetails>(initialDetails);
-    const [toolVisibility, setToolVisibility] = useState<Record<string, boolean>>({});
+    const [savedPlaces, setSavedPlaces] = useState<Place[]>([]);
+    const [userMetrics, setUserMetrics] = useState<UserInteractionMetrics>(() => {
+        return getStoredMetrics();
+    });
+
+    useEffect(() => {
+        localStorage.setItem('userMetrics', JSON.stringify(userMetrics));
+    }, [userMetrics]);
+
+    useEffect(() => {
+        const sessionKey = 'travel_session_id';
+        const currentSession = localStorage.getItem(sessionKey);
+        
+        // Only reset if no session exists
+        if (!currentSession) {
+            const newSession = Date.now().toString();
+            localStorage.setItem(sessionKey, newSession);
+            setUserMetrics(getStoredMetrics());
+        }
+    }, []);
+
+    useEffect(() => {
+        if (window.getSavedPlaces) {
+            setSavedPlaces(window.getSavedPlaces());
+        }
+    }, []);
+
+    useEffect(() => {
+        setUserMetrics(prev => ({
+            ...prev,
+            savedPlacesCount: savedPlaces.length
+        }));
+    }, [savedPlaces]);
 
     const {
         messages,
         input,
         handleInputChange,
-        handleSubmit,
         isLoading,
         error,
         reload,
         stop,
-        setMessages,
-        append
-    } = useChat({
-        api: '/api/chat',
-        body: {
-            currentDetails
-        }
+        quickResponses,
+        isQuickResponseLoading,
+        append: originalAppend,
+        setInput
+    } = useTravelChat({
+        currentDetails,
+        savedPlaces,
+        currentStage,
+        metrics: userMetrics
     });
 
-    const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
+    const append = useCallback(async (message: any, options?: any) => {
+        // Update metrics
+        const updatedMetrics = {
+            ...userMetrics,
+            totalPrompts: userMetrics.totalPrompts + 1,
+            stagePrompts: {
+                ...userMetrics.stagePrompts,
+                [currentStage]: (userMetrics.stagePrompts[currentStage] || 0) + 1
+            }
+        };
+        setUserMetrics(updatedMetrics);
+        localStorage.setItem('userMetrics', JSON.stringify(updatedMetrics));
 
+        // Append message with updated metrics
+        await originalAppend(message, {
+            ...options,
+            body: {
+                ...options?.body,
+                metrics: updatedMetrics
+            }
+        });
+    }, [originalAppend, userMetrics, currentStage]);
 
+    const {
+        toolVisibility,
+        setToolVisibility,
+        handleToolUpdate
+    } = useTravelTools({
+        currentDetails,
+        setCurrentDetails,
+        currentStage,
+        onStageUpdate,
+        userMetrics,
+        append,
+        savedPlaces
+    });
+
+    // Function to handle quick response selection
+    const handleQuickResponseSelect = useCallback(async (text: string) => {
+        if (isLoading) return;
+        
+        // Clear quick responses immediately
+        // setQuickResponses([]);
+        
+        // Append the selected response to the chat
+        await append({
+            role: 'user',
+            content: text
+        }, {
+            body: {
+                currentDetails,
+                savedPlaces,
+                currentStage,
+                metrics: userMetrics
+            }
+        });
+    }, [isLoading, append, currentDetails, savedPlaces, currentStage, userMetrics]);
+
+    // Handle message submission
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
+
+        const userMessage = {
+            role: 'user' as const,
+            content: input.trim()
+        };
+
+        console.log('[TravelChat] Submitting message:', userMessage);
+        setInput('');
+        
+        try {
+            // Check stage limits only in stage 3
+            if (currentStage === 3) {
+                const { withinStageLimit } = checkInputLimits(currentStage);
+                if (!withinStageLimit) {
+                    // Let the API handle the stage progression and upgrade prompt
+                    await append(userMessage, {
+                        body: {
+                            currentDetails,
+                            savedPlaces,
+                            currentStage,
+                            metrics: userMetrics
+                        }
+                    });
+                    return;
+                }
+            }
+
+            // Normal message flow
+            await append(userMessage, {
+                body: {
+                    currentDetails,
+                    savedPlaces,
+                    currentStage,
+                    metrics: userMetrics
+                }
+            });
+        } catch (error) {
+            console.error('[TravelChat] Error submitting message:', error);
+        }
+    };
+
+    // Add ref to track processed messages
+    const processedMessages = useRef(new Set<string>());
+
+    // Extract quick response options
+    const getQuickResponseOptions = useCallback(() => {
+        return quickResponses || [];
+    }, [quickResponses]);
+
+   // Function to check if quick responses should be shown
+    const shouldShowQuickResponses = useCallback(() => {
+        // Don't show quick responses if any parameter component is active
+        const hasActiveParameterComponent = messages.some(message => 
+            message.toolInvocations?.some(t => 
+                ['budgetSelector', 'preferenceSelector', 'datePicker', 'languageSelector'].includes(t.toolName)
+                && toolVisibility[t.toolCallId] // Check if the component is visible
+            )
+        );
+        
+        if (hasActiveParameterComponent) {
+            console.log('[QuickResponse] Hidden due to active parameter component');
+            return false;
+        }
+
+        // Show quick responses if we have valid options
+        return !isLoading && (quickResponses?.length > 0 || isQuickResponseLoading);
+    }, [messages, toolVisibility, quickResponses, isLoading, isQuickResponseLoading]);
 
     // Scroll to bottom when new messages arrive
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Display welcome message when component mounts
+    const initialMessageSent = useRef(false);
+
+    // Modified initial load effect
     useEffect(() => {
-        if (messages.length === 0) {
-            setMessages([{
-                id: 'welcome',
-                role: 'assistant',
-                content: `I'd love to help you plan your trip to ${currentDetails.destination}! How can I help you?`,
-                }]);
+        if (!initialMessageSent.current && messages.length === 0) {
+            initialMessageSent.current = true;
+            const body = {
+                currentDetails,
+                savedPlaces: window.getSavedPlaces?.() || [],
+                currentStage
+            };
+            
+            append({
+                role: 'user',
+                content: `I'm travelling to ${currentDetails.destination} from ${currentDetails.startDate} to ${currentDetails.endDate}. 
+                Can you help me plan my trip?`,
+            }, { body });
         }
-    }, []); // Empty dependency array means this runs once on mount
+    }, [currentDetails, currentStage]);
 
     // Set new tool invocations to visible
     useEffect(() => {
@@ -77,6 +276,21 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
             }));
         }
     }, [messages]);
+
+    // Add stage progression handling
+    useEffect(() => {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage?.role === 'assistant' && lastMessage.toolInvocations) {
+            lastMessage.toolInvocations.forEach((toolInvocation) => {
+                if (toolInvocation.toolName === 'stageProgress' && 'result' in toolInvocation) {
+                    const result = toolInvocation.result as StageProgressResult;
+                    if (validateStageProgress(result.props.nextStage)) {
+                        onStageUpdate(result.props.nextStage);
+                    }
+                }
+            });
+        }
+    }, [messages, onStageUpdate, currentStage]);
 
     const formatDate = (dateStr: string) => {
         if (!dateStr || dateStr.includes('undefined')) return dateStr;
@@ -99,7 +313,7 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
             case 'languageSelector':
                 return `I've set my language preference to ${value}.`;
             case 'weatherChart':
-                return "Show me the historical weather data for this location";
+                return "Thank you for the weather info.";
             default:
                 return '';
         }
@@ -130,150 +344,172 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
         }
     };
 
-    const handleToolUpdate = async (type: string, value: any, toolCallId: string, messageId: string) => {
-        // Hide the tool component immediately
-        setToolVisibility(prev => ({
-            ...prev,
-            [toolCallId]: false
-        }));
-
-        const newDetails = getUpdatedDetails(type, value);
-
-        // Update the existing message's tool result
-        setMessages(prev => prev.map(m => 
-            m.id === messageId 
-                ? {
-                    ...m,
-                    toolInvocations: m.toolInvocations?.map(t =>
-                        t.toolCallId === toolCallId
-                            ? { ...t, result: value }
-                            : t
-                    )
-                }
-                : m
-        ));
-
-        // Update state
-        setCurrentDetails(newDetails);
-
-        // Send update message to AI using append
-        await append({
-            role: 'user',
-            content: getUpdateMessage(type, value)
-        });
+    const handleRemovePlace = (placeId: string) => {
+        window.removePlaceFromMap?.(placeId);
+        onPlaceRemoved(placeId);
     };
 
-    // Helper function to get preset messages for quick buttons
-    const getQuickMessage = (type: string): string => {
-        switch (type) {
-            case 'budgetSelector':
-                return "I'd like to update my budget for the trip";
-            case 'preferenceSelector':
-                return "I want to change my travel preferences";
-            case 'datePicker':
-                return "I need to adjust my travel dates";
-            case 'languageSelector':
-                return "I want to change the language setting";
-            case 'weatherChart':
-                return "Show me the historical weather data for this location";
-            default:
-                return '';
+    // We need to wrap handleSubmit to include our body data
+    const handleMessageSubmit = async (e: React.FormEvent<HTMLFormElement>, text?: string) => {
+        e?.preventDefault();
+        if (!input && !text) return;
+
+        try {
+            // Prepare body with latest state
+            const body = {
+                currentDetails,
+                savedPlaces: window.getSavedPlaces?.() || [],
+                currentStage,
+                metrics: userMetrics
+            };
+            
+            // Send message to main chat
+            await append({
+                role: 'user',
+                content: text || input
+            }, { body });
+
+            // Clear input after sending
+            setInput('');
+        } catch (error) {
+            // Silent fail
         }
     };
 
-    // Quick button handler - directly sends message to AI
-    const handleQuickButton = async (type: string) => {
-        
-        const message = getQuickMessage(type);
-        await append({
-            role: 'user',
-            content: message,
+    // Update stage validation
+    const validateStageProgress = (nextStage: number): boolean => {
+        const validationResult = validateStageProgression(
+            currentStage,
+            nextStage,
+            currentDetails,
+            userMetrics
+        );
+
+        if (!validationResult.canProgress) {
+            return false;
+        }
+
+        return true;
+    };
+
+    // Function to check if any parameter component is active
+    const isParameterComponentActive = () => {
+        return messages.some(message => {
+            const toolInvocations = message.toolInvocations || [];
+            return toolInvocations.some(tool => {
+                const type = tool.toolName;
+                // Check if it's a parameter component type AND if it's visible in the toolVisibility state
+                return (type === 'budgetSelector' || 
+                    type === 'preferenceSelector' || 
+                    type === 'datePicker' || 
+                    type === 'languageSelector') &&
+                    toolVisibility[tool.toolCallId];
+            });
         });
     };
 
+    const mainChat = useTravelChat({
+        currentDetails,
+        savedPlaces,
+        currentStage,
+        metrics: userMetrics
+    });
+
+    useEffect(() => {
+        const handleFinish = async (message: any) => {
+            // Check for stage progression metadata
+            const stageProgressMetadata = (message as any).metadata;
+            if (stageProgressMetadata?.triggerStageProgress) {
+                onStageUpdate(stageProgressMetadata.nextStage);
+                return;
+            }
+
+            // Existing quick response logic
+            if (message.role !== 'assistant' || !message.content?.trim()) return;
+        };
+
+        // Use the append method to simulate onFinish if not directly available
+        const wrappedHandleFinish = (message: any) => {
+            handleFinish(message).catch(console.error);
+        };
+
+        // Attempt to use onFinish if available, otherwise use a workaround
+        if (typeof mainChat.onFinish === 'function') {
+            mainChat.onFinish(wrappedHandleFinish);
+        } else {
+            // Fallback to checking the last message
+            const lastMessage = mainChat.messages[mainChat.messages.length - 1];
+            if (lastMessage) {
+                wrappedHandleFinish(lastMessage);
+            }
+        }
+    }, [mainChat, currentDetails, savedPlaces, currentStage, onStageUpdate]);
+
     return (
-
-        <div className="flex flex-col h-[100vh]">
-
+        <div className="flex flex-col h-full" ref={chatContainerRef}>
             {/* Header */}
-            <div className="bg-background border-b border-border transition-all duration-300 ease-in-out">
-                <div className=" mx-auto p-4 px-6 relative">
+            <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">
+                <div className=" mx-auto p-2 px-6 relative">
                     <div 
-                        className={` transition-all duration-300 ease-in-out ${
-                            isCollapsed ? 'max-h-36' : 'max-h-[500px]'
+                        className={`transition-all duration-300 ease-in-out ${
+                            isCollapsed ? 'max-h-12' : 'max-h-[500px]'
                         }`}
                     >
-                        <h1 className="text-2xl font-semibold text-foreground mb-2">
+                        <h1 className={`font-semibold text-foreground ${isCollapsed ? 'text-lg mb-0' : 'text-lg mb-2'}`}>
                             Trip to {currentDetails.destination}
                         </h1>
                         
                         {isCollapsed ? (
 
                             // Collapsed mode
-                            <div className="flex flex-col gap-y-1.5 text-muted-foreground mb-4">
-                                
-                                {/* <div className="flex gap-x-16 text-left">
-                                    <div className="text-base">
-                                        {currentDetails.startDate} - {currentDetails.endDate}
-                                    </div>
-                                    <div className="text-base">
-                                        {currentDetails.language}
-                                    </div>
-                                    <div className="text-base">
-                                        {currentDetails.budget}
-                                    </div>
-                                </div>
-                                
-                                <div className="flex gap-x-10 text-left">
-                                    <div className="text-base">
-                                        {currentDetails.preferences?.join(', ')}
-                                    </div>
-                                    
-                                </div> */}
-                                
+                            <div className="flex flex-col gap-y-1.5 text-muted-foreground">
+                                {/* Keeping this empty as requested */}
                             </div>
                         ) : (
 
                             // Expanded mode
                             <div className="grid grid-cols-2 gap-x-16 gap-y-4">
+
+                                {/* Date */}
                                 <div>
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
                                         </svg>
                                         Date
                                     </div>
-                                    <div className="text-foreground">{currentDetails.startDate} to {currentDetails.endDate}</div>
+                                    <div className="text-foreground text-sm">{currentDetails.startDate} to {currentDetails.endDate}</div>
                                 </div>
+
                                 <div>
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                                         </svg>
                                         Language
                                     </div>
-                                    <div className="text-foreground">{currentDetails.language}</div>
+                                    <div className="text-foreground text-sm">{currentDetails.language}</div>
                                 </div>
                                 
                                 <div>
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                                         </svg>
                                         Preferences
                                     </div>
-                                    <div className="text-foreground">
+                                    <div className="text-foreground text-sm">
                                         {currentDetails.preferences?.join(', ') || '-'}
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         Budget
                                     </div>
-                                    <div className="text-foreground">
+                                    <div className="text-foreground text-sm">
                                         {currentDetails.budget || '-'}
                                     </div>
                                 </div>
@@ -292,243 +528,300 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                         )}
                     </button>
                 </div>
-    </div>
-
+            </div>
 
             {/* Chat Messages Container */}
-            <div className="flex-1 overflow-y-auto" ref={chatContainerRef}>
-                <div className="flex gap-3 flex-col p-4">
-                    
+            <div 
+                ref={chatContainerRef}
+                className={`flex-grow overflow-y-auto py-4 transition-all duration-300 ease-in-out 
+                }`}
+            >
+                <div className="space-y-4 px-4">
+                    {messages.map((message, index) => (
+                        <div key={index} className="w-full flex flex-col gap-3">
+                            {/* Message content */}
+                            {message.content && (
+                                <div key={`content-${message.id || index}`} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`${
+                                        message.role === 'user' 
+                                            ? 'bg-blue-500 text-white rounded-br-none w-min min-w-[35%]' 
+                                            : 'bg-gray-200 text-gray-700 rounded-bl-none w-[75%]'
+                                    } rounded-2xl px-4 py-2 max-w-[75%]`}>
+                                        <ReactMarkdown 
+                                            className="prose max-w-none"
+                                            components={{
+                                                h1: ({node, ...props}) => <h1 className="text-lg font-bold" {...props} />,
+                                                h2: ({node, ...props}) => <h2 className="text-base font-semibold" {...props} />,
+                                                h3: ({node, ...props}) => <h3 className="text-sm font-medium" {...props} />,
+                                                p: ({node, ...props}) => <p className="text-sm" {...props} />,
+                                                ul: ({node, ...props}) => <ul className="list-disc ml-4 mb-1" {...props} />,
+                                                li: ({node, ...props}) => <li className="text-sm mb-0.5" {...props} />,
+                                            }}
+                                        >
+                                            {message.content}
+                                        </ReactMarkdown>
+                                    </div>
+                                </div>
+                            )}
+                            {message.toolInvocations?.map((toolInvocation, index) => {
+                                const { toolName, toolCallId, state } = toolInvocation;
 
-                    {messages.map((message) => {
+                                // Only render if the tool is visible in toolVisibility state
+                                if (!toolVisibility[toolCallId]) return null;
 
-                        // Filter visible tools first
-                        const visibleTools = message.toolInvocations?.filter(t => toolVisibility[t.toolCallId]) || [];
+                                if (state === 'result') {
+                                    switch (toolName) {
+                                        case 'budgetSelector':
+                                            if(!toolInvocation.result?.props) return null;
+                                            const budgetProps = toolInvocation.result.props as { currentBudget: BudgetLevel };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <BudgetSelector 
+                                                            currentBudget={budgetProps.currentBudget}
+                                                            onUpdate={(budget) => {
+                                                                const result = {
+                                                                    type: 'budgetSelector',
+                                                                    props: { currentBudget: budget }
+                                                                };
+                                                                handleToolUpdate({ 
+                                                                    toolInvocations: [{
+                                                                        toolCallId,
+                                                                        toolName,
+                                                                        result
+                                                                    }]
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
 
-                        // If this message only had tools (no content) and all tools are now hidden, skip rendering
-                        if (!message.content && message.toolInvocations && message.toolInvocations.length > 0 && visibleTools.length === 0) {
-                            return null;
-                        }
-                        
-                        return (
-                            <div key={message.id} className="w-full flex flex-col gap-3">
-                                {message.content && (
-                                    <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`${
-                                            message.role === 'user' 
-                                                ? 'bg-blue-500 text-white rounded-br-none' 
-                                                : 'bg-gray-200 text-gray-700 rounded-bl-none'
-                                        } rounded-2xl px-4 py-2 max-w-[80%]`}>
-                                            <p>{message.content}</p>
+                                        case 'preferenceSelector':
+                                            if(!toolInvocation.result?.props) return null;
+                                            const prefProps = toolInvocation.result.props as { currentPreferences: TravelPreference[] };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        {toolVisibility[toolCallId] && (
+                                                            <PreferenceSelector 
+                                                                currentPreferences={prefProps.currentPreferences}
+                                                                onUpdate={(preferences) => {
+                                                                    const result = {
+                                                                        type: 'preferenceSelector',
+                                                                        props: { currentPreferences: preferences }
+                                                                    };
+                                                                    handleToolUpdate({ 
+                                                                        toolInvocations: [{
+                                                                            toolCallId,
+                                                                            toolName,
+                                                                            result
+                                                                        }]
+                                                                    });
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'datePicker':
+                                            if(!toolInvocation.result?.props) return null;
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <DatePicker 
+                                                            dates={{
+                                                                startDate: currentDetails.startDate || '',
+                                                                endDate: currentDetails.endDate || ''
+                                                            }}
+                                                            onUpdate={(dates) => {
+                                                                const result = {
+                                                                    type: 'datePicker',
+                                                                    props: dates
+                                                                };
+                                                                handleToolUpdate({ 
+                                                                    toolInvocations: [{
+                                                                        toolCallId,
+                                                                        toolName,
+                                                                        result
+                                                                    }]
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'languageSelector':
+                                            if(!toolInvocation.result?.props) return null;
+                                            const langProps = toolInvocation.result.props as { currentLanguage: SupportedLanguage };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <LanguageSelector 
+                                                            currentLanguage={langProps.currentLanguage}
+                                                            onUpdate={(language) => {
+                                                                const result = {
+                                                                    type: 'languageSelector',
+                                                                    props: { currentLanguage: language }
+                                                                };
+                                                                handleToolUpdate({ 
+                                                                    toolInvocations: [{
+                                                                        toolCallId,
+                                                                        toolName,
+                                                                        result
+                                                                    }]
+                                                                });
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'placeCard':
+                                            if(!toolInvocation.result?.props?.place) return null;
+                                            const placeProps = toolInvocation.result.props as { place: Place };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        {placeProps.place && (
+                                                            <PlaceCard
+                                                                place={placeProps.place}
+                                                                showActions={false}
+                                                                onSelect={() => {}}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'carousel':
+                                            if(!toolInvocation.result?.props?.places) return null;
+                                            const carouselProps = toolInvocation.result.props as { places: Place[] };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        {carouselProps.places.length > 0 && (
+                                                            <Carousel 
+                                                                places={carouselProps.places}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'weatherChart':
+                                            if(!toolInvocation.result?.props) return null;
+                                            const weatherProps = toolInvocation.result.props as unknown as WeatherChartProps;
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <HistoricalWeatherChart 
+                                                            {...weatherProps}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'currencyConverter':
+                                            if (!toolInvocation.result?.props) return null;
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <CurrencyConverter 
+                                                            {...toolInvocation.result.props}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        case 'savedPlacesCarousel':
+                                            if(!toolInvocation.result?.props?.savedPlaces) return null;
+                                            const savedPlacesProps = toolInvocation.result.props as { savedPlaces: Place[] };
+                                            return (
+                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                    <div className="w-full">
+                                                        <SavedPlacesCarousel
+                                                            places={savedPlacesProps.savedPlaces}
+                                                            onRemove={(placeId: string) => {
+                                                                onPlaceRemoved(placeId);
+                                                                if (window.removePlaceFromMap) {
+                                                                    window.removePlaceFromMap(placeId);
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+
+                                        default:
+                                            return null;
+                                    }
+                                } else {
+                                    return (
+
+                                        // AI Response Component Loading Placeholder
+                                        <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                            <div className="relative overflow-hidden min-w-[200px] 
+                                            before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r 
+                                            before:from-blue-200 before:via-purple-300 before:to-pink-200 
+                                            before:animate-gradient-x before:bg-[length:200%_100%] after:absolute after:inset-0 
+                                            after:bg-white after:opacity-70 after:z-[1] shadow-sm
+                                            text-secondary rounded-2xl rounded-bl-none px-4 py-2 max-w-[75%]">
+                                                <div className="relative z-[2]">
+                                                    <span className="inline-flex items-center gap-1 text-sky-blue">
+                                                        <span className="text-sm">Travel-Rizz is thinking</span>
+                                                        <span className="animate-[pulse_1.2s_ease-in-out_infinite]">.</span>
+                                                        <span className="animate-[pulse_1.2s_ease-in-out_infinite_400ms]">.</span>
+                                                        <span className="animate-[pulse_1.2s_ease-in-out_infinite_800ms]">.</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                    );
+                                }
+                            })}
+                            
+                            {isLoading && message.id === messages[messages.length - 1].id && (
+                                // AI Response Message Loading Placeholder
+                                <div key={`loading-${message.id}`} className="flex justify-start">
+                                    <div className="relative overflow-hidden min-w-[200px] 
+                                            before:absolute before:inset-0 before:z-0 before:bg-gradient-to-r 
+                                            before:from-blue-300 before:via-purple-400 before:to-pink-300 before: to-orange-400
+                                            before:animate-gradient-x before:bg-[length:200%_100%] after:absolute after:inset-0 
+                                            after:bg-white after:opacity-70 after:z-[1] shadow-sm
+                                            text-secondary rounded-2xl rounded-bl-none px-4 py-2 max-w-[75%]">
+                                        <div className="relative z-[2]">
+                                            <span className="inline-flex items-center gap-1 text-sky-blue">
+                                                <span className="text-sm">Travel-Rizz is thinking</span>
+                                                <span className="animate-[pulse_1.2s_ease-in-out_infinite]">.</span>
+                                                <span className="animate-[pulse_1.2s_ease-in-out_infinite_400ms]">.</span>
+                                                <span className="animate-[pulse_1.2s_ease-in-out_infinite_800ms]">.</span>
+                                            </span>
                                         </div>
                                     </div>
-                                )}
-
-                                {visibleTools.map((toolInvocation) => {
-                                    const { toolName, toolCallId, state } = toolInvocation;
-
-                                    if (state === 'result') {
-                                        switch (toolName) {
-                                            case 'budgetSelector':
-                                                if(!toolInvocation.result?.props) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            <BudgetSelector 
-                                                                {...toolInvocation.result.props}
-                                                                budget={currentDetails.budget}
-                                                                onUpdate={(value) => handleToolUpdate('budgetSelector', value, toolCallId, message.id)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                            case 'preferenceSelector':
-                                                if(!toolInvocation.result) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            <PreferenceSelector 
-                                                                {...toolInvocation.result.props}
-                                                                currentPreferences={currentDetails.preferences}
-                                                                onUpdate={(value) => handleToolUpdate('preferenceSelector', value, toolCallId, message.id)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                            case 'datePicker':
-                                                if(!toolInvocation.result?.props) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            <DatePicker 
-                                                                {...toolInvocation.result.props}
-                                                                dates={{
-                                                                    startDate: currentDetails.startDate,
-                                                                    endDate: currentDetails.endDate
-                                                                }}
-                                                                onUpdate={(value) => handleToolUpdate('datePicker', value, toolCallId, message.id)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                            case 'languageSelector':
-                                                if(!toolInvocation.result?.props) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            <LanguageSelector 
-                                                                {...toolInvocation.result.props}
-                                                                language={currentDetails.language}
-                                                                onUpdate={(value) => handleToolUpdate('languageSelector', value, toolCallId, message.id)}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                            case 'placeCard':
-                                                if(!toolInvocation.result?.props?.place) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            {toolInvocation.result?.props?.place && (
-                                                                <PlaceCard
-                                                                    place={toolInvocation.result.props.place}
-                                                                    showActions={false}
-                                                                    onSelect={(place) => handleToolUpdate('placeCard', { selectedPlace: place }, toolCallId, message.id)}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                            case 'carousel':
-                                                if(!toolInvocation.result?.props) return null;
-                                                return (
-                                                    <div key={toolCallId} className="flex justify-start">
-                                                        <div className="w-full">
-                                                            {toolInvocation.result?.props?.places && toolInvocation.result.props.places.length > 0 && (
-                                                                <Carousel 
-                                                                    places={toolInvocation.result.props.places}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-
-                                                case 'weatherChart':
-                                                    if(!toolInvocation.result?.props) return null;
-                                                    return (
-                                                        <div key={toolCallId} className="flex justify-start">
-                                                            <div className="w-full">
-                                                                <HistoricalWeatherChart 
-                                                                    lat={toolInvocation.result.props.lat}
-                                                                    lon={toolInvocation.result.props.lon}
-                                                                    startDate={toolInvocation.result.props.startDate}
-                                                                    endDate={toolInvocation.result.props.endDate}
-                                                                    city={toolInvocation.result.props.city}
-                                                                    units={toolInvocation.result.props.units}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    );
-
-                                            default:
-                                                return null;
-                                        }
-                                    } else {
-                                        return (
-                                            <div key={toolCallId}>
-                                                <div>Loading {toolName}...</div>
-                                            </div>
-                                        );
-                                    }
-                                })}
-                            </div>
-                        );
-                    })}
-
-                    {/* Error display */}
-                    {error && (
-                        <div className="p-3 bg-red-50 rounded-lg">
-                            <p className="text-red-600 text-sm">{error.toString()}</p>
-                            <button 
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    reload();
-                                }} 
-                                className="text-sm text-red-700 hover:text-red-800 underline"
-                            >
-                                Try Again
-                            </button>
+                                </div>
+                            )}
                         </div>
-                    )}
-
+                    ))}
                     <div ref={messagesEndRef} />
                 </div>
             </div>
 
-            {/* Quick Buttons Container */}
-            <div className="flex flex-col xl:flex-row gap-2.5 px-4 py-3 bg-white">
-                <div className="flex flex-row gap-2.5">
-
-                    {/* Dates */}
-                    <button
-                        onClick={() => handleQuickButton('datePicker')}
-                        className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                        </svg> Dates
-                    </button>
-
-                    {/* Budget */}
-                    <button
-                        onClick={() => handleQuickButton('budgetSelector')}
-                        className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg> Budget
-                    </button>
+            {/* Quick responses section - Now outside the chat container */}
+            {shouldShowQuickResponses() && (
+                <div className="px-4 py-2 border-gray-100">
+                    <QuickResponse
+                        responses={getQuickResponseOptions()}
+                        onResponseSelect={handleQuickResponseSelect}
+                        isLoading={isQuickResponseLoading}
+                    />
                 </div>
+            )}
 
-                <div className="flex flex-row gap-2.5">
-
-                    {/* Preferences */}
-                    <button
-                        onClick={() => handleQuickButton('preferenceSelector')}
-                        className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg> Preferences
-                    </button>
-
-                    {/* Language */}
-                    <button
-                        onClick={() => handleQuickButton('languageSelector')}
-                        className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                        </svg> Language
-                    </button>
-
-
-                    <button
-                        onClick={() => handleQuickButton('weatherChart')}
-                        className="flex px-3 py-2 text-sm text-gray-600 hover:text-gray-900 bg-light-blue hover:bg-blue-200 hover:shadow-sm rounded-2xl transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                        </svg> Weather
-                    </button>
-                </div>
-            </div>
-
+            {/* Chat Input Container */}
             <div className="border-t border-gray-200 px-4 py-4 sm:mb-0 bg-white">
                 <form onSubmit={handleSubmit} className="flex space-x-4">
                     <input
@@ -539,14 +832,14 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                         className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         disabled={isLoading}
                     />
-                    {isLoading && (
+                    {/* {isLoading && (
                         <button
                             onClick={stop}
                             className="inline-flex items-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                         >
                             Stop
                         </button>
-                    )}
+                    )} */}
                     <button
                         type="submit"
                         disabled={isLoading}
@@ -557,6 +850,21 @@ const TravelChat = ({ initialDetails }: { initialDetails: TravelDetails }) => {
                     
                 </form>
             </div>
+
+            {/* Saved Places Carousel
+            {savedPlaces && savedPlaces.length > 0 && (
+                <div className="mt-4">
+                    <SavedPlacesCarousel
+                        places={savedPlaces}
+                        onRemove={(placeId: string) => {
+                            onPlaceRemoved(placeId);
+                            if (window.removePlaceFromMap) {
+                                window.removePlaceFromMap(placeId);
+                            }
+                        }}
+                    />
+                </div>
+            )} */}
         </div>
     );
 };

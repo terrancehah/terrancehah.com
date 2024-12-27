@@ -1,11 +1,11 @@
-///Users/terrancehah/Documents/terrancehah.com/ai/tools.ts
-
-import { tool as createTool } from 'ai';
+import { tool as createTool, ToolExecutionOptions } from 'ai';
 import { z } from 'zod';
 import { 
     TravelPreference,
     BudgetLevel,
-    SupportedLanguage
+    SupportedLanguage,
+    ComponentType,
+    TravelDetails
 } from '../managers/types';
 import { 
     fetchPlaces,
@@ -13,6 +13,8 @@ import {
     searchMultiplePlacesByText,
     Place
 } from '../utils/places-utils';
+import { validateStageProgression } from '../managers/stage-manager';
+import { getCurrencyFromCountry } from '../utils/currency-utils';
 
 // Standardized Tool Response interfaces
 export interface ToolResponse<T = Record<string, unknown>> {
@@ -37,7 +39,7 @@ export const budgetSelectorTool = createTool({
         return {
             type: 'budgetSelector',
             props: {
-                currentBudget
+                currentBudget: currentBudget as BudgetLevel
             }
         };
     }
@@ -53,7 +55,7 @@ export const preferenceSelectorTool = createTool({
         return {
             type: 'preferenceSelector',
             props: {
-                currentPreferences
+                currentPreferences: currentPreferences as TravelPreference[]
             }
         };
     }
@@ -70,10 +72,9 @@ export const datePickerTool = createTool({
         return {
             type: 'datePicker',
             props: {
-                dates: {
-                    startDate,
-                    endDate
-                }
+                startDate,
+                endDate,
+                onUpdate: () => {}
             }
         };
     }
@@ -111,7 +112,7 @@ export const transportSelectorTool = createTool({
 
 // Tool for Place Display
 export const placeCardTool = createTool({
-    description: 'Display information about one specific place. Use this whenever the user explicitly asks for ONE place, whether by name or type (e.g., "show me one theatre", "show me one restaurant", "show me The Little Mermaid statue").',
+    description: 'Display information about one specific place. Use this whenever the user explicitly asks for ONE place, whether by name or type (e.g., \"show me one theatre\", \"show me one restaurant\", \"show me The Little Mermaid statue\").',
     parameters: z.object({
         searchText: z.string().describe('The name or description of the place to search for'),
         location: z.object({
@@ -127,22 +128,21 @@ export const placeCardTool = createTool({
                 console.error('No place found for search text:', searchText);
                 return {
                     type: 'placeCard',
-                    props: { place: null, showActions: false }
+                    props: { place: null }
                 };
             }
 
             return {
                 type: 'placeCard',
                 props: { 
-                    place,
-                    showActions: false 
+                    place
                 }
             };
         } catch (error) {
             console.error('Error searching for place:', error);
             return {
                 type: 'placeCard',
-                props: { place: null, showActions: false }
+                props: { place: null }
             };
         }
     }
@@ -150,29 +150,37 @@ export const placeCardTool = createTool({
 
 // Tool for Place Carousel
 export const carouselTool = createTool({
-    description: 'Display multiple places in a carousel. Use this when the user wants to search for multiple places (e.g., "show me cafes", "show me museums near me", "find restaurants").',
+    description: 'Display multiple places in a carousel based on preferences or specific place types and automatically save them into savedPlaces.',
     parameters: z.object({
-        searchText: z.string().describe('The search query for places (e.g., "cafes", "museums", "restaurants")'),
+        preferences: z.array(z.nativeEnum(TravelPreference)).optional(), // Changed to array
+        placeType: z.string().optional().describe('Specific place type to search for'),
         location: z.object({
             latitude: z.number(),
             longitude: z.number()
         }),
         maxResults: z.number().optional().default(5)
     }),
-    execute: async function ({ searchText, location, maxResults }) {
+    execute: async function ({ preferences, placeType, location, maxResults }) {
         try {
-            const places = await searchMultiplePlacesByText(
-                searchText,
-                location,
-                maxResults
-            );
-
-            if (!places || places.length === 0) {
-                console.error('No places found for search:', { searchText });
-                return {
-                    type: 'carousel',
-                    props: { places: [] }
-                };
+            let places: Place[] = [];
+            
+            if (preferences && preferences.length > 0) {
+                // Use our existing function to get places by preference
+                places = await fetchPlaces(
+                    location.latitude,
+                    location.longitude,
+                    preferences,
+                    maxResults
+                );
+            } else if (placeType) {
+                // Search by specific place type
+                places = await fetchPlaces(
+                    location.latitude,
+                    location.longitude,
+                    undefined,
+                    maxResults,
+                    [placeType]
+                );
             }
 
             return {
@@ -180,7 +188,7 @@ export const carouselTool = createTool({
                 props: { places }
             };
         } catch (error) {
-            console.error('Error searching places for carousel:', error);
+            console.error('Error in carousel tool:', error);
             return {
                 type: 'carousel',
                 props: { places: [] }
@@ -221,7 +229,7 @@ export const weatherChartTool = createTool({
         lon: z.number().min(-180).max(180).describe('Longitude of the location'),
         city: z.string().describe('City name for display'),
         startDate: z.string().describe('Trip start date in DD/MM/YYYY format'),
-        endDate: z.string().describe('Trip end date in DD/MM/YYYY format'),  // Added this param
+        endDate: z.string().describe('Trip end date in DD/MM/YYYY format'),
         units: z.enum(['us', 'uk', 'metric'] as const).optional().default('metric')
     }),
     execute: async function ({ lat, lon, city, startDate, endDate, units = 'metric' }) {
@@ -276,6 +284,152 @@ export const weatherChartTool = createTool({
     }
 });
 
+export const savedPlacesCarouselTool = createTool({
+    parameters: z.object({
+        savedPlaces: z.array(z.object({
+            id: z.string(),
+            displayName: z.union([
+                z.object({
+                    text: z.string(),
+                    languageCode: z.string()
+                }),
+                z.string()
+            ]),
+            primaryType: z.string(),
+            location: z.object({
+                latitude: z.number(),
+                longitude: z.number()
+            }),
+            formattedAddress: z.string(),
+            photos: z.array(z.object({
+                name: z.string()
+            })).optional(),
+            primaryTypeDisplayName: z.object({
+                text: z.string(),
+                languageCode: z.string()
+            }).optional()
+        }))  
+    }),
+    execute: async function ({ savedPlaces }) {
+        console.log('Debug - Tool execution received savedPlaces:', savedPlaces);
+        return {
+            type: 'savedPlacesCarousel',
+            props: { places: savedPlaces }  // Transform here for component compatibility
+        };
+    }
+});
+
+// Simplify the stage progress tool to only include nextStage
+export const stageProgressTool = createTool({
+    description: 'Update the current planning stage only when certain criteria are met.',
+    parameters: z.object({
+        nextStage: z.number().min(1).max(5),
+        currentStage: z.number().min(1).max(5),
+        travelDetails: z.any(),
+        metrics: z.object({
+            totalPrompts: z.number(),
+            savedPlacesCount: z.number(),
+            isPaid: z.boolean()
+        })
+    }),
+    execute: async function({ nextStage, currentStage, travelDetails, metrics }) {
+        // console.log('[StageProgressTool] Executing:', { nextStage, currentStage, metrics });
+        
+        const validationResult = validateStageProgression(
+            currentStage,
+            nextStage,
+            travelDetails,
+            metrics
+        );
+
+        if (!validationResult.canProgress) {
+            console.log('[StageProgressTool] Validation failed:', validationResult.missingRequirements);
+            return {
+                type: 'stageProgress',
+                status: 'error',
+                props: { 
+                    nextStage: currentStage,
+                    error: `Cannot progress to stage ${nextStage}. Missing requirements: ${validationResult.missingRequirements.join(', ')}`
+                }
+            };
+        }
+
+        return {
+            type: 'stageProgress',
+            status: 'success',
+            props: { nextStage }
+        };
+    }
+});
+
+// Tool for Quick Response
+export const quickResponseTool = createTool({
+    description: `Present users with exactly 3 contextually relevant quick response options.
+    
+    CRITICAL RULES:
+    1. YOU MUST ALWAYS RETURN EXACTLY 3 OPTIONS - NO EXCEPTIONS
+    2. Keep options concise and action-oriented
+    3. Options must make sense as natural chat responses
+    4. Each option should be 2-6 words
+    
+    Stage-specific guidelines:
+    Stage 1: Focus on parameter updates (e.g., \"Update my travel dates\", \"Change my budget\")
+    Stage 2: Focus on city info (e.g., \"Check the weather\", \"See currency rates\")
+    Stage 3: Focus on places (e.g., \"Show me museums\", \"Find restaurants\")
+    Stage 4: Focus on itinerary (e.g., \"Add more activities\", \"Review the plan\")
+    Stage 5: Focus on completion (e.g., \"Download itinerary\", \"Share with friends\")`,
+    parameters: z.object({
+        responses: z.array(z.string()).length(3).describe('Exactly 3 quick response options')
+    }),
+    execute: async function ({ responses }) {
+        // console.log('[QuickResponse Tool] Executing with responses:', responses);
+
+        if (!Array.isArray(responses) || responses.length !== 3) {
+            console.error('[QuickResponse Tool] Invalid responses:', responses);
+            throw new Error('Must provide exactly 3 responses');
+        }
+
+        // Validate each response
+        responses.forEach((response, index) => {
+            if (!response || typeof response !== 'string' || response.trim().length === 0) {
+                throw new Error(`Invalid response at index ${index}`);
+            }
+        });
+
+        console.log('[QuickResponse Tool] Returning valid responses');
+        
+        return {
+            type: 'quickResponse',
+            props: { responses }
+        };
+    }
+});
+
+// Tool for Currency Conversion
+export const currencyConverterTool = createTool({
+    description: 'Display currency conversion rates for the destination country. Use this when discussing costs, budgets, or when the user wants to understand currency exchange rates.',
+    parameters: z.object({
+        amount: z.number().optional().describe('Amount to convert in the destination currency'),
+        destination: z.string().describe('Destination country or city')
+    }),
+    execute: async function ({ amount = 100, destination }) {
+        if (!destination) {
+            throw new Error('Destination is required for currency conversion');
+        }
+
+        const baseCurrency = getCurrencyFromCountry(destination);
+        
+        return {
+            type: 'currencyConverter',
+            props: {
+                baseCurrency,
+                baseAmount: amount,
+                defaultCurrencies: ['USD', 'EUR', 'GBP', 'CNY', 'JPY']
+            }
+        };
+    }
+});
+
 // Export all tools with their names
 export const tools = {
     budgetSelector: budgetSelectorTool,
@@ -286,5 +440,9 @@ export const tools = {
     placeCard: placeCardTool,
     carousel: carouselTool,
     detailsCard: detailsCardTool,
-    weatherChart: weatherChartTool
+    weatherChart: weatherChartTool,
+    savedPlacesCarousel: savedPlacesCarouselTool,
+    stageProgress: stageProgressTool,
+    quickResponse: quickResponseTool,
+    currencyConverter: currencyConverterTool
 };

@@ -1,0 +1,71 @@
+ROLE: Next.js Technical Expert
+EXPERTISE: Next.js 15+, React 19, TypeScript, Performance Optimization
+FOCUS: Travel Planning Web Application Architecture
+DATE: December 2024
+
+PROJECT RULES:
+
+Core Architecture:
+- Implement Turbopack for faster development server startup
+- Use Hybrid Rendering with Partial Prerendering for optimal performance
+- Enforce TypeScript throughout the application
+- Implement code splitting using dynamic imports for components
+- Leverage React Server Components where possible
+
+State Management:
+- Use React hooks for local state (useState, useEffect)
+- Implement session storage for data persistence
+- Use refs for performance-critical real-time updates
+- Apply context API for global state when needed
+- Handle async state with proper loading/error states
+
+Components Structure:
+- Build modular, reusable components
+- Keep presentational and container components separate
+- Use dynamic imports for heavy components
+- Implement error boundaries for component-level error handling
+- Follow atomic design principles for component hierarchy
+
+Performance:
+- Enable Partial Prerendering for static/dynamic content mix
+- Implement image optimization using next/image
+- Use next/font for optimized font loading
+- Apply lazy loading for below-fold content
+- Minimize client-side JavaScript with Server Components
+
+API Integration:
+- Use Server Actions for form submissions
+- Implement API routes for backend functionality
+- Apply rate limiting on API routes
+- Use Edge Runtime for fast, global API responses
+- Handle API errors gracefully with proper status codes
+
+Security:
+- Enable Secure Action IDs for server actions
+- Implement CORS policies
+- Use environment variables for sensitive data
+- Apply input sanitization
+- Implement proper authentication/authorization
+
+SEO & Analytics:
+- Use Metadata API for dynamic meta tags
+- Implement structured data when applicable
+- Enable OpenGraph tags for social sharing
+- Use after() API for analytics tracking
+- Implement proper sitemap generation
+
+Development Practices:
+- Use ESLint with Next.js configuration
+- Implement Git hooks for code quality
+- Follow semantic versioning
+- Write unit tests for critical functionality
+- Use proper error logging and monitoring
+- #IMPORTANT: Introduce new features one at a time, in a less intrusive way
+- #IMPORTANT: Do not delete existinng features while adding new lines unless they are necessary
+
+Deployment:
+- Enable Edge Runtime where applicable
+- Use proper caching strategies
+- Implement CI/CD pipeline
+- Enable proper monitoring and logging
+- Use CDN for static assets

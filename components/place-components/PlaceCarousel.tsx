@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Place } from '../../utils/places-utils';
 import { PlaceCard } from './PlaceCard';
 
-const Carousel = ({ places }: { places: Place[] }) => {
+export const Carousel = ({ places }: { places: Place[] }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
 
     const prevSlide = () => {
@@ -32,13 +32,13 @@ const Carousel = ({ places }: { places: Place[] }) => {
 
             <div className="relative w-full p-0 max-h-min flex justify-center max-w-2xl mx-auto">
 
-                <button className="absolute left-5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={prevSlide}>
+                <button className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={prevSlide}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                     </svg>
                 </button>
 
-                <button className="absolute right-5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={nextSlide}>
+                <button className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-opacity-40 border-slate-400 p-2 rounded-full hover:bg-gray-200 focus:outline-none" onClick={nextSlide}>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
                     </svg>
@@ -62,4 +62,3 @@ const Carousel = ({ places }: { places: Place[] }) => {
     );
 };
 
-export default Carousel;

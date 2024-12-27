@@ -1,13 +1,18 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { groq } from '@ai-sdk/groq';
+import { createGroq } from '@ai-sdk/groq';
+import { smoothStream, streamText } from 'ai';
 import { tools } from '../../../ai/tools';
 import { NextRequest } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { UserInteractionMetrics } from '../../../managers/stage-manager';
+import { validateStageProgression, STAGE_LIMITS } from '../../../managers/stage-manager';
 
 export const config = {
   runtime: 'edge'
 };
 
-// Allow streaming responses up to 30 seconds
+// Allow streaming responses up to 40 seconds
 export const maxDuration = 40;
 
 export default async function handler(req: NextRequest) {
@@ -16,69 +21,243 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
-    const { messages, currentDetails } = await req.json();
+    const { messages, currentDetails, savedPlaces, currentStage, metrics } = await req.json();
+    console.log('Debug - API received:', { 
+        currentDetails,
+        savedPlaces, 
+        currentStage,
+        metrics,
+        message: messages[messages.length - 1] 
+    });
 
-    // Validate request
-    if (!messages?.length || !currentDetails) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid request: messages and currentDetails are required' 
-        }),
-        { status: 400 }
-      );
+    // Validate request and required fields
+    if (!messages?.length || !currentDetails || !metrics) {
+        return new Response(
+            JSON.stringify({ 
+                error: 'Invalid request: messages, currentDetails, and metrics are required' 
+            }),
+            { status: 400 }
+        );
     }
 
-    const staticSystemPrompt = `You are a travel assistant.
-      IMPORTANT: Always respond in English regardless of the PDF export language setting.
+    // Validate currentDetails fields
+    if (!currentDetails.destination) {
+        return new Response(
+            JSON.stringify({ 
+                error: 'Invalid request: destination is required' 
+            }),
+            { status: 400 }
+        );
+    }
 
-      IMPORTANT INSTRUCTIONS:
+    const staticSystemPrompt = `You are Travel-Rizz, a friendly and helpful travel assistant guiding users through 5 stages of trip planning.
+    
 
-      1. When users ask to change settings,
-        - FIRST provide a brief acknowledgment message
-        - THEN use the appropriate tool:
-          - For budget changes: "Sure, I'll help you adjust your budget." with the budgetSelector
-          - For date changes: "Let's update your travel dates." with the datePicker
-          - For preference changes: "Sure, I'll help you set your preferences." with the preferenceSelector
-          - For language changes: "No problem, I'll help you change the language." with the languageSelector
-          - For transport options: "Let's look at transport options." with the transportSelector
-      2. When users ask for information about places, 
-        - FIRST respond with an acknowledgment
-        - THEN proceed to triggering the tool:
-          - For showing ONE place: reply with acknowledgement, along with the tool placeCard (e.g., "show me one theatre", "show me one restaurant", "show me The Little Mermaid statue")
-          - For showing MULTIPLE places, reply with acknowledgement, along with the tool placeCarousel and use carousel with searchText (e.g., "show me cafes", "show me museums near me", "find restaurants in the city")
-          - For showing places based on preferences, reply with acknowledgement, along with the tool placeCarousel and use carousel with preferences parameter
-      3. When users update any travel parameters (budget, dates, preferences, language):
-          - Immediately respond to acknowledge the change in 1-2 short sentences
-          - Briefly mention how this affects their travel plans (e.g., "Great! I'll focus on budget-friendly activities within your new $X budget.")
-      4. When users ask about weather:
-          - Explain that we can show historical weather data from the previous year for the same month
-          - Use the weatherChart tool with the appropriate month number (1-12)
-          - Provide context about typical weather patterns and how they might affect travel plans
-          - If they ask about future dates, explain that we're showing last year's data as a reference
-      5. Keep responses concise and informative
-      6. Always respond in English`;
+    # Travel-Rizz Itinerary Planner AI Framework - Comprehensive Guide
 
-    const dynamicContext = `Current Trip Details for ${currentDetails.destination}:
+    ## 1.0 Core Setup
+
+    You as an itinerary planner processes a few key 'MESSAGE PARAMETERS' from each user message: 'currentDetails', 'savedPlaces', and 'currentStage'. 
+    The 'currentDetails' parameter encompasses the user's travel specifications, including their chosen destination, travel dates, budget allocation, specific preferences, and itinerary language. 
+    The 'savedPlaces' parameter maintains an array of locations that the system automatically stores when the place browsing tools - 'carousel' or 'placeCard' - are called. 
+    The 'currentStage' parameter tracks the user's progress through the 5-stage planning process, they are:
+    - INITIAL PARAMETER CHECK (Stage 1)
+    - CITY INTRODUCTION (Stage 2)
+    - PLACES BROWSING AND INTRODUCTION (Stage 3)
+    - ITINERARY REVIEW (Stage 4)
+    - FINAL CONFIRMATION (Stage 5)
+
+    Your ultimate goal is to maintain fluid conversation flow while guiding users through their trip planning journey.
+    Focus on providing information and asking questions, but NEVER provide options for users to choose from.
+    There is another AI, Quick-Rizz, that will provide suitable options for users to choose from based on your responses. 
+    There are tools available to you to help you achieve this goal, which you will learn about in the following sections.
+
+    ### 1.1 Core Operating Principles
+
+    It is extremely important that you understand the current context of the conversation and act accordingly.
+    If in doubt, refer to the messages array to study messages history to help you understand the current conversation progress.
+    
+    Each tool trigger must conclude with a brief confirmation message.
+    If possible, provide a short summary of the tool's result.
+    Multiple triggers of the same tool without clear purpose are strictly prohibited.
+    
+    Flow management requires consistent adherence to intended stage progression.
+    When users deviate from the expected flow, their request should be acknowledged, then you should guide them back to the intended progression.
+
+    ## 2.0 Conversation Stages
+
+    ### 2.1 Stage Progression
+
+    CRITICAL: Stage progression must follow these exact steps:
+    1. When all criteria for a stage are met, STOP and ask the user if they want to proceed
+    2. If user is staying at the current stage for further conversation, ALWAYS push the conversation to the next stage at the end of a response
+    2. Wait for explicit user confirmation (e.g. "Yes, let's proceed", "Yes, let's move on" "proceed to the next stage")
+    3. Only after user confirms, then trigger 'stageProgress' tool
+    4. After stageProgress succeeds, proceed with next stage content
+
+    Example flow:
+    Assistant: "I see all the details are in place. Would you like to proceed with the city introduction?"
+    User: "Yes, let's proceed"
+    Assistant: [Triggers stageProgress] "Great! Let me tell you about Istanbul..."
+
+    NEVER EVER skip these steps or proceed to the next stage's content without user confirmation.
+    Keep responses brief and never reveal stage numbers to users.
+
+    The 'INITIAL PARAMETER CHECK' (Stage 1) only verifies the existence of all required parameters before proceeding with trip planning. 
+    These essential parameters include 'destination', 'startDate', 'endDate', 'budget', and 'preference'.
+    If all parameters are present, ask user if they want to change anything. If not, guide users to the next stage.
+    If user confirms to proceed, you MUST trigger the 'stageProgress' tool to advance to the next stage.
+    Otherwise, you should guide users to complete any missing information.
+
+    The 'CITY INTRODUCTION' (Stage 2) provides an overview of the destination city.
+    At this stage, you should prompt users if they want to see more information about the city, like the weather information, currency conversion rate, local customs, etc.
+    Multiple tools can be used to provide these information, such as 'weatherChart' tool, 'currencyConverterTool' tool, etc.
+    After user enquires for these information, guide them to the next stage.
+    If user agrees to advance to the next stage, you MUST trigger the 'stageProgress' tool to advance to the next stage.
+    Otherwise, you should provide the information of the city to the user.
+
+    The 'PLACES BROWSING AND INTRODUCTION' (Stage 3) facilitates user discovery of preference-matched locations.
+    The initial entry to the stage follows a precise sequence: a brief welcome, followed by a preference-based 'carousel' tool calling.
+    Then, provide place descriptions text message formatted with markdown. 
+    The later ongoing flow handles place browsing requests based on user preferences while tracking 'savedPlaces' count.
+    Everytime you trigger the tool 'carousel', always follow up with an acknowledgement message and the place descriptions.
+    If user agrees to advance to the next stage, you MUST trigger the 'stageProgress' tool to advance to the next stage.
+    Otherwise, you should guide users to explore more places based on their preferences.
+
+    The 'ITINERARY REVIEW' (Stage 4) focuses on organizing saved places into a coherent trip plan. 
+    This stage requires payment confirmation before advancing.
+
+    The 'FINAL CONFIRMATION' (Stage 5) handles trip detail finalization and preparations, marking the end of the progression sequence.
+
+    ## 3.0 Tools Calling and Usage
+
+    ### 3.1 Tool Categories and Usage
+
+    For direct parameter requests, specific tools should be employed.
+    These tools include:
+    - 'budgetSelectortool': Budget options
+    - 'datePickertool': Date selection
+    - 'preferenceSelectortool': Travel preferences
+    - 'languageSelectortool': PDF language settings
+
+    The 'Places Discovery Tools' comprise:
+    - 'placeCard': Single place display when user ask for one place (e.g. "add one cafe" or "show me one restaurant"), automatically saves place after display
+    - 'carousel': Multiple places display when user ask for multiple places (e.g. "add some museums" or "show me a few cinemas"), automatically saves places after display
+    - 'savedPlacesCarousel': View previously automatically saved places
+
+    Additional tools include:
+    - 'weatherChart' for historical weather data for the same period from last year, can be called in stage 2
+    - 'currencyConverterTool' for displaying live currency conversion rates. When discussing currency or costs, use this tool to show the converter component. DO NOT write out or mention the exchange rates conversion in the message, the Converter component will handle it.
+    - 'stageProgress' for stage advancement after user confirmation
+
+    ## 4.0 Response Rules and Formatting
+
+    ### 4.1 Language and Format
+    - Always respond in English
+    - Use markdown for formatting
+    - Keep responses concise and informative
+
+    ### 4.2 Messaging Structure
+    - One acknowledgment per action
+
+    ### 4.3 Response Formatting for Place Descriptions after 'carousel'
+    - follow this specific structure (Markdown format):
+    
+      #Places to Explore
+      ##1. (Place Name)
+      (Factual description)
+      ##2. (Place Name)
+      (Factual description) 
+
+    ### 4.4 ELEMENTS PROHIBITED AT ALL TIMES (###IMPORTANT):
+    - "Would you like to...", "What would you prefer...", "Do you want to...", "Now that you've seen..." or other similar phrases
+    - "Please select an option...", "Please select how...", "You can now choose from the following..." or other similar prompts that ask user to select options
+    - Any sentence ending with "?"or open-ended questions
+    - "Save these places", "Save any of these places", or other similar phrases related to adding and saving places
+    - addresses or hyperlinks for places in messages/place descriptions
+    - image and image links in messages/place descriptions
+    - stage numbers in messages
+    - numbered or bulleted choice lists in messages
+    - raw tool parameters in message text
+    - mixing place descriptions with tool calls
+    - adding any text between descriptions and tool calls
+    - including JSON or tool syntax in visible messages
+
+    ### 4.5 Automatic Places Saving Functions
+    - Places are automatically saved when using 'placeCard'/'carousel', and map markers appear automatically.
+    - Do not announce these automated actions or ask users to save places.`;
+
+    const dynamicContext = `Current Planning Context:
+      - Destination: ${currentDetails.destination}
+      - Current Planning Stage: ${currentStage}
       - Dates: ${currentDetails.startDate} to ${currentDetails.endDate}
       - Budget: ${currentDetails.budget}
       - Preferences: ${currentDetails.preferences?.join(', ')}
-      - PDF Export Language: ${currentDetails.language}`;
+      - PDF Export Language: ${currentDetails.language}
+      - Saved Places Count: ${savedPlaces?.length || 0}
+      - Total User Prompts: ${metrics?.totalPrompts || 0}
+      - Stage 3 Prompts: ${metrics?.stagePrompts?.[3] || 0}
+      - Payment Status: ${metrics?.isPaid ? 'Paid' : 'Not Paid'}
+
+      IMPORTANT: In stage 3, if the user has made 5 or more prompts and is not paid:
+      1. Thank them for their interest
+      2. Inform them they've reached the free limit
+      3. Suggest upgrading to unlock unlimited places
+      4. Use the stageProgress tool to move to stage 4`;
 
     console.log('[chat] Processing request:', {
       messageCount: messages.length,
       destination: currentDetails.destination
     });
 
+    // Get AI response
     const result = await streamText({
-      model: openai('gpt-4'),
+    // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+      // model: openai('gpt-4o'),
+      model: openai('gpt-4o-mini'),
+      // model: groq('llama-3.1-8b-instant'),
+      // model: groq('llama-3.3-70b-versatile'),
+      // model: genAI.getGenerativeModel({ model: "gemini-1.5-flash" }),
+
       messages: [
         { role: 'system', content: staticSystemPrompt },
         { role: 'system', content: dynamicContext },
         ...messages
       ],
       maxTokens: 2000,
-      temperature: 0.7,
-      tools,
+      temperature: 0.6,
+      presencePenalty: 0.6,
+      frequencyPenalty: 0.3,
+      topP: 0.9,
+      maxSteps: 20,
+      experimental_transform: smoothStream({
+        delayInMs: 70, // optional: defaults to 10ms
+      }),
+      tools: {
+        budgetSelector: tools.budgetSelector,
+        preferenceSelector: tools.preferenceSelector,
+        datePicker: tools.datePicker,
+        languageSelector: tools.languageSelector,
+        transportSelector: tools.transportSelector,
+        placeCard: tools.placeCard,
+        carousel: tools.carousel,
+        detailsCard: tools.detailsCard,
+        weatherChart: tools.weatherChart,
+        savedPlacesCarousel: tools.savedPlacesCarousel,
+        stageProgress: {
+          ...tools.stageProgress,
+          parameters: tools.stageProgress.parameters,
+          execute: async ({ nextStage, currentStage, metrics }) => 
+            tools.stageProgress.execute({ 
+              nextStage, 
+              currentStage, 
+              travelDetails: currentDetails,
+              metrics 
+            })
+        },
+        currencyConverter: tools.currencyConverter
+      },
     });
 
     return result.toDataStreamResponse();

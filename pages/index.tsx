@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import dynamic from 'next/dynamic'
 import { useState, useEffect } from 'react';
 import { TravelPreference, BudgetLevel, SupportedLanguage, TravelDetails } from '@/managers/types';
+import StageProgress from '@/components/stage-progress';
+import { Place } from '@/utils/places-utils';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
     ssr: false,
@@ -11,6 +13,14 @@ const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
 const MapComponent = dynamic(() => import('../components/map-component'), {
     ssr: false,
 })
+
+type SessionData = {
+    messages: any[];
+    travelDetails: TravelDetails;
+    savedPlaces: Place[];
+    currentStage: number;
+    isPaid: boolean;
+};
 
 export default function ChatPage() {
     const [apiKey, setApiKey] = useState('');
@@ -21,20 +31,23 @@ export default function ChatPage() {
     const [isDetailsReady, setIsDetailsReady] = useState(false);
     const [travelDetails, setTravelDetails] = useState<TravelDetails>({
         destination: undefined,
-        destinationLat: undefined,
-        destinationLng: undefined,
         startDate: undefined,
         endDate: undefined,
         preferences: [],
         budget: undefined,
         language: undefined,
         transport: [],
-        dining: []
     });
+
+    // Add new state for stage
+    const [currentStage, setCurrentStage] = useState<number>(1);
+
+    // Add isPaid state
+    const [isPaid, setIsPaid] = useState(false);
 
     const router = useRouter()
     const {
-        city,
+        destination,
         startDate,
         endDate,
         budget,
@@ -115,7 +128,7 @@ export default function ChatPage() {
 
             const newDetails: TravelDetails = {
                 ...travelDetails,
-                destination: city as string || '',
+                destination: destination as string || '',
                 startDate: formatDate(startDate),
                 endDate: formatDate(endDate),
                 preferences: preferencesArray.filter(Boolean),
@@ -130,14 +143,14 @@ export default function ChatPage() {
                 setIsDetailsReady(true);
             }
         }
-    }, [router.isReady, city, startDate, endDate, preferences, budget, language]);
+    }, [router.isReady, destination, startDate, endDate, preferences, budget, language]);
 
     useEffect(() => {
-        if (!city || !apiKey) return;
+        if (!destination || !apiKey) return;
 
         const fetchCoordinates = async () => {
             try {
-                const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(city as string)}&key=${apiKey}`);
+                const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination as string)}&key=${apiKey}`);
                 if (!res.ok) {
                     throw new Error(`Failed to fetch coordinates: ${res.status}`);
                 }
@@ -160,15 +173,64 @@ export default function ChatPage() {
         };
 
         fetchCoordinates();
-    }, [city, apiKey]);
+    }, [destination, apiKey]);
+
+    // Add state to track updates to saved places
+    const [savedPlacesUpdate, setSavedPlacesUpdate] = useState(0);
+
+    const handlePlaceRemoved = (placeId: string) => {
+        console.log('Place removed:', placeId);
+        setSavedPlacesUpdate(prev => prev + 1);
+    };
+
+    // Add session storage effect
+    useEffect(() => {
+        // Load session data on mount
+        const sessionData = sessionStorage.getItem('travelPlannerSession');
+        if (sessionData) {
+            try {
+                const parsed = JSON.parse(sessionData) as SessionData;
+                setTravelDetails(parsed.travelDetails);
+                setCurrentStage(parsed.currentStage);
+                // We'll handle messages and places in next steps
+            } catch (error) {
+                console.error('Error parsing session data:', error);
+            }
+        }
+    }, []);
+
+    // Save to session storage when important data changes
+    useEffect(() => {
+        const sessionData: SessionData = {
+            messages: [], // We'll add this in next step
+            travelDetails,
+            savedPlaces: [], // We'll add this in next step
+            currentStage,
+            isPaid,
+        };
+        sessionStorage.setItem('travelPlannerSession', JSON.stringify(sessionData));
+    }, [travelDetails, currentStage, isPaid]);
 
     return (
-        <div className="flex flex-col h-[100%] w-full bg-white">
-            <main className="flex-1 flex relative bg-white">
+        <div className="flex flex-col h-[100vh] w-full bg-white">
+            {/* Progress tracker - fixed height */}
+            <div className="flex-none">
+                <StageProgress 
+                    currentStage={currentStage} 
+                    isPaid={isPaid}
+                />
+            </div>
+            {/* Main content - takes remaining height */}
+            <main className="flex-1 flex relative bg-white min-h-0">
                 {/* Chat Interface */}
-                <div className={`${isMobile ? 'w-full' : 'w-[40%]'} h-[100%] border-r border-gray-200 overflow-y-auto`}>
+                <div className={`${isMobile ? 'w-full' : 'w-[50%]'} h-full border-r border-gray-200 overflow-y-auto`}>
                     {isDetailsReady ? (
-                        <TravelChatComponent initialDetails={travelDetails} />
+                        <TravelChatComponent 
+                            initialDetails={travelDetails} 
+                            onPlaceRemoved={handlePlaceRemoved}
+                            currentStage={currentStage}
+                            onStageUpdate={setCurrentStage}
+                        />
                     ) : (
                         <div className="flex items-center justify-center h-full">
                             <p className="text-gray-500">Loading travel details...</p>
@@ -188,11 +250,12 @@ export default function ChatPage() {
 
                 {/* Map Container */}
                 {(showMap || !isMobile) && (
-                    <div className={`${isMobile ? 'absolute inset-0 z-40' : 'w-[60%]'}`}>
+                    <div className={`${isMobile ? 'absolute inset-0 z-40' : 'w-[50%]'}`}>
                         {apiKey ? (
                             <MapComponent
-                                city={city as string}
+                                city={destination as string}
                                 apiKey={apiKey}
+                                key={`map-${savedPlacesUpdate}`}
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center">

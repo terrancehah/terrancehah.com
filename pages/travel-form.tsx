@@ -91,7 +91,7 @@ export default function TravelForm() {
       router.push({
         pathname: '/',
         query: {
-          city,
+          destination: city,  // Changed from 'city' to 'destination'
           startDate: formattedStartDate,
           endDate: formattedEndDate,
           language,

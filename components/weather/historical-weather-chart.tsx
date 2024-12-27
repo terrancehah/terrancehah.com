@@ -59,8 +59,8 @@ export default function HistoricalWeatherChart({ lat, lon, city, startDate, endD
     }
   }, [lat, lon, startDate, endDate, units]);
 
-  if (loading) return <div>Loading weather data...</div>;
-  if (error) return <div>Error loading weather data: {error}</div>;
+  if (loading) return <div></div>;
+  if (error) return <div></div>;
 
   const tempUnit = units === 'us' ? '°F' : '°C';
   const precipUnit = 'mm';
@@ -71,10 +71,10 @@ export default function HistoricalWeatherChart({ lat, lon, city, startDate, endD
   const formattedEndDate = dateFormatter.format(new Date(endDate));
 
   return (
-    <div className="w-[80%] max-w-4xl mx-auto rounded-3xl border border-gray-100 shadow-md">
+    <div className="w-[80%] max-w-lg mx-auto rounded-3xl border border-gray-100 shadow-md">
       <CardHeader>
         <CardTitle>{city} Historical Weather</CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm text-gray-500">
           from {formattedStartDate} to {formattedEndDate}, {historicalYear}
         </CardDescription>
       </CardHeader>
@@ -109,7 +109,7 @@ export default function HistoricalWeatherChart({ lat, lon, city, startDate, endD
                 tick={false}
                 tickLine={false}
               />
-              <YAxis
+              <YAxis className="text-xs"
                 yAxisId="temp"
                 orientation="left"
                 tickFormatter={(value) => `${value}${tempUnit}`}
@@ -119,7 +119,7 @@ export default function HistoricalWeatherChart({ lat, lon, city, startDate, endD
                 axisLine={{ stroke: 'rgb(226 232 240)' }}
                 tickLine={{ stroke: 'rgb(226 232 240)' }}
               />
-              <YAxis
+              <YAxis className="text-xs"
                 yAxisId="precipitation"
                 orientation="right"
                 tickFormatter={(value) => `${value}${precipUnit}`}

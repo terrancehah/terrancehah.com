@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import { Place, searchPlaceByText } from '@/utils/places-utils';
 
@@ -7,22 +7,32 @@ interface MapComponentProps {
     apiKey: string;
 }
 
+const globalSavedPlaces = new Map<string, Place>();
+
 declare global {
     interface Window {
         initMap: () => void;
         currentSlide: number;
+        currentInfoWindow?: google.maps.InfoWindow;
         updateCarousel: () => void;
         nextSlide: () => void;
         prevSlide: () => void;
         goToSlide: (index: number) => void;
         google: typeof google;
-        addPlaceToMap: (place: { 
+        removePlaceFromMap?: (title: string) => void;
+        currentInfoWindowMarker?: {
+            markerId: string;
+            marker: google.maps.marker.AdvancedMarkerElement;
+        };
+        addPlaceToMap?: (place: { 
             latitude: number; 
             longitude: number; 
             title?: string;
             place?: Place;
         }) => void;
-        clearPlaceMarkers: () => void;
+        clearPlaceMarkers?: () => void;
+        savedPlaces: Map<string, Place>;
+        getSavedPlaces?: () => Place[];
     }
 }
 
@@ -35,6 +45,8 @@ declare global {
     }
 }
 
+
+
 const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -44,6 +56,41 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [scriptLoaded, setScriptLoaded] = useState(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+    const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
+    const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+    const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
+    const [markerCount, setMarkerCount] = useState(0);
+    const savedPlacesRef = useRef<Place[]>([]);
+    const lastUpdateRef = useRef<number>(0);
+
+    // Memoize getSavedPlaces to prevent unnecessary re-renders
+    const getSavedPlaces = useCallback(() => {
+        const now = Date.now();
+        // Only update if more than 1000ms has passed since last update
+        if (now - lastUpdateRef.current < 1000) {
+            return savedPlacesRef.current;
+        }
+        lastUpdateRef.current = now;
+        return savedPlacesRef.current;
+    }, []);
+
+    // Expose getSavedPlaces to window with debouncing
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.getSavedPlaces = getSavedPlaces;
+        }
+        return () => {
+            if (typeof window !== 'undefined') {
+                delete window.getSavedPlaces;
+            }
+        };
+    }, [getSavedPlaces]);
+
+    // Update savedPlacesRef when places are added/removed
+    const updateSavedPlaces = useCallback((places: Place[]) => {
+        savedPlacesRef.current = places;
+        lastUpdateRef.current = Date.now();
+    }, []);
 
     useEffect(() => {
         console.log('MapComponent: Received props:', { city, apiKeyLength: apiKey?.length });
@@ -94,6 +141,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                                 maxWidth: 400
                             });
                             setInfoWindow(newInfoWindow);
+                            infoWindowRef.current = newInfoWindow;
 
                             const createCityInfoWindowContent = async (city: string, location: google.maps.LatLng) => {
                                 try {
@@ -204,7 +252,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                             });
 
                             // Add click listener to the marker
-                            cityMarker.addListener('click', async () => {
+                            cityMarker.addListener('gmp-click', async () => {
                                 if (infoWindow) {
                                     const content = createCityInfoWindowContent(city, location);
                                     if (content) {
@@ -217,7 +265,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                             markers.set(city, cityMarker);
                             
                             // Add click listener for future interaction
-                            cityMarker.addListener('click', async () => {
+                            cityMarker.addListener('gmp-click', async () => {
                                 const content = await createCityInfoWindowContent(city, location);
                                 if (content) {
                                     newInfoWindow.setContent(content);
@@ -247,24 +295,75 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     useEffect(() => {
         if (!map) return;
 
+        window.removePlaceFromMap = (placeId: string) => {
+            console.log('Debug - Starting removal process for placeId:', placeId);
+
+            try {
+                const marker = markersRef.current.get(placeId);
+                if (marker) {
+                    console.log('Debug - Found marker:', marker);
+                    
+                    // Simply set the map to null to remove the marker
+                    marker.position = null;
+                    
+                    // Close info window if open
+                    if (infoWindowRef.current) {
+                        infoWindowRef.current.close();
+                    }
+
+                    // Remove event listeners
+                    google.maps.event.clearInstanceListeners(marker);
+
+                    // Clean up references
+                    markersRef.current.delete(placeId);
+                    globalSavedPlaces.delete(placeId);
+
+                    // Force update component state
+                    setMarkerCount(prev => prev - 1);
+                    setSavedPlaces(new Map(globalSavedPlaces));
+
+                    console.log('Debug - After removal markers:', [...markersRef.current.entries()]);
+                    console.log('Debug - Successfully removed marker and place:', placeId);
+                } else {
+                    console.warn('Debug - Could not find marker for placeId:', placeId);
+                }
+            } catch (error) {
+                console.error('Debug - Error during marker removal:', error);
+            }
+        };
+
         window.addPlaceToMap = async (placeData) => {
             try {
-                // Import both marker and pin libraries
                 const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
                     google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
                     google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>
                 ]);
 
-                // Create a custom pin element
                 const pinElement = new google.maps.marker.PinElement({
-                    // background: "#FBBC04",
-                    // borderColor: "#EA4335",
-                    // glyphColor: "#000000",
                     scale: 1
                 });
 
+                const markerId = placeData.place?.id;
+                if (!markerId) {
+                    console.error('Debug - No place ID provided');
+                    return;
+                }
+
+                console.log('Debug - Creating marker with ID:', markerId);
+
+                // Remove existing marker if it exists
+                if (markersRef.current.has(markerId)) {
+                    const existingMarker = markersRef.current.get(markerId);
+                    if (existingMarker) {
+                        existingMarker.map = null;
+                        if (existingMarker.element) {
+                            existingMarker.element.remove();
+                        }
+                        markersRef.current.delete(markerId);
+                    }
+                }
+
                 const marker = new google.maps.marker.AdvancedMarkerElement({
-                    map,
                     position: {
                         lat: placeData.latitude,
                         lng: placeData.longitude
@@ -274,68 +373,152 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                     gmpDraggable: false,
                 });
 
+                // Set the map property after creation
+                marker.map = map;
+
                 // Add click listener
-                marker.addListener('click', () => {
+                marker.addListener('gmp-click', () => {
                     if (placeData.place) {
-                        // Your existing click handler logic
-                        const content = createPlaceInfoWindowContent(placeData.place);
-                        if (content && infoWindow) {
-                            infoWindow.setContent(content);
-                            infoWindow.open(map, marker);
+                        window.currentInfoWindowMarker = {
+                            markerId: markerId,
+                            marker: marker
+                        };
+                        const content = createPlaceInfoWindowContent(placeData.place, markerId);
+                        if (content && infoWindowRef.current) {
+                            infoWindowRef.current.setContent(content);
+                            infoWindowRef.current.open(map, marker);
                         }
                     }
                 });
 
                 // Store the marker reference
-                markers.set(placeData.title || 'unnamed', marker);
+                markersRef.current.set(markerId, marker);
+                
+                if (placeData.place) {
+                    globalSavedPlaces.set(markerId, placeData.place);
+                    // Force a re-render when adding a marker
+                    setMarkerCount(prev => prev + 1);
+                    setSavedPlaces(new Map(globalSavedPlaces));
+                    console.log('Debug - Added place:', globalSavedPlaces);
+                }
+
+                console.log('Debug - Marker added successfully');
+
             } catch (err) {
                 console.error('Error adding place marker:', err);
             }
         };
 
-        window.clearPlaceMarkers = () => {
-            markers.forEach(marker => {
-                marker.setMap(null);
-            });
-            markers.clear();
+        window.getSavedPlaces = () => {
+            const places = Array.from(globalSavedPlaces.values());
+            console.log('Getting saved places:', places);
+            return places;
+        };
+        
+    }, [map, infoWindow, markerCount]);
+
+    // Add a useEffect to monitor savedPlaces changes
+    useEffect(() => {
+        console.log('Current saved places:', [...globalSavedPlaces.entries()]);
+    }, [savedPlaces]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && map) {
+                window.google?.maps?.event?.trigger(map, 'resize');
+            }
         };
 
+        document.addEventListener('visibilitychange', handleVisibilityChange);
         return () => {
-            delete window.addPlaceToMap;
-            delete window.clearPlaceMarkers;
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [map, infoWindow]);
+    }, [map]);
 
-    const createPlaceInfoWindowContent = (place: Place) => {
+    useEffect(() => {
+        // Load saved places from session storage on mount
+        const sessionData = sessionStorage.getItem('travelPlannerSession');
+        if (sessionData) {
+            try {
+                const parsed = JSON.parse(sessionData);
+                if (parsed.savedPlaces) {
+                    const placesMap = new Map(parsed.savedPlaces.map((place: Place) => [place.id || place.name, place]));
+                    setSavedPlaces(placesMap);
+                    savedPlacesRef.current = Array.from(placesMap.values());
+                    Object.assign(globalSavedPlaces, placesMap);
+                }
+            } catch (error) {
+                console.error('Error loading saved places from session:', error);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        // Save to session storage when places change
+        const sessionData = sessionStorage.getItem('travelPlannerSession');
+        if (sessionData) {
+            try {
+                const parsed = JSON.parse(sessionData);
+                sessionStorage.setItem('travelPlannerSession', JSON.stringify({
+                    ...parsed,
+                    savedPlaces: Array.from(savedPlaces.values())
+                }));
+            } catch (error) {
+                console.error('Error saving places to session:', error);
+            }
+        }
+    }, [savedPlaces]);
+
+    const createPlaceInfoWindowContent = (place: Place, markerId: string) => {
+        console.log('Debug - Creating info window content for markerId:', markerId);
         const photoUrl = place.photos && place.photos[0] 
             ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=200&maxWidthPx=300&key=${apiKey}`
             : '';
+
+        const placeTitle = typeof place.displayName === 'string' ? place.displayName : place.displayName.text;
 
         return `
             <div class="bg-white rounded-lg shadow-sm" style="max-width: 300px;">
                 ${photoUrl ? `
                     <div style="height: 150px; width: 100%;">
                         <img src="${photoUrl}" 
-                            alt="${typeof place.displayName === 'string' ? place.displayName : place.displayName.text}"
+                            alt="${placeTitle}"
                             style="width: 100%; height: 100%; object-fit: cover; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem;"
                         />
                     </div>
                 ` : ''}
+
                 <div class="p-3">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-1">
-                        ${typeof place.displayName === 'string' 
-                            ? place.displayName 
-                            : place.displayName.text}
-                    </h3>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">
+                            ${placeTitle}
+                        </h3>
+                        <button 
+                            onclick="
+                                (function() {
+                                    console.log('Debug - Delete button clicked for markerId:', '${markerId}');
+                                    if (window.removePlaceFromMap) {
+                                        window.removePlaceFromMap('${markerId}');
+                                        // Close the info window after deletion
+                                        if (window.currentInfoWindow) {
+                                            window.currentInfoWindow.close();
+                                        }
+                                    }
+                                })();
+                            "
+                            class="p-1 hover:bg-red-50 rounded-full"
+                            aria-label="Remove place"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
                     ${place.primaryTypeDisplayName 
-                        ? `<div class="text-sm text-gray-600 mb-1">
-                            ${place.primaryTypeDisplayName.text}
-                            </div>`
+                        ? `<div class="text-sm text-gray-600 mb-1">${place.primaryTypeDisplayName.text}</div>`
                         : ''}
                     ${place.formattedAddress 
-                        ? `<p class="text-sm text-gray-500">
-                            ${place.formattedAddress}
-                            </p>`
+                        ? `<p class="text-sm text-gray-500">${place.formattedAddress}</p>`
                         : ''}
                 </div>
             </div>
@@ -343,7 +526,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     };
 
     return (
-        <div className="relative w-full h-full min-h-[340px]">
+        <div className="relative w-full h-full">
             {apiKey && (
                 <Script
                     src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=beta&callback=Function.prototype`}
