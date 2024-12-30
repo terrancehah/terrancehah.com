@@ -10,11 +10,11 @@ interface StageProgressProps {
 }
 
 const stages = [
-    { id: 1, title: "Initial Parameters" },
-    { id: 2, title: "City Introduction" },
-    { id: 3, title: "Places Introduction"},
-    { id: 4, title: "Itinerary Review"},
-    { id: 5, title: "Confirmation" }
+    { id: 1, title: "Initial Parameters", isPaid: false },
+    { id: 2, title: "City Introduction", isPaid: false },
+    { id: 3, title: "Places Introduction", isPaid: false },
+    { id: 4, title: "Itinerary Review", isPaid: true },
+    { id: 5, title: "Confirmation", isPaid: true }
 ];
 
 export interface StepsRootProps extends React.HTMLAttributes<HTMLDivElement> {
