@@ -2,8 +2,9 @@ import { useChat } from 'ai/react';
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { TravelDetails } from '../managers/types';
 import { Place } from '../utils/places-utils';
-import { UserInteractionMetrics } from '../managers/stage-manager';
+import { UserInteractionMetrics, STAGE_LIMITS } from '../managers/stage-manager';
 import { Message } from '../managers/types';
+import { getStoredMetrics } from '../utils/local-metrics';
 
 interface UseTravelChatProps {
   currentDetails: TravelDetails;
@@ -98,6 +99,20 @@ export function useTravelChat({
     
     setMainChatMessages(mappedMessages);
   }, [mainChat.messages]);
+
+  // Update metrics when stage prompts change
+  useEffect(() => {
+    if (currentStage === 3) {
+      const currentMetrics = getStoredMetrics();
+      setUserMetrics(currentMetrics);
+    }
+  }, [currentStage]);
+
+  // Keep local metrics in sync
+  useEffect(() => {
+    const currentMetrics = getStoredMetrics();
+    setUserMetrics(currentMetrics);
+  }, [currentStage]);
 
   const quickResponses = useMemo(() => {
     const messages = quickResponseChat.messages;

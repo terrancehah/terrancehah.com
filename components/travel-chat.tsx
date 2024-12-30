@@ -22,6 +22,7 @@ import { useTravelTools } from '../hooks/useTravelTools';
 import { Place } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
 import { checkInputLimits, updateStoredMetrics, getStoredMetrics } from '../utils/local-metrics';
+import PremiumUpgradeModal from './premium-upgrade-modal';
 
 interface TravelChatProps {
     initialDetails: TravelDetails;
@@ -54,6 +55,7 @@ export function TravelChat({
     const [userMetrics, setUserMetrics] = useState<UserInteractionMetrics>(() => {
         return getStoredMetrics();
     });
+    const [showPremiumModal, setShowPremiumModal] = useState(false);
 
     useEffect(() => {
         localStorage.setItem('userMetrics', JSON.stringify(userMetrics));
@@ -87,7 +89,7 @@ export function TravelChat({
     const {
         messages,
         input,
-        handleInputChange,
+        handleInputChange: originalHandleInputChange,
         isLoading,
         error,
         reload,
@@ -103,20 +105,17 @@ export function TravelChat({
         metrics: userMetrics
     });
 
-    const append = useCallback(async (message: any, options?: any) => {
-        // Update metrics
-        const updatedMetrics = {
-            ...userMetrics,
-            totalPrompts: userMetrics.totalPrompts + 1,
-            stagePrompts: {
-                ...userMetrics.stagePrompts,
-                [currentStage]: (userMetrics.stagePrompts[currentStage] || 0) + 1
-            }
-        };
-        setUserMetrics(updatedMetrics);
-        localStorage.setItem('userMetrics', JSON.stringify(updatedMetrics));
+    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        // Just update the input without updating metrics
+        originalHandleInputChange(e);
+    }, [originalHandleInputChange]);
 
-        // Append message with updated metrics
+    const append = useCallback(async (message: any, options?: any) => {
+        // Only increment metrics for user messages and not system messages
+        const shouldIncrement = message.role === 'user' && !message.content?.includes('system');
+        const updatedMetrics = updateStoredMetrics(currentStage, shouldIncrement);
+
+        // Append message with latest metrics
         await originalAppend(message, {
             ...options,
             body: {
@@ -124,7 +123,7 @@ export function TravelChat({
                 metrics: updatedMetrics
             }
         });
-    }, [originalAppend, userMetrics, currentStage]);
+    }, [originalAppend, currentStage]);
 
     const {
         toolVisibility,
@@ -446,7 +445,11 @@ export function TravelChat({
     }, [mainChat, currentDetails, savedPlaces, currentStage, onStageUpdate]);
 
     return (
-        <div className="flex flex-col h-full" ref={chatContainerRef}>
+        <div className="relative flex flex-col h-full">
+            <PremiumUpgradeModal 
+                isOpen={showPremiumModal} 
+                onClose={() => setShowPremiumModal(false)} 
+            />
             {/* Header */}
             <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">
                 <div className=" mx-auto p-2 px-6 relative">
@@ -830,7 +833,7 @@ export function TravelChat({
                         onChange={handleInputChange}
                         placeholder="Type your message..."
                         className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        disabled={isLoading}
+                        disabled={isLoading || !checkInputLimits(currentStage).withinStageLimit}
                     />
                     {/* {isLoading && (
                         <button
@@ -842,7 +845,7 @@ export function TravelChat({
                     )} */}
                     <button
                         type="submit"
-                        disabled={isLoading}
+                        disabled={isLoading || !checkInputLimits(currentStage).withinStageLimit}
                         className="inline-flex items-center rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                     >
                         Send

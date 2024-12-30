@@ -25,7 +25,9 @@ interface StageRequirements {
 export const STAGE_LIMITS = {
   3: {
     maxPrompts: 5,
-    upgradeMessage: "I notice you've reached the limit for adding places in the free version. Would you like to upgrade to unlock unlimited places and premium features? This will give you access to personalized recommendations, detailed scheduling, and local insights."
+    upgradeMessage: `I'm sorry to tell you that you have reached the prompts limit in the free version. 
+    Would you like to upgrade to unlock unlimited places browsing and premium features? 
+    This will give you access to personalized recommendations, detailed scheduling, and local insights.`
   }
 } as const;
 

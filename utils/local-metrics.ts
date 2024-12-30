@@ -1,10 +1,9 @@
-import { UserInteractionMetrics } from '../managers/stage-manager';
+import { UserInteractionMetrics, STAGE_LIMITS } from '../managers/stage-manager';
 import { checkSessionValidity, initializeSession, clearSession } from './session-manager';
 
 const METRICS_STORAGE_KEY = 'travel_interaction_metrics';
 const SESSION_KEY = 'travel_session_id';
 const MAX_TOTAL_INPUTS = 15;
-const MAX_STAGE_INPUTS = 5;
 
 export function getStoredMetrics(): UserInteractionMetrics {
   try {
@@ -26,7 +25,6 @@ export function getStoredMetrics(): UserInteractionMetrics {
     metrics.isPaid = metrics.isPaid || false;
     metrics.stagePrompts = metrics.stagePrompts || { 1: 0, 2: 0, 3: 0 };
 
-    console.log('[Metrics] Retrieved metrics:', metrics);
     return metrics;
   } catch (error) {
     console.error('[Metrics] Error retrieving metrics:', error);
@@ -41,11 +39,14 @@ export function updateStoredMetrics(
   try {
     const metrics = getStoredMetrics();
     
-    // Always increment total prompts for any user message
-    metrics.totalPrompts += 1;
-    
-    // Track stage-specific prompts
-    metrics.stagePrompts[currentStage] += 1;
+    if (incrementPrompt) {
+      // Only increment if explicitly requested and not already at limit
+      const { withinStageLimit } = checkInputLimits(currentStage);
+      if (withinStageLimit) {
+        metrics.totalPrompts += 1;
+        metrics.stagePrompts[currentStage] = (metrics.stagePrompts[currentStage] || 0) + 1;
+      }
+    }
     
     // Save to storage
     localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
@@ -71,7 +72,7 @@ export function checkInputLimits(
   const totalPrompts = metrics.totalPrompts || 0;
 
   const result = {
-    withinStageLimit: stagePrompts < MAX_STAGE_INPUTS,
+    withinStageLimit: stagePrompts < (currentStage === 3 ? STAGE_LIMITS[3].maxPrompts : MAX_TOTAL_INPUTS),
     withinTotalLimit: totalPrompts < MAX_TOTAL_INPUTS,
     stageInputCount: stagePrompts,
     totalInputCount: totalPrompts

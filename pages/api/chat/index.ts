@@ -30,6 +30,8 @@ export default async function handler(req: NextRequest) {
         message: messages[messages.length - 1] 
     });
 
+    console.log('[chat] Processing request:', { messageCount: messages.length, destination: currentDetails.destination });
+
     // Validate request and required fields
     if (!messages?.length || !currentDetails || !metrics) {
         return new Response(
@@ -165,9 +167,9 @@ export default async function handler(req: NextRequest) {
     
       #Places to Explore
       ##1. (Place Name)
-      (Factual description)
+      (Brief description)
       ##2. (Place Name)
-      (Factual description) 
+      (Brief description) 
 
     ### 4.4 ELEMENTS PROHIBITED AT ALL TIMES (###IMPORTANT):
     - "Would you like to...", "What would you prefer...", "Do you want to...", "Now that you've seen..." or other similar phrases
