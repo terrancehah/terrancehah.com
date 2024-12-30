@@ -2,8 +2,9 @@ import { useChat } from 'ai/react';
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { TravelDetails } from '../managers/types';
 import { Place } from '../utils/places-utils';
-import { UserInteractionMetrics, STAGE_LIMITS } from '../managers/stage-manager';
-import { Message } from '../managers/types';
+import { UserInteractionMetrics, STAGE_LIMITS, validateStageProgression } from '../managers/stage-manager';
+import { Message as LocalMessage, ToolInvocation } from '../managers/types';
+import { Message as AiMessage } from 'ai';
 import { getStoredMetrics } from '../utils/local-metrics';
 
 interface UseTravelChatProps {
@@ -20,7 +21,7 @@ export function useTravelChat({
   metrics
 }: UseTravelChatProps) {
   const quickResponseInProgress = useRef(false);
-  const [mainChatMessages, setMainChatMessages] = useState<Message[]>([]);
+  const [mainChatMessages, setMainChatMessages] = useState<LocalMessage[]>([]);
   const [userMetrics, setUserMetrics] = useState(metrics);
 
   const mainChat = useChat({
@@ -32,11 +33,11 @@ export function useTravelChat({
       currentStage,
       metrics: userMetrics
     },
-    onError: useCallback((error) => {
+    onError: useCallback((error: Error) => {
       console.error('[MainChat] Error:', error);
       quickResponseInProgress.current = false;
     }, []),
-    onFinish: useCallback(async (message) => {
+    onFinish: useCallback(async (message: AiMessage) => {
       // Only trigger quick response for complete assistant messages
       if (message.role !== 'assistant' || !message.content?.trim()) return;
       
@@ -85,7 +86,7 @@ export function useTravelChat({
       }
       quickResponseInProgress.current = false;
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       // console.error('[QuickResponse] Error:', error);
       quickResponseInProgress.current = false;
     }
@@ -95,7 +96,7 @@ export function useTravelChat({
     const mappedMessages = mainChat.messages.map(msg => ({
       ...msg,
       role: msg.role === 'data' ? 'system' : msg.role
-    })) as Message[];
+    })) as LocalMessage[];
     
     setMainChatMessages(mappedMessages);
   }, [mainChat.messages]);
@@ -133,23 +134,27 @@ export function useTravelChat({
     //     }))
     // });
 
-    const quickResponseInvocation = apiResponse?.toolInvocations?.find(
+    function extractQuickResponses(message: AiMessage) {
+      const quickResponseInvocation = message.toolInvocations?.find(
         t => t.toolName === 'quickResponse' && t.state === 'result'
-    );
+      );
 
-    if (!quickResponseInvocation?.result?.props?.responses) {
-        // console.log('[QuickResponse] No valid responses found in API response');
-        return [];
-    }
+      if (!quickResponseInvocation || !('result' in quickResponseInvocation)) {
+          // console.log('[QuickResponse] No valid responses found in API response');
+          return [];
+      }
 
     const responses = quickResponseInvocation.result.props.responses;
     if (responses.length > 0) {
-        // console.log('[QuickResponse] Got valid responses:', responses);
-        return responses;
+          // console.log('[QuickResponse] Got valid responses:', responses);
+          return responses;
+      }
+
+      // console.log('[QuickResponse] Empty responses array');
+      return [];
     }
 
-    // console.log('[QuickResponse] Empty responses array');
-    return [];
+    return extractQuickResponses(apiResponse);
 }, [quickResponseChat.messages]);
 
   const handleStageProgress = useCallback(async (nextStage: number) => {

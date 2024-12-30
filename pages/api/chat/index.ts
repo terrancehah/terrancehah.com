@@ -228,7 +228,7 @@ export default async function handler(req: NextRequest) {
         ...messages
       ],
       maxTokens: 2000,
-      temperature: 0.6,
+      temperature: 0.4,
       presencePenalty: 0.7,
       frequencyPenalty: 0.3,
       maxSteps: 10,
