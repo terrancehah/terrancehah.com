@@ -1,5 +1,6 @@
 // Place related interfaces
 export interface Place {
+    name: string | undefined;
     id: string;
     displayName: {
         text: string;
