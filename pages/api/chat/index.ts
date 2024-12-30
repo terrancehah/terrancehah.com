@@ -119,7 +119,7 @@ export default async function handler(req: NextRequest) {
     Otherwise, you should provide the information of the city to the user.
 
     The 'PLACES BROWSING AND INTRODUCTION' (Stage 3) facilitates user discovery of preference-matched locations.
-    The initial entry to the stage follows a precise sequence: a brief welcome, followed by a preference-based 'carousel' tool calling.
+    The initial entry to the stage follows a precise sequence: a brief welcome, followed by a 'carousel' tool calling.
     Then, provide place descriptions text message formatted with markdown. 
     The later ongoing flow handles place browsing requests based on user preferences while tracking 'savedPlaces' count.
     Everytime you trigger the tool 'carousel', always follow up with an acknowledgement message and the place descriptions.
@@ -213,7 +213,7 @@ export default async function handler(req: NextRequest) {
     });
 
     // Get AI response
-    const result = await streamText({
+    const result = streamText({
     // const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
       // model: openai('gpt-4o'),
@@ -229,10 +229,9 @@ export default async function handler(req: NextRequest) {
       ],
       maxTokens: 2000,
       temperature: 0.6,
-      presencePenalty: 0.6,
+      presencePenalty: 0.7,
       frequencyPenalty: 0.3,
-      topP: 0.9,
-      maxSteps: 20,
+      maxSteps: 10,
       experimental_transform: smoothStream({
         delayInMs: 70, // optional: defaults to 10ms
       }),

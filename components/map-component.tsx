@@ -442,9 +442,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             try {
                 const parsed = JSON.parse(sessionData);
                 if (parsed.savedPlaces) {
-                    const placesMap = new Map(parsed.savedPlaces.map((place: Place) => [place.id || place.name, place]));
-                    setSavedPlaces(placesMap);
-                    savedPlacesRef.current = Array.from(placesMap.values());
+                    const placesMap = new Map(parsed.savedPlaces.map((place: Place) => [place.id || (place.displayName as {text: string}).text, place]));
+                    setSavedPlaces(placesMap as Map<string, Place>);
+                    savedPlacesRef.current = Array.from(placesMap.values()) as Place[];
                     Object.assign(globalSavedPlaces, placesMap);
                 }
             } catch (error) {

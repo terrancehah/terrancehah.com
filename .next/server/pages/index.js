@@ -473,6 +473,17 @@ module.exports = require("recharts-scale");
 
 /***/ }),
 
+/***/ "styled-jsx/style":
+/*!***********************************!*\
+  !*** external "styled-jsx/style" ***!
+  \***********************************/
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("styled-jsx/style");
+
+/***/ }),
+
 /***/ "victory-vendor/d3-scale":
 /*!******************************************!*\
   !*** external "victory-vendor/d3-scale" ***!

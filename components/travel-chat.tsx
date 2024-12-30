@@ -55,11 +55,19 @@ export function TravelChat({
     const [userMetrics, setUserMetrics] = useState<UserInteractionMetrics>(() => {
         return getStoredMetrics();
     });
-    const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [showPremiumModal, setShowPremiumModal] = useState<boolean>(false);
 
     useEffect(() => {
         localStorage.setItem('userMetrics', JSON.stringify(userMetrics));
-    }, [userMetrics]);
+
+        // Check for prompt limit in stage 3
+        if (currentStage === 3 && !userMetrics.isPaid) {
+            const { withinStageLimit } = checkInputLimits(currentStage);
+            if (!withinStageLimit) {
+                setShowPremiumModal(true);
+            }
+        }
+    }, [userMetrics, currentStage]);
 
     useEffect(() => {
         const sessionKey = 'travel_session_id';
@@ -143,8 +151,14 @@ export function TravelChat({
     const handleQuickResponseSelect = useCallback(async (text: string) => {
         if (isLoading) return;
         
-        // Clear quick responses immediately
-        // setQuickResponses([]);
+        // Check stage limits in stage 3
+        if (currentStage === 3) {
+            const { withinStageLimit } = checkInputLimits(currentStage);
+            if (!withinStageLimit && !userMetrics.isPaid) {
+                setShowPremiumModal(true);
+                return;
+            }
+        }
         
         // Append the selected response to the chat
         await append({
@@ -158,7 +172,7 @@ export function TravelChat({
                 metrics: userMetrics
             }
         });
-    }, [isLoading, append, currentDetails, savedPlaces, currentStage, userMetrics]);
+    }, [isLoading, append, currentDetails, savedPlaces, currentStage, userMetrics, setShowPremiumModal]);
 
     // Handle message submission
     const handleSubmit = async (e: React.FormEvent) => {
@@ -177,16 +191,8 @@ export function TravelChat({
             // Check stage limits only in stage 3
             if (currentStage === 3) {
                 const { withinStageLimit } = checkInputLimits(currentStage);
-                if (!withinStageLimit) {
-                    // Let the API handle the stage progression and upgrade prompt
-                    await append(userMessage, {
-                        body: {
-                            currentDetails,
-                            savedPlaces,
-                            currentStage,
-                            metrics: userMetrics
-                        }
-                    });
+                if (!withinStageLimit && !userMetrics.isPaid) {
+                    setShowPremiumModal(true);
                     return;
                 }
             }
@@ -283,13 +289,20 @@ export function TravelChat({
             lastMessage.toolInvocations.forEach((toolInvocation) => {
                 if (toolInvocation.toolName === 'stageProgress' && 'result' in toolInvocation) {
                     const result = toolInvocation.result as StageProgressResult;
+                    
+                    // Check if trying to advance to stage 4
+                    if (result.props.nextStage === 4 && !userMetrics.isPaid) {
+                        setShowPremiumModal(true);
+                        return;
+                    }
+                    
                     if (validateStageProgress(result.props.nextStage)) {
                         onStageUpdate(result.props.nextStage);
                     }
                 }
             });
         }
-    }, [messages, onStageUpdate, currentStage]);
+    }, [messages, onStageUpdate, currentStage, userMetrics.isPaid]);
 
     const formatDate = (dateStr: string) => {
         if (!dateStr || dateStr.includes('undefined')) return dateStr;
@@ -416,31 +429,13 @@ export function TravelChat({
 
     useEffect(() => {
         const handleFinish = async (message: any) => {
-            // Check for stage progression metadata
-            const stageProgressMetadata = (message as any).metadata;
-            if (stageProgressMetadata?.triggerStageProgress) {
-                onStageUpdate(stageProgressMetadata.nextStage);
-                return;
-            }
-
-            // Existing quick response logic
-            if (message.role !== 'assistant' || !message.content?.trim()) return;
+            // Process message here
         };
 
-        // Use the append method to simulate onFinish if not directly available
-        const wrappedHandleFinish = (message: any) => {
-            handleFinish(message).catch(console.error);
-        };
-
-        // Attempt to use onFinish if available, otherwise use a workaround
-        if (typeof mainChat.onFinish === 'function') {
-            mainChat.onFinish(wrappedHandleFinish);
-        } else {
-            // Fallback to checking the last message
-            const lastMessage = mainChat.messages[mainChat.messages.length - 1];
-            if (lastMessage) {
-                wrappedHandleFinish(lastMessage);
-            }
+        // Check if last message exists and process it
+        const lastMessage = mainChat.messages[mainChat.messages.length - 1];
+        if (lastMessage) {
+            handleFinish(lastMessage).catch(console.error);
         }
     }, [mainChat, currentDetails, savedPlaces, currentStage, onStageUpdate]);
 
@@ -771,7 +766,7 @@ export function TravelChat({
                                             before:from-blue-200 before:via-purple-300 before:to-pink-200 
                                             before:animate-gradient-x before:bg-[length:200%_100%] after:absolute after:inset-0 
                                             after:bg-white after:opacity-70 after:z-[1] shadow-sm
-                                            text-secondary rounded-2xl rounded-bl-none px-4 py-2 max-w-[75%]">
+                                            text-secondary rounded-2xl rounded-bl-none px-4 py-1.5 max-w-[75%]">
                                                 <div className="relative z-[2]">
                                                     <span className="inline-flex items-center gap-1 text-sky-blue">
                                                         <span className="text-sm">Travel-Rizz is thinking</span>
@@ -795,7 +790,7 @@ export function TravelChat({
                                             before:from-blue-300 before:via-purple-400 before:to-pink-300 before: to-orange-400
                                             before:animate-gradient-x before:bg-[length:200%_100%] after:absolute after:inset-0 
                                             after:bg-white after:opacity-70 after:z-[1] shadow-sm
-                                            text-secondary rounded-2xl rounded-bl-none px-4 py-2 max-w-[75%]">
+                                            text-secondary rounded-2xl rounded-bl-none px-4 py-1.5 max-w-[75%]">
                                         <div className="relative z-[2]">
                                             <span className="inline-flex items-center gap-1 text-sky-blue">
                                                 <span className="text-sm">Travel-Rizz is thinking</span>

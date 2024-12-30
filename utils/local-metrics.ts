@@ -44,6 +44,9 @@ export function updateStoredMetrics(
       const { withinStageLimit } = checkInputLimits(currentStage);
       if (withinStageLimit) {
         metrics.totalPrompts += 1;
+        if (!metrics.stagePrompts) {
+          metrics.stagePrompts = {};
+        }
         metrics.stagePrompts[currentStage] = (metrics.stagePrompts[currentStage] || 0) + 1;
       }
     }

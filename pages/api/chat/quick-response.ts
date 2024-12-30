@@ -128,7 +128,7 @@ export default async function handler(req: NextRequest) {
       - When Travel-Rizz asks which parameters to update or modify, provide options related to updating parameter
       - Only provide options related to yes, no, and parameter updates
       - Available options are like "Update my travel dates", "Modify my budget", "Change my preferences", "Update my language", 
-      "No, I need to modify something", "Let me review the details first", "Yes, let's proceed", "Yes, let's move on to city introduction"
+      "No, I need to modify something", "Let me review the details", "Yes, let's proceed", "Yes, let's move on"
 
     Stage 2 (City Introduction):
       - Only if Travel-Rizz suggesting stage advancement: Use suitable stage transition options
@@ -143,7 +143,7 @@ export default async function handler(req: NextRequest) {
       - Otherwise: Focus on place discovery options
       - Only provide options related to yes, no, and place discovery
       - Provide options that prompts AI to introduce places related to preferences
-      - Never provide options related to saving or adding places
+      - Never provide options related to saving or adding places (e.g., "Save Louvre Museum", "Add Changi Airport")
       - Never provide options related to wanting to know more of a single specific place
       - Available options are like "Show me museums", "Find me some restaurants", "Popular landmarks", "Add some cafes", "Explore some famous attractions",
       "No, I want to see more places", "Show me national parks", "Find me some theaters", "Popular eateries", "Explore some famous tourist spots",
@@ -222,7 +222,10 @@ export default async function handler(req: NextRequest) {
   } catch (error) {
     console.error('[quick-response] Error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
       { status: 500 }
     );
   }
