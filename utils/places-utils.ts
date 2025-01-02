@@ -28,6 +28,35 @@ export interface Place {
     }[];
 }
 
+interface GooglePlaceResponse {
+    id: string;
+    name?: string;
+    displayName?: {
+        text: string;
+        languageCode: string;
+    };
+    formattedAddress?: string;
+    location?: {
+        latitude: number;
+        longitude: number;
+    };
+    primaryType?: string;
+    primaryTypeDisplayName?: {
+        text: string;
+        languageCode: string;
+    };
+    photos?: Array<{
+        name: string;
+        widthPx?: number;
+        heightPx?: number;
+        authorAttributions?: Array<{
+            displayName?: string;
+            uri?: string;
+            photoUri?: string;
+        }>;
+    }>;
+}
+
 import { TravelPreference } from '../managers/types';
 
 // Updated preference to place types mapping based on travel-rizz.html
@@ -137,10 +166,34 @@ export const getPlaceTypeDisplayName = (place: any): string => {
     return place.primaryType ? formatPrimaryType(place.primaryType) : 'Place';
 };
 
+// Keep track of returned places
+const returnedPlaceIds = new Set<string>();
+
+// Function to reset returned places tracking (call this when starting a new search session)
+export function resetReturnedPlaces(): void {
+    returnedPlaceIds.clear();
+}
+
+// Function to filter out duplicate places
+export function filterUniquePlaces(places: Place[]): Place[] {
+    if (!places || !Array.isArray(places)) return [];
+
+    const uniquePlaces = places.filter(place => {
+        if (!place.id || returnedPlaceIds.has(place.id)) {
+            return false;
+        }
+        returnedPlaceIds.add(place.id);
+        return true;
+    });
+
+    return uniquePlaces;
+}
+
 // Search for a single place by text query
 export const searchPlaceByText = async (
     searchText: string,
-    location: { latitude: number; longitude: number }
+    location: { latitude: number; longitude: number },
+    destination: string
 ): Promise<Place | null> => {
     try {
         if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
@@ -148,8 +201,14 @@ export const searchPlaceByText = async (
             return null;
         }
 
+        // Extract city name without country
+        const cityName = destination.split(',')[0].trim();
+
+        const searchQuery = `${searchText} ${cityName}`;
+        console.log('Searching for:', searchQuery);
+
         const requestBody = {
-            textQuery: searchText,
+            textQuery: searchQuery,
             locationBias: {
                 circle: {
                     center: {
@@ -178,12 +237,19 @@ export const searchPlaceByText = async (
             console.error('Failed to search place:', {
                 status: response.status,
                 statusText: response.statusText,
-                error: errorData
+                error: errorData,
+                query: searchQuery,
+                location: location
             });
             return null;
         }
 
         const data = await response.json();
+        console.log('Places API response:', {
+            query: searchQuery,
+            numResults: data.places?.length || 0,
+            firstResult: data.places?.[0]
+        });
         // console.log('Places API text search response:', data);
         
         if (!data.places || !Array.isArray(data.places) || data.places.length === 0) {
@@ -191,16 +257,16 @@ export const searchPlaceByText = async (
             return null;
         }
 
-        // Return the first result as we only need one place
-        const place = data.places[0];
-        return {
+        // Apply unique filter to results
+        const uniquePlaces = filterUniquePlaces(data.places.map((place: GooglePlaceResponse) => ({
             id: place.id,
+            name: place.name,
             displayName: place.displayName?.text ? {
                 text: place.displayName.text,
                 languageCode: place.displayName.languageCode
             } : place.displayName,
             primaryType: place.primaryType || 'place',
-            photos: place.photos?.map((photo: any) => ({ 
+            photos: place.photos?.map(photo => ({ 
                 name: photo.name,
                 widthPx: photo.widthPx,
                 heightPx: photo.heightPx,
@@ -212,7 +278,10 @@ export const searchPlaceByText = async (
                 text: place.primaryTypeDisplayName.text,
                 languageCode: place.primaryTypeDisplayName.languageCode
             } : undefined
-        };
+        })));
+
+        // Return first unique place or null if no unique places found
+        return uniquePlaces.length > 0 ? uniquePlaces[0] : null;
     } catch (error) {
         console.error('Error searching for place:', error);
         return null;

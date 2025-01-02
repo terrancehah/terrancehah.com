@@ -1,8 +1,9 @@
 {
   "/api/chat/quick-response": "pages/api/chat/quick-response.js",
-  "/api/chat": "static/webpack/pages/api/chat.f91007686a064b57.hot-update.js",
+  "/api/chat": "pages/api/chat.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/travel-form": "pages/travel-form.js"
 }

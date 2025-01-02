@@ -23,6 +23,8 @@ import { Place } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
 import { checkInputLimits, updateStoredMetrics, getStoredMetrics } from '../utils/local-metrics';
 import PremiumUpgradeModal from './premium-upgrade-modal';
+import { checkSessionWithWarning, handleSessionExpiry, clearSession } from '../utils/session-manager';
+import SessionWarningModal from './session-warning-modal';
 
 interface TravelChatProps {
     initialDetails: TravelDetails;
@@ -56,6 +58,8 @@ export function TravelChat({
         return getStoredMetrics();
     });
     const [showPremiumModal, setShowPremiumModal] = useState<boolean>(false);
+    const [showSessionWarning, setShowSessionWarning] = useState<boolean>(false);
+
 
     useEffect(() => {
         localStorage.setItem('userMetrics', JSON.stringify(userMetrics));
@@ -68,6 +72,27 @@ export function TravelChat({
             }
         }
     }, [userMetrics, currentStage]);
+
+    // In travel-chat.tsx
+    useEffect(() => {
+        const checkSession = () => {
+        const { isValid, shouldWarn } = checkSessionWithWarning();
+        
+        if (!isValid) {
+            handleSessionExpiry();
+            return;
+        }
+    
+        if (shouldWarn) {
+            // Show warning modal
+            setShowSessionWarning(true);
+        }
+        };
+    
+        // Check every minute
+        const interval = setInterval(checkSession, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         const sessionKey = 'travel_session_id';
@@ -444,6 +469,10 @@ export function TravelChat({
             <PremiumUpgradeModal 
                 isOpen={showPremiumModal} 
                 onClose={() => setShowPremiumModal(false)} 
+            />
+            <SessionWarningModal 
+                isOpen={showSessionWarning}
+                onClose={() => setShowSessionWarning(false)}
             />
             {/* Header */}
             <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">

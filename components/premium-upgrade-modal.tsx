@@ -76,25 +76,25 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
   }, [isOpen]) // Re-run when isOpen changes
 
   return isOpen ? (
-    <div className="absolute inset-0 bottom-[64px] bg-light-blue/85 backdrop-blur-sm z-[60]">
-      <div className="h-full w-full overflow-auto">
-        <div className="relative w-full max-w-2xl mx-auto font-raleway py-4 px-2">
+    <div className="absolute inset-0 bottom-[64px]  bg-white/85 backdrop-blur-sm z-[60]">
+      <div className="h-full w-full overflow-hidden">
+        <div className="flex h-full m-auto font-raleway py-4 px-2">
           <button
             onClick={onClose}
-            className="absolute top-6 right-2 text-gray-600 hover:text-gray-800 bg-slate-300 hover:bg-slate-400 p-1.5 rounded-2xl transition-colors"
+            className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 bg-slate-300 hover:bg-slate-400 p-1.5 rounded-2xl transition-colors"
             aria-label="Close modal"
           >
             <X className="w-4 h-4" />
           </button>
 
-          <div className="space-y-2">
+          <div className="flex flex-col items-center justify-center space-y-2 my-auto w-full h-full">
             <div className="text-center">
               {/* <h1 className="font-caveat font-bold text-5xl leading-tight text-primary mb-1">Travel Rizz</h1> */}
-              <h2 className=" w-[70%] mx-auto text-2xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
+              <h2 className=" w-[70%] mx-auto text-lg lg:text-2xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
               <div className="flex flex-wrap items-center justify-center gap-1 text-xl">
-                <span className="font-bold text-2xl text-center order-1 basis-1/5 text-primary">US$1.99</span>
-                <span className="text-gray-400 text-center text-2xl order-1 basis-1/5 line-through decoration-2">US$4.99</span>
-                <span className="bg-blue-200 text-blue-500 text-sm font-medium px-2.5 py-1 order-2 basis-[30%] rounded">Early Adopter Special</span>
+                <span className="font-bold text-lg md:text-2xl lg:text-3xl text-center order-1 basis-1/5 lg:basis-[15%] text-primary">US$1.99</span>
+                <span className="text-gray-400 text-center text-lg md:text-2xl lg:text-3xl order-1 basis-1/5 lg:basis-[15%] line-through decoration-2">US$2.99</span>
+                <span className="bg-blue-200 text-blue-500 text-sm lg:text-base font-medium px-2.5 py-1 order-2 basis-[30%] lg:basis-1/5 rounded">Early Adopter Special</span>
               </div>
             </div>
             

@@ -232,33 +232,10 @@ export default async function handler(req: NextRequest) {
       presencePenalty: 0.7,
       frequencyPenalty: 0.3,
       maxSteps: 10,
-      experimental_transform: smoothStream({
-        delayInMs: 70, // optional: defaults to 10ms
+      experimental_transform: smoothStream<typeof tools>({
+        delayInMs: 70,
       }),
-      tools: {
-        budgetSelector: tools.budgetSelector,
-        preferenceSelector: tools.preferenceSelector,
-        datePicker: tools.datePicker,
-        languageSelector: tools.languageSelector,
-        transportSelector: tools.transportSelector,
-        placeCard: tools.placeCard,
-        carousel: tools.carousel,
-        detailsCard: tools.detailsCard,
-        weatherChart: tools.weatherChart,
-        savedPlacesCarousel: tools.savedPlacesCarousel,
-        stageProgress: {
-          ...tools.stageProgress,
-          parameters: tools.stageProgress.parameters,
-          execute: async ({ nextStage, currentStage, metrics }) => 
-            tools.stageProgress.execute({ 
-              nextStage, 
-              currentStage, 
-              travelDetails: currentDetails,
-              metrics 
-            })
-        },
-        currencyConverter: tools.currencyConverter
-      },
+      tools,
     });
 
     return result.toDataStreamResponse();

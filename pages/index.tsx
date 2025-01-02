@@ -115,10 +115,13 @@ export default function ChatPage() {
         if (router.isReady) {
             const formatDate = (dateStr: string | string[] | undefined) => {
                 if (!dateStr || Array.isArray(dateStr)) return '';
+
                 // If date is already in DD/MM/YYYY format, return as is
                 if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+
                 // If date is in YYYY-MM-DD format, convert to DD/MM/YYYY
                 const [year, month, day] = dateStr.split('-');
+                
                 return `${day}/${month}/${year}`;
             };
 

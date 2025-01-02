@@ -118,11 +118,12 @@ export const placeCardTool = createTool({
         location: z.object({
             latitude: z.number(),
             longitude: z.number()
-        })
+        }),
+        destination: z.string().describe('Name of the destination city')
     }),
-    execute: async function ({ searchText, location }) {
+    execute: async function ({ searchText, location, destination }) {
         try {
-            const place = await searchPlaceByText(searchText, location);
+            const place = await searchPlaceByText(searchText, location, destination);
             
             if (!place) {
                 console.error('No place found for search text:', searchText);
@@ -325,7 +326,19 @@ export const stageProgressTool = createTool({
     parameters: z.object({
         nextStage: z.number().min(1).max(5),
         currentStage: z.number().min(1).max(5),
-        travelDetails: z.any(),
+        travelDetails: z.object({
+            destination: z.string().optional(),
+            location: z.object({
+                latitude: z.number(),
+                longitude: z.number()
+            }).optional(),
+            startDate: z.string().optional(),
+            endDate: z.string().optional(),
+            preferences: z.array(z.string()).optional(),
+            budget: z.string().optional(),
+            language: z.string().optional(),
+            transport: z.array(z.string()).optional()
+        }), // Note: removed optional() from here
         metrics: z.object({
             totalPrompts: z.number(),
             savedPlacesCount: z.number(),
@@ -335,6 +348,17 @@ export const stageProgressTool = createTool({
     execute: async function({ nextStage, currentStage, travelDetails, metrics }) {
         // console.log('[StageProgressTool] Executing:', { nextStage, currentStage, metrics });
         
+        // Create default empty TravelDetails if not provided
+        const details: TravelDetails = travelDetails || {
+            destination: undefined,
+            startDate: undefined,
+            endDate: undefined,
+            preferences: [],
+            budget: undefined,
+            language: undefined,
+            transport: []
+        };
+
         const validationResult = validateStageProgression(
             currentStage,
             nextStage,

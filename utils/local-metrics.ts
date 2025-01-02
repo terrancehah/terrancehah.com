@@ -74,9 +74,14 @@ export function checkInputLimits(
   const stagePrompts = metrics.stagePrompts?.[currentStage] || 0;
   const totalPrompts = metrics.totalPrompts || 0;
 
+   // Only apply stage limits to stage 3, all other stages should be unlimited
   const result = {
-    withinStageLimit: stagePrompts < (currentStage === 3 ? STAGE_LIMITS[3].maxPrompts : MAX_TOTAL_INPUTS),
-    withinTotalLimit: totalPrompts < MAX_TOTAL_INPUTS,
+    withinStageLimit: currentStage === 3 ? 
+      stagePrompts < STAGE_LIMITS[3].maxPrompts : 
+      true,  // Always true for non-stage 3
+    withinTotalLimit: currentStage === 3 ? 
+      totalPrompts < MAX_TOTAL_INPUTS :
+      true,  // Always true for non-stage 3
     stageInputCount: stagePrompts,
     totalInputCount: totalPrompts
   };

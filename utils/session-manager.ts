@@ -1,13 +1,16 @@
 import { UserInteractionMetrics } from '../managers/stage-manager';
 
 const SESSION_CONFIG = {
-  INACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30 minutes
-  ABSOLUTE_TIMEOUT: 24 * 60 * 60 * 1000, // 24 hours
+  INACTIVITY_TIMEOUT: 2 * 60 * 60 * 1000, // 2 hours
+  ABSOLUTE_TIMEOUT: 24 * 60 * 60 * 1000, // keep 24 hours
+  WARNING_BEFORE_TIMEOUT: 5 * 60 * 1000, // 5 minutes warning
   STORAGE_KEYS: {
     SESSION: 'travel_session',
     METRICS: 'travel_interaction_metrics'
   }
 };
+
+
 
 interface SessionMetadata {
   sessionId: string;
@@ -27,6 +30,33 @@ export function initializeSession(): SessionMetadata {
   
   localStorage.setItem(SESSION_CONFIG.STORAGE_KEYS.SESSION, JSON.stringify(session));
   return session;
+}
+
+// Add warning mechanism
+export function checkSessionWithWarning(): { isValid: boolean; shouldWarn: boolean } {
+  const sessionData = localStorage.getItem(SESSION_CONFIG.STORAGE_KEYS.SESSION);
+  if (!sessionData) return { isValid: false, shouldWarn: false };
+
+  try {
+    const session: SessionMetadata = JSON.parse(sessionData);
+    const now = Date.now();
+    const timeUntilInactivity = (session.lastActive + SESSION_CONFIG.INACTIVITY_TIMEOUT) - now;
+    
+    // Check if we should show warning
+    if (timeUntilInactivity > 0 && timeUntilInactivity <= SESSION_CONFIG.WARNING_BEFORE_TIMEOUT) {
+      return { isValid: true, shouldWarn: true };
+    }
+
+    // Regular validity check
+    if (now >= session.expiresAt || now - session.lastActive >= SESSION_CONFIG.INACTIVITY_TIMEOUT) {
+      return { isValid: false, shouldWarn: false };
+    }
+
+    return { isValid: true, shouldWarn: false };
+  } catch (error) {
+    console.error('[SessionManager] Error checking session:', error);
+    return { isValid: false, shouldWarn: false };
+  }
 }
 
 export function checkSessionValidity(): boolean {
@@ -58,6 +88,22 @@ export function checkSessionValidity(): boolean {
     clearSession();
     return false;
   }
+}
+
+// ession expiry handler
+export function handleSessionExpiry() {
+  // Save current state if needed
+  const currentState = {
+    messages: window.getSavedPlaces?.() || [],
+    lastUrl: window.location.pathname
+  };
+  localStorage.setItem('expiredSessionState', JSON.stringify(currentState));
+  
+  // Clear session
+  clearSession();
+  
+  // Redirect to landing page with return path
+  window.location.href = `/?return=${encodeURIComponent(currentState.lastUrl)}`;
 }
 
 export function clearSession() {
