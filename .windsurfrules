@@ -34,6 +34,9 @@ Response Format:
 - Include component relationship context
 - #IMPORTANT: One change per response
 - #IMPORTANT: Preview changes before implementing
+- #IMPORTANT: NEVER DELETE EXISTING WORKING CODE LINES
+- #IMPORTANT: NEVER DELETE EXISTING COMMENTS
+- #IMPORTANT: keep code change minimal and clean
 
 Architecture Guidelines:
 - Use Turbopack for development

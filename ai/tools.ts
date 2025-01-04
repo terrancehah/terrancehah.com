@@ -129,7 +129,8 @@ export const placeCardTool = createTool({
                 console.error('No place found for search text:', searchText);
                 return {
                     type: 'placeCard',
-                    props: { place: null }
+                    props: { place: null },
+                    error: 'Could not find a unique place. Try searching for something else.'
                 };
             }
 
@@ -286,6 +287,7 @@ export const weatherChartTool = createTool({
 });
 
 export const savedPlacesCarouselTool = createTool({
+    description: 'Display all currently saved places in a carousel. MUST use this tool whenever user asks to see their saved places (e.g. "show me my saved places", "what places have I saved", etc).',
     parameters: z.object({
         savedPlaces: z.array(z.object({
             id: z.string(),

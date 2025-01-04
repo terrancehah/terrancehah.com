@@ -127,7 +127,7 @@ export default async function handler(req: NextRequest) {
       - Otherwise: Focus on parameter update options
       - When Travel-Rizz asks which parameters to update or modify, provide options related to updating parameter
       - Only provide options related to yes, no, and parameter updates
-      - Available options are like "Update my travel dates", "Modify my budget", "Change my preferences", "Update my language", 
+      - Available options are examples like "Update my travel dates", "Modify my budget", "Change my preferences", "Update my language", 
       "No, I need to modify something", "Let me review the details", "Yes, let's proceed", "Yes, let's move on"
 
     Stage 2 (City Introduction):
@@ -135,7 +135,7 @@ export default async function handler(req: NextRequest) {
       - Otherwise: Focus on city information options 
       - Only provide options related to yes, no, currency, local customs, weather, culture and local tips
       - Never provide options related to introducing or finding places
-      - Available options are like "Tell me about the weather", "What's the currency conversion rate?", "Local customs and tips", "Tell me about the culture", 
+      - Available options are examples like "Tell me about the weather", "What's the currency conversion rate?", "Local customs and tips", "Tell me about the culture", 
       "No, I want to know more about the city", "Tell me more about the destination", "Yes, let's proceed to places introduction", "Yes, let's move on"
 
     Stage 3 (Places Browsing and Introduction):
@@ -145,14 +145,14 @@ export default async function handler(req: NextRequest) {
       - Provide options that prompts AI to introduce places related to preferences
       - Never provide options related to saving or adding places (e.g., "Save Louvre Museum", "Add Changi Airport")
       - Never provide options related to wanting to know more of a single specific place
-      - Available options are like "Show me museums", "Find me some restaurants", "Popular landmarks", "Add some cafes", "Explore some famous attractions",
+      - Available options are examples like "Show me museums", "Find me some restaurants", "Popular landmarks", "Add some cafes", "Explore some famous attractions",
       "No, I want to see more places", "Show me national parks", "Find me some theaters", "Popular eateries", "Explore some famous tourist spots",
       "No, I want to add more places", "Continue to itinerary review", "Yes, let's proceed", "Yes, let's move on", "View pricing"
 
     Stage 4 (Itinerary Review):
       - Only if Travel-Rizz suggesting stage advancement: Use suitable stage transition options
       - Otherwise: Focus on itinerary refinement options 
-      - Available options are like "Add more activities", "Adjust the schedule", "Review the plan", "No, I want to review the plan", "No, I want to change my itinerary", "Yes, let's proceed", "Yes, let's move on"
+      - Available options are examples like "Add more activities", "Adjust the schedule", "Review the plan", "No, I want to review the plan", "No, I want to change my itinerary", "Yes, let's proceed", "Yes, let's move on"
 
     Stage 5 (Final Confirmation):
       - Focus on final preparations options ("Download itinerary", "Share with friends", "Make a copy")
@@ -208,7 +208,7 @@ export default async function handler(req: NextRequest) {
           role: m.role === 'user' ? ('user' as const) : ('assistant' as const)
         }))
       ],
-      temperature: 0.3,
+      temperature: 0.5,
       maxTokens: 200,
       tools: {
         quickResponse: tools.quickResponse,

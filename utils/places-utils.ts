@@ -58,6 +58,8 @@ interface GooglePlaceResponse {
 }
 
 import { TravelPreference } from '../managers/types';
+import { UserInteractionMetrics } from '../managers/stage-manager';
+import { METRICS_STORAGE_KEY, getStoredMetrics } from './local-metrics';
 
 // Updated preference to place types mapping based on travel-rizz.html
 export const preferenceToPlaceTypes: Record<TravelPreference, string[]> = {
@@ -158,137 +160,392 @@ export const formatPrimaryType = (type: string): string => {
 };
 
 // Helper function to get display name for place type
-export const getPlaceTypeDisplayName = (place: any): string => {
-    if (place?.primaryTypeDisplayName?.text) {
-        return place.primaryTypeDisplayName.text;
+export const getDisplayName = (place: Place): string => {
+    if (typeof place.displayName === 'string') {
+        return place.displayName;
     }
-    // Fallback to formatting the primaryType if displayName is not available
-    return place.primaryType ? formatPrimaryType(place.primaryType) : 'Place';
+    return place.displayName?.text || place.name || '';
 };
-
-// Keep track of returned places
-const returnedPlaceIds = new Set<string>();
-
-// Function to reset returned places tracking (call this when starting a new search session)
-export function resetReturnedPlaces(): void {
-    returnedPlaceIds.clear();
-}
 
 // Function to filter out duplicate places
 export function filterUniquePlaces(places: Place[]): Place[] {
     if (!places || !Array.isArray(places)) return [];
 
-    const uniquePlaces = places.filter(place => {
-        if (!place.id || returnedPlaceIds.has(place.id)) {
-            return false;
-        }
-        returnedPlaceIds.add(place.id);
+    // Get saved places from global state if available
+    const savedPlaces = savedPlacesManager.getPlaces();
+
+    const savedPlaceIds = new Set(savedPlaces.map(place => place.id));
+    const savedPlaceNames = new Set(savedPlaces.map(place => 
+        typeof place.displayName === 'string' 
+            ? place.displayName.toLowerCase() 
+            : place.displayName.text.toLowerCase()
+    ));
+
+     // Filter out places that:
+    // 1. Have same ID as saved place
+    // 2. Have same name as saved place
+    return places.filter(place => {
+        if (!place.id) return false;
+        if (savedPlaceIds.has(place.id)) return false;
+        
+        const placeName = typeof place.displayName === 'string' 
+            ? place.displayName.toLowerCase()
+            : place.displayName.text.toLowerCase();
+            
+        if (savedPlaceNames.has(placeName)) return false;
+        
         return true;
     });
-
-    return uniquePlaces;
 }
 
-// Search for a single place by text query
-export const searchPlaceByText = async (
-    searchText: string,
-    location: { latitude: number; longitude: number },
-    destination: string
-): Promise<Place | null> => {
+// Add SavedPlacesManager interface
+export interface SavedPlacesManager {
+    places: Map<string, Place>;
+    addPlace: (place: Place) => void;
+    removePlace: (id: string) => void;
+    getPlaces: () => Place[];
+    hasPlace: (id: string) => boolean;
+    _persist: () => void;
+    _notifyChange: () => void;
+}
+
+const STORAGE_KEY = 'saved_places';
+
+// Initialize from localStorage if available
+function initializePlaces(): Map<string, Place> {
     try {
-        if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-            console.error('Google Maps API key is missing');
-            return null;
+        if (typeof window === 'undefined') {
+            return new Map<string, Place>();
         }
 
-        // Extract city name without country
-        const cityName = destination.split(',')[0].trim();
+        const savedPlaces = localStorage.getItem(STORAGE_KEY);
+        if (!savedPlaces) {
+            return new Map<string, Place>();
+        }
 
-        const searchQuery = `${searchText} ${cityName}`;
-        console.log('Searching for:', searchQuery);
-
-        const requestBody = {
-            textQuery: searchQuery,
-            locationBias: {
-                circle: {
-                    center: {
-                        latitude: location.latitude,
-                        longitude: location.longitude
-                    },
-                    radius: 20000.0 // 20km radius
+        const parsedPlaces = JSON.parse(savedPlaces) as Place[];
+        const places = new Map<string, Place>();
+        
+        if (Array.isArray(parsedPlaces)) {
+            parsedPlaces.forEach(place => {
+                if (place?.id) {
+                    places.set(place.id, place);
                 }
+            });
+        }
+
+        return places;
+    } catch (error) {
+        console.error('[SavedPlacesManager] Error loading from storage:', error);
+        return new Map<string, Place>();
+    }
+}
+
+// SavedPlacesManager singleton
+const createSavedPlacesManager = () => {
+    const places = typeof window === 'undefined' ? new Map<string, Place>() : initializePlaces();
+
+    return {
+        places,
+
+        addPlace(place: Place) {
+            if (typeof window === 'undefined') {
+                console.warn('[savedPlacesManager] Cannot add place in server context');
+                return;
             }
-        };
 
-        const headers = new Headers({
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
-        });
+            if (!place || !place.id) {
+                console.error('[savedPlacesManager] Invalid place:', place);
+                return;
+            }
 
+            if (this.places.has(place.id)) {
+                console.log('[savedPlacesManager] Place already exists:', place.id);
+                return;
+            }
+
+            this.places.set(place.id, place);
+            
+            // Update metrics and storage
+            const metrics = metricsManager.get();
+            metrics.savedPlacesCount = this.places.size;
+            metricsManager.update(metrics);
+
+            // Save places
+            const placesArray = Array.from(this.places.values());
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
+            
+            // Notify UI
+            this._notifyChange();
+        },
+
+        removePlace(id: string) {
+            if (typeof window === 'undefined') {
+                console.warn('[savedPlacesManager] Cannot remove place in server context');
+                return;
+            }
+
+            if (!this.places.has(id)) {
+                console.log('[savedPlacesManager] Place not found:', id);
+                return;
+            }
+
+            this.places.delete(id);
+            
+            // Update metrics and storage
+            const metrics = metricsManager.get();
+            metrics.savedPlacesCount = this.places.size;
+            metricsManager.update(metrics);
+
+            // Save places
+            const placesArray = Array.from(this.places.values());
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
+            
+            // Notify UI
+            this._notifyChange();
+        },
+
+        getPlaces() {
+            return Array.from(this.places.values());
+        },
+
+        hasPlace(id: string): boolean {
+            return this.places.has(id);
+        },
+
+        _notifyChange() {
+            if (typeof window === 'undefined') {
+                return;
+            }
+
+            try {
+                const event = new CustomEvent('savedPlacesChanged', {
+                    detail: { 
+                        places: Array.from(this.places.values()),
+                        count: this.places.size 
+                    }
+                });
+                window.dispatchEvent(event);
+            } catch (error) {
+                console.error('[savedPlacesManager] Error notifying change:', error);
+            }
+        }
+    };
+};
+
+export const savedPlacesManager = createSavedPlacesManager();
+
+// Initialize on client side
+if (typeof window !== 'undefined') {
+    savedPlacesManager.places = initializePlaces();
+}
+
+// Declare window interface for saved places
+declare global {
+    interface Window {
+        savedPlaces: Place[];
+        addPlaceToMap?: (place: {
+            latitude: number;
+            longitude: number;
+            title?: string;
+            place?: Place;
+        }) => void;
+        getSavedPlaces?: () => Place[];
+    }
+}
+
+// Helper function to handle different search strategies
+async function searchWithStrategy(
+    searchText: string,
+    location: { latitude: number; longitude: number },
+    cityName: string,
+    useAlternateSearch: boolean
+): Promise<any> {
+    if (!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
+        throw new Error('Google Maps API key is missing');
+    }
+
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+    } as const;
+
+    // Choose query based on whether we're doing alternate search
+    const query = useAlternateSearch 
+        ? `different ${searchText} in ${cityName}`
+        : `${searchText} ${cityName}`;
+
+    console.log(`[searchWithStrategy] Using ${useAlternateSearch ? 'alternate' : 'original'} search:`, query);
+    
+    const result = await trySearch(query, headers, location);
+    return result;
+}
+
+async function trySearch(
+    query: string,
+    headers: any,
+    location: { latitude: number; longitude: number }
+): Promise<any> {
+    try {
         const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
-            headers: headers,
-            body: JSON.stringify(requestBody)
+            headers,
+            body: JSON.stringify({
+                textQuery: query,
+                locationBias: {
+                    circle: {
+                        center: {
+                            latitude: location.latitude,
+                            longitude: location.longitude
+                        },
+                        radius: 20000.0
+                    }
+                },
+                maxResultCount: 1
+            })
         });
 
         if (!response.ok) {
-            const errorData = await response.text();
-            console.error('Failed to search place:', {
+            console.error('[trySearch] Search failed:', {
                 status: response.status,
                 statusText: response.statusText,
-                error: errorData,
-                query: searchQuery,
-                location: location
+                query
             });
             return null;
         }
 
         const data = await response.json();
-        console.log('Places API response:', {
-            query: searchQuery,
-            numResults: data.places?.length || 0,
-            firstResult: data.places?.[0]
-        });
-        // console.log('Places API text search response:', data);
-        
-        if (!data.places || !Array.isArray(data.places) || data.places.length === 0) {
-            console.error('No places found for text search:', searchText);
+        if (!data.places?.[0]) {
+            console.log('[trySearch] No places found for query:', query);
             return null;
         }
 
-        // Apply unique filter to results
-        const uniquePlaces = filterUniquePlaces(data.places.map((place: GooglePlaceResponse) => ({
-            id: place.id,
-            name: place.name,
-            displayName: place.displayName?.text ? {
-                text: place.displayName.text,
-                languageCode: place.displayName.languageCode
-            } : place.displayName,
-            primaryType: place.primaryType || 'place',
-            photos: place.photos?.map(photo => ({ 
-                name: photo.name,
-                widthPx: photo.widthPx,
-                heightPx: photo.heightPx,
-                authorAttributions: photo.authorAttributions
-            })) || [],
-            formattedAddress: place.formattedAddress,
-            location: place.location,
-            primaryTypeDisplayName: place.primaryTypeDisplayName ? {
-                text: place.primaryTypeDisplayName.text,
-                languageCode: place.primaryTypeDisplayName.languageCode
-            } : undefined
-        })));
+        console.log('[trySearch] Found new place:', {
+            id: data.places[0].id,
+            name: data.places[0].displayName?.text || data.places[0].name
+        });
 
-        // Return first unique place or null if no unique places found
-        return uniquePlaces.length > 0 ? uniquePlaces[0] : null;
+        return { places: [data.places[0]] };
     } catch (error) {
-        console.error('Error searching for place:', error);
+        console.error('[trySearch] Error:', error);
         return null;
     }
+}
+
+export async function searchPlaceByText(
+    searchText: string,
+    location: { latitude: number; longitude: number },
+    destination: string
+): Promise<Place | null> {
+    console.log('[searchPlaceByText] Starting search with:', {
+        searchText,
+        location,
+        destination
+    });
+
+    try {
+        const cityName = destination;
+        const result = await searchWithStrategy(searchText, location, cityName, false);
+        
+        if (!result?.places?.[0]) {
+            return null;
+        }
+
+        const place = transformPlaceResponse(result.places[0]);
+        if (!place) {
+            return null;
+        }
+
+        // Check if place is already saved using savedPlacesManager
+        const isAlreadySaved = savedPlacesManager.hasPlace(place.id);
+        
+        if (!isAlreadySaved) {
+            console.log('[searchPlaceByText] Adding new place:', {
+                id: place.id,
+                name: getDisplayName(place)
+            });
+            savedPlacesManager.addPlace(place);
+            
+            // Update metrics
+            const metrics = metricsManager.get();
+            metrics.savedPlacesCount = savedPlacesManager.places.size;
+            metricsManager.update(metrics);
+        }
+
+        console.log('[searchPlaceByText] Found place:', {
+            id: place.id,
+            name: getDisplayName(place),
+            isAlreadySaved
+        });
+
+        return place;
+    } catch (error) {
+        console.error('[searchPlaceByText] Error searching for place:', error);
+        return null;
+    }
+}
+
+// Initialize metrics in storage
+function initializeMetrics(): UserInteractionMetrics {
+    if (typeof window === 'undefined') {
+        return {
+            totalPrompts: 0,
+            savedPlacesCount: 0,
+            isPaid: false,
+            stagePrompts: {}
+        };
+    }
+
+    const metrics = getStoredMetrics();
+    // Always ensure savedPlacesCount matches actual saved places
+    metrics.savedPlacesCount = savedPlacesManager.places.size;
+    return metrics;
+}
+
+// Update metrics in storage
+function updateMetrics(metrics: UserInteractionMetrics) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    } catch (error) {
+        console.error('[updateMetrics] Error:', error);
+    }
+}
+
+// Export the metrics functions
+export const metricsManager = {
+    get: initializeMetrics,
+    update: updateMetrics
 };
 
-// Search for multiple places by text query
+// Helper function to transform Google Places API response to our Place type
+function transformPlaceResponse(place: GooglePlaceResponse): Place | null {
+    if (!place) return null;
+
+    const displayName = place.displayName?.text 
+        ? { text: place.displayName.text, languageCode: place.displayName.languageCode || 'en' }
+        : place.name || '';
+
+    return {
+        id: place.id,
+        name: place.name,
+        displayName,
+        primaryType: place.primaryType || 'place',
+        photos: place.photos?.map(photo => ({ 
+            name: photo.name,
+            widthPx: photo.widthPx,
+            heightPx: photo.heightPx,
+            authorAttributions: photo.authorAttributions
+        })) || [],
+        formattedAddress: place.formattedAddress,
+        location: place.location,
+        primaryTypeDisplayName: place.primaryTypeDisplayName 
+            ? { text: place.primaryTypeDisplayName.text, languageCode: place.primaryTypeDisplayName.languageCode || 'en' }
+            : undefined
+    };
+}
+
 export const searchMultiplePlacesByText = async (
     searchText: string,
     location: { latitude: number; longitude: number },
@@ -320,15 +577,15 @@ export const searchMultiplePlacesByText = async (
             maxResultCount: maxResults
         };
 
-        const headers = new Headers({
+        const headers = {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
             'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
-        });
+        } as const;
 
         const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
             method: 'POST',
-            headers: headers,
+            headers,
             body: JSON.stringify(requestBody)
         });
 
@@ -353,7 +610,7 @@ export const searchMultiplePlacesByText = async (
             id: place.id,
             displayName: place.displayName?.text ? {
                 text: place.displayName.text,
-                languageCode: place.displayName.languageCode
+                languageCode: place.displayName.languageCode || 'en'
             } : place.displayName,
             primaryType: place.primaryType || 'place',
             photos: place.photos?.map((photo: any) => ({ 
@@ -363,7 +620,7 @@ export const searchMultiplePlacesByText = async (
             location: place.location,
             primaryTypeDisplayName: place.primaryTypeDisplayName ? {
                 text: place.primaryTypeDisplayName.text,
-                languageCode: place.primaryTypeDisplayName.languageCode
+                languageCode: place.primaryTypeDisplayName.languageCode || 'en'
             } : undefined
         }));
     } catch (error) {
@@ -427,15 +684,15 @@ export const fetchPlaces = async (
                 }
             };
 
-            const headers = new Headers({
+            const headers = {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
                 'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
-            });
+            } as const;
 
             const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
                 method: 'POST',
-                headers: headers,
+                headers,
                 body: JSON.stringify(requestBody)
             });
 
@@ -446,7 +703,7 @@ export const fetchPlaces = async (
                         id: place.id,
                         displayName: place.displayName?.text ? {
                             text: place.displayName.text,
-                            languageCode: place.displayName.languageCode
+                            languageCode: place.displayName.languageCode || 'en'
                         } : place.displayName,
                         primaryType: place.primaryType || 'place',
                         photos: place.photos?.map((photo: any) => ({ 
@@ -456,7 +713,7 @@ export const fetchPlaces = async (
                         location: place.location,
                         primaryTypeDisplayName: place.primaryTypeDisplayName ? {
                             text: place.primaryTypeDisplayName.text,
-                            languageCode: place.primaryTypeDisplayName.languageCode
+                            languageCode: place.primaryTypeDisplayName.languageCode || 'en'
                         } : undefined
                     }));
                 }

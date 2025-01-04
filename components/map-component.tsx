@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Script from 'next/script';
-import { Place, searchPlaceByText } from '@/utils/places-utils';
+import { Place, savedPlacesManager, searchPlaceByText } from '@/utils/places-utils';
 
 interface MapComponentProps {
     city: string;
     apiKey: string;
 }
 
-const globalSavedPlaces = new Map<string, Place>();
+// Keep for backward compatibility
+const globalSavedPlaces = savedPlacesManager.places;
 
 declare global {
     interface Window {
@@ -31,8 +32,24 @@ declare global {
             place?: Place;
         }) => void;
         clearPlaceMarkers?: () => void;
-        savedPlaces: Map<string, Place>;
+        savedPlaces: Place[];
         getSavedPlaces?: () => Place[];
+    }
+}
+
+// Modify map-component.tsx to expose a proper global interface
+// At the top of file
+interface SavedPlacesManager {
+    addPlace: (place: Place) => void;
+    removePlace: (placeId: string) => void;
+    getPlaces: () => Place[];
+    hasPlace: (placeId: string) => boolean;
+}
+
+// Expose type-safe global methods
+declare global {
+    interface Window {
+        savedPlacesManager: SavedPlacesManager;
     }
 }
 
@@ -46,7 +63,6 @@ declare global {
 }
 
 
-
 const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -56,41 +72,39 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [scriptLoaded, setScriptLoaded] = useState(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
+    const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
     const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
-    const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const [markerCount, setMarkerCount] = useState(0);
-    const savedPlacesRef = useRef<Place[]>([]);
-    const lastUpdateRef = useRef<number>(0);
 
     // Memoize getSavedPlaces to prevent unnecessary re-renders
-    const getSavedPlaces = useCallback(() => {
-        const now = Date.now();
-        // Only update if more than 1000ms has passed since last update
-        if (now - lastUpdateRef.current < 1000) {
-            return savedPlacesRef.current;
-        }
-        lastUpdateRef.current = now;
-        return savedPlacesRef.current;
-    }, []);
+    // const getSavedPlaces = useCallback(() => {
+    //     const now = Date.now();
+    //     // Only update if more than 1000ms has passed since last update
+    //     if (now - lastUpdateRef.current < 1000) {
+    //         return savedPlacesRef.current;
+    //     }
+    //     lastUpdateRef.current = now;
+    //     return savedPlacesRef.current;
+    // }, []);
 
     // Expose getSavedPlaces to window with debouncing
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            window.getSavedPlaces = getSavedPlaces;
-        }
-        return () => {
-            if (typeof window !== 'undefined') {
-                delete window.getSavedPlaces;
-            }
-        };
-    }, [getSavedPlaces]);
+    // useEffect(() => {
+    //     if (typeof window !== 'undefined') {
+    //         window.getSavedPlaces = getSavedPlaces;
+    //     }
+    //     return () => {
+    //         if (typeof window !== 'undefined') {
+    //             delete window.getSavedPlaces;
+    //         }
+    //     };
+    // }, [getSavedPlaces]);
 
-    // Update savedPlacesRef when places are added/removed
-    const updateSavedPlaces = useCallback((places: Place[]) => {
-        savedPlacesRef.current = places;
-        lastUpdateRef.current = Date.now();
-    }, []);
+    // // Update savedPlacesRef when places are added/removed
+    // const updateSavedPlaces = useCallback((places: Place[]) => {
+    //     savedPlacesRef.current = places;
+    //     lastUpdateRef.current = Date.now();
+    // }, []);
 
     useEffect(() => {
         console.log('MapComponent: Received props:', { city, apiKeyLength: apiKey?.length });
@@ -148,8 +162,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                                     // Search for the city to get its details including photos
                                     const cityPlace = await searchPlaceByText(city, {
                                         latitude: location.lat(),
-                                        longitude: location.lng()
-                                    });
+                                        longitude: location.lng()                                   
+                                    }, city);
 
                                     if (!cityPlace) return null;
 
@@ -297,6 +311,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
         window.removePlaceFromMap = (placeId: string) => {
             console.log('Debug - Starting removal process for placeId:', placeId);
+             // Remove from global storage
+            savedPlacesManager.removePlace(placeId);
 
             try {
                 const marker = markersRef.current.get(placeId);
@@ -316,11 +332,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
                     // Clean up references
                     markersRef.current.delete(placeId);
-                    globalSavedPlaces.delete(placeId);
+                    savedPlacesManager.removePlace(placeId);
 
                     // Force update component state
                     setMarkerCount(prev => prev - 1);
-                    setSavedPlaces(new Map(globalSavedPlaces));
+                    setSavedPlaces(new Map(savedPlacesManager.places));
 
                     console.log('Debug - After removal markers:', [...markersRef.current.entries()]);
                     console.log('Debug - Successfully removed marker and place:', placeId);
@@ -330,10 +346,44 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             } catch (error) {
                 console.error('Debug - Error during marker removal:', error);
             }
+            // Notify components that places changed
+            window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
+                detail: {
+                    places: Array.from(savedPlacesManager.places.values()),
+                    count: savedPlacesManager.places.size
+                }
+            }));
         };
 
-        window.addPlaceToMap = async (placeData) => {
+        window.addPlaceToMap = async (data: { 
+            latitude: number; 
+            longitude: number; 
+            title?: string;
+            place?: Place;
+        }) => {
             try {
+                // Add this check at the start of the function
+                const markerId = data.place?.id;
+                if (!markerId) {
+                    console.error('Debug - No place ID provided');
+                    return;
+                }
+
+                // Add this check for duplicates
+                if (savedPlacesManager.hasPlace(markerId)) {
+                    console.log('Debug - Place already exists:', markerId);
+                    return;
+                }
+
+                 // Add to global storage first
+                if (data.place) {
+                    savedPlacesManager.addPlace(data.place);
+                     // Force a re-render when adding a marker
+                    setMarkerCount(prev => prev + 1);
+                    setSavedPlaces(new Map(savedPlacesManager.places));
+                    console.log('Debug - Added place:', savedPlacesManager.places);
+                }
+
                 const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
                     google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
                     google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>
@@ -342,12 +392,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 const pinElement = new google.maps.marker.PinElement({
                     scale: 1
                 });
-
-                const markerId = placeData.place?.id;
-                if (!markerId) {
-                    console.error('Debug - No place ID provided');
-                    return;
-                }
 
                 console.log('Debug - Creating marker with ID:', markerId);
 
@@ -365,10 +409,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
                 const marker = new google.maps.marker.AdvancedMarkerElement({
                     position: {
-                        lat: placeData.latitude,
-                        lng: placeData.longitude
+                        lat: data.latitude,
+                        lng: data.longitude
                     },
-                    title: placeData.title,
+                    title: data.title,
                     content: pinElement.element,
                     gmpDraggable: false,
                 });
@@ -378,12 +422,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
                 // Add click listener
                 marker.addListener('gmp-click', () => {
-                    if (placeData.place) {
+                    if (data.place) {
                         window.currentInfoWindowMarker = {
                             markerId: markerId,
                             marker: marker
                         };
-                        const content = createPlaceInfoWindowContent(placeData.place, markerId);
+                        const content = createPlaceInfoWindowContent(data.place, markerId);
                         if (content && infoWindowRef.current) {
                             infoWindowRef.current.setContent(content);
                             infoWindowRef.current.open(map, marker);
@@ -392,17 +436,24 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 });
 
                 // Store the marker reference
-                markersRef.current.set(markerId, marker);
+                // markersRef.current.set(markerId, marker);
                 
-                if (placeData.place) {
-                    globalSavedPlaces.set(markerId, placeData.place);
-                    // Force a re-render when adding a marker
-                    setMarkerCount(prev => prev + 1);
-                    setSavedPlaces(new Map(globalSavedPlaces));
-                    console.log('Debug - Added place:', globalSavedPlaces);
-                }
+                // if (data.place) {
+                //     savedPlacesManager.addPlace(data.place);
+                //     // Force a re-render when adding a marker
+                //     setMarkerCount(prev => prev + 1);
+                //     setSavedPlaces(new Map(savedPlacesManager.places));
+                //     console.log('Debug - Added place:', savedPlacesManager.places);
+                // }
+                // console.log('Debug - Marker added successfully');
 
-                console.log('Debug - Marker added successfully');
+                // Notify components that places changed
+                window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
+                    detail: {
+                        places: Array.from(savedPlacesManager.places.values()),
+                        count: savedPlacesManager.places.size
+                    }
+                }));
 
             } catch (err) {
                 console.error('Error adding place marker:', err);
@@ -410,17 +461,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
 
         window.getSavedPlaces = () => {
-            const places = Array.from(globalSavedPlaces.values());
-            console.log('Getting saved places:', places);
-            return places;
+            return savedPlacesManager.getPlaces();
         };
         
     }, [map, infoWindow, markerCount]);
 
-    // Add a useEffect to monitor savedPlaces changes
-    useEffect(() => {
-        console.log('Current saved places:', [...globalSavedPlaces.entries()]);
-    }, [savedPlaces]);
+    // // Add a useEffect to monitor savedPlaces changes
+    // useEffect(() => {
+    //     console.log('Current saved places:', [...globalSavedPlaces.entries()]);
+    // }, [savedPlaces]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -442,10 +491,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             try {
                 const parsed = JSON.parse(sessionData);
                 if (parsed.savedPlaces) {
-                    const placesMap = new Map(parsed.savedPlaces.map((place: Place) => [place.id || (place.displayName as {text: string}).text, place]));
-                    setSavedPlaces(placesMap as Map<string, Place>);
-                    savedPlacesRef.current = Array.from(placesMap.values()) as Place[];
-                    Object.assign(globalSavedPlaces, placesMap);
+                    parsed.savedPlaces.forEach((place: Place) => {
+                        if (place.id) {
+                            savedPlacesManager.addPlace(place);
+                        }
+                    });
+                    // Notify components of initial load
+                    window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
+                        detail: {
+                            places: Array.from(savedPlacesManager.places.values()),
+                            count: savedPlacesManager.places.size
+                        }
+                    }));
                 }
             } catch (error) {
                 console.error('Error loading saved places from session:', error);
@@ -461,13 +518,23 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 const parsed = JSON.parse(sessionData);
                 sessionStorage.setItem('travelPlannerSession', JSON.stringify({
                     ...parsed,
-                    savedPlaces: Array.from(savedPlaces.values())
+                    savedPlaces: savedPlacesManager.getPlaces()
                 }));
             } catch (error) {
                 console.error('Error saving places to session:', error);
             }
         }
     }, [savedPlaces]);
+
+    const getPhotoUrl = (photo: google.maps.places.Photo, index: number) => {
+        return photo.getURI?.() || '';
+    };
+
+    const handleSlideChange = (_: any, index: number) => {
+        if (window.currentSlide !== undefined) {
+            window.currentSlide = index;
+        }
+    };
 
     const createPlaceInfoWindowContent = (place: Place, markerId: string) => {
         console.log('Debug - Creating info window content for markerId:', markerId);

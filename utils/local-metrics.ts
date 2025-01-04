@@ -1,7 +1,7 @@
 import { UserInteractionMetrics, STAGE_LIMITS } from '../managers/stage-manager';
 import { checkSessionValidity, initializeSession, clearSession } from './session-manager';
 
-const METRICS_STORAGE_KEY = 'travel_interaction_metrics';
+export const METRICS_STORAGE_KEY = 'travel_interaction_metrics';
 const SESSION_KEY = 'travel_session_id';
 const MAX_TOTAL_INPUTS = 15;
 

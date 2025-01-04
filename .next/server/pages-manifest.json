@@ -5,5 +5,5 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/travel-form": "pages/travel-form.js"
+  "/api/maps-key": "pages/api/maps-key.js"
 }

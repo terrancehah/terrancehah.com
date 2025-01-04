@@ -19,12 +19,13 @@ import { validateStageProgression, UserInteractionMetrics } from '../managers/st
 import { CurrencyConverter } from '../components/currency/CurrencyConverter';
 import { useTravelChat } from '../hooks/useTravelChat';
 import { useTravelTools } from '../hooks/useTravelTools';
-import { Place } from '../utils/places-utils';
+import { Place, searchPlaceByText } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
 import { checkInputLimits, updateStoredMetrics, getStoredMetrics } from '../utils/local-metrics';
 import PremiumUpgradeModal from './premium-upgrade-modal';
 import { checkSessionWithWarning, handleSessionExpiry, clearSession } from '../utils/session-manager';
 import SessionWarningModal from './session-warning-modal';
+import { savedPlacesManager } from '../utils/places-utils';
 
 interface TravelChatProps {
     initialDetails: TravelDetails;
@@ -53,7 +54,6 @@ export function TravelChat({
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [currentDetails, setCurrentDetails] = useState<TravelDetails>(initialDetails);
-    const [savedPlaces, setSavedPlaces] = useState<Place[]>([]);
     const [userMetrics, setUserMetrics] = useState<UserInteractionMetrics>(() => {
         return getStoredMetrics();
     });
@@ -73,7 +73,6 @@ export function TravelChat({
         }
     }, [userMetrics, currentStage]);
 
-    // In travel-chat.tsx
     useEffect(() => {
         const checkSession = () => {
         const { isValid, shouldWarn } = checkSessionWithWarning();
@@ -107,45 +106,71 @@ export function TravelChat({
     }, []);
 
     useEffect(() => {
-        if (window.getSavedPlaces) {
-            setSavedPlaces(window.getSavedPlaces());
-        }
-    }, []);
+        const handlePlacesChanged = (event: Event) => {
+            if (!(event instanceof CustomEvent)) return;
+            
+            // Safely get count from event detail or fallback to savedPlacesManager
+            const count = event.detail?.count ?? savedPlacesManager.places.size;
+            
+            console.log('[TravelChat] Places changed:', { 
+                count,
+                fromEvent: event.detail,
+                fromManager: savedPlacesManager.places.size 
+            });
+            
+            setCurrentDetails(prev => ({
+                ...prev,
+                savedPlacesCount: count
+            }));
+            setUserMetrics(prev => ({
+                ...prev,
+                savedPlacesCount: count
+            }));
+        };
 
-    useEffect(() => {
+        // Listen for changes
+        window.addEventListener('savedPlacesChanged', handlePlacesChanged);
+
+        // Initial load
+        const initialCount = savedPlacesManager.places.size;
+        console.log('[TravelChat] Initial places load count:', initialCount);
+        
+        setCurrentDetails(prev => ({
+            ...prev,
+            savedPlacesCount: initialCount
+        }));
         setUserMetrics(prev => ({
             ...prev,
-            savedPlacesCount: savedPlaces.length
+            savedPlacesCount: initialCount
         }));
-    }, [savedPlaces]);
+
+        return () => {
+            window.removeEventListener('savedPlacesChanged', handlePlacesChanged);
+        };
+    }, []);
 
     const {
         messages,
-        input,
-        handleInputChange: originalHandleInputChange,
         isLoading,
-        error,
+        append: originalAppend,
         reload,
+        input,
+        setInput,
+        handleInputChange,
+        handleSubmit,
         stop,
         quickResponses,
         isQuickResponseLoading,
-        append: originalAppend,
-        setInput
     } = useTravelChat({
         currentDetails,
-        savedPlaces,
         currentStage,
+        savedPlaces: savedPlacesManager.getPlaces(),
         metrics: userMetrics
     });
 
-    const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        // Just update the input without updating metrics
-        originalHandleInputChange(e);
-    }, [originalHandleInputChange]);
-
     const append = useCallback(async (message: any, options?: any) => {
         // Only increment metrics for user messages and not system messages
-        const shouldIncrement = message.role === 'user' && !message.content?.includes('system');
+        const shouldIncrement = message.role === 'user';
         const updatedMetrics = updateStoredMetrics(currentStage, shouldIncrement);
 
         // Append message with latest metrics
@@ -169,72 +194,8 @@ export function TravelChat({
         onStageUpdate,
         userMetrics,
         append,
-        savedPlaces
+        savedPlaces: savedPlacesManager.getPlaces()
     });
-
-    // Function to handle quick response selection
-    const handleQuickResponseSelect = useCallback(async (text: string) => {
-        if (isLoading) return;
-        
-        // Check stage limits in stage 3
-        if (currentStage === 3) {
-            const { withinStageLimit } = checkInputLimits(currentStage);
-            if (!withinStageLimit && !userMetrics.isPaid) {
-                setShowPremiumModal(true);
-                return;
-            }
-        }
-        
-        // Append the selected response to the chat
-        await append({
-            role: 'user',
-            content: text
-        }, {
-            body: {
-                currentDetails,
-                savedPlaces,
-                currentStage,
-                metrics: userMetrics
-            }
-        });
-    }, [isLoading, append, currentDetails, savedPlaces, currentStage, userMetrics, setShowPremiumModal]);
-
-    // Handle message submission
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!input.trim() || isLoading) return;
-
-        const userMessage = {
-            role: 'user' as const,
-            content: input.trim()
-        };
-
-        console.log('[TravelChat] Submitting message:', userMessage);
-        setInput('');
-        
-        try {
-            // Check stage limits only in stage 3
-            if (currentStage === 3) {
-                const { withinStageLimit } = checkInputLimits(currentStage);
-                if (!withinStageLimit && !userMetrics.isPaid) {
-                    setShowPremiumModal(true);
-                    return;
-                }
-            }
-
-            // Normal message flow
-            await append(userMessage, {
-                body: {
-                    currentDetails,
-                    savedPlaces,
-                    currentStage,
-                    metrics: userMetrics
-                }
-            });
-        } catch (error) {
-            console.error('[TravelChat] Error submitting message:', error);
-        }
-    };
 
     // Add ref to track processed messages
     const processedMessages = useRef(new Set<string>());
@@ -276,7 +237,7 @@ export function TravelChat({
             initialMessageSent.current = true;
             const body = {
                 currentDetails,
-                savedPlaces: window.getSavedPlaces?.() || [],
+                savedPlaces: savedPlacesManager.getPlaces(),
                 currentStage
             };
             
@@ -321,7 +282,12 @@ export function TravelChat({
                         return;
                     }
                     
-                    if (validateStageProgress(result.props.nextStage)) {
+                    if (validateStageProgression(
+                        currentStage,
+                        result.props.nextStage,
+                        currentDetails,
+                        userMetrics
+                    )) {
                         onStageUpdate(result.props.nextStage);
                     }
                 }
@@ -338,52 +304,41 @@ export function TravelChat({
         return `${day}/${month}/${year}`;
     };
 
-    // Helper function to get update messages
-    const getUpdateMessage = (type: string, value: any): string => {
-        switch (type) {
-            case 'budgetSelector':
-                return `I've updated my budget to ${value} for the trip.`;
-            case 'preferenceSelector':
-                return `I've updated my preferences to: ${value.join(', ')}.`;
-            case 'datePicker':
-                return `I've changed my travel dates to ${formatDate(value.startDate)} - ${formatDate(value.endDate)}.`;
-            case 'languageSelector':
-                return `I've set my language preference to ${value}.`;
-            case 'weatherChart':
-                return "Thank you for the weather info.";
-            default:
-                return '';
-        }
-    };
+    // Function to handle quick response selection
+    const handleQuickResponseSelect = async (text: string) => {
+        try {
+            // Check if it's a place search request
+            if (text.toLowerCase().includes('add') && text.toLowerCase().includes('park')) {
+                const searchText = 'park';
+                if (currentDetails.destination) {
+                    const place = await searchPlaceByText(
+                        searchText,
+                        { latitude: 1.3521, longitude: 103.8198 }, // Singapore coordinates
+                        currentDetails.destination
+                    );
+                    if (place) {
+                        console.log('[handleQuickResponseSelect] Successfully found place:', place.id);
+                    }
+                }
+            }
 
-    // Helper function to get updated details based on tool type
-    const getUpdatedDetails = (type: string, value: any): TravelDetails => {
-        switch (type) {
-            case 'budgetSelector':
-                return { ...currentDetails, budget: value };
-            case 'preferenceSelector':
-                return { ...currentDetails, preferences: value };
-            case 'datePicker':
-                return {
-                    ...currentDetails,
-                    startDate: formatDate(value.startDate),
-                    endDate: formatDate(value.endDate)
-                };
-            case 'languageSelector':
-                return { ...currentDetails, language: value };
-            case 'placeCard':
-            case 'carousel':
-            case 'weatherChart':
-                // These components don't update currentDetails
-                return currentDetails;
-            default:
-                return currentDetails;
+            // Send the response to chat
+            const body = {
+                message: text,
+                currentDetails,
+                destination: currentDetails.destination,
+                messageCount: messages.length,
+                currentStage,
+                metrics: userMetrics
+            };
+            
+            await append({
+                role: 'user',
+                content: text
+            }, { body });
+        } catch (error) {
+            console.error('[handleQuickResponseSelect] Error:', error);
         }
-    };
-
-    const handleRemovePlace = (placeId: string) => {
-        window.removePlaceFromMap?.(placeId);
-        onPlaceRemoved(placeId);
     };
 
     // We need to wrap handleSubmit to include our body data
@@ -391,11 +346,15 @@ export function TravelChat({
         e?.preventDefault();
         if (!input && !text) return;
 
+        const messageText = text || input;
+        // Clear input immediately before sending
+        setInput('');
+
         try {
             // Prepare body with latest state
             const body = {
                 currentDetails,
-                savedPlaces: window.getSavedPlaces?.() || [],
+                savedPlaces: savedPlacesManager.getPlaces(),
                 currentStage,
                 metrics: userMetrics
             };
@@ -403,11 +362,8 @@ export function TravelChat({
             // Send message to main chat
             await append({
                 role: 'user',
-                content: text || input
+                content: messageText
             }, { body });
-
-            // Clear input after sending
-            setInput('');
         } catch (error) {
             // Silent fail
         }
@@ -440,16 +396,16 @@ export function TravelChat({
                     type === 'preferenceSelector' || 
                     type === 'datePicker' || 
                     type === 'languageSelector') &&
-                    toolVisibility[tool.toolCallId];
+                    toolVisibility[tool.toolCallId] // Check if the component is visible
             });
         });
     };
 
     const mainChat = useTravelChat({
         currentDetails,
-        savedPlaces,
         currentStage,
-        metrics: userMetrics
+        savedPlaces: savedPlacesManager.getPlaces(),
+        metrics: userMetrics,
     });
 
     useEffect(() => {
@@ -462,7 +418,7 @@ export function TravelChat({
         if (lastMessage) {
             handleFinish(lastMessage).catch(console.error);
         }
-    }, [mainChat, currentDetails, savedPlaces, currentStage, onStageUpdate]);
+    }, [mainChat, currentDetails, currentStage, onStageUpdate]);
 
     return (
         <div className="relative flex flex-col h-full">
@@ -840,7 +796,7 @@ export function TravelChat({
             {/* Quick responses section - Now outside the chat container */}
             {shouldShowQuickResponses() && (
                 <div className="px-4 py-2 border-gray-100">
-                    <QuickResponse
+                    <QuickResponse 
                         responses={getQuickResponseOptions()}
                         onResponseSelect={handleQuickResponseSelect}
                         isLoading={isQuickResponseLoading}
@@ -850,7 +806,7 @@ export function TravelChat({
 
             {/* Chat Input Container */}
             <div className="border-t border-gray-200 px-4 py-4 sm:mb-0 bg-white">
-                <form onSubmit={handleSubmit} className="flex space-x-4">
+                <form onSubmit={handleMessageSubmit} className="flex space-x-4">
                     <input
                         type="text"
                         value={input}

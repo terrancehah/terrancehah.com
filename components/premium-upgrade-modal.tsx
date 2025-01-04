@@ -90,11 +90,11 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
           <div className="flex flex-col items-center justify-center space-y-2 my-auto w-full h-full">
             <div className="text-center">
               {/* <h1 className="font-caveat font-bold text-5xl leading-tight text-primary mb-1">Travel Rizz</h1> */}
-              <h2 className=" w-[70%] mx-auto text-lg lg:text-2xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
+              <h2 className=" w-[70%] mx-auto text-lg lg:text-xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
               <div className="flex flex-wrap items-center justify-center gap-1 text-xl">
-                <span className="font-bold text-lg md:text-2xl lg:text-3xl text-center order-1 basis-1/5 lg:basis-[15%] text-primary">US$1.99</span>
-                <span className="text-gray-400 text-center text-lg md:text-2xl lg:text-3xl order-1 basis-1/5 lg:basis-[15%] line-through decoration-2">US$2.99</span>
-                <span className="bg-blue-200 text-blue-500 text-sm lg:text-base font-medium px-2.5 py-1 order-2 basis-[30%] lg:basis-1/5 rounded">Early Adopter Special</span>
+                <span className="font-bold text-lg md:text-xl lg:text-2xl text-center order-1 basis-1/5 xl:basis-[15%] text-primary">US$1.99</span>
+                <span className="text-gray-400 text-center text-lg md:text-xl lg:text-2xl order-1 basis-1/5 xl:basis-[15%] line-through decoration-2">US$2.99</span>
+                <span className="bg-blue-200 text-blue-500 text-sm xl:text-base font-medium px-2.5 py-1 order-2 basis-[30%] xl:basis-1/5 rounded">Early Adopter Special</span>
               </div>
             </div>
             

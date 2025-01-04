@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Place, getPlaceTypeDisplayName } from '../../utils/places-utils';
+import React, { useEffect, useCallback } from 'react';
+import { Place, formatPrimaryType, savedPlacesManager } from '../../utils/places-utils';
 
 interface PlaceCardProps {
   place: Place;
@@ -23,16 +23,34 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
     if (place.primaryTypeDisplayName?.text) {
       return place.primaryTypeDisplayName.text;
     }
-    return getPlaceTypeDisplayName(place);
+    return formatPrimaryType(place.primaryType);
   };
+
+  const handleSelect = useCallback(() => {
+    if (onSelect) {
+      onSelect(place);
+    }
+  }, [place, onSelect]);
+
+  const handleRemove = useCallback(() => {
+    if (onRemove) {
+      onRemove(place.id);
+      // Remove from savedPlacesManager
+      if (savedPlacesManager.hasPlace(place.id)) {
+        savedPlacesManager.removePlace(place.id);
+      }
+    }
+  }, [place.id, onRemove]);
 
   // Add marker to map when card is shown
   useEffect(() => {
+    // Add to map if location exists
     if (place?.location && window.addPlaceToMap) {
+      console.log('[PlaceCard] Adding place to map:', place);
       window.addPlaceToMap({
         latitude: place.location.latitude,
         longitude: place.location.longitude,
-        title: place.name,
+        title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
         place // Pass the full place object for click handling
       });
     }
@@ -68,7 +86,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
           <div className="mt-4 flex justify-end gap-2">
             {!isSelected && onSelect && (
               <button
-                onClick={() => onSelect(place)}
+                onClick={handleSelect}
                 className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors duration-200"
                 aria-label={`Select ${place.displayName}`}
               >
@@ -77,7 +95,7 @@ export const PlaceCard: React.FC<PlaceCardProps> = ({
             )}
             {onRemove && (
               <button
-                onClick={() => onRemove(place.id)}
+                onClick={handleRemove}
                 className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors duration-200"
                 aria-label={`Remove ${place.displayName}`}
               >

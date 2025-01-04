@@ -123,6 +123,8 @@ export default async function handler(req: NextRequest) {
     Then, provide place descriptions text message formatted with markdown. 
     The later ongoing flow handles place browsing requests based on user preferences while tracking 'savedPlaces' count.
     Everytime you trigger the tool 'carousel', always follow up with an acknowledgement message and the place descriptions.
+    When a search returns a duplicate place, IMMEDIATELY search for another place of the same type without waiting for user input.
+    When user asks to see their saved places (e.g. "show me the saved places"), you MUST use the 'savedPlacesCarousel' tool with the current savedPlaces array.
     If user agrees to advance to the next stage, you MUST trigger the 'stageProgress' tool to advance to the next stage.
     Otherwise, you should guide users to explore more places based on their preferences.
 
@@ -176,9 +178,12 @@ export default async function handler(req: NextRequest) {
     - "Please select an option...", "Please select how...", "You can now choose from the following..." or other similar prompts that ask user to select options
     - Any sentence ending with "?"or open-ended questions
     - "Save these places", "Save any of these places", or other similar phrases related to adding and saving places
+    - Showing saved places in text form instead of using the savedPlacesCarousel tool
     - addresses or hyperlinks for places in messages/place descriptions
-    - image and image links in messages/place descriptions
+    - image and image links in messages/place descriptions, never ever attach image link in the message like <img src="https://example.com/image.jpg" alt="Example Image">
     - stage numbers in messages
+    - any thing about stage
+    - any thing about the tool triggered like [Triggering carousel...]
     - numbered or bulleted choice lists in messages
     - raw tool parameters in message text
     - mixing place descriptions with tool calls
@@ -228,7 +233,7 @@ export default async function handler(req: NextRequest) {
         ...messages
       ],
       maxTokens: 2000,
-      temperature: 0.4,
+      temperature: 0.5,
       presencePenalty: 0.7,
       frequencyPenalty: 0.3,
       maxSteps: 10,

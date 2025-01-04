@@ -1,7 +1,7 @@
 import { useChat } from 'ai/react';
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
 import { TravelDetails } from '../managers/types';
-import { Place } from '../utils/places-utils';
+import { Place, savedPlacesManager } from '../utils/places-utils';
 import { UserInteractionMetrics, STAGE_LIMITS, validateStageProgression } from '../managers/stage-manager';
 import { Message as LocalMessage, ToolInvocation } from '../managers/types';
 import { Message as AiMessage } from 'ai';
@@ -16,7 +16,7 @@ interface UseTravelChatProps {
 
 export function useTravelChat({
   currentDetails,
-  savedPlaces,
+  savedPlaces: initialSavedPlaces,
   currentStage,
   metrics
 }: UseTravelChatProps) {
@@ -24,12 +24,25 @@ export function useTravelChat({
   const [mainChatMessages, setMainChatMessages] = useState<LocalMessage[]>([]);
   const [userMetrics, setUserMetrics] = useState(metrics);
 
+  // Simply use savedPlacesManager directly
+  const currentSavedPlaces = savedPlacesManager.getPlaces();
+
+  useEffect(() => {
+    const handlePlacesChanged = () => {
+      // Force re-render when places change
+      setMainChatMessages(prev => [...prev]);
+    };
+
+    window.addEventListener('savedPlacesChanged', handlePlacesChanged);
+    return () => window.removeEventListener('savedPlacesChanged', handlePlacesChanged);
+  }, []);
+
   const mainChat = useChat({
     api: '/api/chat',
     id: 'travel-chat',
     body: {
       currentDetails,
-      savedPlaces,
+      savedPlaces: currentSavedPlaces,
       currentStage,
       metrics: userMetrics
     },
@@ -69,7 +82,7 @@ export function useTravelChat({
     id: 'quick-response-chat',
     body: {
       currentDetails,
-      savedPlaces,
+      savedPlaces: currentSavedPlaces,
       currentStage,
       metrics: userMetrics
     },
@@ -86,10 +99,10 @@ export function useTravelChat({
       }
       quickResponseInProgress.current = false;
     },
-    onError: (error: Error) => {
+    onError: useCallback((error: Error) => {
       // console.error('[QuickResponse] Error:', error);
       quickResponseInProgress.current = false;
-    }
+    }, [])
   });
 
   useEffect(() => {
