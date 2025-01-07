@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Place } from '@/utils/places-utils';
 import { PlaceCard } from './PlaceCard';
+import { searchPlaceByText } from '@/utils/places-utils';
+import { savedPlacesManager } from '@/utils/places-utils';
 
 interface SavedPlacesCarouselProps {
     places: Place[];
@@ -8,8 +10,34 @@ interface SavedPlacesCarouselProps {
 }
 
 export const SavedPlacesCarousel: React.FC<SavedPlacesCarouselProps> = ({ places, onRemove }) => {
-    console.log('Debug - SavedPlacesCarousel rendering with places:', places);
+    console.log('[SavedPlacesCarousel] Rendering with places:', places.map(p => ({
+        id: p.id,
+        photos: p.photos,
+        displayName: p.displayName
+    })));
+
     const [currentIndex, setCurrentIndex] = useState(0);
+
+    // Refresh photos for places without them
+    useEffect(() => {
+        places.forEach(place => {
+            if (!place.photos?.length && place.id) {
+                searchPlaceByText(
+                    typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+                    place.location || { latitude: 0, longitude: 0 },
+                    'Singapore'
+                ).then(freshPlace => {
+                    if (freshPlace && freshPlace.photos?.length) {
+                        console.log('[SavedPlacesCarousel] Got fresh photos for:', {
+                            id: place.id,
+                            name: typeof place.displayName === 'string' ? place.displayName : place.displayName.text
+                        });
+                        savedPlacesManager.addPlace(freshPlace);
+                    }
+                });
+            }
+        });
+    }, [places]);
 
     const prevSlide = () => {
         setCurrentIndex((currentIndex + places.length - 1) % places.length);
@@ -102,4 +130,3 @@ export const SavedPlacesCarousel: React.FC<SavedPlacesCarouselProps> = ({ places
         </div>
     );
 };
-

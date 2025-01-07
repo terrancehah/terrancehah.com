@@ -16,7 +16,7 @@ export interface Place {
         text: string;
         languageCode: string;
     };
-    photos?: { 
+    photos: { 
         name: string;
         widthPx?: number;
         heightPx?: number;
@@ -207,6 +207,7 @@ export interface SavedPlacesManager {
     hasPlace: (id: string) => boolean;
     _persist: () => void;
     _notifyChange: () => void;
+    serialize: () => string;
 }
 
 const STORAGE_KEY = 'saved_places';
@@ -223,7 +224,9 @@ function initializePlaces(): Map<string, Place> {
             return new Map<string, Place>();
         }
 
+        console.log('[initializePlaces] Loading places from storage:', savedPlaces);
         const parsedPlaces = JSON.parse(savedPlaces) as Place[];
+        console.log('[initializePlaces] Parsed places:', parsedPlaces);
         const places = new Map<string, Place>();
         
         if (Array.isArray(parsedPlaces)) {
@@ -243,76 +246,45 @@ function initializePlaces(): Map<string, Place> {
 
 // SavedPlacesManager singleton
 const createSavedPlacesManager = () => {
-    const places = typeof window === 'undefined' ? new Map<string, Place>() : initializePlaces();
+    const places = initializePlaces();
 
     return {
         places,
-
         addPlace(place: Place) {
-            if (typeof window === 'undefined') {
-                console.warn('[savedPlacesManager] Cannot add place in server context');
-                return;
-            }
-
-            if (!place || !place.id) {
-                console.error('[savedPlacesManager] Invalid place:', place);
-                return;
-            }
-
-            if (this.places.has(place.id)) {
-                console.log('[savedPlacesManager] Place already exists:', place.id);
-                return;
-            }
-
-            this.places.set(place.id, place);
-            
-            // Update metrics and storage
-            const metrics = metricsManager.get();
-            metrics.savedPlacesCount = this.places.size;
-            metricsManager.update(metrics);
-
-            // Save places
-            const placesArray = Array.from(this.places.values());
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
-            
-            // Notify UI
+            places.set(place.id, place);
+            this._persist();
             this._notifyChange();
-        },
 
+            // Update metrics
+            const metrics = getStoredMetrics();
+            metrics.savedPlacesCount = places.size;
+            localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+        },
         removePlace(id: string) {
-            if (typeof window === 'undefined') {
-                console.warn('[savedPlacesManager] Cannot remove place in server context');
-                return;
-            }
-
-            if (!this.places.has(id)) {
-                console.log('[savedPlacesManager] Place not found:', id);
-                return;
-            }
-
-            this.places.delete(id);
-            
-            // Update metrics and storage
-            const metrics = metricsManager.get();
-            metrics.savedPlacesCount = this.places.size;
-            metricsManager.update(metrics);
-
-            // Save places
-            const placesArray = Array.from(this.places.values());
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
-            
-            // Notify UI
+            places.delete(id);
+            this._persist();
             this._notifyChange();
-        },
 
-        getPlaces() {
-            return Array.from(this.places.values());
+            // Update metrics
+            const metrics = getStoredMetrics();
+            metrics.savedPlacesCount = places.size;
+            localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
         },
-
+        getPlaces(): Place[] {
+            // Return the actual objects from the Map
+            return Array.from(places.values());
+        },
         hasPlace(id: string): boolean {
-            return this.places.has(id);
+            return places.has(id);
         },
-
+        _persist() {
+            try {
+                const placesArray = Array.from(places.values());
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
+            } catch (error) {
+                console.error('[savedPlacesManager] Error saving places:', error);
+            }
+        },
         _notifyChange() {
             if (typeof window === 'undefined') {
                 return;
@@ -321,14 +293,17 @@ const createSavedPlacesManager = () => {
             try {
                 const event = new CustomEvent('savedPlacesChanged', {
                     detail: { 
-                        places: Array.from(this.places.values()),
-                        count: this.places.size 
+                        places: Array.from(places.values()),
+                        count: places.size 
                     }
                 });
                 window.dispatchEvent(event);
             } catch (error) {
                 console.error('[savedPlacesManager] Error notifying change:', error);
             }
+        },
+        serialize(): string {
+            return JSON.stringify(Array.from(places.values()));
         }
     };
 };
@@ -368,7 +343,7 @@ async function searchWithStrategy(
     const headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name[0],places.photos.widthPx[0],places.photos.heightPx[0]'
     } as const;
 
     // Choose query based on whether we're doing alternate search
@@ -580,7 +555,7 @@ export const searchMultiplePlacesByText = async (
         const headers = {
             'Content-Type': 'application/json',
             'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name,places.photos.widthPx,places.photos.heightPx'
         } as const;
 
         const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
@@ -614,7 +589,9 @@ export const searchMultiplePlacesByText = async (
             } : place.displayName,
             primaryType: place.primaryType || 'place',
             photos: place.photos?.map((photo: any) => ({ 
-                name: photo.name
+                name: photo.name,
+                widthPx: photo.widthPx,
+                heightPx: photo.heightPx
             })) || [],
             formattedAddress: place.formattedAddress,
             location: place.location,
@@ -687,7 +664,7 @@ export const fetchPlaces = async (
             const headers = {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-                'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name'
+                'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name,places.photos.widthPx,places.photos.heightPx'
             } as const;
 
             const response = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
@@ -707,7 +684,9 @@ export const fetchPlaces = async (
                         } : place.displayName,
                         primaryType: place.primaryType || 'place',
                         photos: place.photos?.map((photo: any) => ({ 
-                            name: photo.name
+                            name: photo.name,
+                            widthPx: photo.widthPx,
+                            heightPx: photo.heightPx
                         })) || [],
                         formattedAddress: place.formattedAddress,
                         location: place.location,

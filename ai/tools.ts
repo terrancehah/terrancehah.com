@@ -287,7 +287,7 @@ export const weatherChartTool = createTool({
 });
 
 export const savedPlacesCarouselTool = createTool({
-    description: 'Display all currently saved places in a carousel. MUST use this tool whenever user asks to see their saved places (e.g. "show me my saved places", "what places have I saved", etc).',
+    description: 'Display all currently saved places in a carousel. MUST pass the entire savedPlaces array to this tool, not just one place. When user asks to see saved places (e.g. "show me my saved places", "what places have I saved", etc), pass ALL places from the savedPlaces parameter to this tool.',
     parameters: z.object({
         savedPlaces: z.array(z.object({
             id: z.string(),
@@ -305,19 +305,36 @@ export const savedPlacesCarouselTool = createTool({
             }),
             formattedAddress: z.string(),
             photos: z.array(z.object({
-                name: z.string()
-            })).optional(),
+                name: z.string(),
+                widthPx: z.number().optional(),
+                heightPx: z.number().optional(),
+                authorAttributions: z.array(z.object({
+                    displayName: z.string().optional(),
+                    uri: z.string().optional(),
+                    photoUri: z.string().optional()
+                })).optional()
+            })),
             primaryTypeDisplayName: z.object({
                 text: z.string(),
                 languageCode: z.string()
             }).optional()
-        }))  
+        }))
     }),
     execute: async function ({ savedPlaces }) {
-        console.log('Debug - Tool execution received savedPlaces:', savedPlaces);
+        console.log('[savedPlacesCarouselTool] Executing with places:', savedPlaces);
+        
+        // Ensure we're passing the full array of places
+        if (!Array.isArray(savedPlaces)) {
+            console.error('[savedPlacesCarouselTool] savedPlaces is not an array:', savedPlaces);
+            return {
+                type: 'savedPlacesCarousel',
+                props: { places: [] }
+            };
+        }
+
         return {
             type: 'savedPlacesCarousel',
-            props: { places: savedPlaces }  // Transform here for component compatibility
+            props: { places: savedPlaces }
         };
     }
 });

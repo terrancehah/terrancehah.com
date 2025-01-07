@@ -26,6 +26,10 @@ export function useTravelChat({
 
   // Simply use savedPlacesManager directly
   const currentSavedPlaces = savedPlacesManager.getPlaces();
+  console.log('[useTravelChat] Current saved places:', currentSavedPlaces.map(p => ({
+    id: p.id,
+    photos: p.photos
+  })));
 
   useEffect(() => {
     const handlePlacesChanged = () => {
@@ -48,8 +52,14 @@ export function useTravelChat({
     },
     onError: useCallback((error: Error) => {
       console.error('[MainChat] Error:', error);
+      console.error('[MainChat] Current state:', {
+        currentDetails,
+        savedPlacesCount: currentSavedPlaces.length,
+        currentStage,
+        metrics: userMetrics
+      });
       quickResponseInProgress.current = false;
-    }, []),
+    }, [currentDetails, currentSavedPlaces, currentStage, userMetrics]),
     onFinish: useCallback(async (message: AiMessage) => {
       // Only trigger quick response for complete assistant messages
       if (message.role !== 'assistant' || !message.content?.trim()) return;

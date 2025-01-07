@@ -359,13 +359,21 @@ export function TravelChat({
                 metrics: userMetrics
             };
             
+            console.log('[handleMessageSubmit] Sending message with body:', body);
+            
             // Send message to main chat
             await append({
                 role: 'user',
                 content: messageText
             }, { body });
         } catch (error) {
-            // Silent fail
+            console.error('[handleMessageSubmit] Error:', error);
+            console.error('[handleMessageSubmit] Current state:', {
+                currentDetails,
+                savedPlacesCount: savedPlacesManager.getPlaces().length,
+                currentStage,
+                metrics: userMetrics
+            });
         }
     };
 
@@ -719,24 +727,23 @@ export function TravelChat({
                                                 </div>
                                             );
 
-                                        case 'savedPlacesCarousel':
-                                            if(!toolInvocation.result?.props?.savedPlaces) return null;
-                                            const savedPlacesProps = toolInvocation.result.props as { savedPlaces: Place[] };
-                                            return (
-                                                <div key={`${toolCallId}-${index}`} className="flex justify-start">
-                                                    <div className="w-full">
-                                                        <SavedPlacesCarousel
-                                                            places={savedPlacesProps.savedPlaces}
-                                                            onRemove={(placeId: string) => {
-                                                                onPlaceRemoved(placeId);
-                                                                if (window.removePlaceFromMap) {
-                                                                    window.removePlaceFromMap(placeId);
-                                                                }
-                                                            }}
-                                                        />
+                                            case 'savedPlacesCarousel':
+                                                if(!toolInvocation.result?.props?.places) return null;
+                                                const savedPlacesProps = toolInvocation.result.props as { places: Place[] };
+                                                return (
+                                                    <div key={`${toolCallId}-${index}`} className="flex justify-start">
+                                                        <div className="w-full">
+                                                            <SavedPlacesCarousel
+                                                                places={savedPlacesProps.places}
+                                                                onRemove={(placeId) => {
+                                                                    if (onPlaceRemoved) {
+                                                                        onPlaceRemoved(placeId);
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
+                                                );
 
                                         default:
                                             return null;

@@ -24,7 +24,10 @@ export default async function handler(req: NextRequest) {
     const { messages, currentDetails, savedPlaces, currentStage, metrics } = await req.json();
     console.log('Debug - API received:', { 
         currentDetails,
-        savedPlaces, 
+        savedPlaces: savedPlaces.map((p: any) => ({
+          id: p.id,
+          photos: p.photos
+        })), 
         currentStage,
         metrics,
         message: messages[messages.length - 1] 
@@ -34,6 +37,11 @@ export default async function handler(req: NextRequest) {
 
     // Validate request and required fields
     if (!messages?.length || !currentDetails || !metrics) {
+        console.error('Missing required fields:', { 
+            hasMessages: !!messages?.length, 
+            hasCurrentDetails: !!currentDetails, 
+            hasMetrics: !!metrics 
+        });
         return new Response(
             JSON.stringify({ 
                 error: 'Invalid request: messages, currentDetails, and metrics are required' 
@@ -44,6 +52,7 @@ export default async function handler(req: NextRequest) {
 
     // Validate currentDetails fields
     if (!currentDetails.destination) {
+        console.error('Missing destination in currentDetails:', currentDetails);
         return new Response(
             JSON.stringify({ 
                 error: 'Invalid request: destination is required' 
@@ -120,10 +129,9 @@ export default async function handler(req: NextRequest) {
 
     The 'PLACES BROWSING AND INTRODUCTION' (Stage 3) facilitates user discovery of preference-matched locations.
     The initial entry to the stage follows a precise sequence: a brief welcome, followed by a 'carousel' tool calling.
-    Then, provide place descriptions text message formatted with markdown. 
+    Then, provide place descriptions text message formatted with markdown. Do not attach place images in the text message.
     The later ongoing flow handles place browsing requests based on user preferences while tracking 'savedPlaces' count.
     Everytime you trigger the tool 'carousel', always follow up with an acknowledgement message and the place descriptions.
-    When a search returns a duplicate place, IMMEDIATELY search for another place of the same type without waiting for user input.
     When user asks to see their saved places (e.g. "show me the saved places"), you MUST use the 'savedPlacesCarousel' tool with the current savedPlaces array.
     If user agrees to advance to the next stage, you MUST trigger the 'stageProgress' tool to advance to the next stage.
     Otherwise, you should guide users to explore more places based on their preferences.
@@ -147,7 +155,7 @@ export default async function handler(req: NextRequest) {
     The 'Places Discovery Tools' comprise:
     - 'placeCard': Single place display when user ask for one place (e.g. "add one cafe" or "show me one restaurant"), automatically saves place after display
     - 'carousel': Multiple places display when user ask for multiple places (e.g. "add some museums" or "show me a few cinemas"), automatically saves places after display
-    - 'savedPlacesCarousel': View previously automatically saved places
+    - 'savedPlacesCarousel': View ALL previously saved places. MUST pass the entire savedPlaces array to this tool, not just one place. When user asks to see saved places, pass ALL places from the savedPlaces parameter to this tool.
 
     Additional tools include:
     - 'weatherChart' for historical weather data for the same period from last year, can be called in stage 2
@@ -180,7 +188,7 @@ export default async function handler(req: NextRequest) {
     - "Save these places", "Save any of these places", or other similar phrases related to adding and saving places
     - Showing saved places in text form instead of using the savedPlacesCarousel tool
     - addresses or hyperlinks for places in messages/place descriptions
-    - image and image links in messages/place descriptions, never ever attach image link in the message like <img src="https://example.com/image.jpg" alt="Example Image">
+    - image and image links in messages/place descriptions
     - stage numbers in messages
     - any thing about stage
     - any thing about the tool triggered like [Triggering carousel...]

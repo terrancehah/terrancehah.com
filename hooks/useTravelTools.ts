@@ -104,6 +104,16 @@ export function useTravelTools({
         }
         break;
 
+      case 'savedPlacesCarousel':
+        // Keep the carousel visible
+        if (toolCallId) {
+          setToolVisibility(prev => ({
+            ...prev,
+            [toolCallId]: true
+          }));
+        }
+        break;
+
       case 'quickResponse':
         // Don't hide quick responses immediately
         if (toolCallId) {
