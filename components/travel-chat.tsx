@@ -10,7 +10,7 @@ import { DatePicker } from '../components/selector-components/DateSelector';
 import { LanguageSelector } from '../components/selector-components/LanguageSelector';
 import { PlaceCard } from '../components/place-components/PlaceCard';
 import { Carousel } from '../components/place-components/PlaceCarousel';
-import { SavedPlacesCarousel } from './place-components/SavedPlacesCarousel';
+import { SavedPlacesList } from './place-components/SavedPlacesList';
 import HistoricalWeatherChart from '../components/weather/historical-weather-chart';
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { QuickResponse } from '../components/chat-components/QuickResponse';
@@ -727,13 +727,13 @@ export function TravelChat({
                                                 </div>
                                             );
 
-                                            case 'savedPlacesCarousel':
+                                            case 'savedPlacesList':
                                                 if(!toolInvocation.result?.props?.places) return null;
                                                 const savedPlacesProps = toolInvocation.result.props as { places: Place[] };
                                                 return (
                                                     <div key={`${toolCallId}-${index}`} className="flex justify-start">
                                                         <div className="w-full">
-                                                            <SavedPlacesCarousel
+                                                            <SavedPlacesList
                                                                 places={savedPlacesProps.places}
                                                                 onRemove={(placeId) => {
                                                                     if (onPlaceRemoved) {

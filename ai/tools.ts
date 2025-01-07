@@ -286,8 +286,8 @@ export const weatherChartTool = createTool({
     }
 });
 
-export const savedPlacesCarouselTool = createTool({
-    description: 'Display all currently saved places in a carousel. MUST pass the entire savedPlaces array to this tool, not just one place. When user asks to see saved places (e.g. "show me my saved places", "what places have I saved", etc), pass ALL places from the savedPlaces parameter to this tool.',
+export const savedPlacesListTool = createTool({
+    description: 'Display all currently saved places in a list view. When user asks to see saved places (e.g. "show me my saved places", "what places have I saved", etc), pass ALL places from the savedPlaces parameter to this tool.',
     parameters: z.object({
         savedPlaces: z.array(z.object({
             id: z.string(),
@@ -312,7 +312,7 @@ export const savedPlacesCarouselTool = createTool({
                     displayName: z.string().optional(),
                     uri: z.string().optional(),
                     photoUri: z.string().optional()
-                })).optional()
+                }))
             })),
             primaryTypeDisplayName: z.object({
                 text: z.string(),
@@ -321,20 +321,28 @@ export const savedPlacesCarouselTool = createTool({
         }))
     }),
     execute: async function ({ savedPlaces }) {
-        console.log('[savedPlacesCarouselTool] Executing with places:', savedPlaces);
+        console.log('[savedPlacesListTool] Executing with places:', savedPlaces.map(p => ({
+            id: p.id,
+            photos: p.photos,
+            primaryTypeDisplayName: p.primaryTypeDisplayName
+        })));
         
         // Ensure we're passing the full array of places
         if (!Array.isArray(savedPlaces)) {
-            console.error('[savedPlacesCarouselTool] savedPlaces is not an array:', savedPlaces);
+            console.error('[savedPlacesListTool] savedPlaces is not an array:', savedPlaces);
             return {
-                type: 'savedPlacesCarousel',
+                type: 'savedPlacesList',
                 props: { places: [] }
             };
         }
 
+        // Make sure we pass the complete place objects
         return {
-            type: 'savedPlacesCarousel',
-            props: { places: savedPlaces }
+            type: 'savedPlacesList',
+            props: { 
+                places: savedPlaces,
+                onRemove: undefined // Make it explicit that we're not handling removal here
+            }
         };
     }
 });
@@ -484,7 +492,7 @@ export const tools = {
     carousel: carouselTool,
     detailsCard: detailsCardTool,
     weatherChart: weatherChartTool,
-    savedPlacesCarousel: savedPlacesCarouselTool,
+    savedPlacesList: savedPlacesListTool,
     stageProgress: stageProgressTool,
     quickResponse: quickResponseTool,
     currencyConverter: currencyConverterTool

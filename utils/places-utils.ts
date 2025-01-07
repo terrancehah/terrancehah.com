@@ -212,97 +212,90 @@ export interface SavedPlacesManager {
 
 const STORAGE_KEY = 'saved_places';
 
-// Initialize from localStorage if available
-function initializePlaces(): Map<string, Place> {
-    try {
-        if (typeof window === 'undefined') {
-            return new Map<string, Place>();
-        }
-
-        const savedPlaces = localStorage.getItem(STORAGE_KEY);
-        if (!savedPlaces) {
-            return new Map<string, Place>();
-        }
-
-        console.log('[initializePlaces] Loading places from storage:', savedPlaces);
-        const parsedPlaces = JSON.parse(savedPlaces) as Place[];
-        console.log('[initializePlaces] Parsed places:', parsedPlaces);
-        const places = new Map<string, Place>();
-        
-        if (Array.isArray(parsedPlaces)) {
-            parsedPlaces.forEach(place => {
-                if (place?.id) {
-                    places.set(place.id, place);
-                }
-            });
-        }
-
-        return places;
-    } catch (error) {
-        console.error('[SavedPlacesManager] Error loading from storage:', error);
-        return new Map<string, Place>();
-    }
-}
-
 // SavedPlacesManager singleton
-const createSavedPlacesManager = () => {
-    const places = initializePlaces();
+const createSavedPlacesManager = (): SavedPlacesManager => {
+    const places = new Map<string, Place>();
+    let initialized = false;
+
+    // Load places from localStorage
+    const loadFromStorage = () => {
+        if (!initialized && typeof window !== 'undefined') {
+            const savedPlaces = localStorage.getItem(STORAGE_KEY);
+            if (savedPlaces) {
+                try {
+                    console.log('[savedPlacesManager] Raw saved places:', savedPlaces);
+                    const parsedPlaces = JSON.parse(savedPlaces);
+                    console.log('[savedPlacesManager] Parsed places:', parsedPlaces);
+                    
+                    if (Array.isArray(parsedPlaces)) {
+                        // Clear existing places before loading
+                        places.clear();
+                        
+                        parsedPlaces.forEach(place => {
+                            console.log('[savedPlacesManager] Processing place:', {
+                                id: place.id,
+                                hasPhotos: Boolean(place.photos),
+                                photoCount: place.photos?.length,
+                                firstPhoto: place.photos?.[0]
+                            });
+                            
+                            if (place?.id) {
+                                places.set(place.id, place);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    console.error('[savedPlacesManager] Error loading places:', error);
+                }
+            }
+            initialized = true;
+        }
+    };
 
     return {
         places,
         addPlace(place: Place) {
-            places.set(place.id, place);
-            this._persist();
-            this._notifyChange();
-
-            // Update metrics
-            const metrics = getStoredMetrics();
-            metrics.savedPlacesCount = places.size;
-            localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+            loadFromStorage(); // Ensure places are loaded
+            if (place?.id) {
+                places.set(place.id, place);
+                this._persist();
+                this._notifyChange();
+            }
         },
         removePlace(id: string) {
+            loadFromStorage(); // Ensure places are loaded
             places.delete(id);
             this._persist();
             this._notifyChange();
-
-            // Update metrics
-            const metrics = getStoredMetrics();
-            metrics.savedPlacesCount = places.size;
-            localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
         },
         getPlaces(): Place[] {
-            // Return the actual objects from the Map
+            loadFromStorage(); // Ensure places are loaded
             return Array.from(places.values());
         },
         hasPlace(id: string): boolean {
+            loadFromStorage(); // Ensure places are loaded
             return places.has(id);
         },
         _persist() {
-            try {
+            if (typeof window !== 'undefined') {
                 const placesArray = Array.from(places.values());
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
-            } catch (error) {
-                console.error('[savedPlacesManager] Error saving places:', error);
+                
+                // Update metrics
+                const metrics = metricsManager.get();
+                metrics.savedPlacesCount = places.size;
+                metricsManager.update(metrics);
             }
         },
         _notifyChange() {
-            if (typeof window === 'undefined') {
-                return;
-            }
-
-            try {
-                const event = new CustomEvent('savedPlacesChanged', {
-                    detail: { 
-                        places: Array.from(places.values()),
-                        count: places.size 
-                    }
-                });
-                window.dispatchEvent(event);
-            } catch (error) {
-                console.error('[savedPlacesManager] Error notifying change:', error);
+            if (typeof window !== 'undefined') {
+                window.savedPlaces = Array.from(places.values());
+                if (window.getSavedPlaces) {
+                    window.getSavedPlaces();
+                }
             }
         },
-        serialize(): string {
+        serialize() {
             return JSON.stringify(Array.from(places.values()));
         }
     };
@@ -312,7 +305,7 @@ export const savedPlacesManager = createSavedPlacesManager();
 
 // Initialize on client side
 if (typeof window !== 'undefined') {
-    savedPlacesManager.places = initializePlaces();
+    savedPlacesManager.places = new Map<string, Place>();
 }
 
 // Declare window interface for saved places
@@ -498,27 +491,48 @@ export const metricsManager = {
 function transformPlaceResponse(place: GooglePlaceResponse): Place | null {
     if (!place) return null;
 
+    console.log('[transformPlaceResponse] Input place:', {
+        id: place.id,
+        photos: place.photos?.map(p => ({ name: p.name })),
+        primaryTypeDisplayName: place.primaryTypeDisplayName
+    });
+
     const displayName = place.displayName?.text 
         ? { text: place.displayName.text, languageCode: place.displayName.languageCode || 'en' }
         : place.name || '';
 
-    return {
-        id: place.id,
-        name: place.name,
-        displayName,
-        primaryType: place.primaryType || 'place',
-        photos: place.photos?.map(photo => ({ 
+    // Ensure photos array is properly formatted
+    const photos = (place.photos || [])
+        .filter((photo): photo is NonNullable<typeof photo> => 
+            Boolean(photo && photo.name)
+        )
+        .map(photo => ({
             name: photo.name,
             widthPx: photo.widthPx,
             heightPx: photo.heightPx,
             authorAttributions: photo.authorAttributions
-        })) || [],
+        }));
+
+    const transformed = {
+        id: place.id,
+        name: place.name,
+        displayName,
+        primaryType: place.primaryType || 'place',
+        photos,
         formattedAddress: place.formattedAddress,
         location: place.location,
         primaryTypeDisplayName: place.primaryTypeDisplayName 
             ? { text: place.primaryTypeDisplayName.text, languageCode: place.primaryTypeDisplayName.languageCode || 'en' }
             : undefined
     };
+
+    console.log('[transformPlaceResponse] Transformed place:', {
+        id: transformed.id,
+        photos: transformed.photos.map(p => ({ name: p.name })),
+        primaryTypeDisplayName: transformed.primaryTypeDisplayName
+    });
+
+    return transformed;
 }
 
 export const searchMultiplePlacesByText = async (

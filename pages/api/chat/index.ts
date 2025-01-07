@@ -22,32 +22,35 @@ export default async function handler(req: NextRequest) {
 
   try {
     const { messages, currentDetails, savedPlaces, currentStage, metrics } = await req.json();
+    
+    // Pass savedPlaces directly without transformation
     console.log('Debug - API received:', { 
-        currentDetails,
-        savedPlaces: savedPlaces.map((p: any) => ({
-          id: p.id,
-          photos: p.photos
-        })), 
-        currentStage,
-        metrics,
-        message: messages[messages.length - 1] 
+      currentDetails,
+      savedPlaces: savedPlaces?.map((p: any) => ({
+        id: p.id,
+        photos: p.photos,
+        primaryTypeDisplayName: p.primaryTypeDisplayName
+      })),
+      currentStage,
+      metrics,
+      message: messages[messages.length - 1] 
     });
 
     console.log('[chat] Processing request:', { messageCount: messages.length, destination: currentDetails.destination });
 
     // Validate request and required fields
     if (!messages?.length || !currentDetails || !metrics) {
-        console.error('Missing required fields:', { 
-            hasMessages: !!messages?.length, 
-            hasCurrentDetails: !!currentDetails, 
-            hasMetrics: !!metrics 
-        });
-        return new Response(
-            JSON.stringify({ 
-                error: 'Invalid request: messages, currentDetails, and metrics are required' 
-            }),
-            { status: 400 }
-        );
+      console.error('Missing required fields:', { 
+        hasMessages: !!messages?.length, 
+        hasCurrentDetails: !!currentDetails, 
+        hasMetrics: !!metrics 
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid request: messages, currentDetails, and metrics are required' 
+        }),
+        { status: 400 }
+      );
     }
 
     // Validate currentDetails fields
@@ -155,7 +158,7 @@ export default async function handler(req: NextRequest) {
     The 'Places Discovery Tools' comprise:
     - 'placeCard': Single place display when user ask for one place (e.g. "add one cafe" or "show me one restaurant"), automatically saves place after display
     - 'carousel': Multiple places display when user ask for multiple places (e.g. "add some museums" or "show me a few cinemas"), automatically saves places after display
-    - 'savedPlacesCarousel': View ALL previously saved places. MUST pass the entire savedPlaces array to this tool, not just one place. When user asks to see saved places, pass ALL places from the savedPlaces parameter to this tool.
+    - 'savedPlacesList': View ALL previously saved places. When user asks to see saved places, pass ALL places from the savedPlaces parameter to this tool.
 
     Additional tools include:
     - 'weatherChart' for historical weather data for the same period from last year, can be called in stage 2
@@ -209,7 +212,7 @@ export default async function handler(req: NextRequest) {
       - Budget: ${currentDetails.budget}
       - Preferences: ${currentDetails.preferences?.join(', ')}
       - PDF Export Language: ${currentDetails.language}
-      - Saved Places Count: ${savedPlaces?.length || 0}
+      - Saved Places Count: ${savedPlaces.length}
       - Total User Prompts: ${metrics?.totalPrompts || 0}
       - Stage 3 Prompts: ${metrics?.stagePrompts?.[3] || 0}
       - Payment Status: ${metrics?.isPaid ? 'Paid' : 'Not Paid'}

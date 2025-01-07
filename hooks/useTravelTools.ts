@@ -104,8 +104,8 @@ export function useTravelTools({
         }
         break;
 
-      case 'savedPlacesCarousel':
-        // Keep the carousel visible
+      case 'savedPlacesList':
+        // Keep the list visible
         if (toolCallId) {
           setToolVisibility(prev => ({
             ...prev,

@@ -46,7 +46,17 @@ export function useTravelChat({
     id: 'travel-chat',
     body: {
       currentDetails,
-      savedPlaces: currentSavedPlaces,
+      savedPlaces: currentSavedPlaces
+        ?.filter(place => place && place.id && place.displayName)
+        ?.map(place => ({
+          id: place.id,
+          displayName: place.displayName,
+          formattedAddress: place.formattedAddress,
+          location: place.location,
+          primaryType: place.primaryType,
+          primaryTypeDisplayName: place.primaryTypeDisplayName,
+          photos: place.photos || []
+        })) || [],
       currentStage,
       metrics: userMetrics
     },
@@ -54,7 +64,11 @@ export function useTravelChat({
       console.error('[MainChat] Error:', error);
       console.error('[MainChat] Current state:', {
         currentDetails,
-        savedPlacesCount: currentSavedPlaces.length,
+        savedPlaces: currentSavedPlaces?.map(p => ({
+          id: p?.id,
+          displayName: p?.displayName,
+          photos: p?.photos?.length
+        })),
         currentStage,
         metrics: userMetrics
       });
