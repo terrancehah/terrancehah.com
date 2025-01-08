@@ -12,7 +12,7 @@ interface PhotoState {
 
 export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps) {
     // Get places directly from savedPlacesManager
-    const places = savedPlacesManager.getPlaces();
+    const [places] = useState(() => savedPlacesManager.getPlaces());
     
     const [photoUrls, setPhotoUrls] = useState<PhotoState>({});
 
@@ -63,7 +63,7 @@ export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps)
     }
 
     return (
-        <div className="w-full max-w-2xl mx-auto rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="w-[70%] max-w-2xl mx-auto rounded-2xl border shadow-md border-gray-200 overflow-hidden">
             {uniquePlaces.map((place: Place) => {
                 const photoName = place.photos?.[0]?.name;
                 const photoUrl = photoName && photoUrls[photoName]
@@ -84,10 +84,10 @@ export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps)
                 return (
                     <div 
                         key={place.id} 
-                        className="bg-white shadow-sm overflow-hidden flex border border-gray-100"
+                        className="bg-white overflow-hidden flex border-b-[1px] border-gray-200"
                     >
                         {/* Photo Section */}
-                        <div className="w-1/3 h-40">
+                        <div className="w-1/3 h-32">
                             <img
                                 src={photoUrl}
                                 alt={typeof place.displayName === 'string' ? place.displayName : place.displayName.text}
@@ -109,7 +109,7 @@ export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps)
                             <p className="text-sm text-gray-500 mb-2">
                                 {place.primaryTypeDisplayName?.text || place.primaryType}
                             </p>
-                            <p className="text-sm text-gray-600 mb-3">{place.formattedAddress}</p>
+                            <p className="text-sm text-gray-600 mb-2">{place.formattedAddress}</p>
                             
                             {/* Actions */}
                             <div className="flex justify-end space-x-2">

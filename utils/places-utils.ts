@@ -336,7 +336,7 @@ async function searchWithStrategy(
     const headers = {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name[0],places.photos.widthPx[0],places.photos.heightPx[0]'
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos.name,places.photos.widthPx,places.photos.heightPx'
     } as const;
 
     // Choose query based on whether we're doing alternate search

@@ -307,6 +307,15 @@ export function TravelChat({
     // Function to handle quick response selection
     const handleQuickResponseSelect = async (text: string) => {
         try {
+            // Check for stage 3 prompt limit
+            if (currentStage === 3 && !userMetrics.isPaid) {
+                const { withinStageLimit } = checkInputLimits(currentStage);
+                if (!withinStageLimit) {
+                    setShowPremiumModal(true);
+                    return;
+                }
+            }
+
             // Check if it's a place search request
             if (text.toLowerCase().includes('add') && text.toLowerCase().includes('park')) {
                 const searchText = 'park';

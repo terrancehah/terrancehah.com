@@ -100,8 +100,8 @@ export const StepsItem = React.forwardRef<HTMLDivElement, StepsItemProps>(
                     )}
                 </div>
                 {isLocked && (
-                    <span className="absolute -top-1 -right-1">
-                        <LockClosedIcon className="w-4 h-2 text-gray-500" />
+                    <span className="absolute right-1">
+                        <LockClosedIcon className="w-4 h-4 text-gray-500" />
                     </span>
                 )}
             </div>
