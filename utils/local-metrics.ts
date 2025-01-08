@@ -86,7 +86,7 @@ export function checkInputLimits(
     totalInputCount: totalPrompts
   };
 
-  console.log(`[Metrics] Input limit check for stage ${currentStage}:`, result);
+  // console.log(`[Metrics] Input limit check for stage ${currentStage}:`, result);
   
   return result;
 }

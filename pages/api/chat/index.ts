@@ -7,6 +7,7 @@ import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { UserInteractionMetrics } from '../../../managers/stage-manager';
 import { validateStageProgression, STAGE_LIMITS } from '../../../managers/stage-manager';
+import { Place } from '../../../utils/places-utils';
 
 export const config = {
   runtime: 'edge'
@@ -23,10 +24,17 @@ export default async function handler(req: NextRequest) {
   try {
     const { messages, currentDetails, savedPlaces, currentStage, metrics } = await req.json();
     
-    // Pass savedPlaces directly without transformation
+    // Ensure savedPlaces is properly typed and has all required fields
+    const typedSavedPlaces = (savedPlaces || []).map((p: Partial<Place>) => ({
+      ...p,
+      photos: p.photos || [],
+      // Only set primaryTypeDisplayName if it doesn't exist AND we have a primaryType
+      primaryTypeDisplayName: p.primaryTypeDisplayName || (p.primaryType ? { text: p.primaryType, languageCode: 'en' } : undefined)
+    }));
+    
     console.log('Debug - API received:', { 
       currentDetails,
-      savedPlaces: savedPlaces?.map((p: any) => ({
+      savedPlaces: typedSavedPlaces.map(p => ({
         id: p.id,
         photos: p.photos,
         primaryTypeDisplayName: p.primaryTypeDisplayName
@@ -212,7 +220,7 @@ export default async function handler(req: NextRequest) {
       - Budget: ${currentDetails.budget}
       - Preferences: ${currentDetails.preferences?.join(', ')}
       - PDF Export Language: ${currentDetails.language}
-      - Saved Places Count: ${savedPlaces.length}
+      - Saved Places Count: ${typedSavedPlaces.length}
       - Total User Prompts: ${metrics?.totalPrompts || 0}
       - Stage 3 Prompts: ${metrics?.stagePrompts?.[3] || 0}
       - Payment Status: ${metrics?.isPaid ? 'Paid' : 'Not Paid'}

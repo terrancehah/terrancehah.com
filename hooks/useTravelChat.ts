@@ -26,10 +26,10 @@ export function useTravelChat({
 
   // Simply use savedPlacesManager directly
   const currentSavedPlaces = savedPlacesManager.getPlaces();
-  console.log('[useTravelChat] Current saved places:', currentSavedPlaces.map(p => ({
-    id: p.id,
-    photos: p.photos
-  })));
+  // console.log('[useTravelChat] Current saved places:', currentSavedPlaces.map(p => ({
+  //   id: p.id,
+  //   photos: p.photos
+  // })));
 
   useEffect(() => {
     const handlePlacesChanged = () => {

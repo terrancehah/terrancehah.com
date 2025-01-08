@@ -297,13 +297,13 @@ export const savedPlacesListTool = createTool({
                     languageCode: z.string()
                 }),
                 z.string()
-            ]),
-            primaryType: z.string(),
+            ]).optional(), // Make optional
+            primaryType: z.string().optional(), // Make optional
             location: z.object({
                 latitude: z.number(),
                 longitude: z.number()
-            }),
-            formattedAddress: z.string(),
+            }).optional(), // Make optional
+            formattedAddress: z.string().optional(), // Make optional
             photos: z.array(z.object({
                 name: z.string(),
                 widthPx: z.number().optional(),
@@ -312,18 +312,20 @@ export const savedPlacesListTool = createTool({
                     displayName: z.string().optional(),
                     uri: z.string().optional(),
                     photoUri: z.string().optional()
-                }))
-            })),
+                })).optional() // Make optional
+            })).optional().default([]), // Make optional with default
             primaryTypeDisplayName: z.object({
                 text: z.string(),
                 languageCode: z.string()
-            }).optional()
+            }).optional() // Already optional
         }))
     }),
     execute: async function ({ savedPlaces }) {
-        console.log('[savedPlacesListTool] Executing with places:', savedPlaces.map(p => ({
+        console.log('[savedPlacesListTool] Executing with places:', savedPlaces?.map(p => ({
             id: p.id,
-            photos: p.photos,
+            hasPhotos: Boolean(p.photos?.length),
+            photoCount: p.photos?.length,
+            firstPhoto: p.photos?.[0],
             primaryTypeDisplayName: p.primaryTypeDisplayName
         })));
         
@@ -340,7 +342,11 @@ export const savedPlacesListTool = createTool({
         return {
             type: 'savedPlacesList',
             props: { 
-                places: savedPlaces,
+                places: savedPlaces.map(place => ({
+                    ...place,
+                    photos: place.photos || [],
+                    primaryTypeDisplayName: place.primaryTypeDisplayName || { text: '', languageCode: 'en' }
+                })),
                 onRemove: undefined // Make it explicit that we're not handling removal here
             }
         };

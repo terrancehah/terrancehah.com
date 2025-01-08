@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Place } from '@/utils/places-utils';
+import { Place, savedPlacesManager } from '@/utils/places-utils';
 
 interface SavedPlacesListProps {
-    places: Place[];
     onCenterMap?: (location: { latitude: number, longitude: number }) => void;
     onRemove?: (placeId: string) => void;
 }
@@ -11,28 +10,17 @@ interface PhotoState {
     [key: string]: string;  // photoName -> URL mapping
 }
 
-export const SavedPlacesList: React.FC<SavedPlacesListProps> = ({ places, onCenterMap, onRemove }) => {
+export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps) {
+    // Get places directly from savedPlacesManager
+    const places = savedPlacesManager.getPlaces();
+    
+    const [photoUrls, setPhotoUrls] = useState<PhotoState>({});
+
     // Memoize unique places to prevent infinite updates
     const uniquePlaces = useMemo(() => 
         Array.from(new Map(places.map(place => [place.id, place])).values()),
-        [places] // Only recompute when places array changes
+        [places]
     );
-    
-    console.log('[SavedPlacesList] Unique places:', uniquePlaces.length);
-
-    useEffect(() => {
-        uniquePlaces.forEach(place => {
-            console.log('[SavedPlacesList] Place details:', {
-                id: place.id,
-                hasPhotos: Boolean(place.photos),
-                photoCount: place.photos?.length,
-                firstPhoto: place.photos?.[0],
-                rawPhotos: place.photos
-            });
-        });
-    }, [uniquePlaces]);
-
-    const [photoUrls, setPhotoUrls] = useState<PhotoState>({});
 
     useEffect(() => {
         const fetchPhotos = async () => {
@@ -40,34 +28,23 @@ export const SavedPlacesList: React.FC<SavedPlacesListProps> = ({ places, onCent
             
             for (const place of uniquePlaces) {
                 if (place.photos?.[0]?.name) {
-                    try {
-                        const response = await fetch(
-                            `https://places.googleapis.com/v1/${place.photos[0].name}/media`, {
-                            headers: {
-                                'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-                                'X-Goog-FieldMask': 'photoUri'
-                            }
-                        });
-                        
-                        if (response.ok) {
-                            const photoData = await response.json();
-                            if (photoData.photoUri) {
-                                newPhotoUrls[place.photos[0].name] = photoData.photoUri;
-                            }
-                        } else {
-                            console.error(`Failed to fetch photo for place ${place.id}:`, await response.text());
-                        }
-                    } catch (error) {
-                        console.error(`Error fetching photo for place ${place.id}:`, error);
-                    }
+                    const photoUrl = `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=400&maxWidthPx=400&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`;
+                    newPhotoUrls[place.photos[0].name] = photoUrl;
                 }
             }
             
-            setPhotoUrls(prev => ({...prev, ...newPhotoUrls}));
+            setPhotoUrls(newPhotoUrls);
         };
 
         fetchPhotos();
-    }, [uniquePlaces]); // Now safe to use uniquePlaces as dependency
+        
+        // Cleanup object URLs on unmount
+        return () => {
+            Object.values(photoUrls).forEach(url => {
+                URL.revokeObjectURL(url);
+            });
+        };
+    }, [uniquePlaces]);
 
     console.log('[SavedPlacesList] Rendering with places:', uniquePlaces.map(p => ({
         id: p.id,
@@ -144,16 +121,14 @@ export const SavedPlacesList: React.FC<SavedPlacesListProps> = ({ places, onCent
                                         Center on Map
                                     </button>
                                 )}
-                                {/* Remove button commented out
-                                {onRemove && (
+                                {/* {onRemove && (
                                     <button
                                         onClick={() => onRemove(place.id)}
                                         className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
                                     >
                                         Remove
                                     </button>
-                                )}
-                                */}
+                                )} */}
                             </div>
                         </div>
                     </div>

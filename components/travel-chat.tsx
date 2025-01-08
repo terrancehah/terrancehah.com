@@ -728,18 +728,11 @@ export function TravelChat({
                                             );
 
                                             case 'savedPlacesList':
-                                                if(!toolInvocation.result?.props?.places) return null;
-                                                const savedPlacesProps = toolInvocation.result.props as { places: Place[] };
                                                 return (
                                                     <div key={`${toolCallId}-${index}`} className="flex justify-start">
                                                         <div className="w-full">
                                                             <SavedPlacesList
-                                                                places={savedPlacesProps.places}
-                                                                onRemove={(placeId) => {
-                                                                    if (onPlaceRemoved) {
-                                                                        onPlaceRemoved(placeId);
-                                                                    }
-                                                                }}
+                                                                onRemove={onPlaceRemoved}
                                                             />
                                                         </div>
                                                     </div>
