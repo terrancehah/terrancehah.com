@@ -1,9 +1,6 @@
 {
-  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
-  "/api/chat": "pages/api/chat.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/api/maps-key": "pages/api/maps-key.js"
+  "/": "pages/index.js"
 }

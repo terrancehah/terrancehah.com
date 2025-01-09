@@ -3,6 +3,7 @@ import { checkSessionValidity, initializeSession, clearSession } from './session
 
 export const METRICS_STORAGE_KEY = 'travel_interaction_metrics';
 const SESSION_KEY = 'travel_session_id';
+const PAYMENT_REF_KEY = 'payment_reference_id';
 const MAX_TOTAL_INPUTS = 15;
 
 export function getStoredMetrics(): UserInteractionMetrics {
@@ -24,6 +25,7 @@ export function getStoredMetrics(): UserInteractionMetrics {
     metrics.savedPlacesCount = metrics.savedPlacesCount || 0;
     metrics.isPaid = metrics.isPaid || false;
     metrics.stagePrompts = metrics.stagePrompts || { 1: 0, 2: 0, 3: 0 };
+    metrics.paymentReference = metrics.paymentReference || '';
 
     return metrics;
   } catch (error) {
@@ -91,12 +93,13 @@ export function checkInputLimits(
   return result;
 }
 
-export function resetMetrics() {
+export function resetMetrics(): UserInteractionMetrics {
   const metrics = {
     totalPrompts: 0,
     savedPlacesCount: 0,
     isPaid: false,
-    stagePrompts: { 1: 0, 2: 0, 3: 0 }
+    stagePrompts: { 1: 0, 2: 0, 3: 0 },
+    paymentReference: ''
   };
   localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
   initializeSession(); // Initialize a new session when metrics are reset
@@ -113,4 +116,71 @@ export function checkSession(): boolean {
     return false;
   }
   return true;
+}
+
+export function setPaymentStatus(isPaid: boolean) {
+  try {
+    const metrics = getStoredMetrics();
+    metrics.isPaid = isPaid;
+    localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    return metrics;
+  } catch (error) {
+    console.error('[Metrics] Error updating payment status:', error);
+    return getStoredMetrics();
+  }
+}
+
+export function getPaymentStatus(): boolean {
+  const metrics = getStoredMetrics();
+  return metrics.isPaid || false;
+}
+
+export function setPaymentReferenceId(referenceId: string) {
+  try {
+    localStorage.setItem(PAYMENT_REF_KEY, referenceId);
+    console.log('[Metrics] Stored payment reference ID:', referenceId);
+  } catch (error) {
+    console.error('[Metrics] Error storing payment reference ID:', error);
+  }
+}
+
+export function getPaymentReferenceId(): string | null {
+  try {
+    return localStorage.getItem(PAYMENT_REF_KEY);
+  } catch (error) {
+    console.error('[Metrics] Error retrieving payment reference ID:', error);
+    return null;
+  }
+}
+
+export function setPaymentReference(reference: string) {
+  try {
+    const metrics = getStoredMetrics();
+    metrics.paymentReference = reference;
+    localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    console.log('[Metrics] Payment reference set:', reference);
+  } catch (error) {
+    console.error('[Metrics] Error setting payment reference:', error);
+  }
+}
+
+export function getPaymentReference(): string | undefined {
+  try {
+    const metrics = getStoredMetrics();
+    return metrics.paymentReference;
+  } catch (error) {
+    console.error('[Metrics] Error getting payment reference:', error);
+    return undefined;
+  }
+}
+
+export function clearPaymentReference() {
+  try {
+    const metrics = getStoredMetrics();
+    delete metrics.paymentReference;
+    localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+    console.log('[Metrics] Payment reference cleared');
+  } catch (error) {
+    console.error('[Metrics] Error clearing payment reference:', error);
+  }
 }

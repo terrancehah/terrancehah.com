@@ -2,6 +2,12 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '../utils/cn'
 import FeatureCarousel from './feature-carousel'
+import { 
+  setPaymentStatus, 
+  setPaymentReference,
+  getPaymentReference,
+  clearPaymentReference 
+} from '../utils/local-metrics'
 
 // Declare the custom element for TypeScript
 declare global {
@@ -10,6 +16,7 @@ declare global {
       'stripe-buy-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
         'buy-button-id': string;
         'publishable-key': string;
+        'client-reference-id': string;
       }
     }
   }
@@ -18,6 +25,23 @@ declare global {
 export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const [isMobile, setIsMobile] = useState(false)
   const stripeContainerRef = useRef<HTMLDivElement>(null)
+  const clientReferenceId = useRef<string>('')
+
+  // Generate client reference ID on mount
+  useEffect(() => {
+    if (!clientReferenceId.current) {
+      // Check if we have a stored reference ID first
+      const storedRefId = getPaymentReference();
+      if (storedRefId) {
+        clientReferenceId.current = storedRefId;
+      } else {
+        clientReferenceId.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Store the new reference ID
+        setPaymentReference(clientReferenceId.current);
+      }
+      console.log('[Payment] Using client reference ID:', clientReferenceId.current);
+    }
+  }, [])
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -25,6 +49,47 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
+
+  useEffect(() => {
+    // Check URL for success parameter and session ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const isSuccess = urlParams.get('payment') === 'success';
+    const sessionId = urlParams.get('session_id');
+    
+    if (isSuccess && sessionId) {
+      console.log('[Payment] Success redirect detected, verifying payment...');
+      
+      // Get the stored reference ID
+      const refId = getPaymentReference();
+      if (!refId) {
+        console.error('[Payment] No reference ID found for verification');
+        return;
+      }
+      
+      // Verify payment status with reference ID
+      fetch(`/api/stripe/verify?session_id=${sessionId}&reference_id=${refId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.verified) {
+            console.log('[Payment] Payment verified');
+            // Update local storage payment status
+            setPaymentStatus(true);
+            // Clear the payment reference after successful verification
+            clearPaymentReference();
+            // Close the modal
+            onClose?.();
+            // Clean up URL
+            window.history.replaceState({}, '', window.location.pathname);
+            console.log('[Payment] Payment flow completed');
+          } else {
+            console.error('[Payment] Payment verification failed:', data.message);
+          }
+        })
+        .catch(error => {
+          console.error('[Payment] Error verifying payment:', error);
+        });
+    }
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen || !stripeContainerRef.current) return
@@ -44,6 +109,7 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     const stripeButton = document.createElement('stripe-buy-button')
     stripeButton.setAttribute('buy-button-id', 'buy_btn_1QbgllI41yHwVfoxHUfAJEEx')
     stripeButton.setAttribute('publishable-key', 'pk_live_51MtLXgI41yHwVfoxoenCC4Y3iWAv4dwTMPFtBsuAWnJItf6KjcLgtClHE281ixQp5j7tQdmHt9JCtyVSvGaVOI4N00AXx9Bg3a')
+    stripeButton.setAttribute('client-reference-id', clientReferenceId.current)
     
     // Mount button immediately
     stripeContainerRef.current.appendChild(stripeButton)

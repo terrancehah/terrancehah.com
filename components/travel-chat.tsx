@@ -62,8 +62,6 @@ export function TravelChat({
 
 
     useEffect(() => {
-        localStorage.setItem('userMetrics', JSON.stringify(userMetrics));
-
         // Check for prompt limit in stage 3
         if (currentStage === 3 && !userMetrics.isPaid) {
             const { withinStageLimit } = checkInputLimits(currentStage);

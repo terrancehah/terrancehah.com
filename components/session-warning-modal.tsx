@@ -22,7 +22,7 @@ interface SessionWarningModalProps {
     
         return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] z-[100]">
             <DialogHeader>
                 <DialogTitle>Session Expiring Soon</DialogTitle>
                 <DialogDescription>

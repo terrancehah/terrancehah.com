@@ -8,6 +8,14 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: '/api/stripe/webhook',
+        destination: '/api/stripe/webhook/',
+      },
+      {
+        source: '/api/stripe/webhook/',
+        destination: '/api/stripe/webhook',
+      },
+      {
         source: '/:path*.html',
         destination: '/:path*.html',
       },
