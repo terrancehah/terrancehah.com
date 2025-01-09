@@ -79,6 +79,8 @@ export default async function handler(
         signature,
         process.env.STRIPE_WEBHOOK_SECRET!
       );
+      // Log the full raw event for debugging
+      console.log('[Webhook] Raw event:', JSON.stringify(event, null, 2));
       console.log('[Webhook] Event received:', event.type);
       console.log('[Webhook] Event details:', {
         type: event.type,
@@ -102,6 +104,10 @@ export default async function handler(
     if (event.type === 'checkout.session.completed') {
       console.log('[Webhook] Processing checkout session');
       const session = event.data.object as Stripe.Checkout.Session;
+      
+      // Log the full session object for debugging
+      console.log('[Webhook] Full session data:', JSON.stringify(session, null, 2));
+      
       console.log('[Webhook] Session data:', JSON.stringify({
         id: session.id,
         payment_status: session.payment_status,

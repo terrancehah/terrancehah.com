@@ -94,13 +94,14 @@ export function checkInputLimits(
 }
 
 export function resetMetrics(): UserInteractionMetrics {
-  const metrics = {
+  const metrics: UserInteractionMetrics = {
     totalPrompts: 0,
     savedPlacesCount: 0,
     isPaid: false,
     stagePrompts: { 1: 0, 2: 0, 3: 0 },
-    paymentReference: ''
+    paymentReference: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   };
+  
   localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
   initializeSession(); // Initialize a new session when metrics are reset
   return metrics;

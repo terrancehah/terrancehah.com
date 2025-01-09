@@ -375,7 +375,8 @@ export const stageProgressTool = createTool({
         metrics: z.object({
             totalPrompts: z.number(),
             savedPlacesCount: z.number(),
-            isPaid: z.boolean()
+            isPaid: z.boolean(),
+            paymentReference: z.string()
         })
     }),
     execute: async function({ nextStage, currentStage, travelDetails, metrics }) {

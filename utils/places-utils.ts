@@ -461,7 +461,8 @@ function initializeMetrics(): UserInteractionMetrics {
             totalPrompts: 0,
             savedPlacesCount: 0,
             isPaid: false,
-            stagePrompts: {}
+            stagePrompts: {},
+            paymentReference: ''  // Empty string instead of null to match type
         };
     }
 

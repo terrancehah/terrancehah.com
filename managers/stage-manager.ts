@@ -7,7 +7,7 @@ export interface UserInteractionMetrics {
   savedPlacesCount: number;
   isPaid: boolean;
   stagePrompts?: Record<number, number>;
-  paymentReference?: string; // Track payment reference ID
+  paymentReference: string; // Track payment reference ID - required
 }
 
 // Define requirements for each stage

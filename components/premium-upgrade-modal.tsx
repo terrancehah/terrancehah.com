@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '../utils/cn'
 import FeatureCarousel from './feature-carousel'
+import SuccessPopup from './success-popup'
 import { 
   setPaymentStatus, 
   setPaymentReference,
@@ -24,6 +25,7 @@ declare global {
 
 export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const [isMobile, setIsMobile] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   const stripeContainerRef = useRef<HTMLDivElement>(null)
   const clientReferenceId = useRef<string>('')
 
@@ -35,6 +37,7 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
       if (storedRefId) {
         clientReferenceId.current = storedRefId;
       } else {
+        // Generate a new one ONLY if we don't have one
         clientReferenceId.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         // Store the new reference ID
         setPaymentReference(clientReferenceId.current);
@@ -76,6 +79,8 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
             setPaymentStatus(true);
             // Clear the payment reference after successful verification
             clearPaymentReference();
+            // Show success popup
+            setShowSuccess(true);
             // Close the modal
             onClose?.();
             // Clean up URL
@@ -97,22 +102,59 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     // Clean up any existing button
     stripeContainerRef.current.innerHTML = ''
 
-    // Add the script if it doesn't exist
-    if (!document.querySelector('script[src="https://js.stripe.com/v3/buy-button.js"]')) {
-      const script = document.createElement('script')
-      script.src = 'https://js.stripe.com/v3/buy-button.js'
-      script.async = true
-      document.body.appendChild(script)
+    // Get the reference ID from our ref (NOT from storage again)
+    const refId = clientReferenceId.current;
+    if (!refId) {
+      console.error('[Payment] No payment reference found in ref');
+      return;
     }
 
-    // Create and mount the button
-    const stripeButton = document.createElement('stripe-buy-button')
-    stripeButton.setAttribute('buy-button-id', 'buy_btn_1QbgllI41yHwVfoxHUfAJEEx')
-    stripeButton.setAttribute('publishable-key', 'pk_live_51MtLXgI41yHwVfoxoenCC4Y3iWAv4dwTMPFtBsuAWnJItf6KjcLgtClHE281ixQp5j7tQdmHt9JCtyVSvGaVOI4N00AXx9Bg3a')
-    stripeButton.setAttribute('client-reference-id', clientReferenceId.current)
+    console.log('[Payment] Setting up button with reference ID:', refId);
+
+    // Create the button HTML directly
+    const buttonHtml = `
+      <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+      <stripe-buy-button
+        buy-button-id="buy_btn_1QfJT2I41yHwVfoxrEmjHuCU"
+        publishable-key="pk_test_51MtLXgI41yHwVfoxNp7MKLfz0Gh4qo2LwImaCBtCt0Gn48e613BLsbOajpHT1uJOs2l0ACRpUE3RZrh8FcLxdwef00QOtxcHmf"
+        client-reference-id="${refId}"
+      >
+      </stripe-buy-button>
+    `;
+
+    // Live button (commented out for now)
+    /*
+    const buttonHtml = `
+      <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+      <stripe-buy-button
+        buy-button-id="buy_btn_1QbgllI41yHwVfoxHUfAJEEx"
+        publishable-key="pk_live_51MtLXgI41yHwVfoxoenCC4Y3iWAv4dwTMPFtBsuAWnJItf6KjcLgtClHE281ixQp5j7tQdmHt9JCtyVSvGaVOI4N00AXx9Bg3a"
+        client-reference-id="${refId}"
+      >
+      </stripe-buy-button>
+    `;
+    */
     
-    // Mount button immediately
-    stripeContainerRef.current.appendChild(stripeButton)
+    console.log('[Payment] Setting up button with reference ID:', refId);
+    stripeContainerRef.current.innerHTML = buttonHtml;
+
+    // Add event listener to debug button initialization
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+          const button = stripeContainerRef.current?.querySelector('stripe-buy-button');
+          if (button) {
+            console.log('[Payment] Button attributes:', {
+              'buy-button-id': button.getAttribute('buy-button-id'),
+              'client-reference-id': button.getAttribute('client-reference-id'),
+              'publishable-key': button.getAttribute('publishable-key')
+            });
+          }
+        }
+      });
+    });
+
+    observer.observe(stripeContainerRef.current, { childList: true, subtree: true });
 
     // Add custom styles
     const style = document.createElement('style')
@@ -138,42 +180,53 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     return () => {
       // Clean up styles
       document.head.removeChild(style)
+      observer.disconnect();
     }
   }, [isOpen]) // Re-run when isOpen changes
 
-  return isOpen ? (
-    <div className="absolute inset-0 bottom-[64px]  bg-white/85 backdrop-blur-sm z-[60]">
-      <div className="h-full w-full overflow-hidden">
-        <div className="flex h-full m-auto font-raleway py-4 px-2">
-          <button
-            onClick={onClose}
-            className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 bg-slate-300 hover:bg-slate-400 p-1.5 rounded-2xl transition-colors"
-            aria-label="Close modal"
-          >
-            <X className="w-4 h-4" />
-          </button>
+  return (
+    <>
+      <SuccessPopup
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title="Payment Successful!"
+        description="Welcome to Premium. Your account has been upgraded."
+      />
+      {isOpen ? (
+        <div className="absolute inset-0 bottom-[64px]  bg-white/85 backdrop-blur-sm z-[60]">
+          <div className="h-full w-full overflow-hidden">
+            <div className="flex h-full m-auto font-raleway py-4 px-2">
+              <button
+                onClick={onClose}
+                className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 bg-slate-300 hover:bg-slate-400 p-1.5 rounded-2xl transition-colors"
+                aria-label="Close modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
 
-          <div className="flex flex-col items-center justify-center space-y-2 my-auto w-full h-full">
-            <div className="text-center">
-              {/* <h1 className="font-caveat font-bold text-5xl leading-tight text-primary mb-1">Travel Rizz</h1> */}
-              <h2 className=" w-[70%] mx-auto text-lg lg:text-xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
-              <div className="flex flex-wrap items-center justify-center gap-1 text-xl">
-                <span className="font-bold text-lg md:text-xl lg:text-2xl text-center order-1 basis-1/5 xl:basis-[15%] text-primary">US$1.99</span>
-                <span className="text-gray-400 text-center text-lg md:text-xl lg:text-2xl order-1 basis-1/5 xl:basis-[15%] line-through decoration-2">US$2.99</span>
-                <span className="bg-blue-200 text-blue-500 text-sm xl:text-base font-medium px-2.5 py-1 order-2 basis-[30%] xl:basis-1/5 rounded">Early Adopter Special</span>
+              <div className="flex flex-col items-center justify-center space-y-2 my-auto w-full h-full">
+                <div className="text-center">
+                  {/* <h1 className="font-caveat font-bold text-5xl leading-tight text-primary mb-1">Travel Rizz</h1> */}
+                  <h2 className=" w-[70%] mx-auto text-lg lg:text-xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
+                  <div className="flex flex-wrap items-center justify-center gap-1 text-xl">
+                    <span className="font-bold text-lg md:text-xl lg:text-2xl text-center order-1 basis-1/5 xl:basis-[15%] text-primary">US$1.99</span>
+                    <span className="text-gray-400 text-center text-lg md:text-xl lg:text-2xl order-1 basis-1/5 xl:basis-[15%] line-through decoration-2">US$2.99</span>
+                    <span className="bg-blue-200 text-blue-500 text-sm xl:text-base font-medium px-2.5 py-1 order-2 basis-[30%] xl:basis-1/5 rounded">Early Adopter Special</span>
+                  </div>
+                </div>
+                
+                <div className="py-2 mt-0">
+                  <FeatureCarousel />
+                </div>
+
+                <div className="w-min h-min bg-white mx-auto rounded-2xl p-1 shadow-lg border border-gray-100">
+                  <div ref={stripeContainerRef} className="flex justify-center"></div>
+                </div>
               </div>
-            </div>
-            
-            <div className="py-2 mt-0">
-              <FeatureCarousel />
-            </div>
-
-            <div className="w-min h-min bg-white mx-auto rounded-2xl p-1 shadow-lg border border-gray-100">
-              <div ref={stripeContainerRef} className="flex justify-center"></div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  ) : null
+      ) : null}
+    </>
+  )
 }
