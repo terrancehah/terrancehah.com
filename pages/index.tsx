@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { TravelPreference, BudgetLevel, SupportedLanguage, TravelDetails, TravelSession } from '@/managers/types';
 import StageProgress from '@/components/stage-progress';
 import { Place } from '@/utils/places-utils';
-import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage } from '../utils/session-manager';
+import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, safeStorageOp } from '../utils/session-manager';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
     ssr: false,
@@ -219,33 +219,32 @@ export default function ChatPage() {
     useEffect(() => {
         if (!travelDetails) return;
 
-        const sessionData = getStoredSession();
-        if (!sessionData) {
-            window.location.replace('/travel-form');
-            return;
-        }
+        const updateSession = async () => {
+            const sessionData = await getStoredSession();
+            if (!sessionData) return;
 
-        // Update session with new travel details
-        const updatedSession = {
-            ...sessionData,
-            destination: travelDetails.destination,
-            startDate: travelDetails.startDate,
-            endDate: travelDetails.endDate,
-            preferences: travelDetails.preferences,
-            budget: travelDetails.budget,
-            language: travelDetails.language,
-            transport: travelDetails.transport,
-            currentStage,
-            lastActive: Date.now()
-        };
-        
-        try {
-            storage.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(updatedSession));
+            // Update session with new travel details
+            const updatedSession = {
+                ...sessionData,
+                destination: travelDetails.destination,
+                startDate: travelDetails.startDate,
+                endDate: travelDetails.endDate,
+                preferences: travelDetails.preferences,
+                budget: travelDetails.budget,
+                language: travelDetails.language,
+                transport: travelDetails.transport,
+                currentStage,
+                lastActive: Date.now()
+            };
+
+            await safeStorageOp(() => {
+                storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(updatedSession));
+            }, undefined);
+
             console.log('[Index] Successfully updated session with new travel details');
-        } catch (error) {
-            console.error('[Index] Failed to update session:', error);
-            window.location.replace('/travel-form');
-        }
+        };
+
+        updateSession();
     }, [travelDetails, currentStage]);
 
     return (
