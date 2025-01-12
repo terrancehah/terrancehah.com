@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import Script from 'next/script';
 import { Place, savedPlacesManager, searchPlaceByText } from '@/utils/places-utils';
+import { SESSION_CONFIG } from '../utils/session-manager';
 
 interface MapComponentProps {
     city: string;
@@ -116,13 +117,41 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             return;
         }
 
+        if (!city) {
+            // Try to get destination from session
+            const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
+            if (sessionData) {
+                try {
+                    const parsed = JSON.parse(sessionData);
+                    if (!parsed.travelDetails?.destination) {
+                        setError('No destination specified');
+                        setIsLoading(false);
+                        return;
+                    }
+                    city = parsed.travelDetails.destination;
+                } catch (error) {
+                    console.error('Error reading destination from session:', error);
+                    setError('No destination specified');
+                    setIsLoading(false);
+                    return;
+                }
+            } else {
+                setError('No destination specified');
+                setIsLoading(false);
+                return;
+            }
+        }
+
         if (!scriptLoaded || !mapRef.current) {
             console.log('MapComponent: Waiting for script to load or map ref to be ready...');
             return;
         }
 
+        let isInitialized = false;
+
         console.log('MapComponent: Initializing map with city:', city);
         const initMap = async () => {
+            if (isInitialized) return;
             try {
                 // Import required libraries
                 const { Map } = await window.google.maps.importLibrary("maps") as google.maps.MapsLibrary;
@@ -150,6 +179,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                             });
                             
                             setMap(newMap);
+                            isInitialized = true;
+                            setIsLoading(false);
 
                             const newInfoWindow = new google.maps.InfoWindow({
                                 maxWidth: 400
@@ -472,6 +503,25 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     // }, [savedPlaces]);
 
     useEffect(() => {
+        // Save to session storage when places change
+        const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
+        if (sessionData) {
+            try {
+                const parsed = JSON.parse(sessionData);
+                const updatedPlaces = savedPlacesManager.getPlaces();
+                const sessionDataWithUpdatedPlaces = {
+                    ...parsed,
+                    lastActive: Date.now(),
+                    savedPlaces: updatedPlaces
+                };
+                sessionStorage.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(sessionDataWithUpdatedPlaces));
+            } catch (error) {
+                console.error('Error saving places to session:', error);
+            }
+        }
+    }, [savedPlaces]);
+
+    useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible' && map) {
                 window.google?.maps?.event?.trigger(map, 'resize');
@@ -486,7 +536,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
     useEffect(() => {
         // Load saved places from session storage on mount
-        const sessionData = sessionStorage.getItem('travelPlannerSession');
+        const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
         if (sessionData) {
             try {
                 const parsed = JSON.parse(sessionData);
@@ -509,22 +559,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             }
         }
     }, []);
-
-    useEffect(() => {
-        // Save to session storage when places change
-        const sessionData = sessionStorage.getItem('travelPlannerSession');
-        if (sessionData) {
-            try {
-                const parsed = JSON.parse(sessionData);
-                sessionStorage.setItem('travelPlannerSession', JSON.stringify({
-                    ...parsed,
-                    savedPlaces: savedPlacesManager.getPlaces()
-                }));
-            } catch (error) {
-                console.error('Error saving places to session:', error);
-            }
-        }
-    }, [savedPlaces]);
 
     const getPhotoUrl = (photo: google.maps.places.Photo, index: number) => {
         return photo.getURI?.() || '';

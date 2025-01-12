@@ -3,12 +3,13 @@ import { X } from 'lucide-react'
 import { cn } from '../utils/cn'
 import FeatureCarousel from './feature-carousel'
 import SuccessPopup from './success-popup'
+
 import { 
   setPaymentStatus, 
   setPaymentReference,
   getPaymentReference,
   clearPaymentReference 
-} from '../utils/local-metrics'
+} from '../utils/session-manager'
 
 // Declare the custom element for TypeScript
 declare global {
@@ -54,47 +55,22 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
   }, [])
 
   useEffect(() => {
-    // Check URL for success parameter and session ID
+    // Check URL parameters for payment success
     const urlParams = new URLSearchParams(window.location.search);
-    const isSuccess = urlParams.get('payment') === 'success';
+    const paymentSuccess = urlParams.get('payment');
     const sessionId = urlParams.get('session_id');
-    
-    if (isSuccess && sessionId) {
-      console.log('[Payment] Success redirect detected, verifying payment...');
+
+    if (paymentSuccess === 'success' && sessionId) {
+      setShowSuccess(true);
       
-      // Get the stored reference ID
-      const refId = getPaymentReference();
-      if (!refId) {
-        console.error('[Payment] No reference ID found for verification');
-        return;
-      }
+      // Update payment status in session
+      setPaymentStatus(true);
+      setPaymentReference(sessionId);
       
-      // Verify payment status with reference ID
-      fetch(`/api/stripe/verify?session_id=${sessionId}&reference_id=${refId}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.verified) {
-            console.log('[Payment] Payment verified');
-            // Update local storage payment status
-            setPaymentStatus(true);
-            // Clear the payment reference after successful verification
-            clearPaymentReference();
-            // Show success popup
-            setShowSuccess(true);
-            // Close the modal
-            onClose?.();
-            // Clean up URL
-            window.history.replaceState({}, '', window.location.pathname);
-            console.log('[Payment] Payment flow completed');
-          } else {
-            console.error('[Payment] Payment verification failed:', data.message);
-          }
-        })
-        .catch(error => {
-          console.error('[Payment] Error verifying payment:', error);
-        });
+      // Remove URL parameters after processing
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || !stripeContainerRef.current) return
@@ -113,7 +89,6 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
 
     // Create the button HTML directly
     const buttonHtml = `
-      <script async src="https://js.stripe.com/v3/buy-button.js"></script>
       <stripe-buy-button
         buy-button-id="buy_btn_1QfJT2I41yHwVfoxrEmjHuCU"
         publishable-key="pk_test_51MtLXgI41yHwVfoxNp7MKLfz0Gh4qo2LwImaCBtCt0Gn48e613BLsbOajpHT1uJOs2l0ACRpUE3RZrh8FcLxdwef00QOtxcHmf"
@@ -122,39 +97,13 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
       </stripe-buy-button>
     `;
 
-    // Live button (commented out for now)
-    /*
-    const buttonHtml = `
-      <script async src="https://js.stripe.com/v3/buy-button.js"></script>
-      <stripe-buy-button
-        buy-button-id="buy_btn_1QbgllI41yHwVfoxHUfAJEEx"
-        publishable-key="pk_live_51MtLXgI41yHwVfoxoenCC4Y3iWAv4dwTMPFtBsuAWnJItf6KjcLgtClHE281ixQp5j7tQdmHt9JCtyVSvGaVOI4N00AXx9Bg3a"
-        client-reference-id="${refId}"
-      >
-      </stripe-buy-button>
-    `;
-    */
-    
-    console.log('[Payment] Setting up button with reference ID:', refId);
     stripeContainerRef.current.innerHTML = buttonHtml;
 
-    // Add event listener to debug button initialization
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          const button = stripeContainerRef.current?.querySelector('stripe-buy-button');
-          if (button) {
-            console.log('[Payment] Button attributes:', {
-              'buy-button-id': button.getAttribute('buy-button-id'),
-              'client-reference-id': button.getAttribute('client-reference-id'),
-              'publishable-key': button.getAttribute('publishable-key')
-            });
-          }
-        }
-      });
-    });
-
-    observer.observe(stripeContainerRef.current, { childList: true, subtree: true });
+    // Load Stripe script dynamically
+    const script = document.createElement('script');
+    script.src = 'https://js.stripe.com/v3/buy-button.js';
+    script.async = true;
+    document.head.appendChild(script);
 
     // Add custom styles
     const style = document.createElement('style')
@@ -180,9 +129,8 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     return () => {
       // Clean up styles
       document.head.removeChild(style)
-      observer.disconnect();
     }
-  }, [isOpen]) // Re-run when isOpen changes
+  }, [isOpen])
 
   return (
     <>
@@ -206,7 +154,6 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
 
               <div className="flex flex-col items-center justify-center space-y-2 my-auto w-full h-full">
                 <div className="text-center">
-                  {/* <h1 className="font-caveat font-bold text-5xl leading-tight text-primary mb-1">Travel Rizz</h1> */}
                   <h2 className=" w-[70%] mx-auto text-lg lg:text-xl font-bold text-primary mb-2">The prompt limit for free usage has been reached. Now with an one-time payment, you can unlock unlimited travel planning!</h2>
                   <div className="flex flex-wrap items-center justify-center gap-1 text-xl">
                     <span className="font-bold text-lg md:text-xl lg:text-2xl text-center order-1 basis-1/5 xl:basis-[15%] text-primary">US$1.99</span>

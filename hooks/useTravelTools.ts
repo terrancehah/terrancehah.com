@@ -1,14 +1,13 @@
 import { useState } from 'react';
-import { TravelDetails } from '../managers/types';
+import { TravelDetails, TravelSession } from '../managers/types';
 import { Place } from '../utils/places-utils';
-import { UserInteractionMetrics } from '../managers/stage-manager';
 
 interface UseTravelToolsProps {
   currentDetails: TravelDetails;
   setCurrentDetails: (details: TravelDetails) => void;
   currentStage: number;
   onStageUpdate: (nextStage: number) => void;
-  userMetrics: UserInteractionMetrics;
+  userMetrics: TravelSession;
   append: (message: any, options?: any) => Promise<void>;
   savedPlaces: Place[];
 }

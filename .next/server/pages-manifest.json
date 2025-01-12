@@ -1,7 +1,8 @@
 {
+  "/api/chat": "pages/api/chat.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/api/stripe/webhook": "pages/api/stripe/webhook.js",
-  "/": "pages/index.js"
+  "/": "pages/index.js",
+  "/travel-form": "pages/travel-form.js"
 }

@@ -1,17 +1,25 @@
 import { useChat } from 'ai/react';
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
-import { TravelDetails } from '../managers/types';
+import { TravelDetails, TravelSession } from '../managers/types';
 import { Place, savedPlacesManager } from '../utils/places-utils';
-import { UserInteractionMetrics, STAGE_LIMITS, validateStageProgression } from '../managers/stage-manager';
+import { STAGE_LIMITS, validateStageProgression } from '../managers/stage-manager';
 import { Message as LocalMessage, ToolInvocation } from '../managers/types';
 import { Message as AiMessage } from 'ai';
-import { getStoredMetrics } from '../utils/local-metrics';
+import { getStoredSession, SESSION_CONFIG } from '../utils/session-manager';
+
+interface ChatRequestBody {
+  message: string;
+  destination: string;
+  messageCount: number;
+  currentStage: number;
+  metrics: TravelSession;
+}
 
 interface UseTravelChatProps {
   currentDetails: TravelDetails;
   savedPlaces: Place[];
   currentStage: number;
-  metrics: UserInteractionMetrics;
+  metrics: TravelSession;
 }
 
 export function useTravelChat({
@@ -22,7 +30,6 @@ export function useTravelChat({
 }: UseTravelChatProps) {
   const quickResponseInProgress = useRef(false);
   const [mainChatMessages, setMainChatMessages] = useState<LocalMessage[]>([]);
-  const [userMetrics, setUserMetrics] = useState(metrics);
 
   // Simply use savedPlacesManager directly
   const currentSavedPlaces = savedPlacesManager.getPlaces();
@@ -43,9 +50,10 @@ export function useTravelChat({
 
   const mainChat = useChat({
     api: '/api/chat',
-    id: 'travel-chat',
+    id: SESSION_CONFIG.STORAGE_KEY,
     body: {
       currentDetails,
+      destination: currentDetails.destination, // Explicitly include destination
       savedPlaces: currentSavedPlaces
         ?.filter(place => place && place.id && place.displayName)
         ?.map(place => ({
@@ -58,7 +66,10 @@ export function useTravelChat({
           photos: place.photos || []
         })) || [],
       currentStage,
-      metrics: userMetrics
+      metrics: {
+        ...metrics,
+        destination: currentDetails.destination // Ensure destination is in metrics
+      }
     },
     onError: useCallback((error: Error) => {
       console.error('[MainChat] Error:', error);
@@ -70,10 +81,10 @@ export function useTravelChat({
           photos: p?.photos?.length
         })),
         currentStage,
-        metrics: userMetrics
+        metrics
       });
       quickResponseInProgress.current = false;
-    }, [currentDetails, currentSavedPlaces, currentStage, userMetrics]),
+    }, [currentDetails, currentSavedPlaces, currentStage, metrics]),
     onFinish: useCallback(async (message: AiMessage) => {
       // Only trigger quick response for complete assistant messages
       if (message.role !== 'assistant' || !message.content?.trim()) return;
@@ -103,12 +114,12 @@ export function useTravelChat({
 
   const quickResponseChat = useChat({
     api: '/api/chat/quick-response',
-    id: 'quick-response-chat',
+    id: SESSION_CONFIG.STORAGE_KEY,
     body: {
       currentDetails,
       savedPlaces: currentSavedPlaces,
       currentStage,
-      metrics: userMetrics
+      metrics
     },
     onFinish: (message) => {
       // Keep loading until we have valid responses
@@ -137,20 +148,6 @@ export function useTravelChat({
     
     setMainChatMessages(mappedMessages);
   }, [mainChat.messages]);
-
-  // Update metrics when stage prompts change
-  useEffect(() => {
-    if (currentStage === 3) {
-      const currentMetrics = getStoredMetrics();
-      setUserMetrics(currentMetrics);
-    }
-  }, [currentStage]);
-
-  // Keep local metrics in sync
-  useEffect(() => {
-    const currentMetrics = getStoredMetrics();
-    setUserMetrics(currentMetrics);
-  }, [currentStage]);
 
   const quickResponses = useMemo(() => {
     const messages = quickResponseChat.messages;
@@ -194,16 +191,15 @@ export function useTravelChat({
     return extractQuickResponses(apiResponse);
 }, [quickResponseChat.messages]);
 
-  const handleStageProgress = useCallback(async (nextStage: number) => {
+  // Stage progression validation and handling
+  const handleStageProgression = useCallback((nextStage: number) => {
     const { canProgress, missingRequirements, upgradeRequired } = validateStageProgression(
-        nextStage,
         currentStage,
-        currentDetails,
-        userMetrics
+        nextStage,
+        currentDetails
     );
 
     if (canProgress) {
-        setUserMetrics(prevMetrics => ({ ...prevMetrics, currentStage: nextStage }));
         console.log(`[Stage Progression] Moving to stage ${nextStage}`);
 
         if (upgradeRequired) {
@@ -229,13 +225,13 @@ export function useTravelChat({
             criteria: missingRequirements
         }
     };
-}, [currentStage, currentDetails, userMetrics]);
+}, [currentStage, currentDetails]);
 
   return {
     ...mainChat,
     messages: mainChatMessages,
     quickResponses,
     isQuickResponseLoading: quickResponseInProgress.current,
-    handleStageProgress
+    handleStageProgression
   };
 }

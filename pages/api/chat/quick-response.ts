@@ -1,8 +1,16 @@
 import { openai } from '@ai-sdk/openai';
 import { streamText, smoothStream } from 'ai';
 import { NextRequest } from 'next/server';
-import { UserInteractionMetrics } from '../../../managers/stage-manager';
+import { SessionMetrics } from '../../../managers/types';
 import { tools } from '../../../ai/tools';
+
+interface QuickResponseBody {
+  message: string;
+  destination: string;
+  messageCount: number;
+  currentStage: number;
+  metrics: SessionMetrics;
+}
 
 export const config = {
   runtime: 'edge'

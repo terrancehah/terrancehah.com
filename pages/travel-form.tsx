@@ -8,7 +8,8 @@ import { useBackgroundVideo } from '../hooks/useBackgroundVideo';
 import LoadingSpinner from '../components/LoadingSpinner';
 import PopupWindow from '../components/PopupWindow';
 import styles from '../styles/TravelForm.module.css';
-import { TravelPreference } from '../managers/types';
+import { TravelPreference, TravelSession } from '../managers/types';
+import { initializeSession, SESSION_CONFIG, generateSessionId, safeStorageOp, getStoredSession } from '../utils/session-manager';
 
 // Add Google Maps types
 declare global {
@@ -25,6 +26,8 @@ export default function TravelForm() {
   const destinationRef = useRef<HTMLInputElement>(null);
   const dateRangeRef = useRef<HTMLInputElement>(null);
   const hiddenEndDateRef = useRef<HTMLInputElement>(null);
+  const languageRef = useRef<HTMLSelectElement>(null);
+  const budgetRef = useRef<HTMLSelectElement>(null);
   const currentVideo = useBackgroundVideo();
 
   useEffect(() => {
@@ -65,20 +68,25 @@ export default function TravelForm() {
     const city = destinationRef.current?.value || '';
     const formattedStartDate = dateRangeRef.current?.value.split(' to ')[0] || '';
     const formattedEndDate = hiddenEndDateRef.current?.value || '';
-    const language = (document.getElementById('language') as HTMLSelectElement)?.value || 'English';
-    const budget = (document.getElementById('budget') as HTMLSelectElement)?.value || '$$';
+    
+    // Get language and budget from refs
+    const language = languageRef.current?.value;
+    const budget = budgetRef.current?.value;
+    
+    console.log('Form Values:', {
+      city,
+      formattedStartDate,
+      formattedEndDate,
+      language,
+      budget
+    });
     
     // Get travel preferences and ensure they match the expected format
     const travelPreferences = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="travel-preference"]:checked'))
-      .map(checkbox => checkbox.value as TravelPreference)
-      .filter(pref => [
-        TravelPreference.Culture,
-        TravelPreference.Nature,
-        TravelPreference.Food,
-        TravelPreference.Relaxation,
-        TravelPreference.Adventure,
-        TravelPreference.Shopping
-      ].includes(pref));
+      .map(checkbox => checkbox.value.trim())  // Just use the raw string value
+      .filter(Boolean); // Remove any empty strings
+
+    console.log('Travel Preferences:', travelPreferences);
 
     if (!city || !formattedStartDate || !formattedEndDate || travelPreferences.length === 0) {
       alert('Please fill in all required fields and select at least one travel preference');
@@ -87,18 +95,78 @@ export default function TravelForm() {
     }
 
     try {
-      // Redirect to index page with query parameters that match index.tsx expectations
-      router.push({
-        pathname: '/',
-        query: {
-          destination: city,  // Changed from 'city' to 'destination'
-          startDate: formattedStartDate,
-          endDate: formattedEndDate,
-          language,
-          budget,
-          'travel-preference[]': travelPreferences
+      const now = Date.now();
+      const sessionId = generateSessionId();
+      
+      // Create new session with form values
+      const session: TravelSession = {
+        // Session info
+        sessionId,
+        startTime: now,
+        lastActive: now,
+        expiresAt: now + SESSION_CONFIG.ABSOLUTE_TIMEOUT,
+
+        // Travel details
+        destination: city,
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
+        preferences: travelPreferences,
+        budget: budget || '',
+        language: language || '',
+        transport: [],
+
+        // Places
+        savedPlaces: [],
+        currentStage: 1,
+
+        // Metrics
+        totalPrompts: 0,
+        stagePrompts: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        savedPlacesCount: 0,
+
+        // Payment
+        isPaid: false,
+        paymentReference: `session_${sessionId}`
+      };
+      
+      // Use session manager's safe storage methods with verification
+      console.log('About to store session:', session);
+      const storageSuccess = safeStorageOp(() => {
+        window.sessionStorage.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(session));
+        // Verify write by reading back immediately
+        const written = window.sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
+        const parsed = written ? JSON.parse(written) as TravelSession : null;
+        console.log('Immediate read-back of session:', parsed);
+        if (!parsed || !parsed.destination) {
+          console.error('Session write verification failed. Written:', written, 'Parsed:', parsed);
+          throw new Error('Session write verification failed');
         }
-      });
+        return true;
+      }, false);
+
+      if (!storageSuccess) {
+        console.error('Storage operation failed');
+        throw new Error('Failed to save session data');
+      }
+
+      // Verify using session manager's methods
+      const savedSession = getStoredSession();
+      console.log('Final session verification:', savedSession);
+      if (!savedSession) {
+        console.error('Failed to save session');
+        throw new Error('Failed to save session');
+      }
+
+      if (!savedSession.destination || !savedSession.startDate || !savedSession.endDate || 
+          !savedSession.preferences || !savedSession.preferences.length || 
+          !savedSession.sessionId || !savedSession.startTime || 
+          !savedSession.lastActive || !savedSession.expiresAt) {
+        console.error('Incomplete session:', savedSession);
+        throw new Error('Session data incomplete');
+      }
+
+      // Use direct navigation with reload to ensure clean state
+      window.location.href = `/?session=${session.sessionId}`;
     } catch (error) {
       console.error('Error:', error);
       alert('An error occurred while processing your request. Please try again.');
@@ -108,12 +176,12 @@ export default function TravelForm() {
   };
 
   const travelPreferences = [
-    { value: TravelPreference.Culture, label: "Culture and Heritage 🎏" },
-    { value: TravelPreference.Nature, label: "Nature 🍀" },
-    { value: TravelPreference.Food, label: "Foodie 🍱" },
-    { value: TravelPreference.Relaxation, label: "Leisure 🌇" },
-    { value: TravelPreference.Adventure, label: "Adventure 🪂" },
-    { value: TravelPreference.Shopping, label: "Arts & Museum 🎨" }
+    { value: 'Culture and Heritage', label: "Culture and Heritage 🎏" },
+    { value: 'Nature', label: "Nature 🍀" },
+    { value: 'Foodie', label: "Foodie 🍱" },
+    { value: 'Leisure', label: "Leisure 🌇" },
+    { value: 'Adventure', label: "Adventure 🪂" },
+    { value: 'Arts & Museum', label: "Arts & Museum 🎨" }
   ];
 
   return (
@@ -224,7 +292,7 @@ export default function TravelForm() {
                   id="destination"
                   name="destination"
                   ref={destinationRef}
-                  placeholder="🔍 Search your destination here"
+                  placeholder=" Search your destination here"
                   autoComplete="off"
                   className="w-full xl:w-96 relative cursor-text text-md px-2 py-1 bg-inherit rounded-md text-gray-700 focus:border-light-blue-500 font-normal font-raleway"
                 />
@@ -248,7 +316,7 @@ export default function TravelForm() {
                   id="start-date"
                   name="start-date"
                   ref={dateRangeRef}
-                  placeholder="📅 Select dates here"
+                  placeholder=" Select dates here"
                   className="w-full relative cursor-pointer text-md px-0 py-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway"
                   required
                 />
@@ -304,11 +372,13 @@ export default function TravelForm() {
               {/* Language Select Section */}
               <div className="flex w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative focus-within:z-20 z-10 order-7 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 hover:bg-slate-200 md:rounded-bl-3xl">
                 <select
+                  ref={languageRef}
                   name="language"
                   className="w-full h-12 outline-none relative cursor-pointer text-lg px-0 py-2 pt-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway appearance-none"
                   required
+                  defaultValue="select-language"
                 >
-                  <option value="disabled selected">Select Language 🔡</option>
+                  <option value="select-language" disabled>Select Language </option>
                   <option value="English">English</option>
                   <option value="Malay (Bahasa Melayu)">Malay (Bahasa Melayu)</option>
                   <option value="Espanol">Español</option>
@@ -334,11 +404,13 @@ export default function TravelForm() {
               {/* Budget Select Section */}
               <div className="flex flex-col w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative focus-within:z-20 z-10 order-9 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 hover:bg-slate-200 md:rounded-br-3xl">
                 <select
+                  ref={budgetRef}
                   name="budget"
                   className="w-full h-12 outline-none relative cursor-pointer text-lg px-0 py-2 pt-1 bg-inherit rounded-md text-gray-700 font-normal font-raleway appearance-none"
                   required
+                  defaultValue="select-budget"
                 >
-                  <option value="" disabled selected>Select Budget 💰</option>
+                  <option value="select-budget" disabled>Select Budget </option>
                   <option value="$">Budget ($)</option>
                   <option value="$$">Moderate ($$)</option>
                   <option value="$$$">Luxury ($$$)</option>

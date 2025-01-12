@@ -15,17 +15,17 @@ import HistoricalWeatherChart from '../components/weather/historical-weather-cha
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { QuickResponse } from '../components/chat-components/QuickResponse';
 import ReactMarkdown from 'react-markdown';
-import { validateStageProgression, UserInteractionMetrics } from '../managers/stage-manager';
+import { validateStageProgression } from '../managers/stage-manager';
+import { TravelSession } from '../managers/types';
 import { CurrencyConverter } from '../components/currency/CurrencyConverter';
 import { useTravelChat } from '../hooks/useTravelChat';
 import { useTravelTools } from '../hooks/useTravelTools';
-import { Place, searchPlaceByText } from '../utils/places-utils';
+import { Place, savedPlacesManager, searchPlaceByText } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
-import { checkInputLimits, updateStoredMetrics, getStoredMetrics } from '../utils/local-metrics';
+import { getStoredSession, checkInputLimits, handleSessionExpiry, checkSessionWithWarning, updateStoredMetrics, initializeSession } from '../utils/session-manager';
 import PremiumUpgradeModal from './premium-upgrade-modal';
-import { checkSessionWithWarning, handleSessionExpiry, clearSession } from '../utils/session-manager';
 import SessionWarningModal from './session-warning-modal';
-import { savedPlacesManager } from '../utils/places-utils';
+import { useRouter } from 'next/router';
 
 interface TravelChatProps {
     initialDetails: TravelDetails;
@@ -50,56 +50,47 @@ export function TravelChat({
     currentStage,
     onStageUpdate 
 }: TravelChatProps) {
-    const [isCollapsed, setIsCollapsed] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [currentDetails, setCurrentDetails] = useState<TravelDetails>(initialDetails);
-    const [userMetrics, setUserMetrics] = useState<UserInteractionMetrics>(() => {
-        return getStoredMetrics();
+    const router = useRouter();
+    const [sessionMetadata, setSessionMetadata] = useState<TravelSession | null>(() => {
+        return getStoredSession();
     });
+
+    // Handle missing session
+    useEffect(() => {
+        if (!sessionMetadata) {
+            router.push('/travel-form');
+        }
+    }, [sessionMetadata, router]);
+
+    // Return early if no session
+    if (!sessionMetadata) {
+        return null;
+    }
+
     const [showPremiumModal, setShowPremiumModal] = useState<boolean>(false);
     const [showSessionWarning, setShowSessionWarning] = useState<boolean>(false);
+    const [isCollapsed, setIsCollapsed] = useState(true);
 
-
-    useEffect(() => {
-        // Check for prompt limit in stage 3
-        if (currentStage === 3 && !userMetrics.isPaid) {
-            const { withinStageLimit } = checkInputLimits(currentStage);
-            if (!withinStageLimit) {
-                setShowPremiumModal(true);
-            }
-        }
-    }, [userMetrics, currentStage]);
-
+    // Session check interval
     useEffect(() => {
         const checkSession = () => {
-        const { isValid, shouldWarn } = checkSessionWithWarning();
-        
-        if (!isValid) {
-            handleSessionExpiry();
-            return;
-        }
-    
-        if (shouldWarn) {
-            // Show warning modal
-            setShowSessionWarning(true);
-        }
+            const session = getStoredSession();
+            if (session) {
+                setSessionMetadata(session);
+            }
         };
-    
-        // Check every minute
+
         const interval = setInterval(checkSession, 60000);
         return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
-        const sessionKey = 'travel_session_id';
-        const currentSession = localStorage.getItem(sessionKey);
-        
-        // Only reset if no session exists
-        if (!currentSession) {
-            const newSession = Date.now().toString();
-            localStorage.setItem(sessionKey, newSession);
-            setUserMetrics(getStoredMetrics());
+        const session = getStoredSession();
+        if (session) {
+            setSessionMetadata(session);
         }
     }, []);
 
@@ -120,10 +111,15 @@ export function TravelChat({
                 ...prev,
                 savedPlacesCount: count
             }));
-            setUserMetrics(prev => ({
-                ...prev,
-                savedPlacesCount: count
-            }));
+            setSessionMetadata((prev: TravelSession | null): TravelSession => {
+                if (!prev) {
+                    throw new Error('Session metadata is null');
+                }
+                return {
+                    ...prev,
+                    savedPlacesCount: count
+                };
+            });
         };
 
         // Listen for changes
@@ -137,14 +133,49 @@ export function TravelChat({
             ...prev,
             savedPlacesCount: initialCount
         }));
-        setUserMetrics(prev => ({
-            ...prev,
-            savedPlacesCount: initialCount
-        }));
+        setSessionMetadata((prev: TravelSession | null): TravelSession => {
+            if (!prev) {
+                throw new Error('Session metadata is null');
+            }
+            return {
+                ...prev,
+                savedPlacesCount: initialCount
+            };
+        });
 
         return () => {
             window.removeEventListener('savedPlacesChanged', handlePlacesChanged);
         };
+    }, []);
+
+    useEffect(() => {
+        // Check for prompt limit in stage 3
+        if (currentStage === 3 && !sessionMetadata.isPaid) {
+            const { withinStageLimit } = checkInputLimits(currentStage);
+            if (!withinStageLimit) {
+                setShowPremiumModal(true);
+            }
+        }
+    }, [sessionMetadata, currentStage]);
+
+    useEffect(() => {
+        const checkSession = () => {
+            const { isValid, shouldWarn } = checkSessionWithWarning();
+            
+            if (!isValid) {
+                handleSessionExpiry();
+                return;
+            }
+        
+            if (shouldWarn) {
+                // Show warning modal
+                setShowSessionWarning(true);
+            }
+        };
+        
+        // Check every minute
+        const interval = setInterval(checkSession, 60000);
+        return () => clearInterval(interval);
     }, []);
 
     const {
@@ -163,7 +194,7 @@ export function TravelChat({
         currentDetails,
         currentStage,
         savedPlaces: savedPlacesManager.getPlaces(),
-        metrics: userMetrics
+        metrics: sessionMetadata
     });
 
     const append = useCallback(async (message: any, options?: any) => {
@@ -190,7 +221,7 @@ export function TravelChat({
         setCurrentDetails,
         currentStage,
         onStageUpdate,
-        userMetrics,
+        userMetrics: sessionMetadata,
         append,
         savedPlaces: savedPlacesManager.getPlaces()
     });
@@ -275,7 +306,7 @@ export function TravelChat({
                     const result = toolInvocation.result as StageProgressResult;
                     
                     // Check if trying to advance to stage 4
-                    if (result.props.nextStage === 4 && !userMetrics.isPaid) {
+                    if (result.props.nextStage === 4 && !sessionMetadata.isPaid) {
                         setShowPremiumModal(true);
                         return;
                     }
@@ -283,15 +314,14 @@ export function TravelChat({
                     if (validateStageProgression(
                         currentStage,
                         result.props.nextStage,
-                        currentDetails,
-                        userMetrics
+                        currentDetails
                     )) {
                         onStageUpdate(result.props.nextStage);
                     }
                 }
             });
         }
-    }, [messages, onStageUpdate, currentStage, userMetrics.isPaid]);
+    }, [messages, onStageUpdate, currentStage, sessionMetadata.isPaid]);
 
     const formatDate = (dateStr: string) => {
         if (!dateStr || dateStr.includes('undefined')) return dateStr;
@@ -306,7 +336,7 @@ export function TravelChat({
     const handleQuickResponseSelect = async (text: string) => {
         try {
             // Check for stage 3 prompt limit
-            if (currentStage === 3 && !userMetrics.isPaid) {
+            if (currentStage === 3 && !sessionMetadata.isPaid) {
                 const { withinStageLimit } = checkInputLimits(currentStage);
                 if (!withinStageLimit) {
                     setShowPremiumModal(true);
@@ -336,7 +366,7 @@ export function TravelChat({
                 destination: currentDetails.destination,
                 messageCount: messages.length,
                 currentStage,
-                metrics: userMetrics
+                metrics: sessionMetadata
             };
             
             await append({
@@ -363,7 +393,7 @@ export function TravelChat({
                 currentDetails,
                 savedPlaces: savedPlacesManager.getPlaces(),
                 currentStage,
-                metrics: userMetrics
+                metrics: sessionMetadata
             };
             
             console.log('[handleMessageSubmit] Sending message with body:', body);
@@ -379,7 +409,7 @@ export function TravelChat({
                 currentDetails,
                 savedPlacesCount: savedPlacesManager.getPlaces().length,
                 currentStage,
-                metrics: userMetrics
+                metrics: sessionMetadata
             });
         }
     };
@@ -389,8 +419,7 @@ export function TravelChat({
         const validationResult = validateStageProgression(
             currentStage,
             nextStage,
-            currentDetails,
-            userMetrics
+            currentDetails
         );
 
         if (!validationResult.canProgress) {
@@ -420,7 +449,7 @@ export function TravelChat({
         currentDetails,
         currentStage,
         savedPlaces: savedPlacesManager.getPlaces(),
-        metrics: userMetrics,
+        metrics: sessionMetadata,
     });
 
     useEffect(() => {

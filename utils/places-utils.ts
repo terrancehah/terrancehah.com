@@ -57,9 +57,8 @@ interface GooglePlaceResponse {
     }>;
 }
 
-import { TravelPreference } from '../managers/types';
-import { UserInteractionMetrics } from '../managers/stage-manager';
-import { METRICS_STORAGE_KEY, getStoredMetrics } from './local-metrics';
+import { TravelPreference, TravelSession } from '../managers/types';
+import { getStoredSession, getStoredMetrics, SESSION_CONFIG } from './session-manager';
 
 // Updated preference to place types mapping based on travel-rizz.html
 export const preferenceToPlaceTypes: Record<TravelPreference, string[]> = {
@@ -217,10 +216,10 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
     const places = new Map<string, Place>();
     let initialized = false;
 
-    // Load places from localStorage
+    // Load places from sessionStorage
     const loadFromStorage = () => {
         if (!initialized && typeof window !== 'undefined') {
-            const savedPlaces = localStorage.getItem(STORAGE_KEY);
+            const savedPlaces = sessionStorage.getItem(STORAGE_KEY);
             if (savedPlaces) {
                 try {
                     console.log('[savedPlacesManager] Raw saved places:', savedPlaces);
@@ -279,12 +278,12 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
         _persist() {
             if (typeof window !== 'undefined') {
                 const placesArray = Array.from(places.values());
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
+                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
                 
                 // Update metrics
-                const metrics = metricsManager.get();
-                metrics.savedPlacesCount = places.size;
-                metricsManager.update(metrics);
+                const session: TravelSession = metricsManager.get();
+                session.savedPlacesCount = places.size;
+                metricsManager.update(session);
             }
         },
         _notifyChange() {
@@ -436,7 +435,7 @@ export async function searchPlaceByText(
             savedPlacesManager.addPlace(place);
             
             // Update metrics
-            const metrics = metricsManager.get();
+            const metrics: TravelSession = metricsManager.get();
             metrics.savedPlacesCount = savedPlacesManager.places.size;
             metricsManager.update(metrics);
         }
@@ -455,30 +454,55 @@ export async function searchPlaceByText(
 }
 
 // Initialize metrics in storage
-function initializeMetrics(): UserInteractionMetrics {
+function initializeMetrics(): TravelSession {
     if (typeof window === 'undefined') {
         return {
+            sessionId: '',
+            startTime: Date.now(),
+            lastActive: Date.now(),
+            expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+            destination: '',
+            startDate: '',
+            endDate: '',
+            preferences: [],
+            budget: '',
+            language: '',
+            transport: [],
+            messages: [],
+            savedPlaces: [],
+            currentStage: 1,
             totalPrompts: 0,
+            stagePrompts: { 1: 0, 2: 0, 3: 0 },
             savedPlacesCount: 0,
             isPaid: false,
-            stagePrompts: {},
-            paymentReference: ''  // Empty string instead of null to match type
+            paymentReference: ''
         };
     }
 
-    const metrics = getStoredMetrics();
+    const session = getStoredSession();
+    if (!session) {
+        return initializeMetrics();
+    }
     // Always ensure savedPlacesCount matches actual saved places
-    metrics.savedPlacesCount = savedPlacesManager.places.size;
-    return metrics;
+    session.savedPlacesCount = savedPlacesManager.places.size;
+    return session;
 }
 
 // Update metrics in storage
-function updateMetrics(metrics: UserInteractionMetrics) {
+function updateMetrics(session: TravelSession) {
     if (typeof window === 'undefined') return;
     try {
-        localStorage.setItem(METRICS_STORAGE_KEY, JSON.stringify(metrics));
+        const storedSession = getStoredSession();
+        if (!storedSession) return;
+        
+        // Update only metrics-related fields
+        storedSession.totalPrompts = session.totalPrompts;
+        storedSession.stagePrompts = session.stagePrompts;
+        storedSession.savedPlacesCount = session.savedPlacesCount;
+        
+        sessionStorage.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(storedSession));
     } catch (error) {
-        console.error('[updateMetrics] Error:', error);
+        console.error('[Places] Error updating metrics:', error);
     }
 }
 

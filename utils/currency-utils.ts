@@ -31,7 +31,7 @@ export async function fetchExchangeRates(baseCurrency: string): Promise<{ [key: 
             rates: data.data,
             baseCurrency
         };
-        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 
         return data.data;
     } catch (error) {
@@ -42,7 +42,7 @@ export async function fetchExchangeRates(baseCurrency: string): Promise<{ [key: 
 
 export function getCachedRates(baseCurrency: string): { [key: string]: number } | null {
     try {
-        const cacheStr = localStorage.getItem(CACHE_KEY);
+        const cacheStr = sessionStorage.getItem(CACHE_KEY);
         if (!cacheStr) return null;
 
         const cache: CurrencyCache = JSON.parse(cacheStr);
@@ -52,7 +52,7 @@ export function getCachedRates(baseCurrency: string): { [key: string]: number } 
             Date.now() - cache.timestamp > CACHE_DURATION ||
             cache.baseCurrency !== baseCurrency
         ) {
-            localStorage.removeItem(CACHE_KEY);
+            sessionStorage.removeItem(CACHE_KEY);
             return null;
         }
 

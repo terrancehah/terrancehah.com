@@ -1,11 +1,11 @@
 import { openai } from '@ai-sdk/openai';
 import { groq } from '@ai-sdk/groq';
 import { createGroq } from '@ai-sdk/groq';
-import { smoothStream, streamText } from 'ai';
+import { smoothStream, streamText, Message } from 'ai';
 import { tools } from '../../../ai/tools';
 import { NextRequest } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { UserInteractionMetrics } from '../../../managers/stage-manager';
+import { TravelSession } from '../../../managers/types';
 import { validateStageProgression, STAGE_LIMITS } from '../../../managers/stage-manager';
 import { Place } from '../../../utils/places-utils';
 
@@ -16,13 +16,28 @@ export const config = {
 // Allow streaming responses up to 40 seconds
 export const maxDuration = 40;
 
+interface ChatRequestBody {
+  messages: Message[];
+  currentDetails: {
+    destination: string;
+    startDate: string;
+    endDate: string;
+    budget: string;
+    preferences: string[];
+    language: string;
+  };
+  savedPlaces: Partial<Place>[];
+  currentStage: number;
+  metrics: TravelSession;
+}
+
 export default async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
   }
 
   try {
-    const { messages, currentDetails, savedPlaces, currentStage, metrics } = await req.json();
+    const { messages, currentDetails, savedPlaces, currentStage, metrics }: ChatRequestBody = await req.json();
     
     // Ensure savedPlaces is properly typed and has all required fields
     const typedSavedPlaces = (savedPlaces || []).map((p: Partial<Place>) => ({

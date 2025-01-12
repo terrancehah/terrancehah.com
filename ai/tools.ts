@@ -360,18 +360,18 @@ export const stageProgressTool = createTool({
         nextStage: z.number().min(1).max(5),
         currentStage: z.number().min(1).max(5),
         travelDetails: z.object({
-            destination: z.string().optional(),
+            destination: z.string(),
             location: z.object({
                 latitude: z.number(),
                 longitude: z.number()
-            }).optional(),
-            startDate: z.string().optional(),
-            endDate: z.string().optional(),
-            preferences: z.array(z.string()).optional(),
-            budget: z.string().optional(),
-            language: z.string().optional(),
-            transport: z.array(z.string()).optional()
-        }), // Note: removed optional() from here
+            }),
+            startDate: z.string(),
+            endDate: z.string(),
+            preferences: z.array(z.string()),
+            budget: z.string(),
+            language: z.string(),
+            transport: z.array(z.string())
+        }),
         metrics: z.object({
             totalPrompts: z.number(),
             savedPlacesCount: z.number(),
@@ -382,22 +382,10 @@ export const stageProgressTool = createTool({
     execute: async function({ nextStage, currentStage, travelDetails, metrics }) {
         // console.log('[StageProgressTool] Executing:', { nextStage, currentStage, metrics });
         
-        // Create default empty TravelDetails if not provided
-        const details: TravelDetails = travelDetails || {
-            destination: undefined,
-            startDate: undefined,
-            endDate: undefined,
-            preferences: [],
-            budget: undefined,
-            language: undefined,
-            transport: []
-        };
-
         const validationResult = validateStageProgression(
             currentStage,
             nextStage,
-            travelDetails,
-            metrics
+            travelDetails as TravelDetails // Type assertion since we validate fields in validateStageProgression
         );
 
         if (!validationResult.canProgress) {

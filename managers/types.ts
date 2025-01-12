@@ -5,17 +5,17 @@ import { Place } from '../utils/places-utils';
 import { ReactNode } from 'react';
 
 export interface TravelDetails {
-    destination?: string;
+    destination: string;
     location?: {
         latitude: number;
         longitude: number;
     };
-    startDate?: string;
-    endDate?: string;
-    preferences?: string[];
-    budget?: string;
-    language?: string;
-    transport?: string[];
+    startDate: string;
+    endDate: string;
+    preferences: string[];
+    budget: string;
+    language: string;
+    transport: string[];
 }
 
 export enum ComponentType {
@@ -202,16 +202,36 @@ export type ToolResponse<T extends ComponentType> = {
     message?: string;
 }
 
-export interface ChatHistory {
-    messages: ChatMessage[];
-    metadata: ChatMetadata;
-}
+// Session Types
+export interface TravelSession {
+    // Session info
+    sessionId: string;
+    startTime: number;
+    lastActive: number;
+    expiresAt: number;
 
-export interface ChatMetadata {
-    lastInteractionTime: Date;
-    currentState: ChatState;
-    validParameters: string[];
-    interruptedAt?: string;
+    // Travel details
+    destination: string;
+    startDate: string;
+    endDate: string;
+    preferences: string[];
+    budget: string;
+    language: string;
+    transport: string[];
+
+    // Places
+    savedPlaces: any[];
+    currentStage: number;
+
+    // Metrics
+    totalPrompts: number;
+    stagePrompts: Record<number, number>;
+    savedPlacesCount: number;
+    
+    // Payment
+    isPaid: boolean;
+    paymentReference: string;
+    paymentTimestamp?: number;
 }
 
 export type ChatState = 'initial' | 'gathering_info' | 'planning' | 'interrupted' | 'completed';
