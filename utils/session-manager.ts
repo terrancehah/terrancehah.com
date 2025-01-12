@@ -79,11 +79,11 @@ export const safeStorageOp = async <T>(operation: () => T, defaultValue: T): Pro
 //   }
 // };
 
-export function initializeSession(): TravelSession {
+export async function initializeSession(): Promise<TravelSession> {
   const now = Date.now();
   
   // Try to get existing session first
-  const existingSession = safeStorageOp(() => {
+  const existingSession = await safeStorageOp(() => {
     const stored = storage?.getItem(SESSION_CONFIG.STORAGE_KEY);
     return stored ? JSON.parse(stored) as TravelSession : null;
   }, null);
@@ -94,7 +94,7 @@ export function initializeSession(): TravelSession {
     existingSession.expiresAt = now + SESSION_CONFIG.ABSOLUTE_TIMEOUT;
     // Ensure all stages are initialized
     existingSession.stagePrompts = existingSession.stagePrompts || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    safeStorageOp(() => {
+    await safeStorageOp(() => {
       storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(existingSession));
     }, undefined);
     return existingSession;
@@ -132,14 +132,14 @@ export function initializeSession(): TravelSession {
     paymentReference: `session_${sessionId}`
   };
 
-  safeStorageOp(() => {
+  await safeStorageOp(() => {
     storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(session));
   }, undefined);
   return session;
 }
 
-export function getStoredSession(): TravelSession | null {
-  return safeStorageOp(() => {
+export async function getStoredSession(): Promise<TravelSession | null> {
+  return await safeStorageOp(() => {
     console.log('[Session] Attempting to get stored session');
     const storedData = storage?.getItem(SESSION_CONFIG.STORAGE_KEY);
     if (!storedData) {
