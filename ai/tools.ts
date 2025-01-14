@@ -73,8 +73,7 @@ export const datePickerTool = createTool({
             type: 'datePicker',
             props: {
                 startDate,
-                endDate,
-                onUpdate: () => {}
+                endDate
             }
         };
     }

@@ -1,8 +1,11 @@
 {
-  "/api/chat": "static/webpack/pages/api/chat.dbbbeb11d32edc5f.hot-update.js",
+  "/api/chat": "pages/api/chat.js",
+  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
+  "/api/weather/historical": "pages/api/weather/historical.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
+  "/travel-form": "pages/travel-form.js",
   "/": "pages/index.js",
-  "/travel-form": "pages/travel-form.js"
+  "/api/maps-key": "pages/api/maps-key.js"
 }

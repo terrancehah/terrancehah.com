@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { TravelDetails, TravelSession } from '../managers/types';
 import { Place } from '../utils/places-utils';
+import { getStoredSession, safeStorageOp, storage, SESSION_CONFIG } from '../utils/session-manager';
 
 interface UseTravelToolsProps {
   currentDetails: TravelDetails;
@@ -23,6 +24,20 @@ export function useTravelTools({
 }: UseTravelToolsProps) {
   const [toolVisibility, setToolVisibility] = useState<Record<string, boolean>>({});
 
+  // Helper function to update session storage
+  const updateSessionDetails = (updates: Partial<TravelDetails>) => {
+    const session = getStoredSession();
+    if (!session) return;
+
+    safeStorageOp(() => {
+      storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify({
+        ...session,
+        ...updates,
+        lastActive: Date.now()
+      }));
+    }, undefined);
+  };
+
   const handleToolUpdate = async (message: any) => {
     if (!message.toolInvocations?.[0]) return;
 
@@ -38,21 +53,30 @@ export function useTravelTools({
       props: result.props
     });
 
-    // Only hide non-quick response tools immediately
-    if (toolCallId && result.type !== 'quickResponse') {
-      console.log('[useTravelTools] Hiding tool:', toolCallId);
-      setToolVisibility(prev => ({
-        ...prev,
-        [toolCallId]: false
-      }));
-    }
-
     // Handle different tool types
     switch (result.type) {
       case 'budgetSelector':
-        if (result.props?.currentBudget) {
-          setCurrentDetails({ ...currentDetails, budget: result.props.currentBudget });
-          // Send confirmation message
+        // Only show selector, don't update anything yet
+        if (!result.props?.currentBudget) {
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: true
+            }));
+          }
+          return;
+        }
+        // Update only when user has made a selection
+        if (result.props.currentBudget) {
+          const updates = { budget: result.props.currentBudget };
+          setCurrentDetails({ ...currentDetails, ...updates });
+          updateSessionDetails(updates);
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: false
+            }));
+          }
           await append({
             role: 'user',
             content: `I've set my budget to ${result.props.currentBudget}`
@@ -61,9 +85,27 @@ export function useTravelTools({
         break;
 
       case 'preferenceSelector':
-        if (result.props?.currentPreferences) {
-          setCurrentDetails({ ...currentDetails, preferences: result.props.currentPreferences });
-          // Send confirmation message
+        // Only show selector, don't update anything yet
+        if (!result.props?.currentPreferences) {
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: true
+            }));
+          }
+          return;
+        }
+        // Update only when user has made a selection
+        if (result.props.currentPreferences) {
+          const updates = { preferences: result.props.currentPreferences };
+          setCurrentDetails({ ...currentDetails, ...updates });
+          updateSessionDetails(updates);
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: false
+            }));
+          }
           await append({
             role: 'user',
             content: `I've updated my preferences to: ${result.props.currentPreferences.join(', ')}.`
@@ -72,13 +114,30 @@ export function useTravelTools({
         break;
 
       case 'datePicker':
-        if (result.props?.startDate && result.props?.endDate) {
-          setCurrentDetails({
-            ...currentDetails,
+        // Only show selector, don't update anything yet
+        if (!result.props?.startDate || !result.props?.endDate) {
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: true
+            }));
+          }
+          return;
+        }
+        // Update only when user has made a selection
+        if (result.props.startDate && result.props.endDate) {
+          const updates = {
             startDate: result.props.startDate,
             endDate: result.props.endDate
-          });
-          // Send confirmation message
+          };
+          setCurrentDetails({ ...currentDetails, ...updates });
+          updateSessionDetails(updates);
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: false
+            }));
+          }
           await append({
             role: 'user',
             content: `I've changed my travel dates to ${result.props.startDate} - ${result.props.endDate}.`
@@ -87,9 +146,27 @@ export function useTravelTools({
         break;
 
       case 'languageSelector':
-        if (result.props?.currentLanguage) {
-          setCurrentDetails({ ...currentDetails, language: result.props.currentLanguage });
-          // Send confirmation message
+        // Only show selector, don't update anything yet
+        if (!result.props?.currentLanguage) {
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: true
+            }));
+          }
+          return;
+        }
+        // Update only when user has made a selection
+        if (result.props.currentLanguage) {
+          const updates = { language: result.props.currentLanguage };
+          setCurrentDetails({ ...currentDetails, ...updates });
+          updateSessionDetails(updates);
+          if (toolCallId) {
+            setToolVisibility(prev => ({
+              ...prev,
+              [toolCallId]: false
+            }));
+          }
           await append({
             role: 'user',
             content: `I've set my language preference to ${result.props.currentLanguage}.`
@@ -104,17 +181,8 @@ export function useTravelTools({
         break;
 
       case 'savedPlacesList':
-        // Keep the list visible
-        if (toolCallId) {
-          setToolVisibility(prev => ({
-            ...prev,
-            [toolCallId]: true
-          }));
-        }
-        break;
-
       case 'quickResponse':
-        // Don't hide quick responses immediately
+        // Keep these tools visible
         if (toolCallId) {
           setToolVisibility(prev => ({
             ...prev,

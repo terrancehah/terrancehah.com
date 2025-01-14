@@ -22,7 +22,7 @@ import { useTravelChat } from '../hooks/useTravelChat';
 import { useTravelTools } from '../hooks/useTravelTools';
 import { Place, savedPlacesManager, searchPlaceByText } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
-import { getStoredSession, checkInputLimits, handleSessionExpiry, checkSessionWithWarning, updateStoredMetrics, initializeSession } from '../utils/session-manager';
+import { getStoredSession, checkInputLimits, handleSessionExpiry, checkSessionWithWarning, updateStoredMetrics } from '../utils/session-manager';
 import PremiumUpgradeModal from './premium-upgrade-modal';
 import SessionWarningModal from './session-warning-modal';
 import { useRouter } from 'next/router';
@@ -54,7 +54,7 @@ export function TravelChat({
     const chatContainerRef = useRef<HTMLDivElement>(null);
     const [currentDetails, setCurrentDetails] = useState<TravelDetails>(initialDetails);
     const router = useRouter();
-    const [sessionMetadata, setSessionMetadata] = useState<TravelSession | null>(() => {
+    const [sessionMetadata] = useState<TravelSession | null>(() => {
         return getStoredSession();
     });
 
@@ -76,22 +76,17 @@ export function TravelChat({
 
     // Session check interval
     useEffect(() => {
-        const checkSession = () => {
-            const session = getStoredSession();
-            if (session) {
-                setSessionMetadata(session);
+        const interval = setInterval(() => {
+            const { isValid, shouldWarn } = checkSessionWithWarning();
+            if (!isValid) {
+                handleSessionExpiry();
+                return;
             }
-        };
-
-        const interval = setInterval(checkSession, 60000);
+            if (shouldWarn) {
+                setShowSessionWarning(true);
+            }
+        }, 60000);
         return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        const session = getStoredSession();
-        if (session) {
-            setSessionMetadata(session);
-        }
     }, []);
 
     useEffect(() => {
@@ -111,15 +106,6 @@ export function TravelChat({
                 ...prev,
                 savedPlacesCount: count
             }));
-            setSessionMetadata((prev: TravelSession | null): TravelSession => {
-                if (!prev) {
-                    throw new Error('Session metadata is null');
-                }
-                return {
-                    ...prev,
-                    savedPlacesCount: count
-                };
-            });
         };
 
         // Listen for changes
@@ -133,49 +119,10 @@ export function TravelChat({
             ...prev,
             savedPlacesCount: initialCount
         }));
-        setSessionMetadata((prev: TravelSession | null): TravelSession => {
-            if (!prev) {
-                throw new Error('Session metadata is null');
-            }
-            return {
-                ...prev,
-                savedPlacesCount: initialCount
-            };
-        });
 
         return () => {
             window.removeEventListener('savedPlacesChanged', handlePlacesChanged);
         };
-    }, []);
-
-    useEffect(() => {
-        // Check for prompt limit in stage 3
-        if (currentStage === 3 && !sessionMetadata.isPaid) {
-            const { withinStageLimit } = checkInputLimits(currentStage);
-            if (!withinStageLimit) {
-                setShowPremiumModal(true);
-            }
-        }
-    }, [sessionMetadata, currentStage]);
-
-    useEffect(() => {
-        const checkSession = () => {
-            const { isValid, shouldWarn } = checkSessionWithWarning();
-            
-            if (!isValid) {
-                handleSessionExpiry();
-                return;
-            }
-        
-            if (shouldWarn) {
-                // Show warning modal
-                setShowSessionWarning(true);
-            }
-        };
-        
-        // Check every minute
-        const interval = setInterval(checkSession, 60000);
-        return () => clearInterval(interval);
     }, []);
 
     const {
@@ -245,7 +192,7 @@ export function TravelChat({
         );
         
         if (hasActiveParameterComponent) {
-            console.log('[QuickResponse] Hidden due to active parameter component');
+            // console.log('[QuickResponse] Hidden due to active parameter component');
             return false;
         }
 
@@ -323,14 +270,14 @@ export function TravelChat({
         }
     }, [messages, onStageUpdate, currentStage, sessionMetadata.isPaid]);
 
-    const formatDate = (dateStr: string) => {
-        if (!dateStr || dateStr.includes('undefined')) return dateStr;
-        // If already in DD/MM/YYYY format, return as is
-        if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateStr;
-        // Convert from YYYY-MM-DD to DD/MM/YYYY
-        const [year, month, day] = dateStr.split('-');
-        return `${day}/${month}/${year}`;
-    };
+    // const formatDate = (dateStr: string) => {
+    //     if (!dateStr || dateStr.includes('undefined')) return dateStr;
+    //     // If already in DD/MM/YYYY format, return as is
+    //     if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateStr;
+    //     // Convert from YYYY-MM-DD to DD/MM/YYYY
+    //     const [year, month, day] = dateStr.split('-');
+    //     return `${day}/${month}/${year}`;
+    // };
 
     // Function to handle quick response selection
     const handleQuickResponseSelect = async (text: string) => {
@@ -429,21 +376,21 @@ export function TravelChat({
         return true;
     };
 
-    // Function to check if any parameter component is active
-    const isParameterComponentActive = () => {
-        return messages.some(message => {
-            const toolInvocations = message.toolInvocations || [];
-            return toolInvocations.some(tool => {
-                const type = tool.toolName;
-                // Check if it's a parameter component type AND if it's visible in the toolVisibility state
-                return (type === 'budgetSelector' || 
-                    type === 'preferenceSelector' || 
-                    type === 'datePicker' || 
-                    type === 'languageSelector') &&
-                    toolVisibility[tool.toolCallId] // Check if the component is visible
-            });
-        });
-    };
+    // // Function to check if any parameter component is active
+    // const isParameterComponentActive = () => {
+    //     return messages.some(message => {
+    //         const toolInvocations = message.toolInvocations || [];
+    //         return toolInvocations.some(tool => {
+    //             const type = tool.toolName;
+    //             // Check if it's a parameter component type AND if it's visible in the toolVisibility state
+    //             return (type === 'budgetSelector' || 
+    //                 type === 'preferenceSelector' || 
+    //                 type === 'datePicker' || 
+    //                 type === 'languageSelector') &&
+    //                 toolVisibility[tool.toolCallId] // Check if the component is visible
+    //         });
+    //     });
+    // };
 
     const mainChat = useTravelChat({
         currentDetails,
@@ -870,20 +817,6 @@ export function TravelChat({
                 </form>
             </div>
 
-            {/* Saved Places Carousel
-            {savedPlaces && savedPlaces.length > 0 && (
-                <div className="mt-4">
-                    <SavedPlacesCarousel
-                        places={savedPlaces}
-                        onRemove={(placeId: string) => {
-                            onPlaceRemoved(placeId);
-                            if (window.removePlaceFromMap) {
-                                window.removePlaceFromMap(placeId);
-                            }
-                        }}
-                    />
-                </div>
-            )} */}
         </div>
     );
 };

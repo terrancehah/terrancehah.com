@@ -28,17 +28,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({ dates, onUpdate, style }
     if (dateInputRef.current) {
       const fp = flatpickr(dateInputRef.current, {
         mode: "range",
-        dateFormat: "d/m/Y",
+        dateFormat: "Y-m-d",
         defaultDate: [displayDates.startDate, displayDates.endDate].filter(Boolean),
         inline: true,
         minDate: "today",
         onChange: (selectedDates) => {
           if (selectedDates.length === 2) {
             const formatDate = (date: Date) => {
-              const day = String(date.getDate()).padStart(2, '0');
-              const month = String(date.getMonth() + 1).padStart(2, '0');
               const year = date.getFullYear();
-              return `${day}/${month}/${year}`;
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
             };
 
             const newStartDate = formatDate(selectedDates[0]);

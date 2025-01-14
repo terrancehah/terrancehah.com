@@ -17,6 +17,38 @@
       ],
       "wasm": [],
       "assets": []
+    },
+    "/api/chat/quick-response": {
+      "files": [
+        "server/edge-runtime-webpack.js",
+        "server/pages/api/chat/quick-response.js"
+      ],
+      "name": "pages/api/chat/quick-response",
+      "page": "/api/chat/quick-response",
+      "matchers": [
+        {
+          "regexp": "^/api/chat/quick\\-response$",
+          "originalSource": "/api/chat/quick-response"
+        }
+      ],
+      "wasm": [],
+      "assets": []
+    },
+    "/api/weather/historical": {
+      "files": [
+        "server/edge-runtime-webpack.js",
+        "server/pages/api/weather/historical.js"
+      ],
+      "name": "pages/api/weather/historical",
+      "page": "/api/weather/historical",
+      "matchers": [
+        {
+          "regexp": "^/api/weather/historical$",
+          "originalSource": "/api/weather/historical"
+        }
+      ],
+      "wasm": [],
+      "assets": []
     }
   },
   "version": 2

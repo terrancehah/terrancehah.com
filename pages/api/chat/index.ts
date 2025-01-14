@@ -171,6 +171,20 @@ export default async function handler(req: NextRequest) {
 
     ### 3.1 Tool Categories and Usage
 
+    For parameter tools (budgetSelector, preferenceSelector, datePicker, languageSelector):
+    1. When user requests to change a parameter, call the tool WITHOUT stating any parameters first
+    2. Let the user interact with the component
+    3. Only provide parameters in subsequent tool calls when confirming the change
+    4. Never assume a parameter has changed just because you showed the selector
+
+    Example flow for date changes:
+    User: "I want to change my travel dates"
+    Assistant: [Calls datePicker with no parameters] "I've opened the date picker for you to select new dates."
+    User: [Interacts with picker]
+    Assistant: [Calls datePicker with new dates] "I've updated your travel dates to [new dates]."
+
+    ### 3.2 Other Tools
+
     For direct parameter requests, specific tools should be employed.
     These tools include:
     - 'budgetSelectortool': Budget options

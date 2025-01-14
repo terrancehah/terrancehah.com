@@ -20,70 +20,22 @@ export const getStorage = () => {
 
 export const storage = getStorage();
 
-// Add atomic operation lock
-let isSessionLocked = false;
-const sessionLockTimeout = 1000; // 1 second timeout
-
-function acquireSessionLock(): boolean {
-  if (isSessionLocked) return false;
-  isSessionLocked = true;
-  return true;
-}
-
-function releaseSessionLock() {
-  isSessionLocked = false;
-}
-
-// Helper function to safely access storage with atomic guarantees
-export const safeStorageOp = async <T>(operation: () => T, defaultValue: T): Promise<T> => {
+// Helper function to safely access storage
+export const safeStorageOp = <T>(operation: () => T, defaultValue: T): T => {
   try {
     if (!storage) return defaultValue;
-    
-    // Try to acquire lock
-    let lockAcquired = false;
-    let attempts = 0;
-    while (!lockAcquired && attempts < 5) {
-      lockAcquired = acquireSessionLock();
-      if (!lockAcquired) {
-        attempts++;
-        // Wait a bit before trying again
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    }
-    
-    if (!lockAcquired) {
-      console.error('[Session] Failed to acquire lock after 5 attempts');
-      return defaultValue;
-    }
-    
-    try {
-      return operation();
-    } finally {
-      releaseSessionLock();
-    }
+    return operation();
   } catch (error) {
     console.error('[Session] Storage operation failed:', error);
-    releaseSessionLock();
     return defaultValue;
   }
 };
 
-// Helper function to safely access storage
-// export const safeStorageOp = <T>(operation: () => T, defaultValue: T): T => {
-//   try {
-//     if (!storage) return defaultValue;
-//     return operation();
-//   } catch (error) {
-//     console.error('[Session] Storage operation failed:', error);
-//     return defaultValue;
-//   }
-// };
-
-export async function initializeSession(): Promise<TravelSession> {
+export function initializeSession(): TravelSession {
   const now = Date.now();
   
   // Try to get existing session first
-  const existingSession = await safeStorageOp(() => {
+  const existingSession = safeStorageOp(() => {
     const stored = storage?.getItem(SESSION_CONFIG.STORAGE_KEY);
     return stored ? JSON.parse(stored) as TravelSession : null;
   }, null);
@@ -94,7 +46,7 @@ export async function initializeSession(): Promise<TravelSession> {
     existingSession.expiresAt = now + SESSION_CONFIG.ABSOLUTE_TIMEOUT;
     // Ensure all stages are initialized
     existingSession.stagePrompts = existingSession.stagePrompts || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    await safeStorageOp(() => {
+    safeStorageOp(() => {
       storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(existingSession));
     }, undefined);
     return existingSession;
@@ -132,15 +84,15 @@ export async function initializeSession(): Promise<TravelSession> {
     paymentReference: `session_${sessionId}`
   };
 
-  await safeStorageOp(() => {
+  safeStorageOp(() => {
     storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(session));
   }, undefined);
   return session;
 }
 
-export async function getStoredSession(): Promise<TravelSession | null> {
-  return await safeStorageOp(() => {
-    console.log('[Session] Attempting to get stored session');
+export function getStoredSession(): TravelSession | null {
+  return safeStorageOp(() => {
+    // console.log('[Session] Attempting to get stored session');
     const storedData = storage?.getItem(SESSION_CONFIG.STORAGE_KEY);
     if (!storedData) {
       console.log('[Session] No stored session data found');
@@ -149,13 +101,13 @@ export async function getStoredSession(): Promise<TravelSession | null> {
 
     try {
       const session = JSON.parse(storedData);
-      console.log('[Session] Successfully parsed session:', {
-        sessionId: session.sessionId,
-        destination: session.destination,
-        startTime: new Date(session.startTime).toISOString(),
-        lastActive: new Date(session.lastActive).toISOString(),
-        expiresAt: new Date(session.expiresAt).toISOString()
-      });
+      // console.log('[Session] Successfully parsed session:', {
+      //   sessionId: session.sessionId,
+      //   destination: session.destination,
+      //   startTime: new Date(session.startTime).toISOString(),
+      //   lastActive: new Date(session.lastActive).toISOString(),
+      //   expiresAt: new Date(session.expiresAt).toISOString()
+      // });
       return session;
     } catch (error) {
       console.error('[Session] Failed to parse session data:', error);

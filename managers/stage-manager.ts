@@ -63,14 +63,30 @@ const STAGE_VALIDATORS: Record<number, StageRequirements> = {
 
   // Stage 3: Places Introduction
   3: {
-    validate: (_, session: TravelSession) => {
-      const { totalPrompts, stagePrompts } = session;
+    validate: (details: TravelDetails, session: TravelSession) => {
+      const { totalPrompts, stagePrompts, savedPlaces } = session;
       const stagePromptCount = stagePrompts?.[3] || 0;
       const upgradeRequired = !session.isPaid && stagePromptCount >= STAGE_LIMITS[3].maxPrompts;
 
+      // Check if we have enough places saved
+      const minPlacesRequired = 3;
+      const hasEnoughPlaces = savedPlaces.length >= minPlacesRequired;
+
+      // Check if we have diverse place types based on preferences
+      const placeTypes = new Set(savedPlaces.map(p => p.primaryType));
+      const hasGoodCoverage = placeTypes.size >= Math.min(2, details.preferences.length);
+
+      const missingRequirements: string[] = [];
+      if (!hasEnoughPlaces) {
+        missingRequirements.push(`at least ${minPlacesRequired} places`);
+      }
+      if (!hasGoodCoverage) {
+        missingRequirements.push('more diverse place types');
+      }
+
       return {
-        isValid: !upgradeRequired,
-        missingRequirements: [],
+        isValid: !upgradeRequired && hasEnoughPlaces && hasGoodCoverage,
+        missingRequirements,
         upgradeRequired
       };
     }
@@ -78,11 +94,31 @@ const STAGE_VALIDATORS: Record<number, StageRequirements> = {
 
   // Stage 4: Itinerary Review (with payment check)
   4: {
-    validate: (_, session: TravelSession) => {
-      const isPaid = session.isPaid;
+    validate: (details: TravelDetails, session: TravelSession) => {
+      const { isPaid, savedPlaces } = session;
+      const missingRequirements: string[] = [];
+
+      // Check payment status
+      if (!isPaid) {
+        missingRequirements.push('premium subscription');
+      }
+
+      // Check minimum places for a good itinerary
+      const minPlacesForItinerary = 5;
+      if (savedPlaces.length < minPlacesForItinerary) {
+        missingRequirements.push(`at least ${minPlacesForItinerary} places`);
+      }
+
+      // Check place type distribution
+      const placeTypes = new Set(savedPlaces.map(p => p.primaryType));
+      const minPlaceTypes = Math.min(3, details.preferences.length);
+      if (placeTypes.size < minPlaceTypes) {
+        missingRequirements.push('more diverse place types');
+      }
+
       return {
-        isValid: isPaid,
-        missingRequirements: isPaid ? [] : ['premium subscription'],
+        isValid: missingRequirements.length === 0,
+        missingRequirements,
         upgradeRequired: !isPaid
       };
     }
@@ -141,8 +177,8 @@ export function validateStageProgression(
     };
   }
 
-  // Get validator for next stage
-  const validator = STAGE_VALIDATORS[nextStage];
+  // Get validator for current stage
+  const validator = STAGE_VALIDATORS[currentStage];
   if (!validator) {
     return {
       canProgress: true,
@@ -150,11 +186,20 @@ export function validateStageProgression(
     };
   }
 
-  // Check if we can move to next stage
+  // Check if current stage requirements are met before progressing
   const { isValid, missingRequirements, upgradeRequired } = validator.validate(
     travelDetails,
     session
   );
+
+  // If current stage requirements are met, allow progression
+  if (isValid) {
+    return {
+      canProgress: true,
+      missingRequirements: [],
+      upgradeRequired
+    };
+  }
 
   return {
     canProgress: isValid,

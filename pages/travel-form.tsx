@@ -35,7 +35,7 @@ export default function TravelForm() {
     if (dateRangeRef.current) {
       flatpickr(dateRangeRef.current, {
         mode: 'range',
-        dateFormat: 'd/m/Y',
+        dateFormat: 'Y-m-d',
         minDate: 'today',
         onChange: function(selectedDates) {
           if (selectedDates.length === 2 && hiddenEndDateRef.current) {
