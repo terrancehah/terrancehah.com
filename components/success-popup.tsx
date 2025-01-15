@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
 
-interface SuccessPopupProps {
+interface PaymentSuccessPopupProps {
   isOpen: boolean
   onClose: () => void
   title: string
   description?: string
 }
 
-export default function SuccessPopup({ isOpen, onClose, title, description }: SuccessPopupProps) {
+export default function PaymentSuccessPopup({ isOpen, onClose, title, description }: PaymentSuccessPopupProps) {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {

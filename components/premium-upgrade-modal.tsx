@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '../utils/cn'
 import FeatureCarousel from './feature-carousel'
-import SuccessPopup from './success-popup'
+import PaymentSuccessPopup from './success-popup'
 
 import { 
   setPaymentStatus, 
@@ -57,19 +57,35 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
   useEffect(() => {
     // Check URL parameters for payment success
     const urlParams = new URLSearchParams(window.location.search);
-    const paymentSuccess = urlParams.get('payment');
-    const sessionId = urlParams.get('session_id');
+    const sessionParam = urlParams.get('session');
+    const isRedirect = urlParams.get('is_redirect');
 
-    if (paymentSuccess === 'success' && sessionId) {
-      setShowSuccess(true);
-      
-      // Update payment status in session
-      setPaymentStatus(true);
-      setPaymentReference(sessionId);
-      
-      // Remove URL parameters after processing
-      window.history.replaceState({}, '', window.location.pathname);
+    if (sessionParam && isRedirect === 'true') {
+      if (window.opener) {
+        // Send success message to original window
+        window.opener.postMessage(
+          { type: 'payment_success', sessionId: sessionParam },
+          window.location.origin
+        );
+        // Close this window
+        window.close();
+      }
     }
+  }, []);
+
+  useEffect(() => {
+    const handlePaymentSuccess = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data?.type === 'payment_success') {
+        setShowSuccess(true);
+        setPaymentStatus(true);
+        setPaymentReference(event.data.sessionId);
+      }
+    };
+
+    window.addEventListener('message', handlePaymentSuccess);
+    return () => window.removeEventListener('message', handlePaymentSuccess);
   }, []);
 
   useEffect(() => {
@@ -134,7 +150,7 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
 
   return (
     <>
-      <SuccessPopup
+      <PaymentSuccessPopup
         isOpen={showSuccess}
         onClose={() => setShowSuccess(false)}
         title="Payment Successful!"

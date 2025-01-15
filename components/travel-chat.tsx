@@ -16,7 +16,7 @@ import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { QuickResponse } from '../components/chat-components/QuickResponse';
 import ReactMarkdown from 'react-markdown';
 import { validateStageProgression } from '../managers/stage-manager';
-import { TravelSession } from '../managers/types';
+import { TravelSession, StageProgressResult } from '../managers/types';
 import { CurrencyConverter } from '../components/currency/CurrencyConverter';
 import { useTravelChat } from '../hooks/useTravelChat';
 import { useTravelTools } from '../hooks/useTravelTools';
@@ -32,16 +32,6 @@ interface TravelChatProps {
     onPlaceRemoved: (placeId: string) => void;
     currentStage: number;
     onStageUpdate: (nextStage: number) => void;
-}
-
-// Add type for stage progress result
-interface StageProgressResult {
-    type: 'stageProgress';
-    props: {
-        nextStage: number;
-        reason: string;
-        criteria: string[];
-    };
 }
 
 export function TravelChat({ 
@@ -70,24 +60,7 @@ export function TravelChat({
         return null;
     }
 
-    const [showPremiumModal, setShowPremiumModal] = useState<boolean>(false);
-    const [showSessionWarning, setShowSessionWarning] = useState<boolean>(false);
     const [isCollapsed, setIsCollapsed] = useState(true);
-
-    // Session check interval
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const { isValid, shouldWarn } = checkSessionWithWarning();
-            if (!isValid) {
-                handleSessionExpiry();
-                return;
-            }
-            if (shouldWarn) {
-                setShowSessionWarning(true);
-            }
-        }, 60000);
-        return () => clearInterval(interval);
-    }, []);
 
     useEffect(() => {
         const handlePlacesChanged = (event: Event) => {
@@ -128,7 +101,7 @@ export function TravelChat({
     const {
         messages,
         isLoading,
-        append: originalAppend,
+        append,
         reload,
         input,
         setInput,
@@ -137,27 +110,17 @@ export function TravelChat({
         stop,
         quickResponses,
         isQuickResponseLoading,
+        showSessionWarning,
+        setShowSessionWarning,
+        isWithinStageLimit,
+        showPremiumModal,
+        setShowPremiumModal
     } = useTravelChat({
         currentDetails,
         currentStage,
         savedPlaces: savedPlacesManager.getPlaces(),
         metrics: sessionMetadata
     });
-
-    const append = useCallback(async (message: any, options?: any) => {
-        // Only increment metrics for user messages and not system messages
-        const shouldIncrement = message.role === 'user';
-        const updatedMetrics = updateStoredMetrics(currentStage, shouldIncrement);
-
-        // Append message with latest metrics
-        await originalAppend(message, {
-            ...options,
-            body: {
-                ...options?.body,
-                metrics: updatedMetrics
-            }
-        });
-    }, [originalAppend, currentStage]);
 
     const {
         toolVisibility,
@@ -168,9 +131,9 @@ export function TravelChat({
         setCurrentDetails,
         currentStage,
         onStageUpdate,
-        userMetrics: sessionMetadata,
         append,
-        savedPlaces: savedPlacesManager.getPlaces()
+        savedPlaces: savedPlacesManager.getPlaces(),
+        userMetrics: sessionMetadata
     });
 
     // Add ref to track processed messages
@@ -252,12 +215,6 @@ export function TravelChat({
                 if (toolInvocation.toolName === 'stageProgress' && 'result' in toolInvocation) {
                     const result = toolInvocation.result as StageProgressResult;
                     
-                    // Check if trying to advance to stage 4
-                    if (result.props.nextStage === 4 && !sessionMetadata.isPaid) {
-                        setShowPremiumModal(true);
-                        return;
-                    }
-                    
                     if (validateStageProgression(
                         currentStage,
                         result.props.nextStage,
@@ -268,7 +225,7 @@ export function TravelChat({
                 }
             });
         }
-    }, [messages, onStageUpdate, currentStage, sessionMetadata.isPaid]);
+    }, [messages, onStageUpdate, currentStage]);
 
     // const formatDate = (dateStr: string) => {
     //     if (!dateStr || dateStr.includes('undefined')) return dateStr;
@@ -283,12 +240,9 @@ export function TravelChat({
     const handleQuickResponseSelect = async (text: string) => {
         try {
             // Check for stage 3 prompt limit
-            if (currentStage === 3 && !sessionMetadata.isPaid) {
-                const { withinStageLimit } = checkInputLimits(currentStage);
-                if (!withinStageLimit) {
-                    setShowPremiumModal(true);
-                    return;
-                }
+            if (currentStage === 3 && !sessionMetadata.isPaid && !isWithinStageLimit) {
+                setShowPremiumModal(true);
+                return;
             }
 
             // Check if it's a place search request
@@ -396,7 +350,7 @@ export function TravelChat({
         currentDetails,
         currentStage,
         savedPlaces: savedPlacesManager.getPlaces(),
-        metrics: sessionMetadata,
+        metrics: sessionMetadata
     });
 
     useEffect(() => {
@@ -796,7 +750,7 @@ export function TravelChat({
                         onChange={handleInputChange}
                         placeholder="Type your message..."
                         className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        disabled={isLoading || !checkInputLimits(currentStage).withinStageLimit}
+                        disabled={isLoading || !isWithinStageLimit}
                     />
                     {/* {isLoading && (
                         <button
@@ -808,7 +762,7 @@ export function TravelChat({
                     )} */}
                     <button
                         type="submit"
-                        disabled={isLoading || !checkInputLimits(currentStage).withinStageLimit}
+                        disabled={isLoading || !isWithinStageLimit}
                         className="inline-flex items-center rounded-md bg-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                     >
                         Send

@@ -1,11 +1,12 @@
 import { useChat } from 'ai/react';
 import { useCallback, useRef, useEffect, useState, useMemo } from 'react';
-import { TravelDetails, TravelSession } from '../managers/types';
+import { TravelDetails, TravelSession, StageProgressResult } from '../managers/types';
 import { Place, savedPlacesManager } from '../utils/places-utils';
 import { STAGE_LIMITS, validateStageProgression } from '../managers/stage-manager';
 import { Message as LocalMessage, ToolInvocation } from '../managers/types';
 import { Message as AiMessage } from 'ai';
-import { getStoredSession, SESSION_CONFIG } from '../utils/session-manager';
+import { checkSessionWithWarning, getStoredSession, SESSION_CONFIG, handleSessionExpiry, updateStoredMetrics, checkInputLimits } from '../utils/session-manager';
+import { useRouter } from 'next/router';
 
 interface ChatRequestBody {
   message: string;
@@ -20,16 +21,61 @@ interface UseTravelChatProps {
   savedPlaces: Place[];
   currentStage: number;
   metrics: TravelSession;
+  onStageUpdate?: (nextStage: number) => void;
 }
 
 export function useTravelChat({
   currentDetails,
   savedPlaces: initialSavedPlaces,
   currentStage,
-  metrics
+  metrics,
+  onStageUpdate
 }: UseTravelChatProps) {
   const quickResponseInProgress = useRef(false);
   const [mainChatMessages, setMainChatMessages] = useState<LocalMessage[]>([]);
+  const [showSessionWarning, setShowSessionWarning] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumModalState, setPremiumModalState] = useState(null);
+  const router = useRouter();
+
+  // Check if within stage limit
+  const isWithinStageLimit = useMemo(() => {
+    return checkInputLimits(currentStage).withinStageLimit;
+  }, [currentStage]);
+
+  // Premium stage check
+  const checkPremiumStage = useCallback(() => {
+    if (currentStage === 3 && !metrics.isPaid && !isWithinStageLimit) {
+      setShowPremiumModal(true);
+      return false;
+    }
+    return true;
+  }, [currentStage, metrics.isPaid, isWithinStageLimit]);
+
+  // Handle missing session
+  useEffect(() => {
+    if (!getStoredSession()) {
+      router.push('/travel-form');
+    }
+  }, [router]);
+
+  // Session check effect
+  useEffect(() => {
+    const checkSession = () => {
+      const { isValid, shouldWarn } = checkSessionWithWarning();
+      if (!isValid) {
+        handleSessionExpiry();
+        return;
+      }
+      if (shouldWarn) {
+        setShowSessionWarning(true);
+      }
+      return isValid;
+    };
+
+    const interval = setInterval(checkSession, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Simply use savedPlacesManager directly
   const currentSavedPlaces = savedPlacesManager.getPlaces();
@@ -192,7 +238,19 @@ export function useTravelChat({
 }, [quickResponseChat.messages]);
 
   // Stage progression validation and handling
-  const handleStageProgression = useCallback((nextStage: number) => {
+  const handleStageProgression = useCallback((nextStage: number): StageProgressResult => {
+    if (nextStage === 4 && !metrics.isPaid) {
+      setShowPremiumModal(true);
+      return {
+        type: 'stageProgress',
+        props: {
+          nextStage: currentStage,
+          reason: 'Premium required for advanced stages',
+          criteria: ['premium subscription']
+        }
+      };
+    }
+
     const { canProgress, missingRequirements, upgradeRequired } = validateStageProgression(
         currentStage,
         nextStage,
@@ -205,6 +263,10 @@ export function useTravelChat({
         if (upgradeRequired) {
             console.log('[Stage Progression] Upgrade required for stage progression');
             // You can add any upgrade-specific logic here
+        }
+
+        if (onStageUpdate) {
+          onStageUpdate(nextStage);
         }
 
         return {
@@ -225,13 +287,38 @@ export function useTravelChat({
             criteria: missingRequirements
         }
     };
-}, [currentStage, currentDetails]);
+}, [currentStage, currentDetails, metrics.isPaid, onStageUpdate, setShowPremiumModal]);
+
+  // Wrap append to include metrics update
+  const append = useCallback(async (message: any, options?: any) => {
+    // Only increment metrics for user messages and not system messages
+    const shouldIncrement = message.role === 'user';
+    const updatedMetrics = updateStoredMetrics(currentStage, shouldIncrement);
+
+    // Append message with latest metrics
+    await mainChat.append(message, {
+      ...options,
+      body: {
+        ...options?.body,
+        metrics: updatedMetrics
+      }
+    });
+  }, [mainChat, currentStage]);
 
   return {
     ...mainChat,
     messages: mainChatMessages,
     quickResponses,
     isQuickResponseLoading: quickResponseInProgress.current,
-    handleStageProgression
+    handleStageProgression,
+    showSessionWarning,
+    setShowSessionWarning,
+    isWithinStageLimit,
+    showPremiumModal,
+    setShowPremiumModal,
+    premiumModalState,
+    setPremiumModalState,
+    checkPremiumStage,
+    append
   };
 }

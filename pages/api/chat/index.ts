@@ -167,30 +167,16 @@ export default async function handler(req: NextRequest) {
 
     The 'FINAL CONFIRMATION' (Stage 5) handles trip detail finalization and preparations, marking the end of the progression sequence.
 
-    ## 3.0 Tools Calling and Usage
+    ## 3.0 Tools Calling and Usag
 
-    ### 3.1 Tool Categories and Usage
+    ### 3.1 Available Tools
 
-    For parameter tools (budgetSelector, preferenceSelector, datePicker, languageSelector):
-    1. When user requests to change a parameter, call the tool WITHOUT stating any parameters first
-    2. Let the user interact with the component
-    3. Only provide parameters in subsequent tool calls when confirming the change
-    4. Never assume a parameter has changed just because you showed the selector
-
-    Example flow for date changes:
-    User: "I want to change my travel dates"
-    Assistant: [Calls datePicker with no parameters] "I've opened the date picker for you to select new dates."
-    User: [Interacts with picker]
-    Assistant: [Calls datePicker with new dates] "I've updated your travel dates to [new dates]."
-
-    ### 3.2 Other Tools
-
-    For direct parameter requests, specific tools should be employed.
+    For direct parameter requests from user, specific tools should be employed. These tools allow user to update their trip parameters.
     These tools include:
-    - 'budgetSelectortool': Budget options
-    - 'datePickertool': Date selection
-    - 'preferenceSelectortool': Travel preferences
-    - 'languageSelectortool': PDF language settings
+    - 'budgetSelectorTool': Budget options. Call this when users want to change their budget level.
+    - 'datePickerTool': Date selection. Call this when users want to change their travel dates.
+    - 'preferenceSelectorTool': Travel preferences. Call this when users want to change their travel preferences.
+    - 'languageSelectorTool': PDF language settings. Call this when users want to change the language.
 
     The 'Places Discovery Tools' comprise:
     - 'placeCard': Single place display when user ask for one place (e.g. "add one cafe" or "show me one restaurant"), automatically saves place after display

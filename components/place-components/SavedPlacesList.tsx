@@ -87,7 +87,7 @@ export function SavedPlacesList({ onCenterMap, onRemove }: SavedPlacesListProps)
                         className="bg-white overflow-hidden flex border-b-[1px] border-gray-200"
                     >
                         {/* Photo Section */}
-                        <div className="w-1/3 h-32">
+                        <div className="w-1/3 min-h-32">
                             <img
                                 src={photoUrl}
                                 alt={typeof place.displayName === 'string' ? place.displayName : place.displayName.text}

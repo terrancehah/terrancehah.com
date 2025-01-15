@@ -388,3 +388,12 @@ export interface CurrencyApiResponse {
 }
 
 export const DEFAULT_CURRENCIES = ['USD', 'EUR', 'GBP', 'CNY', 'JPY'];
+
+export interface StageProgressResult {
+    type: 'stageProgress';
+    props: {
+        nextStage: number;
+        reason: string;
+        criteria: string[];
+    };
+}
