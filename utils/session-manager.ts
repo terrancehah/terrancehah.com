@@ -159,23 +159,20 @@ export function updateStoredMetrics(
     const session = getStoredSession() || initializeSession();
 
     if (incrementPrompt) {
-      const { withinStageLimit } = checkInputLimits(currentStage);
-      if (withinStageLimit) {
-        // Initialize stagePrompts with all stages if it doesn't exist
-        if (!session.stagePrompts) {
-          session.stagePrompts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-        }
-        
-        // Ensure all stages exist
-        for (let stage = 1; stage <= 5; stage++) {
-          if (typeof session.stagePrompts[stage] !== 'number') {
-            session.stagePrompts[stage] = 0;
-          }
-        }
-
-        session.totalPrompts = (session.totalPrompts || 0) + 1;
-        session.stagePrompts[currentStage] = (session.stagePrompts[currentStage] || 0) + 1;
+      // Initialize stagePrompts with all stages if it doesn't exist
+      if (!session.stagePrompts) {
+        session.stagePrompts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
       }
+      
+      // Ensure all stages exist
+      for (let stage = 1; stage <= 5; stage++) {
+        if (typeof session.stagePrompts[stage] !== 'number') {
+          session.stagePrompts[stage] = 0;
+        }
+      }
+
+      session.totalPrompts = (session.totalPrompts || 0) + 1;
+      session.stagePrompts[currentStage] = (session.stagePrompts[currentStage] || 0) + 1;
     }
 
     if (incrementSavedPlaces) {

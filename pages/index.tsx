@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { TravelPreference, BudgetLevel, SupportedLanguage, TravelDetails, TravelSession } from '@/managers/types';
 import StageProgress from '@/components/stage-progress';
 import { Place } from '@/utils/places-utils';
-import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage } from '../utils/session-manager';
+import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, getPaymentReference, setPaymentStatus, clearPaymentReference, getPaymentStatus } from '../utils/session-manager';
+import PaymentSuccessPopup from '@/components/payment-success-popup';
+import PremiumUpgradeModal from '@/components/premium-upgrade-modal';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
     ssr: false,
@@ -45,6 +47,9 @@ export default function ChatPage() {
     const [currentStage, setCurrentStage] = useState<number>(1);
     const [isPaid, setIsPaid] = useState<boolean>(false);
     const [sessionId, setSessionId] = useState<string>('');
+    const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+    const [savedPlacesUpdate, setSavedPlacesUpdate] = useState(0);
+    const [showPremiumModal, setShowPremiumModal] = useState(false);
 
     useEffect(() => {
         // Check if we're on mobile
@@ -132,18 +137,21 @@ export default function ChatPage() {
         }
     }, []);
 
-    // Separate effect for Maps API key - only run after session is validated
     useEffect(() => {
-        if (!isLoadingKey || apiKey || !sessionId) return;
-
         const fetchMapKey = async () => {
             try {
                 console.log('[Index] Fetching Maps API key...');
+                // Add cache-control headers and explicit API path
                 const response = await fetch('/api/maps-key', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
                     },
+                    // Add cache busting and explicit next handling
+                    cache: 'no-store',
+                    next: { revalidate: 0 }
                 });
                 
                 if (!response.ok) {
@@ -165,16 +173,10 @@ export default function ChatPage() {
             }
         };
         
+        if (!isLoadingKey || apiKey || !sessionId) return;
+
         fetchMapKey();
     }, [isLoadingKey, apiKey, sessionId]);
-
-    // Add state to track updates to saved places
-    const [savedPlacesUpdate, setSavedPlacesUpdate] = useState(0);
-
-    const handlePlaceRemoved = (placeId: string) => {
-        console.log('Place removed:', placeId);
-        setSavedPlacesUpdate(prev => prev + 1);
-    };
 
     useEffect(() => {
         if (!travelDetails.destination || !apiKey || !isDetailsReady) return;
@@ -214,6 +216,11 @@ export default function ChatPage() {
 
         fetchCoordinates();
     }, [travelDetails.destination, apiKey, isDetailsReady]);
+
+    const handlePlaceRemoved = (placeId: string) => {
+        console.log('Place removed:', placeId);
+        setSavedPlacesUpdate(prev => prev + 1);
+    };
 
     return (
         <div className="flex flex-col h-[100vh] w-full bg-white">
@@ -269,6 +276,28 @@ export default function ChatPage() {
                     </div>
                 )}
             </main>
+            <PaymentSuccessPopup
+                isOpen={showPaymentSuccess}
+                onClose={() => setShowPaymentSuccess(false)}
+                title="Welcome to Premium!"
+                description="Your account has been upgraded. Let's continue planning your perfect trip!"
+            />
+            <PremiumUpgradeModal 
+                isOpen={showPremiumModal} 
+                onClose={() => setShowPremiumModal(false)}
+                onPaymentSuccess={() => {
+                    // Only handle high-level UI updates
+                    setIsPaid(true);
+                    setCurrentStage(4);
+                    setShowPaymentSuccess(true);
+                    
+                    console.log('[Index] Payment success handled:', {
+                        isPaid: true,
+                        currentStage: 4,
+                        showPaymentSuccess: true
+                    });
+                }}
+            />
         </div>
     );
 }

@@ -370,7 +370,10 @@ export default function TravelForm() {
               </div>
 
               {/* Language Select Section */}
-              <div className="flex w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative focus-within:z-20 z-10 order-7 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 hover:bg-slate-200 md:rounded-bl-3xl">
+              <div className="flex w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative  z-10 order-7 
+              focus-within:z-20 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all 
+              group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 
+              hover:bg-slate-200 md:rounded-bl-3xl">
                 <select
                   ref={languageRef}
                   name="language"
@@ -402,7 +405,10 @@ export default function TravelForm() {
               </div>
 
               {/* Budget Select Section */}
-              <div className="flex flex-col w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative focus-within:z-20 z-10 order-9 focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 hover:bg-slate-200 md:rounded-br-3xl">
+              <div className="flex flex-col w-full lg:w-[50%] mx-0 my-0 items-center px-10 pb-0.5 relative focus-within:z-20 z-10 order-9 
+              focus-within:bg-white focus-within:hover:bg-white focus-within:shadow-all has-[:focus]:shadow-all has-[:active]:shadow-all 
+              group-active/mainContainer:[&:not(:active)]:bg-slate-200 group-focus-within/mainContainer:[&:not(:focus-within)]:bg-slate-200 
+              hover:bg-slate-200 md:rounded-br-3xl">
                 <select
                   ref={budgetRef}
                   name="budget"

@@ -1,12 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: false,
+  reactStrictMode: true,
   images: {
     domains: ['places.googleapis.com'],
   },
   // Handle static files
   async rewrites() {
     return [
+      {
+        source: '/api/stripe/verify/:path*',
+        destination: '/api/stripe/verify/:path*',
+      },
       {
         source: '/api/stripe/webhook',
         destination: '/api/stripe/webhook/',
@@ -44,7 +48,7 @@ const nextConfig = {
   },
   // Ensure static files are served correctly
   assetPrefix: process.env.NODE_ENV === 'production' ? '/' : '',
-  trailingSlash: true,
+  trailingSlash: false,
 }
 
 module.exports = nextConfig

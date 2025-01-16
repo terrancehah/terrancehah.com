@@ -40,8 +40,9 @@ export function useTravelChat({
 
   // Check if within stage limit
   const isWithinStageLimit = useMemo(() => {
+    const session = getStoredSession();
     return checkInputLimits(currentStage).withinStageLimit;
-  }, [currentStage]);
+  }, [currentStage, getStoredSession()?.stagePrompts?.[currentStage]]);
 
   // Premium stage check
   const checkPremiumStage = useCallback(() => {

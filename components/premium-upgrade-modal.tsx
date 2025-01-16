@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '../utils/cn'
 import FeatureCarousel from './feature-carousel'
-import PaymentSuccessPopup from './success-popup'
 
 import { 
   setPaymentStatus, 
@@ -24,11 +23,21 @@ declare global {
   }
 }
 
-export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpen?: boolean; onClose?: () => void }) {
+export default function PremiumUpgradeModal({ 
+  isOpen = false, 
+  onClose,
+  onPaymentSuccess 
+}: { 
+  isOpen?: boolean; 
+  onClose?: () => void;
+  onPaymentSuccess?: () => void;
+}) {
   const [isMobile, setIsMobile] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [isPolling, setIsPolling] = useState(false)
   const stripeContainerRef = useRef<HTMLDivElement>(null)
   const clientReferenceId = useRef<string>('')
+  const pollIntervalRef = useRef<NodeJS.Timeout>()
 
   // Generate client reference ID on mount
   useEffect(() => {
@@ -53,40 +62,6 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
-
-  useEffect(() => {
-    // Check URL parameters for payment success
-    const urlParams = new URLSearchParams(window.location.search);
-    const sessionParam = urlParams.get('session');
-    const isRedirect = urlParams.get('is_redirect');
-
-    if (sessionParam && isRedirect === 'true') {
-      if (window.opener) {
-        // Send success message to original window
-        window.opener.postMessage(
-          { type: 'payment_success', sessionId: sessionParam },
-          window.location.origin
-        );
-        // Close this window
-        window.close();
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    const handlePaymentSuccess = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      
-      if (event.data?.type === 'payment_success') {
-        setShowSuccess(true);
-        setPaymentStatus(true);
-        setPaymentReference(event.data.sessionId);
-      }
-    };
-
-    window.addEventListener('message', handlePaymentSuccess);
-    return () => window.removeEventListener('message', handlePaymentSuccess);
-  }, []);
 
   useEffect(() => {
     if (!isOpen || !stripeContainerRef.current) return
@@ -148,14 +123,127 @@ export default function PremiumUpgradeModal({ isOpen = false, onClose }: { isOpe
     }
   }, [isOpen])
 
+  // Start polling when modal opens and Stripe script is loaded
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Wait for Stripe script to load
+    const waitForStripe = setInterval(() => {
+      const stripeButton = document.querySelector('stripe-buy-button');
+      if (stripeButton) {
+        console.log('[Payment Modal] Stripe button loaded, starting polling...');
+        setIsPolling(true);
+        clearInterval(waitForStripe);
+      }
+    }, 500);
+
+    return () => {
+      clearInterval(waitForStripe);
+    };
+  }, [isOpen]);
+
+  // Payment polling effect
+  useEffect(() => {
+    const pollPaymentStatus = async () => {
+      const refId = clientReferenceId.current;
+      if (!refId) {
+        console.log('[Payment Modal] No reference ID found, stopping poll');
+        setIsPolling(false);
+        return false;
+      }
+
+      console.log('[Payment Modal] Polling payment status for:', refId);
+      try {
+        const response = await fetch(`${window.location.origin}/api/stripe/verify`, {  
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json'},
+          body: JSON.stringify({ clientReferenceId: refId })
+        });
+
+        if (!response.ok) {
+          console.log('[Payment Modal] Verify request failed:', response.status);
+           // Log more details about the error
+          const text = await response.text();
+          console.log('[Payment Modal] Error details:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: text,
+            headers: Object.fromEntries(response.headers.entries())
+          });
+          return false;
+        }
+
+        const data = await response.json();
+        console.log('[Payment Modal] Verification response:', data);
+
+        if (data.isPaid) {
+          console.log('[Payment Modal] Payment verified for reference:', refId);
+          
+          // First update the payment status in storage
+          setPaymentStatus(true);
+          console.log('[Payment Modal] Payment status updated in storage');
+          
+          // Then update UI states
+          setShowSuccess(true);
+          clearPaymentReference();
+          console.log('[Payment Modal] UI states updated');
+          
+          // Notify parent component of success
+          if (onPaymentSuccess) {
+            onPaymentSuccess();  // Parent only needs to handle high-level success state
+            console.log('[Payment Modal] Parent notified of success');
+          }
+          
+          // Close the modal last
+          if (onClose) {
+            onClose();
+            console.log('[Payment Modal] Modal closed');
+          }
+          
+          return true;
+        } else if (data.pendingVerification) {
+          console.log('[Payment Modal] Payment pending webhook verification, continuing to poll');
+          return false;
+        }
+      } catch (error) {
+        console.error('[Payment Modal] Error polling payment status:', error);
+        // If it's a network error, log more details
+        if (error instanceof TypeError) {
+          console.log('[Payment Modal] Network error details:', {
+            message: error.message,
+            stack: error.stack
+          });
+        }
+      }
+      return false;
+    };
+
+    // Start/stop polling based on isPolling state
+    if (isPolling) {
+      console.log('[Payment Modal] Starting payment polling interval');
+      pollIntervalRef.current = setInterval(async () => {
+        console.log('[Payment Modal] Polling iteration starting');
+        const success = await pollPaymentStatus();
+        if (success) {
+          console.log('[Payment Modal] Polling succeeded, cleaning up');
+          setIsPolling(false);
+        }
+      }, 2000);
+    }
+
+    // Cleanup
+    return () => {
+      if (pollIntervalRef.current) {
+        console.log('[Payment Modal] Cleaning up polling interval');
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = undefined;
+      }
+    };
+  }, [isPolling, onClose, onPaymentSuccess]);
+
   return (
     <>
-      <PaymentSuccessPopup
-        isOpen={showSuccess}
-        onClose={() => setShowSuccess(false)}
-        title="Payment Successful!"
-        description="Welcome to Premium. Your account has been upgraded."
-      />
       {isOpen ? (
         <div className="absolute inset-0 bottom-[64px]  bg-white/85 backdrop-blur-sm z-[60]">
           <div className="h-full w-full overflow-hidden">
