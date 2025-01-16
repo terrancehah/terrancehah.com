@@ -50,7 +50,7 @@ const VIDEO_TUTORIALS = [
 const autoplayOptions = {
   delay: 4000,
   stopOnInteraction: false,
-  stopOnMouseEnter: true,
+  stopOnMouseEnter: false,
   rootNode: (emblaRoot: HTMLElement) => emblaRoot
 };
 

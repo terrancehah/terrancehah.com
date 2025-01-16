@@ -220,6 +220,7 @@ export default function ChatPage() {
 
     useEffect(() => {
         (window as any).setShowPaymentSuccess = setShowPaymentSuccess;
+        (window as any).setCurrentStage = setCurrentStage;
     }, []);
 
     const handlePlaceRemoved = (placeId: string) => {

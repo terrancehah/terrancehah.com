@@ -5,5 +5,8 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/travel-form": "pages/travel-form.js"
+  "/travel-form": "pages/travel-form.js",
+  "/api/stripe/verify": "pages/api/stripe/verify.js",
+  "/api/stripe/webhook": "pages/api/stripe/webhook.js",
+  "/payment-success": "pages/payment-success.js"
 }
