@@ -1,13 +1,9 @@
 {
-  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
   "/api/chat": "pages/api/chat.js",
+  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/travel-form": "pages/travel-form.js",
-  "/api/stripe/webhook": "pages/api/stripe/webhook.js",
-  "/payment-success": "pages/payment-success.js",
-  "/api/maps-key": "pages/api/maps-key.js",
-  "/api/stripe/verify": "pages/api/stripe/verify.js"
+  "/travel-form": "pages/travel-form.js"
 }

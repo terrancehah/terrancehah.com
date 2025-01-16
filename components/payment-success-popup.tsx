@@ -16,15 +16,33 @@ interface PaymentSuccessPopupProps {
 const VIDEO_TUTORIALS = [
   {
     id: 1,
-    title: "Getting Started with Premium",
-    src: "https://placehold.co/600x400/png?text=Premium+Features+Tutorial",
-    description: "Learn how to use advanced features like personalized recommendations and detailed scheduling."
+    title: "Visualised Route Planning",
+    src: "https://placehold.co/600x400/png?text=Visualised+Route+Planning",
+    description: "With the help of Google Advanced Routes API, we can visualize your trip's route in a clear and engaging way."
   },
   {
     id: 2,
-    title: "Exploring Local Insights",
-    src: "https://placehold.co/600x400/png?text=Local+Insights+Tutorial",
-    description: "Discover hidden gems and local recommendations for your destination."
+    title: "Advanced Daily Itinerary Planning",
+    src: "https://placehold.co/600x400/png?text=Daily+Itinerary+Planning",
+    description: "Travel-Rizz helps you group activities and attractions to create daily itineraries."
+  },
+  {
+    id: 3,
+    title: "Travel Time between Attractions",
+    src: "https://placehold.co/600x400/png?text=Travel+Time+between+Attractions",
+    description: "Be informed about travel times between attractions for your trip, so you can plan your day ahead."
+  },
+  {
+    id: 4,
+    title: "Drag and Drop Attraction Organising",
+    src: "https://placehold.co/600x400/png?text=Drag+and+Drop+Attraction",
+    description: "Organise your trip by dragging and dropping attractions. It's just as simple as that."
+  },
+  {
+    id: 5,
+    title: "Add and Remove Attractions Easily",
+    src: "https://placehold.co/600x400/png?text=Add+and+Remove+Attractions",
+    description: "Add and remove attractions from your trip effortlessly, making it easy to plan your perfect day."
   }
 ];
 
@@ -59,12 +77,13 @@ export default function PaymentSuccessPopup({ isOpen, onClose, title, descriptio
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg p-6 max-w-3xl w-full mx-4">
+      <div className="bg-white rounded-lg shadow-lg p-6 max-w-3xl w-full mx-4 relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100"
+          className="absolute -top-2 -right-2 p-2 rounded-full bg-white hover:bg-gray-100 hover:shadow-slate-400 shadow-md shadow-slate-500 transition-colors"
+          aria-label="Close popup"
         >
-          <X className="h-5 w-5" />
+          <X className="h-5 w-5 text-gray-600" />
         </button>
         
         <div className="space-y-6">

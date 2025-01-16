@@ -7,6 +7,7 @@ import { Place } from '@/utils/places-utils';
 import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, getPaymentReference, setPaymentStatus, clearPaymentReference, getPaymentStatus } from '../utils/session-manager';
 import PaymentSuccessPopup from '@/components/payment-success-popup';
 import PremiumUpgradeModal from '@/components/premium-upgrade-modal';
+import { validateStageProgression } from '../managers/stage-manager';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
     ssr: false,
@@ -47,9 +48,9 @@ export default function ChatPage() {
     const [currentStage, setCurrentStage] = useState<number>(1);
     const [isPaid, setIsPaid] = useState<boolean>(false);
     const [sessionId, setSessionId] = useState<string>('');
-    const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
     const [savedPlacesUpdate, setSavedPlacesUpdate] = useState(0);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
     useEffect(() => {
         // Check if we're on mobile
@@ -217,6 +218,10 @@ export default function ChatPage() {
         fetchCoordinates();
     }, [travelDetails.destination, apiKey, isDetailsReady]);
 
+    useEffect(() => {
+        (window as any).setShowPaymentSuccess = setShowPaymentSuccess;
+    }, []);
+
     const handlePlaceRemoved = (placeId: string) => {
         console.log('Place removed:', placeId);
         setSavedPlacesUpdate(prev => prev + 1);
@@ -279,25 +284,15 @@ export default function ChatPage() {
             <PaymentSuccessPopup
                 isOpen={showPaymentSuccess}
                 onClose={() => setShowPaymentSuccess(false)}
-                title="Welcome to Premium!"
-                description="Your account has been upgraded. Let's continue planning your perfect trip!"
+                title="Hurray!"
+                description="You have successfully completed your payment. Let's continue planning your perfect trip!"
             />
-            <PremiumUpgradeModal 
-                isOpen={showPremiumModal} 
-                onClose={() => setShowPremiumModal(false)}
-                onPaymentSuccess={() => {
-                    // Only handle high-level UI updates
-                    setIsPaid(true);
-                    setCurrentStage(4);
-                    setShowPaymentSuccess(true);
-                    
-                    console.log('[Index] Payment success handled:', {
-                        isPaid: true,
-                        currentStage: 4,
-                        showPaymentSuccess: true
-                    });
-                }}
-            />
+            {showPremiumModal && (
+                <PremiumUpgradeModal 
+                    isOpen={showPremiumModal} 
+                    onClose={() => setShowPremiumModal(false)}
+                />
+            )}
         </div>
     );
 }

@@ -7,7 +7,7 @@ import {
   setPaymentStatus, 
   setPaymentReference,
   getPaymentReference,
-  clearPaymentReference 
+  clearPaymentReference,
 } from '../utils/session-manager'
 
 // Declare the custom element for TypeScript
@@ -23,21 +23,17 @@ declare global {
   }
 }
 
-export default function PremiumUpgradeModal({ 
-  isOpen = false, 
-  onClose,
-  onPaymentSuccess 
-}: { 
-  isOpen?: boolean; 
-  onClose?: () => void;
-  onPaymentSuccess?: () => void;
-}) {
+interface PremiumUpgradeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function PremiumUpgradeModal({ isOpen, onClose }: PremiumUpgradeModalProps) {
   const [isMobile, setIsMobile] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
   const [isPolling, setIsPolling] = useState(false)
   const stripeContainerRef = useRef<HTMLDivElement>(null)
-  const clientReferenceId = useRef<string>('')
-  const pollIntervalRef = useRef<NodeJS.Timeout>()
+  const clientReferenceId = useRef<string>()
+  const pollInterval = useRef<NodeJS.Timeout>()
 
   // Generate client reference ID on mount
   useEffect(() => {
@@ -145,102 +141,80 @@ export default function PremiumUpgradeModal({
   // Payment polling effect
   useEffect(() => {
     const pollPaymentStatus = async () => {
+      const pollInstanceId = Math.random().toString(36).substring(7);
+      console.log(`[Payment Modal][${pollInstanceId}] Starting poll instance`);
+
       const refId = clientReferenceId.current;
       if (!refId) {
-        console.log('[Payment Modal] No reference ID found, stopping poll');
+        console.log(`[Payment Modal][${pollInstanceId}] No reference ID found, stopping poll`);
         setIsPolling(false);
         return false;
       }
 
-      console.log('[Payment Modal] Polling payment status for:', refId);
+      console.log(`[Payment Modal][${pollInstanceId}] Checking webhook verification for:`, refId);
       try {
         const response = await fetch(`${window.location.origin}/api/stripe/verify`, {  
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'},
+          headers: { 'Content-Type': 'application/json'},
           body: JSON.stringify({ clientReferenceId: refId })
         });
 
         if (!response.ok) {
-          console.log('[Payment Modal] Verify request failed:', response.status);
-           // Log more details about the error
-          const text = await response.text();
-          console.log('[Payment Modal] Error details:', {
-            status: response.status,
-            statusText: response.statusText,
-            body: text,
-            headers: Object.fromEntries(response.headers.entries())
-          });
+          console.log(`[Payment Modal][${pollInstanceId}] Verify request failed:`, response.status);
           return false;
         }
 
         const data = await response.json();
-        console.log('[Payment Modal] Verification response:', data);
+        console.log(`[Payment Modal][${pollInstanceId}] Verification response:`, data);
 
-        if (data.isPaid) {
-          console.log('[Payment Modal] Payment verified for reference:', refId);
+        // Check if webhook has verified the payment
+        if (data.isPaid && data.verifiedAt) {
+          console.log(`[Payment Modal][${pollInstanceId}] Payment verified by webhook for:`, refId);
           
-          // First update the payment status in storage
+          // Update states and trigger success popup
           setPaymentStatus(true);
-          console.log('[Payment Modal] Payment status updated in storage');
-          
-          // Then update UI states
-          setShowSuccess(true);
+          console.log(`[Payment Modal][${pollInstanceId}] Payment status updated to true for:`, refId);
           clearPaymentReference();
-          console.log('[Payment Modal] UI states updated');
-          
-          // Notify parent component of success
-          if (onPaymentSuccess) {
-            onPaymentSuccess();  // Parent only needs to handle high-level success state
-            console.log('[Payment Modal] Parent notified of success');
-          }
-          
-          // Close the modal last
-          if (onClose) {
-            onClose();
-            console.log('[Payment Modal] Modal closed');
-          }
+          console.log(`[Payment Modal][${pollInstanceId}] Payment reference cleared for:`, refId);
+          setIsPolling(false);
+          console.log(`[Payment Modal][${pollInstanceId}] Polling stopped for:`, refId);
+          (window as any).setShowPaymentSuccess(true);
+          console.log(`[Payment Modal][${pollInstanceId}] Payment success popup opened for:`, refId);
+          onClose();
           
           return true;
-        } else if (data.pendingVerification) {
-          console.log('[Payment Modal] Payment pending webhook verification, continuing to poll');
-          return false;
         }
+
+        console.log(`[Payment Modal][${pollInstanceId}] Payment pending webhook verification, continuing to poll`);
+        return false;
       } catch (error) {
-        console.error('[Payment Modal] Error polling payment status:', error);
-        // If it's a network error, log more details
-        if (error instanceof TypeError) {
-          console.log('[Payment Modal] Network error details:', {
-            message: error.message,
-            stack: error.stack
-          });
-        }
+        console.error(`[Payment Modal][${pollInstanceId}] Error polling payment status:`, error);
+        return false;
       }
-      return false;
     };
 
-    // Start/stop polling based on isPolling state
-    if (isPolling) {
-      console.log('[Payment Modal] Starting payment polling interval');
-      pollIntervalRef.current = setInterval(async () => {
-        console.log('[Payment Modal] Polling iteration starting');
-        const success = await pollPaymentStatus();
-        if (success) {
-          console.log('[Payment Modal] Polling succeeded, cleaning up');
-          setIsPolling(false);
-        }
-      }, 2000);
-    }
+    if (!isOpen || !isPolling) return;
 
-    // Cleanup
+    console.log('[Payment Modal] Starting polling interval');
+    pollInterval.current = setInterval(async () => {
+      console.log('[Payment Modal] Polling iteration starting');
+      const success = await pollPaymentStatus();
+      if (success) {
+        console.log('[Payment Modal] Polling succeeded, cleaning up');
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          pollInterval.current = undefined;
+        }
+      }
+    }, 2000);
+
     return () => {
-      if (pollIntervalRef.current) {
-        console.log('[Payment Modal] Cleaning up polling interval');
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = undefined;
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = undefined;
       }
     };
-  }, [isPolling, onClose, onPaymentSuccess]);
+  }, [isPolling, isOpen]);
 
   return (
     <>
@@ -249,7 +223,6 @@ export default function PremiumUpgradeModal({
           <div className="h-full w-full overflow-hidden">
             <div className="flex h-full m-auto font-raleway py-4 px-2">
               <button
-                onClick={onClose}
                 className="absolute top-6 right-6 text-gray-600 hover:text-gray-800 bg-slate-300 hover:bg-slate-400 p-1.5 rounded-2xl transition-colors"
                 aria-label="Close modal"
               >

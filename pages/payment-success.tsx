@@ -3,11 +3,7 @@ import { useEffect } from 'react';
 export default function PaymentSuccess() {
   useEffect(() => {
     console.log('[Payment Success] Closing payment window...');
-    if (window.opener) {
-      window.close();
-    } else {
-      window.location.href = '/';
-    }
+    window.close();
   }, []);
 
   return (
