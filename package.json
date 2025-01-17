@@ -16,6 +16,7 @@
     "@ai-sdk/openai": "^1.0.7",
     "@google/generative-ai": "^0.21.0",
     "@headlessui/react": "^2.2.0",
+    "@hello-pangea/dnd": "^17.0.0",
     "@heroicons/react": "^2.2.0",
     "@next/font": "^14.2.15",
     "@radix-ui/react-dialog": "^1.1.4",

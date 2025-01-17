@@ -30,11 +30,6 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/payment-success": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/payment-success.js"
-    ],
     "/travel-form": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",

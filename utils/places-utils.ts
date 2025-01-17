@@ -26,6 +26,9 @@ export interface Place {
             photoUri?: string;
         }>;
     }[];
+    // Optional indices for itinerary planning
+    dayIndex?: number;
+    orderIndex?: number;
 }
 
 interface GooglePlaceResponse {
@@ -204,6 +207,7 @@ export interface SavedPlacesManager {
     removePlace: (id: string) => void;
     getPlaces: () => Place[];
     hasPlace: (id: string) => boolean;
+    updatePlace: (place: Place) => void;
     _persist: () => void;
     _notifyChange: () => void;
     serialize: () => string;
@@ -274,6 +278,13 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
         hasPlace(id: string): boolean {
             loadFromStorage(); // Ensure places are loaded
             return places.has(id);
+        },
+        updatePlace(place: Place) {
+            if (place.id && places.has(place.id)) {
+                places.set(place.id, place);
+                this._persist();
+                this._notifyChange();
+            }
         },
         _persist() {
             if (typeof window !== 'undefined') {
@@ -468,7 +479,6 @@ function initializeMetrics(): TravelSession {
             budget: '',
             language: '',
             transport: [],
-            messages: [],
             savedPlaces: [],
             currentStage: 1,
             totalPrompts: 0,
