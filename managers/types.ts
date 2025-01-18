@@ -218,6 +218,10 @@ export interface TravelSession {
     budget: string;
     language: string;
     transport: string[];
+    location?: {
+        latitude: number;
+        longitude: number;
+    };
 
     // Places
     savedPlaces: any[];

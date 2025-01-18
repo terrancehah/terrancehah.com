@@ -8,9 +8,6 @@ interface MapComponentProps {
     apiKey: string;
 }
 
-// Keep for backward compatibility
-const globalSavedPlaces = savedPlacesManager.places;
-
 declare global {
     interface Window {
         initMap: () => void;
@@ -342,16 +339,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
         window.removePlaceFromMap = (placeId: string) => {
             console.log('Debug - Starting removal process for placeId:', placeId);
-             // Remove from global storage
-            savedPlacesManager.removePlace(placeId);
-
+            
             try {
                 const marker = markersRef.current.get(placeId);
                 if (marker) {
                     console.log('Debug - Found marker:', marker);
                     
-                    // Simply set the map to null to remove the marker
-                    marker.position = null;
+                    // Remove marker from map
+                    marker.map = null;
                     
                     // Close info window if open
                     if (infoWindowRef.current) {
@@ -365,10 +360,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                     markersRef.current.delete(placeId);
                     savedPlacesManager.removePlace(placeId);
 
-                    // Force update component state
-                    setMarkerCount(prev => prev - 1);
-                    setSavedPlaces(new Map(savedPlacesManager.places));
-
                     console.log('Debug - After removal markers:', [...markersRef.current.entries()]);
                     console.log('Debug - Successfully removed marker and place:', placeId);
                 } else {
@@ -377,6 +368,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             } catch (error) {
                 console.error('Debug - Error during marker removal:', error);
             }
+            
             // Notify components that places changed
             window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
                 detail: {
@@ -409,10 +401,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                  // Add to global storage first
                 if (data.place) {
                     savedPlacesManager.addPlace(data.place);
-                     // Force a re-render when adding a marker
-                    setMarkerCount(prev => prev + 1);
-                    setSavedPlaces(new Map(savedPlacesManager.places));
-                    console.log('Debug - Added place:', savedPlacesManager.places);
                 }
 
                 const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
@@ -495,7 +483,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             return savedPlacesManager.getPlaces();
         };
         
-    }, [map, infoWindow, markerCount]);
+    }, [map, infoWindow]);
 
     // // Add a useEffect to monitor savedPlaces changes
     // useEffect(() => {
@@ -570,6 +558,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         }
     };
 
+    //Place info window
     const createPlaceInfoWindowContent = (place: Place, markerId: string) => {
         console.log('Debug - Creating info window content for markerId:', markerId);
         const photoUrl = place.photos && place.photos[0] 
@@ -594,26 +583,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                         <h3 class="text-lg font-semibold text-gray-900 mb-1">
                             ${placeTitle}
                         </h3>
-                        <button 
-                            onclick="
-                                (function() {
-                                    console.log('Debug - Delete button clicked for markerId:', '${markerId}');
-                                    if (window.removePlaceFromMap) {
-                                        window.removePlaceFromMap('${markerId}');
-                                        // Close the info window after deletion
-                                        if (window.currentInfoWindow) {
-                                            window.currentInfoWindow.close();
-                                        }
-                                    }
-                                })();
-                            "
-                            class="p-1 hover:bg-red-50 rounded-full"
-                            aria-label="Remove place"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
                     </div>
                     ${place.primaryTypeDisplayName 
                         ? `<div class="text-sm text-gray-600 mb-1">${place.primaryTypeDisplayName.text}</div>`

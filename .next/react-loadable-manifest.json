@@ -1,4 +1,10 @@
 {
+  "index.tsx -> ../components/daily-planner": {
+    "id": "index.tsx -> ../components/daily-planner",
+    "files": [
+      "static/chunks/components_daily-planner_tsx.js"
+    ]
+  },
   "index.tsx -> ../components/map-component": {
     "id": "index.tsx -> ../components/map-component",
     "files": [

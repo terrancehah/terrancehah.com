@@ -69,6 +69,10 @@ export function initializeSession(): TravelSession {
     budget: '',
     language: '',
     transport: [],
+    location: {
+      latitude: 0,
+      longitude: 0
+    },
 
     // Places
     savedPlaces: [],
@@ -423,4 +427,15 @@ export function updateLastActive() {
 
 export function generateSessionId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Update session with location
+export function updateSessionLocation(location: { latitude: number; longitude: number }) {
+  const session = getStoredSession();
+  if (!session) return;
+
+  session.location = location;
+  safeStorageOp(() => {
+    storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(session));
+  }, undefined);
 }

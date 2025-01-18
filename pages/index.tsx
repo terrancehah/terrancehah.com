@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import { TravelPreference, BudgetLevel, SupportedLanguage, TravelDetails, TravelSession } from '@/managers/types';
 import StageProgress from '@/components/stage-progress';
 import { Place } from '@/utils/places-utils';
-import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, getPaymentReference, setPaymentStatus, clearPaymentReference, getPaymentStatus } from '../utils/session-manager';
+import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, getPaymentReference, setPaymentStatus, clearPaymentReference, getPaymentStatus, updateSessionLocation } from '../utils/session-manager';
 import PaymentSuccessPopup from '@/components/payment-success-popup';
 import PremiumUpgradeModal from '@/components/premium-upgrade-modal';
 import { validateStageProgression } from '../managers/stage-manager';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
+    ssr: false,
+})
+
+const ItineraryPlanner = dynamic(() => import('../components/daily-planner'), {
     ssr: false,
 })
 
@@ -195,20 +199,19 @@ export default function ChatPage() {
                     const location = data.results[0].geometry.location;
                     console.log('Parsed Location:', location);
                     
-                    // Only update location if coordinates have changed
-                    setTravelDetails(prevDetails => {
-                        if (prevDetails.location?.latitude === location.lat && 
-                            prevDetails.location?.longitude === location.lng) {
-                            return prevDetails; // No change needed
-                        }
-                        return {
-                            ...prevDetails,
-                            location: {
-                                latitude: location.lat,
-                                longitude: location.lng
-                            }
-                        };
-                    });
+                    // Update both travel details and session
+                    const newLocation = {
+                        latitude: location.lat,
+                        longitude: location.lng
+                    };
+                    
+                    setTravelDetails(prevDetails => ({
+                        ...prevDetails,
+                        location: newLocation
+                    }));
+                    
+                    // Store location in session
+                    updateSessionLocation(newLocation);
                 }
             } catch (error) {
                 console.error('Error fetching coordinates:', error);
@@ -242,12 +245,21 @@ export default function ChatPage() {
                 {/* Chat Interface */}
                 <div className={`${isMobile ? 'w-full' : 'w-[50%]'} h-full border-r border-gray-200 overflow-y-auto`}>
                     {isDetailsReady ? (
-                        <TravelChatComponent 
-                            initialDetails={travelDetails} 
-                            onPlaceRemoved={handlePlaceRemoved}
-                            currentStage={currentStage}
-                            onStageUpdate={setCurrentStage}
-                        />
+                        <>
+                            {currentStage < 4 && (
+                                <TravelChatComponent 
+                                    initialDetails={travelDetails} 
+                                    onPlaceRemoved={handlePlaceRemoved}
+                                    currentStage={currentStage}
+                                    onStageUpdate={setCurrentStage}
+                                />
+                            )}
+                            {currentStage === 4 && (
+                                <ItineraryPlanner 
+                                    onPlaceRemoved={handlePlaceRemoved}
+                                />
+                            )}
+                        </>
                     ) : (
                         <div className="flex items-center justify-center h-full">
                             <p className="text-gray-500">Loading travel details...</p>

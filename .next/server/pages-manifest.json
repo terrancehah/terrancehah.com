@@ -1,4 +1,7 @@
 {
+  "/api/weather/historical": "pages/api/weather/historical.js",
+  "/api/chat": "pages/api/chat.js",
+  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
