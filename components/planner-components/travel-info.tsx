@@ -1,19 +1,41 @@
 import { Clock, ArrowLeftRight } from 'lucide-react'
 import { cn } from '../../utils/cn'
+import { useEffect, useState } from 'react'
+import { Place } from '../../utils/places-utils'
+import { travelInfoManager } from '../../utils/travel-info-utils'
 
 interface TravelInfoProps {
-  duration?: string
-  distance?: string
-  isLoading?: boolean
+  place: Place
+  nextPlace: Place
   className?: string
 }
 
-export function TravelInfo({ 
-  duration = "30 mins", 
-  distance = "3.2 km",
-  isLoading = false,
-  className
-}: TravelInfoProps) {
+export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
+  const [isLoading, setIsLoading] = useState(true)
+  const [duration, setDuration] = useState('--')
+  const [distance, setDistance] = useState('--')
+
+  useEffect(() => {
+    async function fetchTravelInfo() {
+      try {
+        setIsLoading(true)
+        const info = await travelInfoManager.getTravelInfo(place, nextPlace)
+        if (info) {
+          setDuration(info.duration)
+          setDistance(info.distance)
+        }
+      } catch (error) {
+        console.error('[TravelInfo] Error:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (place?.location && nextPlace?.location) {
+      fetchTravelInfo()
+    }
+  }, [place?.location, nextPlace?.location])
+
   return (
     <div className={cn(
       "relative my-2 flex items-center gap-3 py-4",

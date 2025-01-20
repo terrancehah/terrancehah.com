@@ -5,9 +5,8 @@ import { Droppable, Draggable, DragDropContext } from '@hello-pangea/dnd'
 import { DayPlan } from '../daily-planner'
 import { Place } from '../../utils/places-utils'
 import { PlaceCompactCard } from './place-compact-card'
-import { Search, Loader2, GripVertical, Clock, MoveHorizontal, ArrowRight } from 'lucide-react'
-import { Input } from '../ui/input'
-import { searchPlaceByText } from '../../utils/places-utils'
+import { PlaceSearch } from './place-search'
+import { Loader2, GripVertical, Clock, MoveHorizontal, ArrowRight } from 'lucide-react'
 import { getStoredSession } from '../../utils/session-manager'
 import { cn } from '../../utils/cn'
 import { Fragment } from 'react'
@@ -24,9 +23,7 @@ interface DaySectionProps {
 }
 
 export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChange, className = '', isDragging = false }: DaySectionProps) {
-  const [searchText, setSearchText] = useState('')
   const [isSearching, setIsSearching] = useState(false)
-  const [searchError, setSearchError] = useState('')
   
   // Format date to display like "Day 1 (Jan 21)" or "Day 1 (Jan 21, 2025)" if different year
   const date = new Date(day.date)
@@ -37,53 +34,22 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
     ...(date.getFullYear() !== today.getFullYear() && { year: 'numeric' })
   })
 
-  const handleSearch = async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && searchText.trim() && !isSearching) {
-      setSearchError('')
-      const session = getStoredSession()
-      if (session && session.savedPlaces.length > 0) {
-        setIsSearching(true)
-        const firstPlace = session.savedPlaces[0]
-        const location = firstPlace.location
-        if (location) {
-          try {
-            // Add timeout to prevent infinite loading
-            const timeoutPromise = new Promise<Place>((_, reject) => 
-              setTimeout(() => reject(new Error('Search timeout')), 10000)
-            );
-            const searchPromise = searchPlaceByText(
-              searchText,
-              location,
-              session.destination
-            );
-            
-            const place = await Promise.race<Place | null>([searchPromise, timeoutPromise]);
-            if (place) {
-              onAddPlace(day.id, place)
-              setSearchText('')
-            } else {
-              setSearchError('No places found')
-            }
-          } catch (error) {
-            console.error('[handleSearch] Error:', error)
-            setSearchError(error instanceof Error ? error.message : 'Failed to search place')
-          } finally {
-            setIsSearching(false)
-          }
-        } else {
-          setIsSearching(false)
-          setSearchError('Invalid location data')
-        }
-      }
-    }
-  }
-
   const onDragEnd = (result: any) => {
     if (!result.destination) return;
 
     const newPlaces = [...day.places];
     const [movedPlace] = newPlaces.splice(result.source.index, 1);
+    
+    // Update the moved place's indices
+    movedPlace.dayIndex = index;
+    movedPlace.orderIndex = result.destination.index;
+    
     newPlaces.splice(result.destination.index, 0, movedPlace);
+    
+    // Update all other places' order indices
+    newPlaces.forEach((place, idx) => {
+      place.orderIndex = idx;
+    });
     
     onPlacesChange(day.id, newPlaces);
   };
@@ -138,9 +104,8 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
                 {/* Travel info centered between places */}
                 <div className="my-auto">
                   <TravelInfo 
-                    duration="30 mins"
-                    distance="3.2 km"
-                    isLoading={false}
+                    place={place}
+                    nextPlace={day.places[idx + 1]}
                     className="pointer-events-none"
                   />
                 </div>
@@ -150,24 +115,11 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
         </div>
         
         <div className="mt-4">
-          <div className="relative">
-            {isSearching ? (
-              <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-            ) : (
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            )}
-            <Input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              onKeyDown={handleSearch}
-              placeholder={isSearching ? "Searching..." : "Search for a place to add..."}
-              className={cn("pl-8", isSearching && "text-muted-foreground")}
-              disabled={isSearching}
-            />
-            {searchError && (
-              <p className="mt-1 text-sm text-destructive">{searchError}</p>
-            )}
-          </div>
+          <PlaceSearch
+            onPlaceSelected={(place) => onAddPlace(day.id, place)}
+            disabled={isSearching}
+            className="w-full"
+          />
         </div>
       </div>
     </DragDropContext>

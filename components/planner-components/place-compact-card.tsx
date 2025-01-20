@@ -20,7 +20,7 @@ export function PlaceCompactCard({ place, onDelete, dragHandleProps, className }
 
   const photoUrl = place.photos?.[0]?.name
     ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?maxHeightPx=192&maxWidthPx=400&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`
-    : '/placeholder.svg'
+    : '/images/placeholder-image.jpg'
 
   return (
     <div className={cn("group flex w-full items-center gap-3 rounded-lg border bg-card p-3 shadow-sm", className)}>
@@ -46,7 +46,7 @@ export function PlaceCompactCard({ place, onDelete, dragHandleProps, className }
           onError={(e) => {
             setImageLoading(false)
             // @ts-ignore - src exists on HTMLImageElement
-            e.currentTarget.src = '/placeholder.svg'
+            e.currentTarget.src = '/images/placeholder-image.jpg'
           }}
         />
       </div>

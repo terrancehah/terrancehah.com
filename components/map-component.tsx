@@ -68,12 +68,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const scriptLoadedRef = useRef(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
     const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
     const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
     const [markerCount, setMarkerCount] = useState(0);
+
+    // Handle script load once
+    const handleScriptLoad = useCallback(() => {
+        scriptLoadedRef.current = true;
+        setScriptLoaded(true);
+    }, []);
 
     // Memoize getSavedPlaces to prevent unnecessary re-renders
     // const getSavedPlaces = useCallback(() => {
@@ -139,7 +146,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             }
         }
 
-        if (!scriptLoaded || !mapRef.current) {
+        if (!scriptLoadedRef.current || !mapRef.current) {
             console.log('MapComponent: Waiting for script to load or map ref to be ready...');
             return;
         }
@@ -332,7 +339,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
 
         initMap();
-    }, [city, scriptLoaded, apiKey]);
+    }, [city, scriptLoadedRef, apiKey]);
 
     useEffect(() => {
         if (!map) return;
@@ -601,10 +608,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 <Script
                     src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=beta&callback=Function.prototype`}
                     strategy="afterInteractive"
-                    onLoad={() => {
-                        console.log('Google Maps script loaded');
-                        setScriptLoaded(true);
-                    }}
+                    onLoad={handleScriptLoad}
                     onError={(e) => {
                         console.error('Failed to load Google Maps script:', e);
                         setError('Failed to load Google Maps');
