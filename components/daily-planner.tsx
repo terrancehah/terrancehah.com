@@ -179,6 +179,14 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
     }))
   }
 
+  const handlePlacesChange = (dayId: string, newPlaces: Place[]) => {
+    setDays(days.map(day => 
+      day.id === dayId 
+        ? { ...day, places: newPlaces }
+        : day
+    ));
+  };
+
   return (
     <div className="flex h-screen flex-col">
         
@@ -293,6 +301,7 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
                   index={index}
                   onDeletePlace={handleDeletePlace}
                   onAddPlace={handleAddPlace}
+                  onPlacesChange={handlePlacesChange}
                   isDragging={isDragging}
                   className="w-[80%] mx-auto"
                 />

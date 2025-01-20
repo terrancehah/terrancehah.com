@@ -2,17 +2,17 @@
   "sortedMiddleware": [],
   "middleware": {},
   "functions": {
-    "/api/weather/historical": {
+    "/api/chat/quick-response": {
       "files": [
         "server/edge-runtime-webpack.js",
-        "server/pages/api/weather/historical.js"
+        "server/pages/api/chat/quick-response.js"
       ],
-      "name": "pages/api/weather/historical",
-      "page": "/api/weather/historical",
+      "name": "pages/api/chat/quick-response",
+      "page": "/api/chat/quick-response",
       "matchers": [
         {
-          "regexp": "^/api/weather/historical$",
-          "originalSource": "/api/weather/historical"
+          "regexp": "^/api/chat/quick\\-response$",
+          "originalSource": "/api/chat/quick-response"
         }
       ],
       "wasm": [],
@@ -29,22 +29,6 @@
         {
           "regexp": "^/api/chat$",
           "originalSource": "/api/chat"
-        }
-      ],
-      "wasm": [],
-      "assets": []
-    },
-    "/api/chat/quick-response": {
-      "files": [
-        "server/edge-runtime-webpack.js",
-        "server/pages/api/chat/quick-response.js"
-      ],
-      "name": "pages/api/chat/quick-response",
-      "page": "/api/chat/quick-response",
-      "matchers": [
-        {
-          "regexp": "^/api/chat/quick\\-response$",
-          "originalSource": "/api/chat/quick-response"
         }
       ],
       "wasm": [],

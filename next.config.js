@@ -26,6 +26,10 @@ const nextConfig = {
       {
         source: '/api/chat',
         destination: '/api/chat/',
+      },
+      {
+        source: '/api/weather/:path*',
+        destination: '/api/weather/:path*',
       }
     ]
   },

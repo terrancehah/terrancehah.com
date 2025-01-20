@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Droppable, Draggable } from '@hello-pangea/dnd'
+import { Droppable, Draggable, DragDropContext } from '@hello-pangea/dnd'
 import { DayPlan } from '../daily-planner'
 import { Place } from '../../utils/places-utils'
 import { PlaceCompactCard } from './place-compact-card'
@@ -11,40 +11,19 @@ import { searchPlaceByText } from '../../utils/places-utils'
 import { getStoredSession } from '../../utils/session-manager'
 import { cn } from '../../utils/cn'
 import { Fragment } from 'react'
+import { TravelInfo } from './travel-info'
 
 interface DaySectionProps {
   day: DayPlan
   index: number
   onDeletePlace: (dayId: string, placeId: string) => void
   onAddPlace: (dayId: string, place: Place) => void
+  onPlacesChange: (dayId: string, places: Place[]) => void
   className?: string
   isDragging?: boolean
 }
 
-interface TravelInfoProps {
-  place: Place
-  nextPlace: Place
-  isLoading?: boolean
-  className?: string
-}
-
-function TravelInfo({ place, nextPlace, isLoading, className }: TravelInfoProps) {
-  return (
-    <div className={`relative ml-[52px] flex flex-col gap-1 text-sm text-gray-500 ${className}`}>
-      <div className="absolute -left-[18px] top-0 h-full w-px bg-gray-200" />
-      <div className="flex items-center gap-2">
-        <Clock className="h-4 w-4" />
-        <div className="h-4 w-16 animate-pulse rounded bg-gray-200" />
-      </div>
-      <div className="flex items-center gap-2">
-        <MoveHorizontal className="h-4 w-4" />
-        <div className="h-4 w-16 animate-pulse rounded bg-gray-200" />
-      </div>
-    </div>
-  )
-}
-
-export function DaySection({ day, index, onDeletePlace, onAddPlace, className = '', isDragging = false }: DaySectionProps) {
+export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChange, className = '', isDragging = false }: DaySectionProps) {
   const [searchText, setSearchText] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
@@ -99,77 +78,98 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, className = 
     }
   }
 
+  const onDragEnd = (result: any) => {
+    if (!result.destination) return;
+
+    const newPlaces = [...day.places];
+    const [movedPlace] = newPlaces.splice(result.source.index, 1);
+    newPlaces.splice(result.destination.index, 0, movedPlace);
+    
+    onPlacesChange(day.id, newPlaces);
+  };
+
   return (
-    <div className={`rounded-lg border bg-card p-4 shadow-sm ${className}`}>
-      <h2 className="mb-3 ml-1 text-lg font-semibold">Day {index + 1} ({formattedDate})</h2>
-      
-      <Droppable droppableId={day.id}>
-        {(provided) => (
-          <div
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-            className="flex flex-col gap-4"
-          >
-            {day.places.map((place, placeIndex) => (
-              <Fragment key={place.id}>
-                <Draggable draggableId={place.id} index={placeIndex}>
-                  {(provided, snapshot) => (
-                    
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      className={cn(
-                        'flex flex-col rounded-lg bg-white  shadow-sm',
-                        snapshot.isDragging && 'z-10'
-                      )}
-                    >
-
-                      <div className="group relative">
-
-                        <div {...provided.dragHandleProps} className="absolute left-3 top-1/2 -translate-y-1/2">
-                          <GripVertical className="h-7 w-5 text-gray-400 opacity-60 transition-opacity group-hover:opacity-100" />
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className={`rounded-lg border bg-card p-4 shadow-sm ${className}`}>
+        <h2 className="mb-3 ml-1 text-lg font-semibold">Day {index + 1} ({formattedDate})</h2>
+        
+        <div className="flex">
+          {/* Places column with drag and drop */}
+          <div className="flex-1">
+            <Droppable droppableId={day.id}>
+              {(provided) => (
+                <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="space-y-4"
+                >
+                  {day.places.map((place, placeIndex) => (
+                    <Draggable key={place.id} draggableId={place.id} index={placeIndex}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          className={cn(
+                            'rounded-lg bg-white shadow-sm max-h-[100px] overflow-hidden',
+                            snapshot.isDragging && 'ring-2 ring-primary ring-offset-2 z-30'
+                          )}
+                        >
+                          <div className="group relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                              <GripVertical className="h-7 w-5 text-gray-400 opacity-60 transition-opacity group-hover:opacity-100" />
+                            </div>
+                            <PlaceCompactCard place={place} className="pl-10" onDelete={() => onDeletePlace(day.id, place.id)} />
+                          </div>
                         </div>
-
-                        <PlaceCompactCard place={place} className="pl-10" onDelete={() => onDeletePlace(day.id, place.id)} />
-                      </div>
-                    </div>
-                  )}
-                </Draggable>
-                {placeIndex < day.places.length - 1 && !isDragging && (
-                  <TravelInfo 
-                    isLoading={true}
-                    className="mx-4" 
-                    place={place} 
-                    nextPlace={day.places[placeIndex + 1]} 
-                  />
-                )}
-              </Fragment>
-            ))}
-            {provided.placeholder}
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </div>
+              )}
+            </Droppable>
           </div>
-        )}
-      </Droppable>
 
-      <div className="mt-4">
-        <div className="relative">
-          {isSearching ? (
-            <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-          ) : (
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          )}
-          <Input
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            onKeyDown={handleSearch}
-            placeholder={isSearching ? "Searching..." : "Search for a place to add..."}
-            className={cn("pl-8", isSearching && "text-muted-foreground")}
-            disabled={isSearching}
-          />
-          {searchError && (
-            <p className="mt-1 text-sm text-destructive">{searchError}</p>
-          )}
+          {/* Travel info column with connecting lines */}
+          <div className="w-28 relative flex flex-col gap-y-7 my-auto">
+            {day.places.slice(0, -1).map((place, idx) => (
+              <div key={`travel-${place.id}`} className="relative ml-[15px] align-middle flex" style={{ height: '88px' }}>
+                {/* Travel info centered between places */}
+                <div className="my-auto">
+                  <TravelInfo 
+                    duration="30 mins"
+                    distance="3.2 km"
+                    isLoading={false}
+                    className="pointer-events-none"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div className="mt-4">
+          <div className="relative">
+            {isSearching ? (
+              <Loader2 className="absolute left-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            )}
+            <Input
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={handleSearch}
+              placeholder={isSearching ? "Searching..." : "Search for a place to add..."}
+              className={cn("pl-8", isSearching && "text-muted-foreground")}
+              disabled={isSearching}
+            />
+            {searchError && (
+              <p className="mt-1 text-sm text-destructive">{searchError}</p>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </DragDropContext>
   )
 }
