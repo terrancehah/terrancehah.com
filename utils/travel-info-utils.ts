@@ -5,6 +5,8 @@ interface TravelInfo {
   distance: string
   timestamp: number
   error?: boolean
+  polyline?: string
+  legPolyline?: string
 }
 
 interface TravelInfoCache {
@@ -88,7 +90,9 @@ class TravelInfoManager {
       const info: TravelInfo = {
         duration: `${minutes} mins`,
         distance: `${km} km`,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        polyline: data.polyline,
+        legPolyline: data.legPolyline
       }
 
       this.cache[key] = info
