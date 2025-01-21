@@ -1,9 +1,11 @@
 {
   "/api/chat": "pages/api/chat.js",
+  "/api/weather/historical": "pages/api/weather/historical.js",
   "/api/chat/quick-response": "pages/api/chat/quick-response.js",
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/travel-form": "pages/travel-form.js"
+  "/api/travel-info": "pages/api/travel-info.js",
+  "/travel-form": "pages/travel-form.js",
+  "/": "pages/index.js"
 }

@@ -68,7 +68,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const scriptLoadedRef = useRef(false);
     const [scriptLoaded, setScriptLoaded] = useState(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
     const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
@@ -78,38 +77,9 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
     // Handle script load once
     const handleScriptLoad = useCallback(() => {
-        scriptLoadedRef.current = true;
+        console.log('Google Maps script loaded');
         setScriptLoaded(true);
     }, []);
-
-    // Memoize getSavedPlaces to prevent unnecessary re-renders
-    // const getSavedPlaces = useCallback(() => {
-    //     const now = Date.now();
-    //     // Only update if more than 1000ms has passed since last update
-    //     if (now - lastUpdateRef.current < 1000) {
-    //         return savedPlacesRef.current;
-    //     }
-    //     lastUpdateRef.current = now;
-    //     return savedPlacesRef.current;
-    // }, []);
-
-    // Expose getSavedPlaces to window with debouncing
-    // useEffect(() => {
-    //     if (typeof window !== 'undefined') {
-    //         window.getSavedPlaces = getSavedPlaces;
-    //     }
-    //     return () => {
-    //         if (typeof window !== 'undefined') {
-    //             delete window.getSavedPlaces;
-    //         }
-    //     };
-    // }, [getSavedPlaces]);
-
-    // // Update savedPlacesRef when places are added/removed
-    // const updateSavedPlaces = useCallback((places: Place[]) => {
-    //     savedPlacesRef.current = places;
-    //     lastUpdateRef.current = Date.now();
-    // }, []);
 
     useEffect(() => {
         console.log('MapComponent: Received props:', { city, apiKeyLength: apiKey?.length });
@@ -146,8 +116,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             }
         }
 
-        if (!scriptLoadedRef.current || !mapRef.current) {
-            console.log('MapComponent: Waiting for script to load or map ref to be ready...');
+        if (!scriptLoaded) {
+            console.log('MapComponent: Waiting for script to load...');
+            return;
+        }
+
+        // Skip if map is already initialized
+        if (map) {
+            console.log('MapComponent: Map already initialized');
             return;
         }
 
@@ -339,7 +315,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
 
         initMap();
-    }, [city, scriptLoadedRef, apiKey]);
+    }, [city, scriptLoaded, apiKey]);
 
     useEffect(() => {
         if (!map) return;
@@ -492,11 +468,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         
     }, [map, infoWindow]);
 
-    // // Add a useEffect to monitor savedPlaces changes
-    // useEffect(() => {
-    //     console.log('Current saved places:', [...globalSavedPlaces.entries()]);
-    // }, [savedPlaces]);
-
     useEffect(() => {
         // Save to session storage when places change
         const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
@@ -608,11 +579,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 <Script
                     src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=beta&callback=Function.prototype`}
                     strategy="afterInteractive"
-                    onLoad={handleScriptLoad}
+                    onLoad={() => {
+                        console.log('Google Maps script loaded');
+                        setScriptLoaded(true);
+                    }}
                     onError={(e) => {
                         console.error('Failed to load Google Maps script:', e);
                         setError('Failed to load Google Maps');
-                        setIsLoading(false);
                     }}
                 />
             )}

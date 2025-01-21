@@ -3,7 +3,7 @@ import { Input } from '../ui/input'
 import { Search, Loader2 } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import { getStoredSession } from '../../utils/session-manager'
-import { Place } from '../../utils/places-utils'
+import { Place, searchPlaceByText } from '../../utils/places-utils'
 
 interface PlaceSearchProps {
   onPlaceSelected: (place: Place) => void
@@ -26,37 +26,58 @@ export function PlaceSearch({ onPlaceSelected, className = '', disabled = false 
           new window.google.maps.LatLng(session.location.latitude - 0.1, session.location.longitude - 0.1),
           new window.google.maps.LatLng(session.location.latitude + 0.1, session.location.longitude + 0.1)
         ),
-        strictBounds: true,
-        fields: ['place_id', 'name', 'types', 'formatted_address', 'geometry', 'photos']
+        strictBounds: true
       })
 
-      autocomplete.addListener('place_changed', () => {
+      autocomplete.addListener('place_changed', async () => {
         const place = autocomplete.getPlace()
-        if (place.geometry) {
-          const newPlace: Place = {
-            id: place.place_id || `place-${Date.now()}`,
-            name: place.name || undefined,
-            displayName: place.name || '',
-            primaryType: place.types?.[0] || 'establishment',
-            primaryTypeDisplayName: {
-              text: place.types?.[0] || 'establishment',
-              languageCode: 'en'
+        console.log('Google Place result:', place)
+        
+        if (!place?.place_id) {
+          console.error('Invalid place selected:', place)
+          setSearchError('Invalid place selected')
+          return
+        }
+
+        setIsSearching(true)
+        try {
+          // Use Places Service to get full details
+          const service = new window.google.maps.places.PlacesService(document.createElement('div'))
+          
+          service.getDetails(
+            {
+              placeId: place.place_id,
+              fields: ['name', 'geometry']
             },
-            formattedAddress: place.formatted_address,
-            photos: place.photos?.map(photo => ({
-              name: photo.getUrl?.() || '',
-              widthPx: photo.width,
-              heightPx: photo.height,
-            })) || [],
-            location: {
-              latitude: place.geometry.location?.lat() || 0,
-              longitude: place.geometry.location?.lng() || 0
-            },
-            dayIndex: -1,
-            orderIndex: -1
-          }
-          onPlaceSelected(newPlace)
-          setSearchText('')
+            async (detailedPlace, status) => {
+              if (status !== 'OK' || !detailedPlace?.name) {
+                console.error('Failed to get place details:', status)
+                setSearchError('Failed to get place details')
+                setIsSearching(false)
+                return
+              }
+
+              console.log('Searching with place name:', detailedPlace.name)
+              const fullPlace = await searchPlaceByText(
+                detailedPlace.name,
+                {
+                  latitude: session.location.latitude,
+                  longitude: session.location.longitude
+                },
+                session.destination
+              )
+              
+              if (fullPlace) {
+                onPlaceSelected(fullPlace)
+                setSearchText('')
+              }
+              setIsSearching(false)
+            }
+          )
+        } catch (error) {
+          console.error('Error searching for place:', error)
+          setSearchError('Failed to add place')
+          setIsSearching(false)
         }
       })
     }
