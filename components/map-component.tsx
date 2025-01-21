@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import Script from 'next/script';
 import { Place, savedPlacesManager, searchPlaceByText } from '@/utils/places-utils';
 import { SESSION_CONFIG } from '../utils/session-manager';
 
@@ -68,7 +67,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [scriptLoaded, setScriptLoaded] = useState(false);
+    const scriptLoadedRef = useRef(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
     const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
@@ -78,7 +77,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     // Handle script load once
     const handleScriptLoad = useCallback(() => {
         console.log('Google Maps script loaded');
-        setScriptLoaded(true);
+        scriptLoadedRef.current = true;
     }, []);
 
     useEffect(() => {
@@ -116,8 +115,19 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             }
         }
 
-        if (!scriptLoaded) {
-            console.log('MapComponent: Waiting for script to load...');
+        if (!scriptLoadedRef.current && !document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
+            console.log('MapComponent: Loading Google Maps script...');
+            // Load the script dynamically
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=beta&callback=Function.prototype`;
+            script.async = true;
+            script.onload = () => {
+                console.log('Google Maps script loaded dynamically');
+                scriptLoadedRef.current = true;
+                // Force a re-render to initialize the map
+                setIsLoading(true);
+            };
+            document.head.appendChild(script);
             return;
         }
 
@@ -315,7 +325,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
 
         initMap();
-    }, [city, scriptLoaded, apiKey]);
+    }, [city, scriptLoadedRef, apiKey]);
 
     useEffect(() => {
         if (!map) return;
@@ -377,13 +387,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
 
                 // Add this check for duplicates
                 if (savedPlacesManager.hasPlace(markerId)) {
-                    console.log('Debug - Place already exists:', markerId);
-                    return;
-                }
-
-                 // Add to global storage first
-                if (data.place) {
-                    savedPlacesManager.addPlace(data.place);
+                    // Check if marker exists and is on map
+                    const existingMarker = markersRef.current.get(markerId);
+                    if (existingMarker?.map) {
+                        console.log('Debug - Place already exists and has marker:', markerId);
+                        return;
+                    }
+                    console.log('Debug - Place exists but needs new marker:', markerId);
                 }
 
                 const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
@@ -438,16 +448,15 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 });
 
                 // Store the marker reference
-                // markersRef.current.set(markerId, marker);
+                markersRef.current.set(markerId, marker);
                 
-                // if (data.place) {
-                //     savedPlacesManager.addPlace(data.place);
-                //     // Force a re-render when adding a marker
-                //     setMarkerCount(prev => prev + 1);
-                //     setSavedPlaces(new Map(savedPlacesManager.places));
-                //     console.log('Debug - Added place:', savedPlacesManager.places);
-                // }
-                // console.log('Debug - Marker added successfully');
+                if (data.place) {
+                    // Force a re-render when adding a marker
+                    setMarkerCount(prev => prev + 1);
+                    setSavedPlaces(new Map(savedPlacesManager.places));
+                    console.log('Debug - Added place:', savedPlacesManager.places);
+                }
+                console.log('Debug - Marker added successfully');
 
                 // Notify components that places changed
                 window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
@@ -467,6 +476,25 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         };
         
     }, [map, infoWindow]);
+
+    useEffect(() => {
+        if (!map) return;
+        
+        // Re-add markers for all saved places
+        const savedPlaces = savedPlacesManager.getPlaces();
+        console.log('Restoring markers for saved places:', savedPlaces.length);
+        
+        savedPlaces.forEach(place => {
+            if (place.location) {
+                window.addPlaceToMap?.({
+                    latitude: place.location.latitude,
+                    longitude: place.location.longitude,
+                    title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+                    place: place
+                });
+            }
+        });
+    }, [map]);
 
     useEffect(() => {
         // Save to session storage when places change
@@ -574,41 +602,18 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     };
 
     return (
-        <div className="relative w-full h-full">
-            {apiKey && (
-                <Script
-                    src={`https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker&v=beta&callback=Function.prototype`}
-                    strategy="afterInteractive"
-                    onLoad={() => {
-                        console.log('Google Maps script loaded');
-                        setScriptLoaded(true);
-                    }}
-                    onError={(e) => {
-                        console.error('Failed to load Google Maps script:', e);
-                        setError('Failed to load Google Maps');
-                    }}
-                />
-            )}
+        <div className="w-full h-full relative">
+            <div ref={mapRef} className="w-full h-full" />
             {error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-red-500 p-4 text-center">
+                <div className="absolute top-0 left-0 right-0 bg-red-500 text-white p-2 text-center">
                     {error}
                 </div>
             )}
-            {isLoading && !error && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                    <div className="text-gray-600">
-                        Loading map...
-                        {!apiKey && <div>Waiting for API key...</div>}
-                    </div>
+            {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-75">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
                 </div>
             )}
-            <div ref={mapRef} className="w-full h-full" />
-            {/* {selectedPlace && (
-                <SmallPlaceCard 
-                    place={selectedPlace} 
-                    onClose={() => setSelectedPlace(null)} 
-                />
-            )} */}
         </div>
     );
 };

@@ -25,6 +25,27 @@ interface DaySectionProps {
 export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChange, className = '', isDragging = false }: DaySectionProps) {
   const [isSearching, setIsSearching] = useState(false)
   
+  const handlePlaceDelete = (dayId: string, placeId: string) => {
+    // Remove from map first
+    window.removePlaceFromMap?.(placeId);
+    // Then remove from day section
+    onDeletePlace(dayId, placeId);
+  };
+
+  const handlePlaceAdd = (place: Place) => {
+    // Add to map first
+    if (place.location) {
+      window.addPlaceToMap?.({
+        latitude: place.location.latitude,
+        longitude: place.location.longitude,
+        title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+        place: place
+      });
+    }
+    // Then add to day section
+    onAddPlace(day.id, place);
+  };
+
   // Format date to display like "Day 1 (Jan 21)" or "Day 1 (Jan 21, 2025)" if different year
   const date = new Date(day.date)
   const today = new Date()
@@ -85,7 +106,7 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
                             <div className="absolute left-3 top-1/2 -translate-y-1/2">
                               <GripVertical className="h-7 w-5 text-gray-400 opacity-60 transition-opacity group-hover:opacity-100" />
                             </div>
-                            <PlaceCompactCard place={place} className="pl-10" onDelete={() => onDeletePlace(day.id, place.id)} />
+                            <PlaceCompactCard place={place} className="pl-10" onDelete={() => handlePlaceDelete(day.id, place.id)} />
                           </div>
                         </div>
                       )}
@@ -98,7 +119,7 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
           </div>
 
           {/* Travel info column with connecting lines */}
-          <div className="w-28 relative flex flex-col gap-y-7 my-auto">
+          <div className="w-[84px] relative flex flex-col gap-y-7 my-auto">
             {day.places.slice(0, -1).map((place, idx) => (
               <div key={`travel-${place.id}`} className="relative ml-[15px] align-middle flex" style={{ height: '88px' }}>
                 {/* Travel info centered between places */}
@@ -116,7 +137,7 @@ export function DaySection({ day, index, onDeletePlace, onAddPlace, onPlacesChan
         
         <div className="mt-4">
           <PlaceSearch
-            onPlaceSelected={(place) => onAddPlace(day.id, place)}
+            onPlaceSelected={(place) => handlePlaceAdd(place)}
             disabled={isSearching}
             className="w-full"
           />
