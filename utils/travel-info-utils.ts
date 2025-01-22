@@ -42,7 +42,13 @@ class TravelInfoManager {
   }
 
   async getTravelInfo(place1: Place, place2: Place): Promise<TravelInfo> {
-    if (!place1.location || !place2.location) {
+    if (!place1?.location || !place2?.location) {
+      console.log('[TravelInfoManager] Missing location:', {
+        place1: place1?.displayName,
+        place2: place2?.displayName,
+        loc1: place1?.location,
+        loc2: place2?.location
+      });
       return { duration: '--', distance: '--', timestamp: Date.now(), error: true }
     }
 
@@ -50,10 +56,18 @@ class TravelInfoManager {
     const cached = this.cache[key]
 
     if (cached && this.isCacheValid(cached)) {
+      console.log('[TravelInfoManager] Using cached info for:', {
+        from: place1.displayName,
+        to: place2.displayName
+      });
       return cached
     }
 
     try {
+      console.log('[TravelInfoManager] Fetching new info for:', {
+        from: place1.displayName,
+        to: place2.displayName
+      });
       const response = await fetch('/api/travel-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -77,26 +91,35 @@ class TravelInfoManager {
         })
       })
 
-      if (!response.ok) throw new Error('Failed to fetch route')
+      if (!response.ok) {
+        console.error('[TravelInfoManager] API Error:', response.status);
+        return { duration: '--', distance: '--', timestamp: Date.now(), error: true };
+      }
       
       const data = await response.json()
-      if (data.error) throw new Error(data.error)
+      if (data.error) {
+        console.error('[TravelInfoManager] Data Error:', data.error);
+        return { duration: '--', distance: '--', timestamp: Date.now(), error: true };
+      }
 
-      // Convert seconds to minutes and round
-      const minutes = Math.round(parseInt(data.duration.replace('s', '')) / 60)
-      // Convert meters to km and round to 1 decimal
-      const km = (data.distanceMeters / 1000).toFixed(1)
+      console.log('[TravelInfoManager] Raw API response:', data);
 
       const info: TravelInfo = {
-        duration: `${minutes} mins`,
-        distance: `${km} km`,
+        duration: data.duration || '--',
+        distance: data.distance || '--',
         timestamp: Date.now(),
         polyline: data.polyline,
         legPolyline: data.legPolyline
       }
 
-      this.cache[key] = info
-      this.persist()
+      // Only cache if we have valid data
+      if (data.duration && data.distance && !data.duration.includes('NaN') && !data.distance.includes('NaN')) {
+        this.cache[key] = info;
+        this.persist();
+      } else {
+        console.error('[TravelInfoManager] Invalid data received:', data);
+      }
+
       return info
     } catch (error) {
       console.error('[TravelInfoManager] Error:', error)
@@ -119,6 +142,21 @@ class TravelInfoManager {
   clearCache(): void {
     this.cache = {}
     this.persist()
+  }
+
+  // Add this new method to clear routes for specific places
+  clearRoutesForPlace(place: Place): void {
+    // Clear all routes that involve this place
+    Object.keys(this.cache).forEach(key => {
+      if (key.includes(place.id)) {
+        delete this.cache[key];
+      }
+    });
+    
+    // Update localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CACHE_KEY, JSON.stringify(this.cache));
+    }
   }
 }
 

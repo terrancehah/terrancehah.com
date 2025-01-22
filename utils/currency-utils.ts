@@ -12,18 +12,27 @@ export async function fetchExchangeRates(baseCurrency: string): Promise<{ [key: 
 
     try {
         const response = await fetch(
-            `/api/currency/rates?baseCurrency=${baseCurrency}`
+            `/api/currency/rates?baseCurrency=${encodeURIComponent(baseCurrency)}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                // Add cache control
+                cache: 'no-cache',
+                credentials: 'same-origin',
+            }
         );
 
         if (!response.ok) {
-            console.error('Currency API error:', {
-                status: response.status,
-                statusText: response.statusText
-            });
-            throw new Error('Failed to fetch exchange rates');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!data.data || typeof data.data !== 'object') {
+            throw new Error('Invalid API response format');
+        }
         
         // Cache the response
         const cache: CurrencyCache = {

@@ -61,7 +61,7 @@ interface GooglePlaceResponse {
 }
 
 import { TravelPreference, TravelSession } from '../managers/types';
-import { getStoredSession, getStoredMetrics, SESSION_CONFIG } from './session-manager';
+import { getStoredSession, getStoredMetrics, SESSION_CONFIG, safeStorageOp, storage } from './session-manager';
 
 // Updated preference to place types mapping based on travel-rizz.html
 export const preferenceToPlaceTypes: Record<TravelPreference, string[]> = {
@@ -223,30 +223,17 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
     // Load places from sessionStorage
     const loadFromStorage = () => {
         if (!initialized && typeof window !== 'undefined') {
-            const savedPlaces = sessionStorage.getItem(STORAGE_KEY);
-            if (savedPlaces) {
+            const session = getStoredSession();
+            if (session?.savedPlaces) {
                 try {
-                    console.log('[savedPlacesManager] Raw saved places:', savedPlaces);
-                    const parsedPlaces = JSON.parse(savedPlaces);
-                    console.log('[savedPlacesManager] Parsed places:', parsedPlaces);
+                    // Clear existing places before loading
+                    places.clear();
                     
-                    if (Array.isArray(parsedPlaces)) {
-                        // Clear existing places before loading
-                        places.clear();
-                        
-                        parsedPlaces.forEach(place => {
-                            console.log('[savedPlacesManager] Processing place:', {
-                                id: place.id,
-                                hasPhotos: Boolean(place.photos),
-                                photoCount: place.photos?.length,
-                                firstPhoto: place.photos?.[0]
-                            });
-                            
-                            if (place?.id) {
-                                places.set(place.id, place);
-                            }
-                        });
-                    }
+                    session.savedPlaces.forEach(place => {
+                        if (place?.id) {
+                            places.set(place.id, place);
+                        }
+                    });
                 } catch (error) {
                     console.error('[savedPlacesManager] Error loading places:', error);
                 }
@@ -280,7 +267,7 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
             return places.has(id);
         },
         updatePlace(place: Place) {
-            if (place.id && places.has(place.id)) {
+            if (place?.id && places.has(place.id)) {
                 places.set(place.id, place);
                 this._persist();
                 this._notifyChange();
@@ -289,20 +276,27 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
         _persist() {
             if (typeof window !== 'undefined') {
                 const placesArray = Array.from(places.values());
-                sessionStorage.setItem(STORAGE_KEY, JSON.stringify(placesArray));
                 
-                // Update metrics
-                const session: TravelSession = metricsManager.get();
-                session.savedPlacesCount = places.size;
-                metricsManager.update(session);
+                // Update travel_rizz_session
+                const session = getStoredSession();
+                if (session) {
+                    session.savedPlaces = placesArray;
+                    session.savedPlacesCount = places.size;
+                    safeStorageOp(() => {
+                        storage?.setItem(SESSION_CONFIG.STORAGE_KEY, JSON.stringify(session));
+                    }, undefined);
+                }
             }
         },
         _notifyChange() {
             if (typeof window !== 'undefined') {
-                window.savedPlaces = Array.from(places.values());
-                if (window.getSavedPlaces) {
-                    window.getSavedPlaces();
-                }
+                const placesArray = Array.from(places.values());
+                window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
+                    detail: {
+                        places: placesArray,
+                        count: places.size
+                    }
+                }));
             }
         },
         serialize() {

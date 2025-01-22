@@ -10,7 +10,7 @@ interface MapComponentProps {
 
 declare global {
     interface Window {
-        initMap: () => void;
+        setupMapInstance: () => void;
         currentSlide: number;
         currentInfoWindow?: google.maps.InfoWindow;
         updateCarousel: () => void;
@@ -57,6 +57,11 @@ declare global {
             AdvancedMarkerElement: typeof google.maps.marker.AdvancedMarkerElement;
             PinElement: typeof google.maps.marker.PinElement;
         }
+        namespace geometry {
+            namespace encoding {
+                function decodePath(encodedPath: string): google.maps.LatLng[];
+            }
+        }
     }
 }
 
@@ -65,11 +70,10 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<google.maps.Map | null>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
-    const [markers, setMarkers] = useState<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
-    const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const scriptLoadedRef = useRef(false);
+    const geometryLoadedRef = useRef(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
     const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
@@ -80,12 +84,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     useEffect(() => {
         if (!apiKey) return;
 
-        const loadMap = () => {
+        const loadGoogleMapsScript = () => {
             if (window.google?.maps) {
-                initializeMap();
+                setupMapInstance();
             } else if (!scriptLoadedRef.current && !document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]')) {
                 const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker,geometry&v=beta&callback=initializeMap`;
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,marker,geometry&v=beta&callback=setupMapInstance`;
                 script.async = true;
                 script.defer = true;
                 document.head.appendChild(script);
@@ -93,187 +97,129 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             }
         };
 
-        function initializeMap() {
+        // Initial map setup and geometry library check
+        async function setupMapInstance() {
             if (!mapRef.current || mapInstanceRef.current) return;
 
-            const map = new window.google.maps.Map(mapRef.current, {
-                zoom: 12,
-                center: { lat: 1.3521, lng: 103.8198 }, // Singapore
-                mapId: 'YOUR_MAP_ID'
-            });
+            try {
+                // Use the city prop directly, fallback to session storage if needed
+                let targetCity = city;
+                if (!targetCity) {
+                    const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
+                    if (sessionData) {
+                        const parsed = JSON.parse(sessionData);
+                        targetCity = parsed.city;
+                    }
+                }
 
-            mapInstanceRef.current = map;
-            markersRef.current = new Map();
-            routesRef.current = new Map();
+                if (!targetCity) {
+                    console.error('No city specified');
+                    setIsLoading(false);
+                    return;
+                }
+
+                const location = await getLocation(targetCity);
+                const map = new window.google.maps.Map(mapRef.current, {
+                    zoom: 12,
+                    center: location,
+                    mapId: '2d604af04a7c7fa8'
+                });
+
+                mapInstanceRef.current = map;
+                setMap(map);
+                markersRef.current = new Map();
+                routesRef.current = new Map();
+
+                // Initialize the InfoWindow
+                infoWindowRef.current = new window.google.maps.InfoWindow({
+                    maxWidth: 300,
+                    pixelOffset: new window.google.maps.Size(0, -30)
+                });
+
+                setIsLoading(false);
+
+                // Check if geometry library is loaded
+                if (isGeometryReady()) {
+                    geometryLoadedRef.current = true;
+                } else {
+                    // Poll for geometry library
+                    const checkGeometry = setInterval(() => {
+                        if (isGeometryReady()) {
+                            geometryLoadedRef.current = true;
+                            clearInterval(checkGeometry);
+                        }
+                    }, 100);
+                    // Clear interval after 10 seconds to prevent infinite polling
+                    setTimeout(() => clearInterval(checkGeometry), 10000);
+                }
+            } catch (error) {
+                console.error('Error setting up map:', error);
+                setIsLoading(false);
+            }
         }
 
-        window.initializeMap = initializeMap;
-        loadMap();
+        window.setupMapInstance = setupMapInstance;
+        loadGoogleMapsScript();
 
         return () => {
-            delete window.initializeMap;
+            delete window.setupMapInstance;
         };
     }, [apiKey]);
 
     useEffect(() => {
         if (!mapInstanceRef.current) return;
 
-        const initMap = async () => {
+        const setupMapFeatures = async () => {
+            if (!mapInstanceRef.current) return;
+
             try {
                 const location = await getLocation(city);
-                const newMap = new window.google.maps.Map(mapRef.current!, {
-                    center: location,
-                    zoom: 12,
-                    mapId: '2d604af04a7c7fa8',
-                });
                 
-                setMap(newMap);
-                mapInstanceRef.current = newMap;
+                // Update existing map instead of creating new one
+                mapInstanceRef.current.setCenter(location);
+                mapInstanceRef.current.setZoom(12);
+                
                 setIsLoading(false);
-
-                const newInfoWindow = new google.maps.InfoWindow({
-                    maxWidth: 400
-                });
-                setInfoWindow(newInfoWindow);
-                infoWindowRef.current = newInfoWindow;
-
-                const createCityInfoWindowContent = async (city: string, location: google.maps.LatLng) => {
-                    try {
-                        const cityPlace = await searchPlaceByText(city, {
-                            latitude: location.lat(),
-                            longitude: location.lng()                                   
-                        }, city);
-
-                        if (!cityPlace) return null;
-
-                        const photoCarousel = cityPlace.photos && cityPlace.photos.length > 0
-                            ? `
-                                <div class="relative w-full" style="height: 200px;">
-                                    <div class="carousel-container overflow-hidden w-full h-full">
-                                        <div class="carousel-track flex transition-transform duration-500" style="height: 100%;">
-                                            ${cityPlace.photos.slice(0, 5).map((photo, index) => `
-                                                <div class="carousel-slide w-full h-full flex-none">
-                                                    <img src="https://places.googleapis.com/v1/${photo.name}/media?maxHeightPx=340&maxWidthPx=340&key=${apiKey}"
-                                                        alt="${city}"
-                                                        class="w-full h-full object-cover"
-                                                    />
-                                                </div>
-                                            `).join('')}
-                                        </div>
-                                    </div>
-                                    <button onclick="window.prevSlide()" class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-1 shadow-md hover:bg-white">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                        </svg>
-                                    </button>
-                                    <button onclick="window.nextSlide()" class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 rounded-full p-1 shadow-md hover:bg-white">
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                                        </svg>
-                                    </button>
-                                    <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
-                                        ${cityPlace.photos.slice(0, 5).map((_, index) => `
-                                            <button onclick="window.goToSlide(${index})" class="w-2 h-2 rounded-full bg-white/80 hover:bg-white shadow-sm carousel-dot" data-index="${index}">
-                                            </button>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            `
-                            : '';
-
-                        if (cityPlace.photos && cityPlace.photos.length > 0) {
-                            const numSlides = Math.min(cityPlace.photos.length, 5);
-                            window.currentSlide = 0;
-                            
-                            window.updateCarousel = () => {
-                                const track = document.querySelector('.carousel-track');
-                                if (track) {
-                                    (track as HTMLElement).style.transform = `translateX(-${window.currentSlide * 100}%)`;
-                                    document.querySelectorAll('.carousel-dot').forEach((dot, index) => {
-                                        if (index === window.currentSlide) {
-                                            dot.classList.add('bg-white');
-                                            dot.classList.remove('bg-white/80');
-                                        } else {
-                                            dot.classList.remove('bg-white');
-                                            dot.classList.add('bg-white/80');
-                                        }
-                                    });
-                                }
-                            };
-
-                            window.nextSlide = () => {
-                                window.currentSlide = (window.currentSlide + 1) % numSlides;
-                                window.updateCarousel();
-                            };
-
-                            window.prevSlide = () => {
-                                window.currentSlide = (window.currentSlide - 1 + numSlides) % numSlides;
-                                window.updateCarousel();
-                            };
-
-                            window.goToSlide = (index) => {
-                                window.currentSlide = index;
-                                window.updateCarousel();
-                            };
-                        }
-
-                        return `
-                            <div class="bg-white rounded-lg shadow-sm" style="max-width: 340px;">
-                                ${photoCarousel}
-                                <div class="p-4">
-                                    <h2 class="text-xl font-semibold text-gray-900 mb-2">${city}</h2>
-                                    ${cityPlace.formattedAddress 
-                                        ? `<p class="text-sm text-gray-500 mb-2">${cityPlace.formattedAddress}</p>`
-                                        : ''}
-                                </div>
-                            </div>
-                        `;
-                    } catch (error) {
-                        console.error('Error creating city info window:', error);
-                        return null;
-                    }
-                };
-
-                const cityMarker = new google.maps.marker.AdvancedMarkerElement({
-                    map: newMap,
-                    position: location,
-                    title: city
-                });
-
-                cityMarker.addListener('gmp-click', async () => {
-                    if (infoWindow) {
-                        const content = createCityInfoWindowContent(city, location);
-                        if (content) {
-                            infoWindow.setContent(await content);
-                            infoWindow.open(newMap, cityMarker);
-                        }
-                    }
-                });
-
-                markers.set(city, cityMarker);
-                
-                cityMarker.addListener('gmp-click', async () => {
-                    const content = await createCityInfoWindowContent(city, location);
-                    if (content) {
-                        newInfoWindow.setContent(content);
-                        newInfoWindow.open({
-                            anchor: cityMarker,
-                            map: newMap
-                        });
-                    }
-                });
-
-            } catch (err) {
-                console.error('Error setting up map:', err);
-                setError('Failed to initialize map');
+            } catch (error) {
+                console.error('Error updating map features:', error);
+                setIsLoading(false);
             }
         };
 
-        initMap();
-    }, [city, scriptLoadedRef, apiKey]);
+        setupMapFeatures();
+    }, [city]);
 
     useEffect(() => {
         if (!map) return;
+
+        const initializeMap = async () => {
+            // Wait for map to be idle before restoring markers
+            await new Promise<void>((resolve) => {
+                google.maps.event.addListenerOnce(map, 'idle', () => {
+                    resolve();
+                });
+            });
+            
+            const savedPlaces = savedPlacesManager.getPlaces();
+            console.log('Restoring markers for saved places:', savedPlaces.length);
+            
+            savedPlaces.forEach(place => {
+                if (place.location) {
+                    window.addPlaceToMap?.({
+                        latitude: place.location.latitude,
+                        longitude: place.location.longitude,
+                        title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+                        place: place
+                    });
+                }
+            });
+        };
+
+        initializeMap();
+    }, [map]);
+
+    useEffect(() => {
+        if (!mapInstanceRef.current) return;
 
         window.removePlaceFromMap = (placeId: string) => {
             console.log('Debug - Starting removal process for placeId:', placeId);
@@ -318,32 +264,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             place?: Place;
         }) => {
             try {
-                const markerId = data.place?.id;
-                if (!markerId) {
-                    console.error('Debug - No place ID provided');
-                    return;
-                }
-
-                if (savedPlacesManager.hasPlace(markerId)) {
-                    const existingMarker = markersRef.current.get(markerId);
-                    if (existingMarker?.map) {
-                        console.log('Debug - Place already exists and has marker:', markerId);
-                        return;
-                    }
-                    console.log('Debug - Place exists but needs new marker:', markerId);
-                }
-
-                const [{ AdvancedMarkerElement }, { PinElement }] = await Promise.all([
-                    google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>,
-                    google.maps.importLibrary("marker") as Promise<google.maps.MarkerLibrary>
-                ]);
-
-                const pinElement = new google.maps.marker.PinElement({
-                    scale: 1
+                const markerId = data.place?.id || data.title || String(Date.now());
+                const pinElement = new window.google.maps.marker.PinElement({
+                    background: "#FF4444",  // Bright red
+                    borderColor: "#CC0000", // Darker red border
+                    glyphColor: "#FFFFFF",  // White glyph for better contrast
                 });
 
-                console.log('Debug - Creating marker with ID:', markerId);
-
+                // Remove existing marker if it exists
                 if (markersRef.current.has(markerId)) {
                     const existingMarker = markersRef.current.get(markerId);
                     if (existingMarker) {
@@ -365,31 +293,37 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                     gmpDraggable: false,
                 });
 
-                marker.map = map;
+                if (data.place) {
+                    savedPlacesManager.addPlace(data.place);
+                    setMarkerCount(prev => prev + 1);
+                    setSavedPlaces(new Map(savedPlacesManager.places));
+                }
+
+                // Ensure the marker is properly added to the map
+                marker.map = mapInstanceRef.current;
 
                 marker.addListener('gmp-click', () => {
                     if (data.place) {
+                        // Close any existing InfoWindow
+                        infoWindowRef.current?.close();
+                        
                         window.currentInfoWindowMarker = {
                             markerId: markerId,
                             marker: marker
                         };
+                        
                         const content = createPlaceInfoWindowContent(data.place, markerId);
-                        if (content && infoWindowRef.current) {
+                        if (content && infoWindowRef.current && mapInstanceRef.current) {
+                            const position = marker.position as google.maps.LatLng;
                             infoWindowRef.current.setContent(content);
-                            infoWindowRef.current.open(map, marker);
+                            infoWindowRef.current.setPosition(position);
+                            infoWindowRef.current.open(mapInstanceRef.current);
                         }
                     }
                 });
 
                 markersRef.current.set(markerId, marker);
                 
-                if (data.place) {
-                    setMarkerCount(prev => prev + 1);
-                    setSavedPlaces(new Map(savedPlacesManager.places));
-                    console.log('Debug - Added place:', savedPlacesManager.places);
-                }
-                console.log('Debug - Marker added successfully');
-
                 window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
                     detail: {
                         places: Array.from(savedPlacesManager.places.values()),
@@ -405,25 +339,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             return savedPlacesManager.getPlaces();
         };
         
-    }, [map, infoWindow]);
-
-    useEffect(() => {
-        if (!map) return;
-        
-        const savedPlaces = savedPlacesManager.getPlaces();
-        console.log('Restoring markers for saved places:', savedPlaces.length);
-        
-        savedPlaces.forEach(place => {
-            if (place.location) {
-                window.addPlaceToMap?.({
-                    latitude: place.location.latitude,
-                    longitude: place.location.longitude,
-                    title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
-                    place: place
-                });
-            }
-        });
-    }, [map]);
+    }, [mapInstanceRef.current]); // Only depend on the map instance
 
     useEffect(() => {
         const sessionData = sessionStorage.getItem(SESSION_CONFIG.STORAGE_KEY);
@@ -527,30 +443,51 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     };
 
     useEffect(() => {
-        if (!mapInstanceRef.current || !savedPlacesManager.getPlaces()) return;
-        
-        console.log('Drawing routes for days:', savedPlacesManager.getPlaces());
-        
-        for (const [dayId, route] of routesRef.current) {
-            route.setMap(null);
-        }
-        routesRef.current.clear();
-        
-        const days = savedPlacesManager.getPlaces().reduce((acc, place) => {
-            const dayId = `day-${place.dayIndex}`;
-            if (!acc[dayId]) acc[dayId] = [];
-            acc[dayId].push(place);
-            return acc;
-        }, {} as Record<string, Place[]>);
+        const handlePlacesChanged = (event: CustomEvent) => {
+            if (!mapInstanceRef.current) return;
+            
+            // Clear ALL existing routes
+            routesRef.current.forEach(route => {
+                route.setMap(null);
+            });
+            routesRef.current.clear();
+            
+            // Group and draw routes
+            const places = savedPlacesManager.getPlaces();
+            const days = places.reduce((acc, place) => {
+                if (place.dayIndex === undefined) return acc;
+                const dayId = `day-${place.dayIndex}`;
+                if (!acc[dayId]) acc[dayId] = [];
+                acc[dayId].push(place);
+                return acc;
+            }, {} as Record<string, Place[]>);
 
-        Object.entries(days).forEach(([dayId, places]) => {
-            const sortedPlaces = [...places].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-            const dayIndex = parseInt(dayId.replace('day-', ''));
-            const color = `hsl(${(dayIndex * 137.508) % 360}, 70%, 50%)`; // Golden ratio for color distribution
-            console.log(`Drawing route for day ${dayId} with color ${color}`);
-            drawDayRoute(dayId, sortedPlaces, color);
-        });
-    }, [savedPlacesManager.getPlaces()]);
+            Object.entries(days).forEach(([dayId, places]) => {
+                const sortedPlaces = [...places].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+                const dayIndex = parseInt(dayId.replace('day-', ''));
+                // Array of distinct colors for routes
+                const colors = [
+                    '#2196F3', // Blue
+                    '#9C27B0', // Purple
+                    '#795548', // Brown
+                    '#FF9800', // Orange
+                    '#009688', // Teal
+                    '#E91E63', // Pink
+                    '#673AB7', // Deep Purple
+                    '#3F51B5', // Indigo
+                    '#00BCD4', // Cyan
+                    '#4CAF50'  // Green
+                ];
+                const color = colors[dayIndex % colors.length];
+                drawDayRoute(dayId, sortedPlaces, color);
+            });
+        };
+
+        window.addEventListener('savedPlacesChanged', handlePlacesChanged as EventListener);
+        return () => {
+            window.removeEventListener('savedPlacesChanged', handlePlacesChanged as EventListener);
+        };
+    }, []);
 
     const drawDayRoute = async (dayId: string, places: Place[], color: string) => {
         console.log(`drawDayRoute called for day ${dayId} with ${places.length} places`);
@@ -561,11 +498,11 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             routesRef.current.delete(dayId);
         }
 
-        if (!places || places.length < 2 || !mapInstanceRef.current || !window.google?.maps?.geometry) {
+        if (!places || places.length < 2 || !mapInstanceRef.current || !isGeometryReady()) {
             console.log('Not ready:', {
                 places: places?.length,
                 mapReady: !!mapInstanceRef.current,
-                geometryReady: !!window.google?.maps?.geometry
+                geometryReady: isGeometryReady()
             });
             return;
         }
@@ -621,6 +558,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
             console.log('Created new polyline:', route);
             routesRef.current.set(dayId, route);
         }
+    };
+
+    const isGeometryReady = () => {
+        return !!(
+            window.google?.maps?.geometry?.encoding?.decodePath &&
+            typeof window.google.maps.geometry.encoding.decodePath === 'function'
+        );
     };
 
     const getLocation = async (city: string) => {

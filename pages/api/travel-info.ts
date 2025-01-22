@@ -18,14 +18,20 @@ interface RouteRequest {
   }
 }
 
-function formatDuration(duration: any) {
-  // implement duration formatting logic here
-  return duration;
+function formatDuration(duration: string | { seconds: string }) {
+  // If duration is a string like '1133s', convert it to seconds
+  const seconds = typeof duration === 'string' 
+    ? parseInt(duration.replace('s', ''))
+    : parseInt(duration.seconds);
+    
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours > 0 ? `${hours}h ${minutes} mins` : `${minutes} mins`;
 }
 
-function formatDistance(distance: any) {
-  // implement distance formatting logic here
-  return distance;
+function formatDistance(meters: number) {
+  const km = meters / 1000;
+  return km >= 1 ? `${km.toFixed(1)} km` : `${meters}m`;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -83,6 +89,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Get the polylines
     const polyline = route.polyline?.encodedPolyline
     const legPolyline = route.legs?.[0]?.polyline?.encodedPolyline
+
+    // Validate duration and distance
+    if (!duration || !distance) {
+      console.error('[travel-info] Invalid route data:', route);
+      return res.status(400).json({ error: 'Invalid route data' });
+    }
 
     return res.json({
       duration: formatDuration(duration),

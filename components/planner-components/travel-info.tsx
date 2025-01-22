@@ -18,8 +18,18 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
   useEffect(() => {
     async function fetchTravelInfo() {
       try {
+        console.log('[TravelInfo] Fetching info for:', {
+          from: place?.displayName,
+          to: nextPlace?.displayName,
+          fromId: place?.id,
+          toId: nextPlace?.id
+        });
+        
         setIsLoading(true)
         const info = await travelInfoManager.getTravelInfo(place, nextPlace)
+        
+        console.log('[TravelInfo] Received info:', info);
+        
         if (info) {
           setDuration(info.duration)
           setDistance(info.distance)
@@ -32,9 +42,22 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
     }
 
     if (place?.location && nextPlace?.location) {
+      console.log('[TravelInfo] Starting fetch for:', {
+        hasLocation: {
+          from: !!place?.location,
+          to: !!nextPlace?.location
+        }
+      });
       fetchTravelInfo()
+    } else {
+      console.log('[TravelInfo] Missing location:', {
+        from: place?.displayName,
+        to: nextPlace?.displayName,
+        fromLocation: place?.location,
+        toLocation: nextPlace?.location
+      });
     }
-  }, [place?.location, nextPlace?.location])
+  }, [place?.id, nextPlace?.id, place?.location?.latitude, place?.location?.longitude, nextPlace?.location?.latitude, nextPlace?.location?.longitude])
 
   return (
     <div className={cn(

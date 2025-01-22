@@ -9,6 +9,7 @@ import { getStoredSession } from '../utils/session-manager'
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { TravelDetails } from '../managers/types'
 import react from 'react'
+import { travelInfoManager } from '../utils/travel-info-utils'
 
 export interface DayPlan {
   id: string
@@ -104,49 +105,76 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
   }
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return
-
-    const { source, destination } = result
+    setIsDragging(false);
     
-    // Copy current days
-    const newDays = [...days]
+    if (!result.destination) return;
+
+    const { source, destination } = result;
     
-    // Same day, different position
-    if (source.droppableId === destination.droppableId) {
-      const dayIndex = days.findIndex(d => d.id === source.droppableId)
-      const dayPlaces = [...days[dayIndex].places]
-      const [removed] = dayPlaces.splice(source.index, 1)
-      dayPlaces.splice(destination.index, 0, removed)
-      newDays[dayIndex].places = dayPlaces
-
-      // Update indices
-      removed.dayIndex = dayIndex
-      removed.orderIndex = destination.index
-      savedPlacesManager.updatePlace(removed)
-    } 
-    // Different days
-    else {
-      const sourceDayIndex = days.findIndex(d => d.id === source.droppableId)
-      const destDayIndex = days.findIndex(d => d.id === destination.droppableId)
-      
-      const sourcePlaces = [...days[sourceDayIndex].places]
-      const destPlaces = [...days[destDayIndex].places]
-      
-      const [removed] = sourcePlaces.splice(source.index, 1)
-      destPlaces.splice(destination.index, 0, removed)
-      
-      newDays[sourceDayIndex].places = sourcePlaces
-      newDays[destDayIndex].places = destPlaces
-
-      // Update indices
-      removed.dayIndex = destDayIndex
-      removed.orderIndex = destination.index
-      savedPlacesManager.updatePlace(removed)
+    // If dropped in same day and same position
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+      return;
     }
+
+    // Find the source and destination days
+    const sourceDayIndex = days.findIndex(day => day.id === source.droppableId);
+    const destDayIndex = days.findIndex(day => day.id === destination.droppableId);
     
-    setDays(newDays)
-    setIsDragging(false)
-  }
+    if (sourceDayIndex === -1 || destDayIndex === -1) return;
+
+    const newDays = [...days];
+    const sourceDay = { ...newDays[sourceDayIndex] };
+    const destDay = sourceDayIndex === destDayIndex ? sourceDay : { ...newDays[destDayIndex] };
+
+    // Remove from source day
+    const [movedPlace] = sourceDay.places.splice(source.index, 1);
+    
+    // Update the moved place's indices
+    movedPlace.dayIndex = destDayIndex;
+    movedPlace.orderIndex = destination.index;
+    
+    // Add to destination day
+    destDay.places.splice(destination.index, 0, movedPlace);
+
+    // Update order indices for source day places
+    sourceDay.places = sourceDay.places.map((place, idx) => ({
+      ...place,
+      dayIndex: sourceDayIndex,
+      orderIndex: idx
+    }));
+
+    if (sourceDayIndex !== destDayIndex) {
+      // Update order indices for destination day places
+      destDay.places = destDay.places.map((place, idx) => ({
+        ...place,
+        dayIndex: destDayIndex,
+        orderIndex: idx
+      }));
+    }
+
+    // Update the days array
+    newDays[sourceDayIndex] = sourceDay;
+    if (sourceDayIndex !== destDayIndex) {
+      newDays[destDayIndex] = destDay;
+    }
+
+    // Update state
+    setDays(newDays);
+    
+    // Get all affected places
+    const allAffectedPlaces = [
+      movedPlace,  // Include moved place first
+      ...sourceDay.places,  // Then source day places
+      ...(sourceDayIndex !== destDayIndex ? destDay.places : [])  // Then destination day places if different
+    ];
+    
+    // Update each place in savedPlacesManager to ensure proper persistence
+    allAffectedPlaces.forEach(place => {
+      savedPlacesManager.updatePlace(place);
+    });
+    
+    // No need to dispatch event manually as updatePlace will trigger _notifyChange
+  };
 
   const handleDeletePlace = (dayId: string, placeId: string) => {
     setDays(days.map(day => {
@@ -180,137 +208,146 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
   }
 
   const handlePlacesChange = (dayId: string, newPlaces: Place[]) => {
-    setDays(days.map(day => 
-      day.id === dayId 
-        ? { ...day, places: newPlaces }
-        : day
-    ));
+    // Update days state
+    setDays(days.map(day => {
+      if (day.id === dayId) {
+        // Update all places' order indices sequentially
+        const updatedPlaces = newPlaces.map((place, idx) => ({
+          ...place,
+          orderIndex: idx
+        }));
+        // Update in savedPlacesManager
+        updatedPlaces.forEach(place => {
+          savedPlacesManager.updatePlace(place);
+        });
+        return { ...day, places: updatedPlaces };
+      }
+      return day;
+    }));
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="flex h-screen flex-col">
         
-       {/* Header */}
-       <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">
-                <div className=" mx-auto p-2 px-6 relative">
-                    <div 
-                        className={`transition-all duration-300 ease-in-out ${
-                            isCollapsed ? 'max-h-12' : 'max-h-[500px]'
-                        }`}
-                    >
-                        <h1 className={`font-semibold text-foreground ${isCollapsed ? 'text-lg mb-0' : 'text-lg mb-2'}`}>
-                            Trip to {currentDetails.destination}
-                        </h1>
-                        
-                        {isCollapsed ? (
+        {/* Header */}
+        <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">
+          <div className=" mx-auto p-2 px-6 relative">
+            <div 
+              className={`transition-all duration-300 ease-in-out ${
+                isCollapsed ? 'max-h-12' : 'max-h-[500px]'
+              }`}
+            >
+              <h1 className={`font-semibold text-foreground ${isCollapsed ? 'text-lg mb-0' : 'text-lg mb-2'}`}>
+                Trip to {currentDetails.destination}
+              </h1>
+              
+              {isCollapsed ? (
 
-                            // Collapsed mode
-                            <div className="flex flex-col gap-y-1.5 text-muted-foreground">
-                                {/* Keeping this empty as requested */}
-                            </div>
-                        ) : (
-
-                            // Expanded mode
-                            <div className="grid grid-cols-2 gap-x-16 gap-y-4">
-
-                                {/* Date */}
-                                <div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                                        </svg>
-                                        Date
-                                    </div>
-                                    <div className="text-foreground text-sm">{currentDetails.startDate} to {currentDetails.endDate}</div>
-                                </div>
-
-                                <div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-                                        </svg>
-                                        Language
-                                    </div>
-                                    <div className="text-foreground text-sm">{currentDetails.language}</div>
-                                </div>
-                                
-                                <div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                                        </svg>
-                                        Preferences
-                                    </div>
-                                    <div className="text-foreground text-sm">
-                                        {currentDetails.preferences?.join(', ') || '-'}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        Budget
-                                    </div>
-                                    <div className="text-foreground text-sm">
-                                        {currentDetails.budget || '-'}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 px-2 py-0.5 mb-2 text-gray-500 hover:text-black hover:bg-slate-200 transition-colors bg-slate-50 rounded-full duration-200 focus:outline-none"
-                        aria-label={isCollapsed ? "Expand header" : "Collapse header"}
-                    >
-                        {isCollapsed ? (
-                            <ChevronDownIcon className="h-6 w-6" />
-                        ) : (
-                            <ChevronUpIcon className="h-6 w-6" />
-                        )}
-                    </button>
+                // Collapsed mode
+                <div className="flex flex-col gap-y-1.5 text-muted-foreground">
+                  {/* Keeping this empty as requested */}
                 </div>
-            </div>
-        
-        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
-          <div className="space-y-6 py-6  flex-col">
-            {isLoading ? (
-              // Loading skeleton
-              Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="animate-pulse space-y-4 rounded-lg border bg-card p-4">
-                  <div className="h-6 w-1/4 rounded bg-muted" />
-                  <div className="space-y-3">
-                    {Array.from({ length: 2 }).map((_, j) => (
-                      <div key={j} className="flex items-center gap-3">
-                        <div className="h-16 w-16 rounded-md bg-muted" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-4 w-1/2 rounded bg-muted" />
-                          <div className="h-3 w-1/3 rounded bg-muted" />
-                        </div>
-                      </div>
-                    ))}
+              ) : (
+
+                // Expanded mode
+                <div className="grid grid-cols-2 gap-x-16 gap-y-4">
+
+                  {/* Date */}
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                      </svg>
+                      Date
+                    </div>
+                    <div className="text-foreground text-sm">{currentDetails.startDate} to {currentDetails.endDate}</div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                      </svg>
+                      Language
+                    </div>
+                    <div className="text-foreground text-sm">{currentDetails.language}</div>
+                  </div>
+                  
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                      </svg>
+                      Preferences
+                    </div>
+                    <div className="text-foreground text-sm">
+                      {currentDetails.preferences?.join(', ') || '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Budget
+                    </div>
+                    <div className="text-foreground text-sm">
+                      {currentDetails.budget || '-'}
+                    </div>
                   </div>
                 </div>
-              ))
-            ) : (
-              days.map((day, index) => (
-                <DaySection
-                  key={day.id}
-                  day={day}
-                  index={index}
-                  onDeletePlace={handleDeletePlace}
-                  onAddPlace={handleAddPlace}
-                  onPlacesChange={handlePlacesChange}
-                  isDragging={isDragging}
-                  className="w-[80%] mx-auto"
-                />
-              ))
-            )}
+              )}
+            </div>
+            <button
+              onClick={() => setIsCollapsed(!isCollapsed)}
+              className="absolute bottom-0 left-1/2 transform -translate-x-1/2 px-2 py-0.5 mb-2 text-gray-500 hover:text-black hover:bg-slate-200 transition-colors bg-slate-50 rounded-full duration-200 focus:outline-none"
+              aria-label={isCollapsed ? "Expand header" : "Collapse header"}
+            >
+              {isCollapsed ? (
+                <ChevronDownIcon className="h-6 w-6" />
+              ) : (
+                <ChevronUpIcon className="h-6 w-6" />
+              )}
+            </button>
           </div>
-        </DragDropContext>
+        </div>
+        
+        {/* Days list */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {isLoading ? (
+            // Loading skeleton
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="animate-pulse space-y-4 rounded-lg border bg-card p-4">
+                <div className="h-6 w-1/4 rounded bg-muted" />
+                <div className="space-y-3">
+                  {Array.from({ length: 2 }).map((_, j) => (
+                    <div key={j} className="flex items-center gap-3">
+                      <div className="h-16 w-16 rounded-md bg-muted" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 w-1/2 rounded bg-muted" />
+                        <div className="h-3 w-1/3 rounded bg-muted" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            days.map((day, index) => (
+              <DaySection
+                key={day.id}
+                day={day}
+                index={index}
+                onDeletePlace={handleDeletePlace}
+                onAddPlace={handleAddPlace}
+                onPlacesChange={handlePlacesChange}
+                isDragging={isDragging}
+              />
+            ))
+          )}
+        </div>
       </div>
-      
-      
+    </DragDropContext>
   )
 }
