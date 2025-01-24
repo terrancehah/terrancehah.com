@@ -243,7 +243,7 @@ export default function ChatPage() {
             {/* Main content - takes remaining height */}
             <main className="flex-1 flex relative bg-white min-h-0">
                 {/* Chat Interface */}
-                <div className={`${isMobile ? 'w-full' : 'w-[50%]'} h-full border-r border-gray-200 overflow-y-hidden`}>
+                <div className={`${isMobile ? 'w-full' : 'w-[50%]'} h-full border-r border-gray-200 overflow-y-auto`}>
                     {isDetailsReady ? (
                         <>
                             {currentStage < 4 && (

@@ -10,7 +10,7 @@ interface MapComponentProps {
 
 declare global {
     interface Window {
-        setupMapInstance: () => void;
+        setupMapInstance?: () => void;
         currentSlide: number;
         currentInfoWindow?: google.maps.InfoWindow;
         updateCarousel: () => void;
@@ -75,12 +75,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const scriptLoadedRef = useRef(false);
     const geometryLoadedRef = useRef(false);
     const [selectedPlace, setSelectedPlace] = useState<Place | null>(null);
-    const [savedPlaces, setSavedPlaces] = useState<Map<string, Place>>(new Map());
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
     const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
     const [markerCount, setMarkerCount] = useState(0);
-    // Track active routes by fromId-toId
-    const activeRoutesRef = useRef<Map<string, google.maps.Polyline>>(new Map());
+    // Track current active TravelInfos
+    const [activeTravelInfos, setActiveTravelInfos] = useState<{fromId: string, toId: string}[]>([]);
+    // Track polylines for cleanup
+    const polylineRef = useRef<Map<string, google.maps.Polyline>>(new Map());
 
     useEffect(() => {
         if (!apiKey) return;
@@ -296,7 +297,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 if (data.place) {
                     savedPlacesManager.addPlace(data.place);
                     setMarkerCount(prev => prev + 1);
-                    setSavedPlaces(new Map(savedPlacesManager.places));
                 }
 
                 // Ensure the marker is properly added to the map
@@ -357,7 +357,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 console.error('Error saving places to session:', error);
             }
         }
-    }, [savedPlaces]);
+    }, [savedPlacesManager]);
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -432,97 +432,69 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     useEffect(() => {
         if (!mapInstanceRef.current) return;
 
-        const handleTravelInfoDisplay = async (event: Event) => {
+        const handleTravelInfoDisplay = (event: Event) => {
             const e = event as CustomEvent<{fromId: string, toId: string}>;
-            const { fromId, toId } = e.detail;
-            const routeKey = `${fromId}-${toId}`;
-
-            // Clear existing route if any
-            const existingRoute = activeRoutesRef.current.get(routeKey);
-            if (existingRoute) {
-                existingRoute.setMap(null);
-                activeRoutesRef.current.delete(routeKey);
-            }
-
-            const fromPlace = savedPlacesManager.getPlaceById(fromId);
-            const toPlace = savedPlacesManager.getPlaceById(toId);
-            
-            if (fromPlace?.dayIndex !== undefined && toPlace) {
-                const color = getRouteColor(fromPlace.dayIndex);
-                const polyline = await drawRoute([fromPlace, toPlace], routeKey, color);
-                if (polyline) {
-                    activeRoutesRef.current.set(routeKey, polyline);
-                }
-            }
+            setActiveTravelInfos(prev => [...prev, e.detail]);
         };
 
         const handleTravelInfoHide = (event: Event) => {
             const e = event as CustomEvent<{fromId: string, toId: string}>;
-            const { fromId, toId } = e.detail;
-            const routeKey = `${fromId}-${toId}`;
-            
-            // Remove route from map and tracking
-            const route = activeRoutesRef.current.get(routeKey);
-            if (route) {
-                route.setMap(null);
-                activeRoutesRef.current.delete(routeKey);
-            }
+            setActiveTravelInfos(prev => 
+                prev.filter(info => 
+                    info.fromId !== e.detail.fromId || info.toId !== e.detail.toId
+                )
+            );
         };
 
         window.addEventListener('travelinfo-displayed', handleTravelInfoDisplay);
         window.addEventListener('travelinfo-hidden', handleTravelInfoHide);
 
         return () => {
-            // Clean up all routes when component unmounts
-            activeRoutesRef.current.forEach(route => route.setMap(null));
-            activeRoutesRef.current.clear();
-            
             window.removeEventListener('travelinfo-displayed', handleTravelInfoDisplay);
             window.removeEventListener('travelinfo-hidden', handleTravelInfoHide);
         };
     }, [mapInstanceRef.current]);
 
-    const drawRoute = async (places: Place[], routeKey: string, color: string) => {
-        console.log(`[MapComponent] Drawing route between:`, {
-            from: places[0]?.displayName,
-            to: places[1]?.displayName
-        });
+    useEffect(() => {
+        if (!mapInstanceRef.current) return;
 
-        if (!places || places.length !== 2 || !mapInstanceRef.current || !isGeometryReady()) {
-            console.log('[MapComponent] Not ready to draw route:', {
-                places: places?.length,
-                mapReady: !!mapInstanceRef.current,
-                geometryReady: isGeometryReady()
-            });
-            return;
-        }
+        // Clear all existing polylines
+        polylineRef.current.forEach(polyline => polyline.setMap(null));
+        polylineRef.current.clear();
+
+        // Draw routes for active TravelInfos
+        activeTravelInfos.forEach(async ({ fromId, toId }) => {
+            const fromPlace = savedPlacesManager.getPlaceById(fromId);
+            const toPlace = savedPlacesManager.getPlaceById(toId);
+            
+            if (fromPlace?.dayIndex !== undefined && toPlace) {
+                const color = getRouteColor(fromPlace.dayIndex);
+                const polyline = await drawRoute([fromPlace, toPlace], color);
+                if (polyline) {
+                    polylineRef.current.set(`${fromId}-${toId}`, polyline);
+                }
+            }
+        });
+    }, [activeTravelInfos]);
+
+    const drawRoute = async (places: Place[], color: string) => {
+        if (!places || places.length !== 2 || !mapInstanceRef.current || !isGeometryReady()) return;
 
         const [place1, place2] = places;
-        if (!place1.location || !place2.location) {
-            console.warn('[MapComponent] Missing location for place:', { 
-                place1Name: place1.name,
-                place2Name: place2.name
-            });
-            return;
-        }
+        if (!place1.location || !place2.location) return;
 
         try {
             const info = await travelInfoManager.getTravelInfo(place1, place2);
-            if (!info || !info.legPolyline) {
-                console.warn('[MapComponent] No route info available between places');
-                return;
-            }
+            if (!info || !info.legPolyline) return;
 
             const path = google.maps.geometry.encoding.decodePath(info.legPolyline);
-            const polyline = new google.maps.Polyline({
+            return new google.maps.Polyline({
                 path,
                 strokeColor: color,
-                strokeOpacity: 1.0,
-                strokeWeight: 3,
+                strokeOpacity: 0.8,
+                strokeWeight: 5,
                 map: mapInstanceRef.current
             });
-
-            return polyline;
         } catch (error) {
             console.error('[MapComponent] Error drawing route:', error);
         }

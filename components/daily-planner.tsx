@@ -267,7 +267,7 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div className="flex h-screen flex-col">
+      <div className="flex h-full flex-col">
         
         {/* Header */}
         <div className="bg-background border-b border-border shadow-sm transition-all duration-300 ease-in-out">
@@ -353,7 +353,7 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
         </div>
         
         {/* Days list */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-scroll p-4 space-y-4">
           {isLoading ? (
             // Loading skeleton
             Array.from({ length: 3 }).map((_, i) => (

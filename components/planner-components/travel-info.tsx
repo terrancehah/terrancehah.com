@@ -16,6 +16,8 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
   const [distance, setDistance] = useState('--')
 
   useEffect(() => {
+    const isMounted = { current: true }; // Track mount state
+
     async function fetchTravelInfo() {
       try {
         console.log('[TravelInfo] Fetching info for:', {
@@ -28,13 +30,19 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
         setIsLoading(true)
         const info = await travelInfoManager.getTravelInfo(place, nextPlace)
         
+        // Only proceed if still mounted
+        if (!isMounted.current) {
+          console.log('[TravelInfo] Component unmounted, skipping update');
+          return;
+        }
+
         console.log('[TravelInfo] Received info:', info);
         
         if (info) {
           setDuration(info.duration)
           setDistance(info.distance)
-          // Only notify for display if we have valid info
-          if (!info.error && place?.id && nextPlace?.id) {
+          // Only notify for display if we have valid info AND component is still mounted
+          if (!info.error && place?.id && nextPlace?.id && isMounted.current) {
             window.dispatchEvent(new CustomEvent('travelinfo-displayed', { 
               detail: { fromId: place.id, toId: nextPlace.id }
             }));
@@ -43,7 +51,9 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
       } catch (error) {
         console.error('[TravelInfo] Error:', error)
       } finally {
-        setIsLoading(false)
+        if (isMounted.current) {
+          setIsLoading(false)
+        }
       }
     }
 
@@ -66,6 +76,7 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
 
     // Cleanup when component unmounts or places change
     return () => {
+      isMounted.current = false;
       if (place?.id && nextPlace?.id) {
         window.dispatchEvent(new CustomEvent('travelinfo-hidden', {
           detail: { fromId: place.id, toId: nextPlace.id }
