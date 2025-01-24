@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../lib/utils';
 import { CheckIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { Info } from 'lucide-react';
+import PaymentSuccessPopup from './payment-success-popup';
 
 interface StageProgressProps {
     currentStage: number;
@@ -116,6 +118,8 @@ export const StepsItem = React.forwardRef<HTMLDivElement, StepsItemProps>(
 StepsItem.displayName = 'StepsItem';
 
 const StageProgress: React.FC<StageProgressProps> = ({ currentStage, isPaid }) => {
+    const [showPopup, setShowPopup] = useState(false);
+
     return (
         <StepsRoot>
             <StepsList>
@@ -129,6 +133,20 @@ const StageProgress: React.FC<StageProgressProps> = ({ currentStage, isPaid }) =
                         isLast={index === stages.length - 1}
                     />
                 ))}
+                {currentStage > 3 && (
+                    <button 
+                        onClick={() => setShowPopup(true)}
+                        className="ml-4 p-2 text-gray-500 hover:text-gray-700 absolute right-2"
+                    >
+                        <Info size={20} />
+                    </button>
+                )}
+                <PaymentSuccessPopup 
+                    isOpen={showPopup} 
+                    onClose={() => setShowPopup(false)}
+                    title="Travel-Rizz Features"
+                    description="Here are a range of features to help you plan your trip effectively:"
+                />
             </StepsList>
         </StepsRoot>
     );

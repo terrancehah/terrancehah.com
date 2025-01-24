@@ -17,38 +17,38 @@ const VIDEO_TUTORIALS = [
   {
     id: 1,
     title: "Visualised Route Planning",
-    src: "https://placehold.co/600x400/png?text=Visualised+Route+Planning",
+    src: "/images/visualised-routes.png",
     description: "With the help of Google Advanced Routes API, we can visualize your trip's route in a clear and engaging way."
   },
   {
     id: 2,
     title: "Advanced Daily Itinerary Planning",
-    src: "https://placehold.co/600x400/png?text=Daily+Itinerary+Planning",
+    src: "/images/daily-itinerary-planning.png",
     description: "Travel-Rizz helps you group activities and attractions to create daily itineraries."
   },
   {
     id: 3,
     title: "Travel Time between Attractions",
-    src: "https://placehold.co/600x400/png?text=Travel+Time+between+Attractions",
+    src: "/images/travel-info.png",
     description: "Be informed about travel times between attractions for your trip, so you can plan your day ahead."
   },
   {
     id: 4,
     title: "Drag and Drop Attraction Organising",
-    src: "https://placehold.co/600x400/png?text=Drag+and+Drop+Attraction",
+    src: "/videos/drag-and-drop-place.mov",
     description: "Organise your trip by dragging and dropping attractions. It's just as simple as that."
   },
   {
     id: 5,
     title: "Add and Remove Attractions Easily",
-    src: "https://placehold.co/600x400/png?text=Add+and+Remove+Attractions",
+    src: "/videos/add-and-remove-place.mov",
     description: "Add and remove attractions from your trip effortlessly, making it easy to plan your perfect day."
   }
 ];
 
 // Configure autoplay plugin
 const autoplayOptions = {
-  delay: 4000,
+  delay: 7000,
   stopOnInteraction: false,
   stopOnMouseEnter: false,
   rootNode: (emblaRoot: HTMLElement) => emblaRoot
@@ -88,8 +88,8 @@ export default function PaymentSuccessPopup({ isOpen, onClose, title, descriptio
         
         <div className="space-y-6">
           <div className="text-center">
-            <h3 className="text-2xl font-semibold mb-2">{title}</h3>
-            {description && <p className="text-gray-600 mb-6">{description}</p>}
+            <h3 className="text-2xl font-semibold mb-1">{title}</h3>
+            {description && <p className="text-gray-600 mb-2">{description}</p>}
           </div>
 
           {/* Image Carousel */}
@@ -97,14 +97,25 @@ export default function PaymentSuccessPopup({ isOpen, onClose, title, descriptio
             <div className="flex">
               {VIDEO_TUTORIALS.map((tutorial, index) => (
                 <div key={tutorial.id} className="flex-[0_0_100%] min-w-0">
-                  <div className="p-2">
-                    <img
-                      className="w-full rounded-lg"
-                      src={tutorial.src}
-                      alt={tutorial.title}
-                    />
-                    <h4 className="text-lg font-semibold mt-4">{tutorial.title}</h4>
-                    <p className="text-gray-600">{tutorial.description}</p>
+                  <div className="p-2 flex flex-col items-center justify-center">
+                    {tutorial.src.endsWith('.mov') ? (
+                      <video
+                        className="w-[90%] rounded-lg border border-slate-200"
+                        src={tutorial.src}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        className="w-[90%] rounded-lg border border-slate-200"
+                        src={tutorial.src}
+                        alt={tutorial.title}
+                      />
+                    )}
+                    <h4 className="text-lg font-semibold mt-4 w-[90%]">{tutorial.title}</h4>
+                    <p className="text-gray-600 w-[90%]">{tutorial.description}</p>
                   </div>
                 </div>
               ))}
