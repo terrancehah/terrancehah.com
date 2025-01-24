@@ -4,27 +4,27 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { BudgetLevel, SupportedLanguage, TravelDetails, TravelPreference, WeatherChartProps } from '../managers/types';
-import { BudgetSelector } from '../components/selector-components/BudgetSelector';
-import { PreferenceSelector } from '../components/selector-components/PreferenceSelector';
-import { DatePicker } from '../components/selector-components/DateSelector';
-import { LanguageSelector } from '../components/selector-components/LanguageSelector';
-import { PlaceCard } from '../components/place-components/PlaceCard';
-import { Carousel } from '../components/place-components/PlaceCarousel';
-import { SavedPlacesList } from './place-components/SavedPlacesList';
-import HistoricalWeatherChart from '../components/weather/historical-weather-chart';
+import { BudgetSelector } from './selectors/BudgetSelector';
+import { PreferenceSelector } from './selectors/PreferenceSelector';
+import { DatePicker } from './selectors/DateSelector';
+import { LanguageSelector } from './selectors/LanguageSelector';
+import { PlaceCard } from './features/places/PlaceCard';
+import { Carousel } from './features/places/PlaceCarousel';
+import { SavedPlacesList } from './features/places/SavedPlacesList';
+import HistoricalWeatherChart from './features/weather/historical-weather-chart';
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
-import { QuickResponse } from '../components/chat-components/QuickResponse';
+import { QuickResponse } from './chat/QuickResponse';
 import ReactMarkdown from 'react-markdown';
 import { validateStageProgression } from '../managers/stage-manager';
 import { TravelSession, StageProgressResult } from '../managers/types';
-import { CurrencyConverter } from '../components/currency/CurrencyConverter';
+import { CurrencyConverter } from './features/currency/CurrencyConverter';
 import { useTravelChat } from '../hooks/useTravelChat';
 import { useTravelTools } from '../hooks/useTravelTools';
 import { Place, savedPlacesManager, searchPlaceByText } from '../utils/places-utils';
 import { ToolInvocation } from '../managers/types';
 import { getStoredSession, checkInputLimits, handleSessionExpiry, checkSessionWithWarning, updateStoredMetrics } from '../utils/session-manager';
-import PremiumUpgradeModal from './premium-upgrade-modal';
-import SessionWarningModal from './session-warning-modal';
+import PremiumUpgradeModal from './modals/premium-upgrade-modal';
+import SessionWarningModal from './modals/session-warning-modal';
 import { useRouter } from 'next/router';
 
 interface TravelChatProps {

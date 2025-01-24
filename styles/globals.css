@@ -38,4 +38,29 @@
   .shadow-all {
     box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 5px 0px, rgba(0, 0, 0, 0.1) 0px 0px 1px 0px;
   }
+
+  /* Override Google Places Autocomplete dropdown */
+  .pac-container {
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.05) !important;
+    margin-top: 4px !important;
+    border-radius: 0.5rem !important;
+    background-color: white !important;
+    font-family: inherit !important;
+    z-index: 1000 !important;
+  }
+
+  .pac-item {
+    padding: 6px 12px !important;
+    border-top: 1px solid #e2e8f0 !important;
+    font-family: inherit !important;
+  }
+
+  .pac-item:first-child {
+    border-top: none !important;
+  }
+
+  .pac-item:hover {
+    background-color: #f7f9fc !important;
+  }
 }

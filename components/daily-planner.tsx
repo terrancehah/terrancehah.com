@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { DragDropContext, DropResult } from '@hello-pangea/dnd'
-import { DaySection } from './planner-components/day-section'
-import { Place } from '../utils/places-utils'
-import { savedPlacesManager } from '../utils/places-utils'
-import { getStoredSession } from '../utils/session-manager'
+import { DaySection } from '../components/planner/day-section'
+import { Place } from '@/utils/places-utils'
+import { savedPlacesManager } from '@/utils/places-utils'
+import { getStoredSession } from '@/utils/session-manager'
 import { ChevronUpIcon, ChevronDownIcon } from 'lucide-react';
 import { TravelDetails } from '../managers/types'
 import react from 'react'
-import { travelInfoManager } from '../utils/travel-info-utils'
+import { travelInfoManager } from '@/utils/travel-info-utils'
 
 export interface DayPlan {
   id: string

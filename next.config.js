@@ -40,6 +40,11 @@ const nextConfig = {
         destination: '/travel-form',
         permanent: true,
       },
+      {
+        source: '/',
+        destination: '/landing',
+        permanent: true,
+      }
     ]
   },
   webpack: (config) => {

@@ -5,19 +5,19 @@ import { TravelPreference, BudgetLevel, SupportedLanguage, TravelDetails, Travel
 import StageProgress from '@/components/stage-progress';
 import { Place } from '@/utils/places-utils';
 import { getStoredSession, initializeSession, SESSION_CONFIG, checkSessionValidity, updateLastActive, storage, getPaymentReference, setPaymentStatus, clearPaymentReference, getPaymentStatus, updateSessionLocation } from '../utils/session-manager';
-import PaymentSuccessPopup from '@/components/payment-success-popup';
-import PremiumUpgradeModal from '@/components/premium-upgrade-modal';
+import PaymentSuccessPopup from '../components/modals/payment-success-popup';
+import PremiumUpgradeModal from '../components/modals/premium-upgrade-modal';
 import { validateStageProgression } from '../managers/stage-manager';
 
 const TravelChatComponent = dynamic(() => import('../components/travel-chat'), {
     ssr: false,
 })
 
-const ItineraryPlanner = dynamic(() => import('../components/daily-planner'), {
+const ItineraryPlanner = dynamic(() => import('@/components/daily-planner'), {
     ssr: false,
 })
 
-const MapComponent = dynamic(() => import('../components/map-component'), {
+const MapComponent = dynamic(() => import('@/components/features/map-component'), {
     ssr: false,
 })
 
