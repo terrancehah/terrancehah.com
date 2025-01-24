@@ -161,22 +161,46 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
     // Update state
     setDays(newDays);
     
-    // Get all affected places
+    // Get all affected places in their final order
     const allAffectedPlaces = [
-      movedPlace,  // Include moved place first
-      ...sourceDay.places,  // Then source day places
-      ...(sourceDayIndex !== destDayIndex ? destDay.places : [])  // Then destination day places if different
+      ...sourceDay.places,  // Source day places with updated indices
+      ...(sourceDayIndex !== destDayIndex ? destDay.places : [])  // Destination day places if different
     ];
+
+    // Clear travel info cache for all affected places at once
+    travelInfoManager.clearRoutesForPlaces(allAffectedPlaces);
+
+    // Update all places at once
+    savedPlacesManager.updatePlaces(allAffectedPlaces);
     
-    // Update each place in savedPlacesManager to ensure proper persistence
-    allAffectedPlaces.forEach(place => {
-      savedPlacesManager.updatePlace(place);
-    });
-    
-    // No need to dispatch event manually as updatePlace will trigger _notifyChange
+    // No need to dispatch event manually as updatePlaces will trigger _notifyChange
   };
 
   const handleDeletePlace = (dayId: string, placeId: string) => {
+    const day = days.find(d => d.id === dayId);
+    if (day) {
+      // Get adjacent places to clear their routes
+      const placeIndex = day.places.findIndex(p => p.id === placeId);
+      const placesToClear = [];
+      
+      // Get the place being deleted
+      const place = day.places[placeIndex];
+      if (place) placesToClear.push(place);
+      
+      // Get previous place if exists
+      if (placeIndex > 0) {
+        placesToClear.push(day.places[placeIndex - 1]);
+      }
+      
+      // Get next place if exists
+      if (placeIndex < day.places.length - 1) {
+        placesToClear.push(day.places[placeIndex + 1]);
+      }
+
+      // Clear routes for all affected places at once
+      travelInfoManager.clearRoutesForPlaces(placesToClear);
+    }
+
     setDays(days.map(day => {
       if (day.id === dayId) {
         return {
@@ -186,6 +210,7 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
       }
       return day
     }))
+    
     // Also remove from savedPlacesManager
     savedPlacesManager.removePlace(placeId)
     onPlaceRemoved(placeId)
@@ -198,6 +223,17 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
         const orderIndex = day.places.length
         place.dayIndex = days.indexOf(day)
         place.orderIndex = orderIndex
+
+        // Clear travel info cache for adjacent places
+        const placesToClear = [place];
+        if (day.places.length > 0) {
+          // Add last place in day (will be connected to new place)
+          placesToClear.push(day.places[day.places.length - 1]);
+        }
+        
+        // Clear routes for all affected places at once
+        travelInfoManager.clearRoutesForPlaces(placesToClear);
+
         return {
           ...day,
           places: [...day.places, place]
@@ -205,6 +241,9 @@ export default function ItineraryPlanner({ onPlaceRemoved }: ItineraryPlannerPro
       }
       return day
     }))
+    
+    // Add to savedPlacesManager
+    savedPlacesManager.addPlace(place)
   }
 
   const handlePlacesChange = (dayId: string, newPlaces: Place[]) => {

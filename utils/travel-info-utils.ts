@@ -13,28 +13,19 @@ interface TravelInfoCache {
   [key: string]: TravelInfo
 }
 
-const CACHE_KEY = 'travel_info_cache'
 const CACHE_DURATION = 24 * 60 * 60 * 1000 // 24 hours
 
 class TravelInfoManager {
   private cache: TravelInfoCache = {}
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(CACHE_KEY)
-        if (stored) {
-          this.cache = JSON.parse(stored)
-        }
-      } catch (error) {
-        console.error('[TravelInfoManager] Cache load error:', error)
-        this.cache = {}
-      }
-    }
+    this.cache = {}
   }
 
   private getCacheKey(place1: Place, place2: Place): string {
-    return `${place1.id}-${place2.id}`
+    // Sort IDs to ensure same key regardless of order
+    const ids = [place1.id, place2.id].sort();
+    return `${ids[0]}-${ids[1]}`;
   }
 
   private isCacheValid(info: TravelInfo): boolean {
@@ -115,7 +106,6 @@ class TravelInfoManager {
       // Only cache if we have valid data
       if (data.duration && data.distance && !data.duration.includes('NaN') && !data.distance.includes('NaN')) {
         this.cache[key] = info;
-        this.persist();
       } else {
         console.error('[TravelInfoManager] Invalid data received:', data);
       }
@@ -129,34 +119,28 @@ class TravelInfoManager {
     }
   }
 
-  private persist(): void {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(this.cache))
-      } catch (error) {
-        console.error('[TravelInfoManager] Cache save error:', error)
-      }
-    }
-  }
-
   clearCache(): void {
+    console.log('[TravelInfoManager] Clearing entire cache');
     this.cache = {}
-    this.persist()
   }
 
-  // Add this new method to clear routes for specific places
-  clearRoutesForPlace(place: Place): void {
-    // Clear all routes that involve this place
+  // Clear all routes involving any of the places
+  clearRoutesForPlaces(places: Place[]): void {
+    console.log('[TravelInfoManager] Clearing routes for places:', places.map(p => p.id));
+    const placeIds = new Set(places.map(p => p.id));
+    
     Object.keys(this.cache).forEach(key => {
-      if (key.includes(place.id)) {
+      const [id1, id2] = key.split('-');
+      if (placeIds.has(id1) || placeIds.has(id2)) {
+        console.log('[TravelInfoManager] Clearing cache for:', key);
         delete this.cache[key];
       }
     });
-    
-    // Update localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(this.cache));
-    }
+  }
+
+  // Deprecated: Use clearRoutesForPlaces instead
+  clearRoutesForPlace(place: Place): void {
+    this.clearRoutesForPlaces([place]);
   }
 }
 

@@ -23,6 +23,7 @@ export default function TravelForm() {
   const [loading, setLoading] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [generatedContent, setGeneratedContent] = useState('');
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const destinationRef = useRef<HTMLInputElement>(null);
   const dateRangeRef = useRef<HTMLInputElement>(null);
   const hiddenEndDateRef = useRef<HTMLInputElement>(null);
@@ -38,8 +39,20 @@ export default function TravelForm() {
         dateFormat: 'Y-m-d',
         minDate: 'today',
         onChange: function(selectedDates) {
-          if (selectedDates.length === 2 && hiddenEndDateRef.current) {
-            hiddenEndDateRef.current.value = selectedDates[1].toISOString().split('T')[0];
+          if (selectedDates.length === 2) {
+            // Format dates in local time to preserve the selected dates
+            const startDate = selectedDates[0].getFullYear() + '-' + 
+              String(selectedDates[0].getMonth() + 1).padStart(2, '0') + '-' + 
+              String(selectedDates[0].getDate()).padStart(2, '0');
+            const endDate = selectedDates[1].getFullYear() + '-' + 
+              String(selectedDates[1].getMonth() + 1).padStart(2, '0') + '-' + 
+              String(selectedDates[1].getDate()).padStart(2, '0');
+            
+            console.log('Selected dates:', { startDate, endDate, raw: selectedDates.map(d => d.toString()) });
+            setDateRange({ startDate, endDate });
+            if (hiddenEndDateRef.current) {
+              hiddenEndDateRef.current.value = endDate;
+            }
           }
         }
       });
@@ -66,8 +79,8 @@ export default function TravelForm() {
 
     // Get form values
     const city = destinationRef.current?.value || '';
-    const formattedStartDate = dateRangeRef.current?.value.split(' to ')[0] || '';
-    const formattedEndDate = hiddenEndDateRef.current?.value || '';
+    const formattedStartDate = dateRange.startDate;
+    const formattedEndDate = dateRange.endDate;
     
     // Get language and budget from refs
     const language = languageRef.current?.value;

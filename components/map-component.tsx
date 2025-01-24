@@ -79,7 +79,8 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
     const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement>>(new Map());
     const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
     const [markerCount, setMarkerCount] = useState(0);
-    const routesRef = useRef<Map<string, google.maps.Polyline>>(new Map());
+    // Track active routes by fromId-toId
+    const activeRoutesRef = useRef<Map<string, google.maps.Polyline>>(new Map());
 
     useEffect(() => {
         if (!apiKey) return;
@@ -128,7 +129,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 mapInstanceRef.current = map;
                 setMap(map);
                 markersRef.current = new Map();
-                routesRef.current = new Map();
 
                 // Initialize the InfoWindow
                 infoWindowRef.current = new window.google.maps.InfoWindow({
@@ -396,6 +396,138 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         }
     }, []);
 
+    useEffect(() => {
+        if (!map) return;
+
+        const handlePlacesChanged = async (event: Event) => {
+            const e = event as CustomEvent<{ type?: string; sourceDayId?: string; }>;
+            console.log('[MapComponent] Places changed:', e.detail);
+
+            // Clear existing markers
+            markersRef.current.forEach(marker => {
+                marker.map = null;
+            });
+            markersRef.current.clear();
+
+            // Add new markers
+            const places = savedPlacesManager.getPlaces();
+            places.forEach(place => {
+                if (place.location) {
+                    const marker = createMarker(place);
+                    if (marker) {
+                        marker.map = map;
+                        markersRef.current.set(place.id, marker);
+                    }
+                }
+            });
+        };
+
+        window.addEventListener('places-changed', handlePlacesChanged);
+
+        return () => {
+            window.removeEventListener('places-changed', handlePlacesChanged);
+        };
+    }, [map]);
+
+    useEffect(() => {
+        if (!mapInstanceRef.current) return;
+
+        const handleTravelInfoDisplay = async (event: Event) => {
+            const e = event as CustomEvent<{fromId: string, toId: string}>;
+            const { fromId, toId } = e.detail;
+            const routeKey = `${fromId}-${toId}`;
+
+            // Clear existing route if any
+            const existingRoute = activeRoutesRef.current.get(routeKey);
+            if (existingRoute) {
+                existingRoute.setMap(null);
+                activeRoutesRef.current.delete(routeKey);
+            }
+
+            const fromPlace = savedPlacesManager.getPlaceById(fromId);
+            const toPlace = savedPlacesManager.getPlaceById(toId);
+            
+            if (fromPlace?.dayIndex !== undefined && toPlace) {
+                const color = getRouteColor(fromPlace.dayIndex);
+                const polyline = await drawRoute([fromPlace, toPlace], routeKey, color);
+                if (polyline) {
+                    activeRoutesRef.current.set(routeKey, polyline);
+                }
+            }
+        };
+
+        const handleTravelInfoHide = (event: Event) => {
+            const e = event as CustomEvent<{fromId: string, toId: string}>;
+            const { fromId, toId } = e.detail;
+            const routeKey = `${fromId}-${toId}`;
+            
+            // Remove route from map and tracking
+            const route = activeRoutesRef.current.get(routeKey);
+            if (route) {
+                route.setMap(null);
+                activeRoutesRef.current.delete(routeKey);
+            }
+        };
+
+        window.addEventListener('travelinfo-displayed', handleTravelInfoDisplay);
+        window.addEventListener('travelinfo-hidden', handleTravelInfoHide);
+
+        return () => {
+            // Clean up all routes when component unmounts
+            activeRoutesRef.current.forEach(route => route.setMap(null));
+            activeRoutesRef.current.clear();
+            
+            window.removeEventListener('travelinfo-displayed', handleTravelInfoDisplay);
+            window.removeEventListener('travelinfo-hidden', handleTravelInfoHide);
+        };
+    }, [mapInstanceRef.current]);
+
+    const drawRoute = async (places: Place[], routeKey: string, color: string) => {
+        console.log(`[MapComponent] Drawing route between:`, {
+            from: places[0]?.displayName,
+            to: places[1]?.displayName
+        });
+
+        if (!places || places.length !== 2 || !mapInstanceRef.current || !isGeometryReady()) {
+            console.log('[MapComponent] Not ready to draw route:', {
+                places: places?.length,
+                mapReady: !!mapInstanceRef.current,
+                geometryReady: isGeometryReady()
+            });
+            return;
+        }
+
+        const [place1, place2] = places;
+        if (!place1.location || !place2.location) {
+            console.warn('[MapComponent] Missing location for place:', { 
+                place1Name: place1.name,
+                place2Name: place2.name
+            });
+            return;
+        }
+
+        try {
+            const info = await travelInfoManager.getTravelInfo(place1, place2);
+            if (!info || !info.legPolyline) {
+                console.warn('[MapComponent] No route info available between places');
+                return;
+            }
+
+            const path = google.maps.geometry.encoding.decodePath(info.legPolyline);
+            const polyline = new google.maps.Polyline({
+                path,
+                strokeColor: color,
+                strokeOpacity: 1.0,
+                strokeWeight: 3,
+                map: mapInstanceRef.current
+            });
+
+            return polyline;
+        } catch (error) {
+            console.error('[MapComponent] Error drawing route:', error);
+        }
+    };
+
     const getPhotoUrl = (photo: google.maps.places.Photo, index: number) => {
         return photo.getURI?.() || '';
     };
@@ -442,124 +574,6 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
         `;
     };
 
-    useEffect(() => {
-        const handlePlacesChanged = (event: CustomEvent) => {
-            if (!mapInstanceRef.current) return;
-            
-            // Clear ALL existing routes
-            routesRef.current.forEach(route => {
-                route.setMap(null);
-            });
-            routesRef.current.clear();
-            
-            // Group and draw routes
-            const places = savedPlacesManager.getPlaces();
-            const days = places.reduce((acc, place) => {
-                if (place.dayIndex === undefined) return acc;
-                const dayId = `day-${place.dayIndex}`;
-                if (!acc[dayId]) acc[dayId] = [];
-                acc[dayId].push(place);
-                return acc;
-            }, {} as Record<string, Place[]>);
-
-            Object.entries(days).forEach(([dayId, places]) => {
-                const sortedPlaces = [...places].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-                const dayIndex = parseInt(dayId.replace('day-', ''));
-                // Array of distinct colors for routes
-                const colors = [
-                    '#2196F3', // Blue
-                    '#9C27B0', // Purple
-                    '#795548', // Brown
-                    '#FF9800', // Orange
-                    '#009688', // Teal
-                    '#E91E63', // Pink
-                    '#673AB7', // Deep Purple
-                    '#3F51B5', // Indigo
-                    '#00BCD4', // Cyan
-                    '#4CAF50'  // Green
-                ];
-                const color = colors[dayIndex % colors.length];
-                drawDayRoute(dayId, sortedPlaces, color);
-            });
-        };
-
-        window.addEventListener('savedPlacesChanged', handlePlacesChanged as EventListener);
-        return () => {
-            window.removeEventListener('savedPlacesChanged', handlePlacesChanged as EventListener);
-        };
-    }, []);
-
-    const drawDayRoute = async (dayId: string, places: Place[], color: string) => {
-        console.log(`drawDayRoute called for day ${dayId} with ${places.length} places`);
-        
-        const existingRoute = routesRef.current.get(dayId);
-        if (existingRoute) {
-            existingRoute.setMap(null);
-            routesRef.current.delete(dayId);
-        }
-
-        if (!places || places.length < 2 || !mapInstanceRef.current || !isGeometryReady()) {
-            console.log('Not ready:', {
-                places: places?.length,
-                mapReady: !!mapInstanceRef.current,
-                geometryReady: isGeometryReady()
-            });
-            return;
-        }
-
-        const coordinates: google.maps.LatLng[] = [];
-        
-        for (let i = 0; i < places.length - 1; i++) {
-            const place1 = places[i];
-            const place2 = places[i + 1];
-            
-            if (!place1.location || !place2.location) {
-                console.log('Missing location for place:', { 
-                    place1Name: place1.name,
-                    place2Name: place2.name,
-                    place1Location: place1.location,
-                    place2Location: place2.location
-                });
-                continue;
-            }
-
-            console.log(`Getting travel info between ${place1.name} and ${place2.name}`);
-            const info = await travelInfoManager.getTravelInfo(place1, place2);
-            
-            console.log('Received travel info:', info);
-            
-            if (info.legPolyline) {
-                console.log('Decoding polyline:', info.legPolyline);
-                try {
-                    const path = google.maps.geometry.encoding.decodePath(info.legPolyline);
-                    console.log('Decoded path:', path);
-                    if (path) {
-                        coordinates.push(...path);
-                    }
-                } catch (error) {
-                    console.error('Error decoding polyline:', error);
-                }
-            } else {
-                console.log('No polyline in travel info');
-            }
-        }
-
-        console.log(`Found ${coordinates.length} coordinates for route`);
-        if (coordinates.length > 0) {
-            const route = new google.maps.Polyline({
-                path: coordinates,
-                geodesic: true,
-                strokeColor: color,
-                strokeOpacity: 0.8,
-                strokeWeight: 3,
-                map: mapInstanceRef.current
-            });
-
-            console.log('Created new polyline:', route);
-            routesRef.current.set(dayId, route);
-        }
-    };
-
     const isGeometryReady = () => {
         return !!(
             window.google?.maps?.geometry?.encoding?.decodePath &&
@@ -583,6 +597,65 @@ const MapComponent: React.FC<MapComponentProps> = ({ city, apiKey }) => {
                 }
             );
         });
+    };
+
+    const getRouteColor = (dayIndex: number) => {
+        const colors = [
+            '#2196F3', // Blue
+            '#9C27B0', // Purple
+            '#795548', // Brown
+            '#FF9800', // Orange
+            '#009688', // Teal
+            '#E91E63', // Pink
+            '#673AB7', // Deep Purple
+            '#3F51B5', // Indigo
+            '#00BCD4', // Cyan
+            '#4CAF50'  // Green
+        ];
+        return colors[dayIndex % colors.length];
+    };
+
+    const createMarker = (place: Place) => {
+        if (!place.location) {
+            console.warn('[MapComponent] Cannot create marker: place missing location', place);
+            return null;
+        }
+
+        const pinElement = new window.google.maps.marker.PinElement({
+            background: "#FF4444",  // Bright red
+            borderColor: "#CC0000", // Darker red border
+            glyphColor: "#FFFFFF",  // White glyph for better contrast
+        });
+
+        const marker = new google.maps.marker.AdvancedMarkerElement({
+            position: {
+                lat: place.location.latitude,
+                lng: place.location.longitude
+            },
+            title: typeof place.displayName === 'string' ? place.displayName : place.displayName.text,
+            content: pinElement.element,
+            gmpDraggable: false,
+        });
+
+        marker.addListener('gmp-click', () => {
+            // Close any existing InfoWindow
+            infoWindowRef.current?.close();
+            
+            window.currentInfoWindowMarker = {
+                markerId: place.id,
+                marker: marker
+            };
+            
+            const content = createPlaceInfoWindowContent(place, place.id);
+            if (content && infoWindowRef.current && mapInstanceRef.current) {
+                const position = marker.position as google.maps.LatLng;
+                infoWindowRef.current.setContent(content);
+                infoWindowRef.current.setPosition(position);
+                infoWindowRef.current.open(mapInstanceRef.current);
+            }
+        });
+
+        return marker;
     };
 
     return (

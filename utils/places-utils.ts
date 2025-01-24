@@ -206,8 +206,10 @@ export interface SavedPlacesManager {
     addPlace: (place: Place) => void;
     removePlace: (id: string) => void;
     getPlaces: () => Place[];
+    getPlaceById: (id: string) => Place | undefined;
     hasPlace: (id: string) => boolean;
     updatePlace: (place: Place) => void;
+    updatePlaces: (updatedPlaces: Place[]) => void;
     _persist: () => void;
     _notifyChange: () => void;
     serialize: () => string;
@@ -262,6 +264,10 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
             loadFromStorage(); // Ensure places are loaded
             return Array.from(places.values());
         },
+        getPlaceById(id: string): Place | undefined {
+            loadFromStorage(); // Ensure places are loaded
+            return places.get(id);
+        },
         hasPlace(id: string): boolean {
             loadFromStorage(); // Ensure places are loaded
             return places.has(id);
@@ -272,6 +278,16 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
                 this._persist();
                 this._notifyChange();
             }
+        },
+        updatePlaces(updatedPlaces: Place[]) {
+            loadFromStorage(); // Ensure places are loaded
+            updatedPlaces.forEach(place => {
+                if (place?.id) {
+                    places.set(place.id, place);
+                }
+            });
+            this._persist();
+            this._notifyChange();
         },
         _persist() {
             if (typeof window !== 'undefined') {
@@ -290,11 +306,13 @@ const createSavedPlacesManager = (): SavedPlacesManager => {
         },
         _notifyChange() {
             if (typeof window !== 'undefined') {
-                const placesArray = Array.from(places.values());
+                window.savedPlaces = Array.from(this.places.values());
+                // Dispatch event with type to handle different update scenarios
                 window.dispatchEvent(new CustomEvent('savedPlacesChanged', {
                     detail: {
-                        places: placesArray,
-                        count: places.size
+                        places: Array.from(this.places.values()),
+                        count: this.places.size,
+                        type: 'update'
                     }
                 }));
             }

@@ -33,6 +33,12 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
         if (info) {
           setDuration(info.duration)
           setDistance(info.distance)
+          // Only notify for display if we have valid info
+          if (!info.error && place?.id && nextPlace?.id) {
+            window.dispatchEvent(new CustomEvent('travelinfo-displayed', { 
+              detail: { fromId: place.id, toId: nextPlace.id }
+            }));
+          }
         }
       } catch (error) {
         console.error('[TravelInfo] Error:', error)
@@ -57,6 +63,15 @@ export function TravelInfo({ place, nextPlace, className }: TravelInfoProps) {
         toLocation: nextPlace?.location
       });
     }
+
+    // Cleanup when component unmounts or places change
+    return () => {
+      if (place?.id && nextPlace?.id) {
+        window.dispatchEvent(new CustomEvent('travelinfo-hidden', {
+          detail: { fromId: place.id, toId: nextPlace.id }
+        }));
+      }
+    };
   }, [place?.id, nextPlace?.id, place?.location?.latitude, place?.location?.longitude, nextPlace?.location?.latitude, nextPlace?.location?.longitude])
 
   return (
