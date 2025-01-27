@@ -1,4 +1,6 @@
 import Image from "next/image"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function Features() {
   const features = [
@@ -6,13 +8,13 @@ export default function Features() {
       title: "AI Chat Interface",
       description:
         "Engage in natural conversations to customize your travel plans. Our AI understands your preferences and adapts recommendations in real-time.",
-      image: "/features/ai-chat.jpg",
+      image: "/images/ai-chat-interface.png",
     },
     {
       title: "Dynamic Travel Insights",
       description:
         "Get instant access to weather forecasts, currency rates, and local insights as you plan. Make informed decisions with real-time data at your fingertips.",
-      image: "/features/insights.jpg",
+      image: "/images/generative-ui.png",
     },
     {
       title: "Visual Route Planning",
@@ -29,34 +31,40 @@ export default function Features() {
   ]
 
   return (
-    <section id="features" className="w-full py-20 flex items-center">
-      <div className="container mx-auto">
-        <h2 className="text-4xl md:text-5xl font-caveat text-primary text-center mb-16 text-shadow">
+    <section id="features" className="w-full py-16 flex items-center">
+      <div className="container w-[80%] mx-auto">
+
+        <h2 className="text-4xl md:text-5xl font-caveat text-primary text-center mb-12 text-shadow">
           How We Make Travel Planning Effortless
         </h2>
-        <div className="space-y-20">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mx-auto">
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`flex flex-col ${index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"} gap-x-12 items-center`}
+              className="flex flex-col gap-y-4 p-8 rounded-xl border border-gray-200 shadow-md transition-shadow"
             >
-              <div className="flex-1 space-y-4">
-                <h3 className="text-2xl md:text-3xl font-raleway text-primary">{feature.title}</h3>
+              <Image
+                src={feature.image}
+                alt={feature.title}
+                width={600}
+                height={400}
+                className="rounded-lg shadow-sm border border-gray-100 object-cover w-full"
+              />
+              <div className="space-y-2">
+                <h3 className="text-xl md:text-2xl font-raleway text-primary">{feature.title}</h3>
                 <p className="text-gray-600 text-lg font-raleway leading-relaxed">{feature.description}</p>
-              </div>
-              <div className="flex-1">
-                <Image
-                  src={feature.image}
-                  alt={feature.title}
-                  width={600}
-                  height={400}
-                  className="rounded-lg shadow-lg border border-gray-200"
-                />
               </div>
             </div>
           ))}
         </div>
+        <div className="space-x-4 w-full pt-12 items-center flex justify-center">
+          <Button asChild size="lg" className="bg-sky-blue/90 text-white hover:bg-sky-blue hover:shadow-md border border-slate-500">
+            <Link href="/travel-form">Start Planning</Link>
+          </Button>
+        </div>
       </div>
+      
     </section>
   )
 }

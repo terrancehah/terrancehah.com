@@ -1,8 +1,7 @@
 export default function About() {
   return (
     <section id="about" className="w-full py-20 bg-gradient flex items-center">
-      <div className="container mx-auto">
-        <div className="max-w-3xl mx-auto text-center space-y-8">
+        <div className="max-w-3xl w-[80%] mx-auto text-center space-y-8">
           <h2 className="font-caveat text-4xl md:text-5xl lg:text-6xl text-primary text-shadow">
             About Travel-Rizz
           </h2>
@@ -20,7 +19,6 @@ export default function About() {
             </p>
           </div>
         </div>
-      </div>
     </section>
   )
 }

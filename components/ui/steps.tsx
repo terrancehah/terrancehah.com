@@ -15,7 +15,7 @@ interface StepsProps {
 
 export function Steps({ currentStep, steps }: StepsProps) {
   return (
-    <div className="space-y-20">
+    <div className="space-y-20 pl-2">
       {steps.map((step) => {
         const Icon = step.icon
         const isCompleted = currentStep > step.number

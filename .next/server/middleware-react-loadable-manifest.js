@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"index.tsx -> ../components/travel-chat\":{\"id\":\"index.tsx -> ../components/travel-chat\",\"files\":[\"static/chunks/components_travel-chat_tsx.js\"]},\"index.tsx -> @/components/daily-planner\":{\"id\":\"index.tsx -> @/components/daily-planner\",\"files\":[\"static/chunks/components_daily-planner_tsx.js\"]},\"index.tsx -> @/components/features/map-component\":{\"id\":\"index.tsx -> @/components/features/map-component\",\"files\":[\"static/chunks/components_features_map-component_tsx.js\"]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"

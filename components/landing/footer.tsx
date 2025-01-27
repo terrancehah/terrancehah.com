@@ -1,21 +1,28 @@
 import Link from "next/link"
 import { Plane, Twitter, Facebook, Instagram } from "lucide-react"
+import Image from "next/image"
 
 export default function Footer() {
   return (
     <footer className="w-full py-6 bg-light-blue flex items-center">
-      <div className="container mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="container w-[80%] md:w-full mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mx-auto">
 
           <div className="flex flex-col space-y-4">
             <Link href="/" className="flex items-center space-x-2">
-              <Plane className="h-6 w-6 text-sky-blue" />
+              <Image
+              src="/images/travel-rizz.png"
+              alt="Travel-Rizz Logo"
+              width={40}
+              height={40}
+              className="h-10 w-10 object-contain"
+            />
               <span className="font-bold text-primary">Travel-Rizz</span>
             </Link>
-            <p className="text-sm text-secondary">Plan your perfect trip with AI assistance.</p>
+            <p className="text-sm text-secondary">Plan Your Dream Trip Effortlessly.</p>
           </div>
 
-          <div>
+          <div className="mt-2">
             <h3 className="font-semibold mb-4 text-primary">Quick Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -36,7 +43,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="mt-2">
             <h3 className="font-semibold mb-4 text-primary">Legal</h3>
             <ul className="space-y-2 text-sm">
               <li>
@@ -52,7 +59,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          <div>
+          <div className="mt-2">
             <h3 className="font-semibold mb-4 text-primary">Follow Us</h3>
             <div className="flex space-x-4">
               <Link href="https://x.com/travelrizz" target="_blank" aria-label="Twitter" className="text-secondary hover:text-primary">
