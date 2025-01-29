@@ -8,6 +8,7 @@ import { Steps } from "../components/ui/steps"
 import { useRouter } from "next/navigation"
 import { MapPin, Calendar, Heart, Wallet, Languages, Trees, Soup, ShoppingBag, Ship, Palette } from "lucide-react"
 import flatpickr from "flatpickr"
+import type { Instance } from "flatpickr/dist/types/instance"
 import "flatpickr/dist/flatpickr.min.css"
 import Image from "next/image"
 import Head from "next/head"
@@ -19,8 +20,8 @@ import Link from "next/link"
 // Add Google Maps types
 declare global {
   interface Window {
-    google: any
-    initAutocomplete: () => void
+    google: typeof google;
+    initAutocomplete?: () => void;
   }
 }
 
@@ -86,11 +87,12 @@ export default function TravelFormPage() {
 
         autocomplete.addListener("place_changed", () => {
           const place = autocomplete.getPlace()
-          if (place.formatted_address) {
-            destinationRef.current.value = place.formatted_address
-            setFormData((prev) => ({
+          const destination = place.formatted_address || ""
+          if (destinationRef.current) {
+            destinationRef.current.value = destination
+            setFormData((prev: FormData) => ({
               ...prev,
-              destination: place.formatted_address
+              destination
             }))
           }
         })
@@ -101,7 +103,9 @@ export default function TravelFormPage() {
 
     return () => {
       document.head.removeChild(script)
-      delete window.initAutocomplete
+      if (window.initAutocomplete) {
+        delete window.initAutocomplete
+      }
     }
   }, [])
 
@@ -118,21 +122,61 @@ export default function TravelFormPage() {
         mode: "range",
         dateFormat: "Y-m-d",
         minDate: "today",
-        onChange: (selectedDates) => {
-          if (selectedDates.length === 2) {
-            const startDate = selectedDates[0].getFullYear() + '-' + 
-              String(selectedDates[0].getMonth() + 1).padStart(2, '0') + '-' + 
-              String(selectedDates[0].getDate()).padStart(2, '0')
-            const endDate = selectedDates[1].getFullYear() + '-' + 
-              String(selectedDates[1].getMonth() + 1).padStart(2, '0') + '-' + 
-              String(selectedDates[1].getDate()).padStart(2, '0')
+        onChange: (selectedDates, dateStr, instance) => {
+          try {
+            // When user starts a new selection, reset maxDate
+            if (selectedDates.length === 0) {
+              instance.set("maxDate", null);
+              console.log('Reset date constraints for new selection');
+              return;
+            }
+
+            // When first date is selected, set maxDate to 5 days ahead
+            if (selectedDates.length === 1) {
+              const maxDate = new Date(selectedDates[0].getTime() + (4 * 24 * 60 * 60 * 1000));
+              instance.set("maxDate", maxDate);
+              console.log('Set max date to:', maxDate.toISOString());
+              return;
+            }
             
-            console.log('Selected dates:', { startDate, endDate, raw: selectedDates.map(d => d.toString()) })
-            setFormData(prev => ({
-              ...prev,
-              startDate,
-              endDate
-            }))
+            // When both dates are selected
+            if (selectedDates.length === 2) {
+              const formatDate = (date: Date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+              };
+
+              const startDate = formatDate(selectedDates[0]);
+              const endDate = formatDate(selectedDates[1]);
+              
+              // Validate date range
+              const diffDays = Math.ceil(
+                (selectedDates[1].getTime() - selectedDates[0].getTime()) / 
+                (1000 * 60 * 60 * 24)
+              ) + 1;
+              
+              if (diffDays > 5) {
+                console.warn('Invalid date range selected:', diffDays, 'days');
+                return;
+              }
+              
+              console.log('Selected dates:', { startDate, endDate, diffDays });
+              setFormData(prev => ({
+                ...prev,
+                startDate,
+                endDate
+              }));
+
+              // Reset maxDate after successful selection to allow reselection
+              instance.set("maxDate", null);
+            }
+          } catch (error) {
+            console.error('Error handling date selection:', error);
+            // Reset the date picker on error
+            instance.clear();
+            instance.set("maxDate", null);
           }
         }
       })

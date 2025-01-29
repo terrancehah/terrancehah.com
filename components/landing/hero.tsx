@@ -19,13 +19,13 @@ export default function Hero() {
             Plan Your Dream Trip Effortlessly
           </h1>
           <p className="mx-auto max-w-[700px] font-raleway text-secondary md:text-xl">
-            Experience effortless travel planning with our AI-powered chatbot. Create personalized itineraries
-            tailored to your preferences in minutes.
+          Let's plan your perfect journey together, combining human expertise with AI assistance to create a personalized trip that's uniquely yours. 
+          No more overwhelming planning - just the joy of looking forward to your next adventure.
           </p>
         </div>
         <div className="space-x-4">
           <Button asChild size="lg" className="bg-sky-blue/90 text-white hover:bg-sky-blue hover:shadow-md border border-slate-500">
-            <Link href="/travel-form">Start Planning</Link>
+            <Link href="/travel-form">Let's Plan Together</Link>
           </Button>
         </div>
       </div>

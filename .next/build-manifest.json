@@ -27,10 +27,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/travel-form": [
+    "/chat": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/travel-form.js"
+      "static/chunks/pages/chat.js"
     ]
   },
   "ampFirstPages": []

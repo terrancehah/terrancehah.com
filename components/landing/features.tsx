@@ -7,13 +7,13 @@ export default function Features() {
     {
       title: "AI Chat Interface",
       description:
-        "Engage in natural conversations to customize your travel plans. Our AI understands your preferences and adapts recommendations in real-time.",
+        "Have a conversation about your dream trip. Share your ideas, and we'll help shape them into reality with personalized suggestions that evolve as we learn more about what matters to you.",
       image: "/images/ai-chat-interface.png",
     },
     {
       title: "Dynamic Travel Insights",
       description:
-        "Get instant access to weather forecasts, currency rates, and local insights as you plan. Make informed decisions with real-time data at your fingertips.",
+        "Travel with confidence knowing you have all the essential details - from weather patterns to local customs - right when you need them. Real insights that help you plan smarter and travel better.",
       image: "/images/generative-ui.png",
     },
     {
@@ -60,7 +60,7 @@ export default function Features() {
         </div>
         <div className="space-x-4 w-full pt-12 items-center flex justify-center">
           <Button asChild size="lg" className="bg-sky-blue/90 text-white hover:bg-sky-blue hover:shadow-md border border-slate-500">
-            <Link href="/travel-form">Start Planning</Link>
+            <Link href="/travel-form">Let's Plan Together</Link>
           </Button>
         </div>
       </div>
