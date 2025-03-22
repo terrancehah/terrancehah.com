@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A celebration of love">
+    <meta property="og:title" content="Happy 2nd Anniversary">
+    <meta property="og:description" content="A celebration of love">
+    <meta property="og:image" content="/resources/Anniversary/og-2.jpeg">
+    <meta property="og:type" content="article" />
+    <meta property="og:url" content="https://terrancehah.com/anniversary.html">
+    <title>Happy 2nd Anniversary</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Source+Sans+Pro:wght@300;400;600&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            /* Monet-inspired color palette - soft, low-saturated colors */
+            --primary-color: #6a8d92; /* Muted teal blue */
+            --secondary-color: #d1d7c9; /* Soft sage green */
+            --accent-color: #b3a394; /* Warm taupe */
+            --highlight-color: #c9b1bd; /* Muted lavender */
+            --background-color: #f5f6f0; /* Soft cream */
+            --text-color: #4a4a4a;
+        }
+        
+        body {
+            font-family: 'Source Sans Pro', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+        }
+        
+        .serif-font {
+            font-family: 'Playfair Display', serif;
+        }
+        
+        .elegant-font {
+            font-family: 'Cormorant Garamond', serif;
+        }
+        
+        /* Impressionist brush stroke effect */
+        .brush-stroke {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .brush-stroke::after {
+            content: "";
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background-image: url("data:image/svg+xml,%3Csvg width='200' height='10' viewBox='0 0 200 10' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,5 C30,2 60,8 90,5 C120,2 150,8 180,5 C190,3 200,6 200,5' stroke='%236a8d92' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-size: 100% 100%;
+        }
+        
+        /* Canvas texture overlay */
+        .canvas-texture {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23a0a0a0' fill-opacity='0.05' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9999;
+        }
+        
+        /* Impressionist dots background */
+        .impressionist-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle at 10% 20%, rgba(106, 141, 146, 0.05) 0%, rgba(106, 141, 146, 0) 5%),
+                              radial-gradient(circle at 30% 70%, rgba(179, 163, 148, 0.05) 0%, rgba(179, 163, 148, 0) 5%),
+                              radial-gradient(circle at 70% 40%, rgba(201, 177, 189, 0.05) 0%, rgba(201, 177, 189, 0) 5%),
+                              radial-gradient(circle at 90% 60%, rgba(209, 215, 201, 0.05) 0%, rgba(209, 215, 201, 0) 5%);
+            background-size: 300px 300px;
+            opacity: 0.7;
+            z-index: 0;
+        }
+        
+        /* Water ripple animation */
+        .water-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(0);
+            animation: ripple 6s infinite;
+            opacity: 0;
+        }
+        
+        @keyframes ripple {
+            0% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(6);
+                opacity: 0;
+            }
+        }
+        
+        /* Photo slideshow animation with impressionist fade */
+        @keyframes impressionistFade {
+            0% { opacity: 0; filter: blur(5px); }
+            5% { opacity: 0.3; filter: blur(3px); }
+            10% { opacity: 1; filter: blur(0px); }
+            25% { opacity: 1; filter: blur(0px); }
+            30% { opacity: 0.3; filter: blur(3px); }
+            35% { opacity: 0; filter: blur(5px); }
+            100% { opacity: 0; filter: blur(5px); }
+        }
+        
+        .photo-slide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            animation: impressionistFade 15s infinite;
+            border-radius: 0;
+            mix-blend-mode: multiply;
+        }
+        
+        .photo-slide:nth-child(2) {
+            animation-delay: 5s;
+        }
+        
+        .photo-slide:nth-child(3) {
+            animation-delay: 10s;
+        }
+        
+        /* Timeline with watercolor effect */
+        .timeline-item {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .timeline-item::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(to bottom, 
+                var(--primary-color) 0%, 
+                var(--highlight-color) 50%, 
+                var(--accent-color) 100%);
+            opacity: 0.6;
+        }
+        
+        .timeline-item::after {
+            content: "";
+            position: absolute;
+            left: -4px;
+            top: 0;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            opacity: 0.8;
+        }
+        
+        .timeline-date {
+            font-weight: 300;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+        
+        /* Watercolor card effect */
+        .watercolor-card {
+            position: relative;
+            background-color: white;
+            border-radius: 2px;
+            overflow: hidden;
+            transition: all 0.5s ease;
+        }
+        
+        .watercolor-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 30%, rgba(106, 141, 146, 0.15) 0%, rgba(106, 141, 146, 0) 20%),
+                radial-gradient(circle at 70% 60%, rgba(201, 177, 189, 0.1) 0%, rgba(201, 177, 189, 0) 30%),
+                radial-gradient(circle at 40% 90%, rgba(209, 215, 201, 0.15) 0%, rgba(209, 215, 201, 0) 25%);
+            opacity: 0.7;
+            z-index: 0;
+        }
+        
+        .watercolor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* RSVP button with artistic style */
+        .btn-rsvp {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--highlight-color) 100%);
+            color: white;
+            font-weight: 400;
+            padding: 14px 36px;
+            border-radius: 2px;
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 15px rgba(106, 141, 146, 0.3);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+        
+        .btn-rsvp::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.1) 100%);
+            transition: all 0.5s ease;
+            z-index: -1;
+        }
+        
+        .btn-rsvp:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(106, 141, 146, 0.4);
+        }
+        
+        .btn-rsvp:hover::before {
+            left: 100%;
+        }
+        
+        /* Artistic quote style */
+        .artistic-quote {
+            position: relative;
+            padding: 30px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 2px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            font-style: italic;
+        }
+        
+        .artistic-quote::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            font-size: 80px;
+            color: rgba(106, 141, 146, 0.2);
+            font-family: 'Playfair Display', serif;
+        }
+        
+        /* Impressionist photo frame */
+        .impressionist-frame {
+            position: relative;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .impressionist-frame::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 30% 20%, rgba(106, 141, 146, 0.1) 0%, rgba(106, 141, 146, 0) 20%),
+                radial-gradient(circle at 70% 60%, rgba(179, 163, 148, 0.1) 0%, rgba(179, 163, 148, 0) 30%),
+                radial-gradient(circle at 40% 90%, rgba(201, 177, 189, 0.1) 0%, rgba(201, 177, 189, 0) 25%);
+            z-index: 0;
+        }
+        
+        .impressionist-frame img {
+            position: relative;
+            z-index: 1;
+            transition: all 0.5s ease;
+            filter: saturate(0.9) contrast(1.1);
+            mix-blend-mode: multiply;
+        }
+        
+        .impressionist-frame:hover img {
+            filter: saturate(1) contrast(1);
+        }
+        
+        .impressionist-frame:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .frame-caption {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+            margin-top: 15px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 1.1rem;
+            color: var(--text-color);
+            font-style: italic;
+            font-weight: 300;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .hero-title {
+                font-size: 2.5rem;
+            }
+            
+            .timeline-container {
+                padding-left: 0;
+            }
+            
+            .impressionist-frame {
+                margin-bottom: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas texture overlay -->
+    <div class="canvas-texture"></div>
+    
+    <!-- Water ripple effects container -->
+    <div id="ripple-container" class="fixed inset-0 overflow-hidden pointer-events-none z-0"></div>
+
+    <!-- Hero Section -->
+    <section class="relative py-20 md:py-28 overflow-hidden">
+        <div class="impressionist-bg"></div>
+        <div class="container mx-auto px-4 relative z-10">
+            <div class="text-center">
+                <h1 class="hero-title text-5xl md:text-6xl font-light text-gray-800 mb-6 elegant-font">
+                    <span class="brush-stroke">Happy 2nd Anniversary</span>
+                </h1>
+                <p class="text-xl md:text-2xl text-gray-600 mb-10 font-light">Two years of moments painted together on the canvas of life</p>
+                <div class="w-24 h-px bg-gray-400 mx-auto mb-10 opacity-50"></div>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto font-light">
+                    Like brushstrokes on a blank canvas, each day with you adds color and beauty to our shared masterpiece.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Artistic Photo Gallery Section -->
+    <section class="py-20 bg-white bg-opacity-70">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-light text-center mb-16 serif-font text-gray-800">Our Journey's Canvas</h2>
+            
+            <!-- Impressionist Photo Slideshow -->
+            <div class="relative h-96 mb-20 mx-auto max-w-4xl overflow-hidden">
+                <div class="absolute inset-0 bg-gray-100"></div>
+                <img src="/resources/Anniversary/1.jpeg" class="photo-slide h-max" alt="Our First Date">
+                <img src="/resources/Anniversary/first-trip.jpeg" class="photo-slide h-max" alt="First Trip Together">
+                <img src="/resources/Anniversary/botanical.jpeg" class="photo-slide h-max" alt="Special Moment">
+                
+                <!-- Artistic Caption -->
+                <div class="absolute bottom-0 left-0 right-0 p-6 text-center backdrop-blur supports-[backdrop-filter]:bg-lime-200">
+                    <p class="text-lg md:text-xl elegant-font text-gray-700 font-light italic">Moments captured in time, like impressions of light</p>
+                </div>
+            </div>
+            
+            <!-- Impressionist Gallery -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mt-20">
+                <div class="impressionist-frame">
+                    <img src="/resources/Anniversary/beginning.jpeg" alt="Special Memory 1">
+                    <p class="frame-caption">The beginning of our story</p>
+                </div>
+                <div class="impressionist-frame">
+                    <img src="/resources/Anniversary/island.jpeg" alt="Special Memory 2">
+                    <p class="frame-caption">Adventures under open skies</p>
+                </div>
+                <div class="impressionist-frame">
+                    <img src="/resources/Anniversary/keklok.jpeg" alt="Special Memory 3">
+                    <p class="frame-caption">Hilarious moments of connection</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Artistic Timeline Section -->
+    <section class="py-20 bg-opacity-70" style="background-color: #f0f2ec;">
+        <div class="container mx-auto px-4">
+            <h2 class="text-3xl md:text-4xl font-light text-center mb-16 serif-font text-gray-800">The Strokes of Our Story</h2>
+            
+            <div class="max-w-3xl mx-auto timeline-container">
+                <div class="timeline-item">
+                    <p class="timeline-date elegant-font">Two Years Ago</p>
+                    <div class="watercolor-card p-6">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-3 serif-font">First Brushstrokes</h3>
+                            <p class="font-light">When our paths first crossed, creating the initial lines of our masterpiece.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <p class="timeline-date elegant-font">The Early Days</p>
+                    <div class="watercolor-card p-6">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-3 serif-font">Colors Emerging</h3>
+                            <p class="font-light">As we learned about each other, our canvas began to fill with vibrant hues.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <p class="timeline-date elegant-font">One Year Milestone</p>
+                    <div class="watercolor-card p-6">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-3 serif-font">The Composition Takes Form</h3>
+                            <p class="font-light">Our first year together, a beautiful arrangement of shared experiences.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="timeline-item">
+                    <p class="timeline-date elegant-font">Present Day</p>
+                    <div class="watercolor-card p-6">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-3 serif-font">A Gallery of Moments</h3>
+                            <p class="font-light">Two years later, our canvas continues to evolve with each passing day.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Artistic Quote Section -->
+    <section class="py-20 bg-white bg-opacity-80">
+        <div class="container mx-auto px-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="artistic-quote mb-16">
+                    <p class="text-xl text-center elegant-font my-3 leading-relaxed">
+                        "It's all uphill ahead."
+                    </p>
+                    <p class="text-right font-light serif-font">— With deepest affection</p>
+                </div>
+                
+                <!-- <div class="grid grid-cols-1 md:grid-cols-2 gap-10 mt-16">
+                    <div class="watercolor-card p-8">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-4 serif-font text-gray-700">Reflections on Us</h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">The way time seems to slow when we're together</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">How your laughter creates ripples of joy</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">The quiet understanding that passes between us</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">Our ability to find beauty in ordinary moments</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="watercolor-card p-8">
+                        <div class="relative z-10">
+                            <h3 class="text-xl font-light mb-4 serif-font text-gray-700">Cherished Impressions</h3>
+                            <ul class="space-y-4">
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">That sunset we watched from the hilltop</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">Our impromptu dance in the kitchen</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">The quiet morning walks by the water</span>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-gray-400 mr-3">✦</span>
+                                    <span class="font-light">The way you looked at me across the room</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div> -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- RSVP Section - Prominently Displayed at Bottom -->
+    <section id="rsvp" class="py-20 relative" style="background-color: #e8ece5;">
+        <div class="impressionist-bg"></div>
+        <div class="container mx-auto px-4 text-center relative z-10">
+            <h2 class="text-3xl md:text-4xl font-light mb-8 serif-font text-gray-800">
+                <span class="brush-stroke">Join Our Celebration</span>
+            </h2>
+            <p class="text-lg text-gray-700 mb-10 max-w-2xl mx-auto font-light">
+                We would be honored if you would join us as we celebrate this special milestone in our journey together.
+            </p>
+            
+            <div class="mb-6">
+                <a href="https://www.icloud.com/invites/027cmDZpzikI4_b3nbml57uHQ" class="btn-rsvp inline-block">
+                    RSVP to Our Celebration
+                </a>
+            </div>
+            
+            <p class="text-gray-600 mt-8 font-light elegant-font text-lg italic">
+                Your presence would add another beautiful brushstroke to our special day
+            </p>
+            
+            <!-- Decorative element -->
+            <div class="mt-16 opacity-70">
+                <svg width="200" height="30" viewBox="0 0 200 30" xmlns="http://www.w3.org/2000/svg" class="mx-auto">
+                    <path d="M0,15 C30,5 60,25 100,15 C140,5 170,25 200,15" stroke="#6a8d92" stroke-width="1" fill="none" stroke-linecap="round"/>
+                    <path d="M0,15 C50,35 150,-5 200,15" stroke="#b3a394" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.5"/>
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-10 bg-gray-100">
+        <div class="container mx-auto px-4 text-center">
+            <h2 class="text-2xl elegant-font mb-4 font-light">With gratitude for these two beautiful years</h2>
+            <p class="mb-6 font-light">And anticipation for all that is yet to come</p>
+            <div class="text-4xl mb-4 opacity-70">❦</div>
+            <p class="text-sm text-gray-500 mt-6">© 2025 | A celebration of love</p>
+            <p class="text-sm text-gray-500 mt-2">by Terrance</p>
+
+        </div>
+    </footer>
+
+    <script>
+        // Create water ripple effect
+        document.addEventListener('DOMContentLoaded', function() {
+            const rippleContainer = document.getElementById('ripple-container');
+            const rippleCount = 8;
+            
+            function createRipple() {
+                const ripple = document.createElement('div');
+                ripple.classList.add('water-ripple');
+                
+                // Random positioning
+                const x = Math.random() * 100;
+                const y = Math.random() * 100;
+                ripple.style.left = `${x}%`;
+                ripple.style.top = `${y}%`;
+                
+                // Random size
+                const size = Math.random() * 100 + 50;
+                ripple.style.width = `${size}px`;
+                ripple.style.height = `${size}px`;
+                
+                // Random color from our Monet-inspired palette
+                const colors = [
+                    'rgba(106, 141, 146, 0.2)', // Muted teal
+                    'rgba(209, 215, 201, 0.2)', // Sage green
+                    'rgba(179, 163, 148, 0.2)', // Taupe
+                    'rgba(201, 177, 189, 0.2)'  // Lavender
+                ];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                ripple.style.backgroundColor = randomColor;
+                
+                // Random animation duration
+                const duration = Math.random() * 4 + 4;
+                ripple.style.animationDuration = `${duration}s`;
+                
+                rippleContainer.appendChild(ripple);
+                
+                // Remove ripple after animation completes
+                setTimeout(() => {
+                    ripple.remove();
+                    createRipple();
+                }, duration * 1000);
+            }
+            
+            // Create initial ripples
+            for (let i = 0; i < rippleCount; i++) {
+                setTimeout(createRipple, i * 1000);
+            }
+        });
+    </script>
+</body>
+</html>
