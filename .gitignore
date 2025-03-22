@@ -4,3 +4,4 @@ travel-rizz-server.js
 .vercel
 .export-to-pdf.js
 .env.local
+.next
