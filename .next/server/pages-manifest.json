@@ -1,10 +1,1 @@
-{
-  "/api/chat/quick-response": "pages/api/chat/quick-response.js",
-  "/api/chat": "pages/api/chat.js",
-  "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
-  "/_document": "pages/_document.js",
-  "/travel-form": "pages/travel-form.js",
-  "/": "pages/index.js",
-  "/chat": "pages/chat.js"
-}
+{"/_error":"pages/_error.js","/_app":"pages/_app.js","/_document":"pages/_document.js","/404":"pages/404.html"}

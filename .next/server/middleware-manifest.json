@@ -1,39 +1,6 @@
 {
   "sortedMiddleware": [],
   "middleware": {},
-  "functions": {
-    "/api/chat/quick-response": {
-      "files": [
-        "server/edge-runtime-webpack.js",
-        "server/pages/api/chat/quick-response.js"
-      ],
-      "name": "pages/api/chat/quick-response",
-      "page": "/api/chat/quick-response",
-      "matchers": [
-        {
-          "regexp": "^/api/chat/quick\\-response$",
-          "originalSource": "/api/chat/quick-response"
-        }
-      ],
-      "wasm": [],
-      "assets": []
-    },
-    "/api/chat": {
-      "files": [
-        "server/edge-runtime-webpack.js",
-        "server/pages/api/chat.js"
-      ],
-      "name": "pages/api/chat",
-      "page": "/api/chat",
-      "matchers": [
-        {
-          "regexp": "^/api/chat$",
-          "originalSource": "/api/chat"
-        }
-      ],
-      "wasm": [],
-      "assets": []
-    }
-  },
+  "functions": {},
   "version": 2
 }
