@@ -4,7 +4,8 @@ module.exports = {
     "./pages/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './*.{html,js,jsx,ts,tsx}',
+    './**/*.html', // Scan all HTML files in all directories
+    './*.{js,jsx,ts,tsx}', // Scan JS, JSX, TS, TSX files in the root directory
     "./styles/**/*.css"
   ],
   theme: {

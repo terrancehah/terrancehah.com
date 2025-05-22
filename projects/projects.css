@@ -1,0 +1,134 @@
+/* Styles for projects page */
+
+/* Container for the list of project items */
+.projects-list-container {
+    width: 100%;
+    padding: 2.5rem; /* Default padding */
+    display: grid;
+    grid-template-columns: 1fr; /* Default to a single column */
+    gap: 2rem; /* Space between items */
+}
+
+/* Responsive padding for container */
+@media (min-width: 640px) {
+    .projects-list-container {
+        padding: 2.5rem 4rem; /* Wider padding on larger screens */
+    }
+}
+
+@media (min-width: 1024px) {
+    .projects-list-container {
+        padding: 2.5rem 6rem; /* Even wider padding on very large screens */
+    }
+}
+
+/* Responsive grid layout for container */
+@media (min-width: 1280px) {
+    .projects-list-container {
+        grid-template-columns: repeat(2, 1fr); /* Two columns on extra large screens */
+    }
+}
+
+/* Styling for individual project items */
+.projects {
+    width: auto; /* Default width, takes available space in grid cell */
+    padding: 2rem; /* Inner padding for content */
+    border-radius: 1rem; /* Rounded corners */
+    background-color: #E5F1F9; /* Light blue background */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Standard shadow */
+    transition: all 0.3s ease; /* Smooth transition for hover effects */
+    cursor: pointer; /* Indicates the item is clickable */
+    min-height: 200px; /* Minimum height to ensure consistency */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Pushes date to the bottom if item grows */
+    gap: 1rem; /* Space between title, description, and date */
+}
+
+/* Hover state for project items */
+.projects:hover {
+    box-shadow: 0 6px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.05); /* Slightly reduced shadow */
+    transform: translateY(2px); /* Slight upward lift */
+    background-color: #d5e9f6; /* Slightly darker blue background on hover */
+}
+
+/* Active state for project items (when clicked) */
+.projects:active {
+    box-shadow: none; /* No shadow when active */
+    transform: translateY(4px); /* More pronounced lift/press effect */
+}
+
+/* Styling for project item titles */
+h2.project-list-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 500;
+    font-size: 1.25rem; /* Default title font size */
+    color: #1d3557; /* Dark blue title color */
+    text-decoration: underline; /* Underline for emphasis */
+}
+
+/* Responsive font size for titles */
+@media (min-width: 640px) {
+    h2.project-list-title {
+        font-size: 1.5rem; /* Larger title on larger screens */
+    }
+}
+
+/* Hover state for project item titles (when item is hovered) */
+.projects:hover h2.project-list-title {
+    color: #4d85a8; /* Lighter blue title color on hover */
+}
+
+/* Styling for project item descriptions */
+p.project-description {
+    font-family: 'Baskervville', 'Baskerville', serif;
+    font-weight: 400;
+    font-size: 1.125rem; /* Default description font size */
+    color: #457B9D; /* Medium blue description color */
+    overflow: hidden; /* Required for text ellipsis */
+    text-overflow: ellipsis; /* Show ellipsis for overflowed text */
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Limit description to 2 lines */
+    -webkit-box-orient: vertical;
+    line-clamp: 2; /* Fallback for non-webkit browsers */
+}
+
+/* Responsive font size for descriptions */
+@media (min-width: 640px) {
+    p.project-description {
+        font-size: 1.25rem; /* Larger description on medium screens */
+    }
+}
+
+@media (min-width: 768px) {
+    p.project-description {
+        font-size: 1.5rem; /* Even larger description on large screens */
+    }
+}
+
+/* Hover state for project item descriptions (when item is hovered) */
+.projects:hover p.project-description {
+    color: #234960; /* Darker description color on hover */
+}
+
+/* Styling for project item dates */
+p.project-list-date {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 300; /* Lighter font weight for dates */
+    font-size: 1rem; /* Default date font size */
+    color: #4b5563; /* Greyish-blue date color */
+    /* Text alignment will be default (left) */
+}
+
+/* Responsive font size for dates */
+@media (min-width: 640px) {
+    p.project-list-date {
+        font-size: 1.125rem; /* Larger date on medium screens */
+    }
+}
+
+@media (min-width: 768px) {
+    p.project-list-date {
+        font-size: 1.25rem; /* Even larger date on large screens */
+    }
+}

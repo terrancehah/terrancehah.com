@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link href="./styles/output.css" rel="stylesheet">
         <link href="./styles/style.css" type="text/css" rel="stylesheet">
-        <link href="./styles/playground.css" type="text/css" rel="stylesheet">
+        <link href="./playground/playground.css" type="text/css" rel="stylesheet">
         <link rel="icon" href="./resources/TH-logo.png" type="image/x-icon">
         <meta property="og:title" content="Terrance's Playground">
         <meta property="og:description" content="Terrance's Playground">
@@ -60,32 +60,27 @@
             </div>
         </header>
 
-        <main class="w-full p-10 space-y-8">
-            <div class="toys mb-8 p-5 rounded-3xl shadow-md bg-[#f8f2f9]">
-                <h2><a href='./ar-model-test.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Myvi with Marker Test</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">This is the testing page for my updated Myvi AR.</p>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Visit the link below on another device to access the photo needed to run the AR Test.</p>
-                <p class="mt-2"><a target="_blank" href='./resources/Myvi-QR.png' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">written on 16 July 2023</p>
+        <main class="w-full p-10 toys-list-container">
+            <div class="toys" data-url="./playground/ar-model-test.html">
+                <h2 class="toy-list-title">Myvi with Marker Test</h2>
+                <p class="toy-description">This is the testing page for my updated Myvi AR. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='./resources/Myvi-QR.png' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
+                <p class="toy-list-date">written on 16 July 2023</p>
             </div>
 
-            <div class="toys mb-8 p-5 rounded-3xl shadow-md bg-[#f8f2f9]">
-                <h2><a href='./car-ar-test.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Myvi Test</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">This is the testing page for my Myvi AR.</p>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Visit the link below on another device to access the photo needed to run the AR Test.</p>
-                <p class="mt-2"><a target="_blank" href='./resources/myvi-purple.jpg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">written on 11 October 2021</p>
+            <div class="toys" data-url="./playground/car-ar-test.html">
+                <h2 class="toy-list-title">Myvi Test</h2>
+                <p class="toy-description">This is the testing page for my Myvi AR. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='./resources/myvi-purple.jpg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
+                <p class="toy-list-date">written on 11 October 2021</p>
             </div>
 
-            <div class="toys mb-8 p-5 rounded-3xl shadow-md bg-[#f8f2f9]">
-                <h2><a href='./dino-ar-test.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">T-Rex Test</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">This is the playground for testing AR features.</p>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Visit the link below on another device to access the photo needed to run the AR Test.</p>
-                <p class="mt-2"><a target="_blank" href='https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/image-tracking/nft/trex-image-big.jpeg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">T-Rex Photo</a></p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">written on 7 June 2021</p>
+            <div class="toys" data-url="./playground/dino-ar-test.html">
+                <h2 class="toy-list-title">T-Rex Test</h2>
+                <p class="toy-description">This is the playground for testing AR features. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/image-tracking/nft/trex-image-big.jpeg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">T-Rex Photo</a></p>
+                <p class="toy-list-date">written on 7 June 2021</p>
             </div>
         </main>
 
         <!-- Footer will be inserted by footer.js -->
+        <script src="./articles/articles.js"></script>
     </body>
 </html>

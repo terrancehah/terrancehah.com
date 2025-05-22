@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <link href="./styles/output.css" rel="stylesheet">
         <link href="./styles/style.css" type="text/css" rel="stylesheet">
-        <link href="./styles/projects.css" type="text/css" rel="stylesheet">
+        <link href="./projects/projects.css" type="text/css" rel="stylesheet">
         <link rel="icon" href="./resources/TH-logo.png" type="image/x-icon">
         <meta property="og:title" content="Terrance's Projects">
         <meta property="og:description" content="Terrance's Projects">
@@ -33,66 +33,67 @@
 
                 <!-- Middle: Nav buttons -->
                 <nav class="flex flex-wrap justify-center gap-2">
-                    <a href="../index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Home</a>
-                    <a href="../articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Articles</a>
-                    <a href="../projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue bg-light-blue">Projects</a>
-                    <a href="../playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Playground</a>
+                    <a href="./index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Home</a>
+                    <a href="./articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Articles</a>
+                    <a href="./projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue bg-light-blue">Projects</a>
+                    <a href="./playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Playground</a>
                 </nav>
             
                 <!-- Right side: Social Icons -->
                 <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
                     <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
-                        <img src="../resources/facebook.png" alt="facebook" class="w-full h-full">
+                        <img src="./resources/facebook.png" alt="facebook" class="w-full h-full">
                     </a>
                     <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
-                        <img src="../resources/instagram.png" alt="instagram" class="w-full h-full">
+                        <img src="./resources/instagram.png" alt="instagram" class="w-full h-full">
                     </a>
                     <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
-                        <img src="../resources/x.png" alt="x" class="w-full h-full">
+                        <img src="./resources/x.png" alt="x" class="w-full h-full">
                     </a>
                     <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
-                        <img src="../resources/linkedin.png" alt="linkedin" class="w-full h-full">
+                        <img src="./resources/linkedin.png" alt="linkedin" class="w-full h-full">
                     </a>
                     <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
-                        <img src="../resources/github.png" alt="github" class="w-full h-full">
+                        <img src="./resources/github.png" alt="github" class="w-full h-full">
                     </a>
                 </div>
             </div>
         </header>
 
-        <main class="w-full p-10 space-y-8">
+        <main class="w-full p-10 projects-list-container">
 
-            <div class="projects mb-8 p-5 px-6 rounded-3xl shadow-md bg-[#F1FAEE]">
-                <h2><a href="../projects/career-plan.html" class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Career Plan</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">My plan to transition into web development and machine learning, aiming for a remote job opportunity.</p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">updated on 20 May 2025</p>
+            <div class="projects" data-url="./projects/career-plan.html">
+                <h2 class="project-list-title">Career Plan</h2>
+                <p class="project-description">My plan to transition into web development and machine learning, aiming for a remote job opportunity.</p>
+                <p class="project-list-date">updated on 20 May 2025</p>
             </div>
 
-            <div class="projects mb-8 p-5 px-6 rounded-3xl shadow-md bg-[#F1FAEE]">
-                <h2><a href='https://www.travelrizz.app' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Travel-Rizz</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Travel-Rizz - Your Friendly AI Travel Assistant.</p>
-                <!-- <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">updated on 28 November 2024</p> -->
+            <div class="projects" data-url='https://www.travelrizz.app'>
+                <h2 class="project-list-title">Travel-Rizz</h2>
+                <p class="project-description">Travel-Rizz - Your Friendly AI Travel Assistant.</p>
+                <!-- <p class="project-list-date">updated on 28 November 2024</p> -->
             </div>
 
-            <div class="projects mb-8 p-5 px-6 rounded-3xl shadow-md bg-[#F1FAEE]">
-                <h2><a href='./projects/teaching-syllabus-template.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Notion Syllabus Planner</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Notion Syllabus Planner is a project I currently work on to help empower fellow educators.</p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">updated on 25 November 2024</p>
+            <div class="projects" data-url='./projects/teaching-syllabus-template.html'>
+                <h2 class="project-list-title">Notion Syllabus Planner</h2>
+                <p class="project-description">Notion Syllabus Planner is a project I currently work on to help empower fellow educators.</p>
+                <p class="project-list-date">updated on 25 November 2024</p>
             </div>
 
-            <div class="projects mb-8 p-5 px-6 rounded-3xl shadow-md bg-[#F1FAEE]">
-                <h2><a href='./projects/form-a-story.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Form A Story</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Form a Story is a playing project where you can input certain words to form a funny story.</p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">written on 25 May 2021</p>
+            <div class="projects" data-url='./projects/form-a-story.html'>
+                <h2 class="project-list-title">Form A Story</h2>
+                <p class="project-description">Form a Story is a playing project where you can input certain words to form a funny story.</p>
+                <p class="project-list-date">written on 25 May 2021</p>
             </div>
 
-            <div class="projects mb-8 p-5 px-6 rounded-3xl shadow-md bg-[#F1FAEE]">
-                <h2><a href='./projects/foodtracker.html' class="text-xl sm:text-2xl md:text-2xl lg:text-2xl font-bold font-raleway hover:text-[#457B9D] underline">Food Tracker</a></h2>
-                <p class="text-lg sm:text-xl md:text-2xl text-[#457B9D] mt-2 font-normal font-lato">Food Tracker is a project I currently collaborate with my friends in for learning purpose.</p>
-                <p class="text-base sm:text-lg md:text-xl text-gray-600 mt-4 font-light font-raleway">written on 21 April 2021</p>
+            <div class="projects" data-url='./projects/foodtracker.html'>
+                <h2 class="project-list-title">Food Tracker</h2>
+                <p class="project-description">Food Tracker is a project I currently collaborate with my friends in for learning purpose.</p>
+                <p class="project-list-date">written on 21 April 2021</p>
             </div>
         </main>
 
         <!-- Footer will be inserted by footer.js -->
+        <script src="./js/footer.js"></script>
     </body>
 </html>
