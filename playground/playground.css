@@ -34,7 +34,7 @@
     width: auto; /* Default width, takes available space in grid cell */
     padding: 2rem; /* Inner padding for content */
     border-radius: 1rem; /* Rounded corners */
-    background-color: #E5F1F9; /* Light blue background */
+    background-color: #f9e6ff; /* Light purple background */
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Standard shadow */
     transition: all 0.3s ease; /* Smooth transition for hover effects */
     cursor: pointer; /* Indicates the item is clickable */
@@ -49,7 +49,7 @@
 .toys:hover {
     box-shadow: 0 6px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.05); /* Slightly reduced shadow */
     transform: translateY(2px); /* Slight upward lift */
-    background-color: #d5e9f6; /* Slightly darker blue background on hover */
+    background-color: #f6d9ff; /* Slightly darker purple background on hover */
 }
 
 /* Active state for playground items (when clicked) */
@@ -59,24 +59,31 @@
 }
 
 /* Styling for playground item titles */
-h2.toy-list-title {
+.toy-list-title {
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: 1.25rem; /* Default title font size */
-    color: #1d3557; /* Dark blue title color */
+    color: #523860; /* Dark purple title color */
     text-decoration: underline; /* Underline for emphasis */
 }
 
 /* Responsive font size for titles */
 @media (min-width: 640px) {
-    h2.toy-list-title {
-        font-size: 1.5rem; /* Larger title on larger screens */
+    .toy-list-title {
+        font-size: 1.25rem; /* Larger title on larger screens */
+    }
+}
+
+
+@media (min-width: 1024px) {
+    .toy-list-title {
+        font-size: 1.25rem;
     }
 }
 
 /* Hover state for playground item titles (when item is hovered) */
-.toys:hover h2.toy-list-title {
-    color: #4d85a8; /* Lighter blue title color on hover */
+.toys:hover .toy-list-title {
+    color: #825a98; /* Lighter purple title color on hover */
 }
 
 /* Styling for playground item descriptions */
@@ -84,7 +91,7 @@ p.toy-description {
     font-family: 'Baskervville', 'Baskerville', serif;
     font-weight: 400;
     font-size: 1.125rem; /* Default description font size */
-    color: #457B9D; /* Medium blue description color */
+    color: #825a98; /* Medium purple description color */
     overflow: hidden; /* Required for text ellipsis */
     text-overflow: ellipsis; /* Show ellipsis for overflowed text */
     display: -webkit-box;
@@ -108,17 +115,18 @@ p.toy-description {
 
 /* Hover state for playground item descriptions (when item is hovered) */
 .toys:hover p.toy-description {
-    color: #234960; /* Darker description color on hover */
+    color: #523860; /* Darker description color on hover */
 }
 
 /* Styling for links within playground item descriptions */
 p.toy-description a {
-    color: #1d3557; /* Dark blue for links, matching title color */
+    font-size: 1.25rem;
+    color: #523860; /* Dark purple for links, matching title color */
     text-decoration: underline; /* Underline for links */
 }
 
 p.toy-description a:hover {
-    color: #457B9D; /* Lighter blue on hover, matching description color */
+    color: #825a98; /* Lighter purple on hover, matching description color */
 }
 
 /* Styling for playground item dates */

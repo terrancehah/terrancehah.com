@@ -34,7 +34,7 @@
     width: auto; /* Default width, takes available space in grid cell */
     padding: 2rem; /* Inner padding for content */
     border-radius: 1rem; /* Rounded corners */
-    background-color: #E5F1F9; /* Light blue background */
+    background-color: #e2fbe8; /* Light lime background */
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Standard shadow */
     transition: all 0.3s ease; /* Smooth transition for hover effects */
     cursor: pointer; /* Indicates the item is clickable */
@@ -49,7 +49,7 @@
 .projects:hover {
     box-shadow: 0 6px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.05); /* Slightly reduced shadow */
     transform: translateY(2px); /* Slight upward lift */
-    background-color: #d5e9f6; /* Slightly darker blue background on hover */
+    background-color: #cdf8dd; /* Slightly darker green background on hover */
 }
 
 /* Active state for project items (when clicked) */
@@ -59,24 +59,30 @@
 }
 
 /* Styling for project item titles */
-h2.project-list-title {
+.project-list-title {
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: 1.25rem; /* Default title font size */
-    color: #1d3557; /* Dark blue title color */
+    color: #295234; /* Dark green title color */
     text-decoration: underline; /* Underline for emphasis */
 }
 
 /* Responsive font size for titles */
 @media (min-width: 640px) {
-    h2.project-list-title {
-        font-size: 1.5rem; /* Larger title on larger screens */
+    .project-list-title {
+        font-size: 1.25rem; /* Larger title on larger screens */
+    }
+}
+
+@media (min-width: 1024px) {
+    .project-list-title {
+        font-size: 1.25rem;
     }
 }
 
 /* Hover state for project item titles (when item is hovered) */
-.projects:hover h2.project-list-title {
-    color: #4d85a8; /* Lighter blue title color on hover */
+.projects:hover .project-list-title {
+    color: #3f7b4f; /* Lighter green title color on hover */
 }
 
 /* Styling for project item descriptions */
@@ -84,7 +90,7 @@ p.project-description {
     font-family: 'Baskervville', 'Baskerville', serif;
     font-weight: 400;
     font-size: 1.125rem; /* Default description font size */
-    color: #457B9D; /* Medium blue description color */
+    color: #3f7b4f; /* Medium blue description color */
     overflow: hidden; /* Required for text ellipsis */
     text-overflow: ellipsis; /* Show ellipsis for overflowed text */
     display: -webkit-box;
@@ -108,11 +114,11 @@ p.project-description {
 
 /* Hover state for project item descriptions (when item is hovered) */
 .projects:hover p.project-description {
-    color: #234960; /* Darker description color on hover */
+    color: #295234; /* Darker description color on hover */
 }
 
 /* Styling for project item dates */
-p.project-list-date {
+.project-list-date {
     font-family: 'Raleway', sans-serif;
     font-weight: 300; /* Lighter font weight for dates */
     font-size: 1rem; /* Default date font size */
@@ -122,13 +128,13 @@ p.project-list-date {
 
 /* Responsive font size for dates */
 @media (min-width: 640px) {
-    p.project-list-date {
-        font-size: 1.125rem; /* Larger date on medium screens */
+    .project-list-date {
+        font-size: 1rem; /* Larger date on medium screens */
     }
 }
 
 @media (min-width: 768px) {
-    p.project-list-date {
-        font-size: 1.25rem; /* Even larger date on large screens */
+    .project-list-date {
+        font-size: 1rem; /* Even larger date on large screens */
     }
 }

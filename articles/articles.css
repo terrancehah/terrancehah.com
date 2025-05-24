@@ -231,56 +231,40 @@
     }
 }
 
-.articles p:last-of-type {
+.article-list-date {
     font-family: 'Raleway', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     font-size: 1rem;
     color: #4b5563;
     /* margin-top: 1rem; */
 }
 
-@media (min-width: 640px) {
-    .articles p:last-of-type {
-        font-size: 1.125rem;
-    }
-}
-
-@media (min-width: 768px) {
-    .articles p:last-of-type {
-        font-size: 1.25rem;
-    }
-}
-
-.articles h2.article-list-title {
+.article-list-title {
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     color: #1d3557;
     text-decoration: underline;
 }
 
-.articles h2.article-list-title:hover {
+.article-list-title:hover {
     color: #457B9D;
 }
 
 @media (min-width: 640px) {
-    .articles h2.article-list-title {
-        font-size: 1.5rem;
+    .article-list-title {
+        font-size: 1.4rem;
     }
 }
 
 @media (min-width: 768px) {
-    .articles h2.article-list-title {
-        font-size: 1.5rem;
+    .article-list-title {
+        font-size: 1.4rem;
     }
 }
 
 @media (min-width: 1024px) {
-    .articles h2.article-list-title {
-        font-size: 1.5rem;
+    .article-list-title {
+        font-size: 1.25rem;
     }
-}
-
-.articles-list-date {
-    align-items: left;
 }
