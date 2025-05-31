@@ -77,6 +77,21 @@
     margin-top: 3rem;
 }
 
+.article-image {
+    width: 60%;
+    height: auto;
+    margin: 1rem auto;
+}
+
+.image-caption {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 300;
+    font-size: 1rem;
+    color: #4b5563;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
 /* Article Components */
 @import url('https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&display=swap');
 
@@ -172,7 +187,7 @@
 .articles {
     width: auto;
     padding: 2rem;
-    border-radius: 1rem;
+    border-radius: 0.7rem;
     background-color: #E5F1F9;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     transition: all 0.3s ease;
