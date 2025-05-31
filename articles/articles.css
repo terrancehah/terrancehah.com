@@ -85,6 +85,8 @@
 
 .image-caption {
     font-family: 'Raleway', sans-serif;
+    width: 60%;
+    margin: 0 auto;
     font-weight: 300;
     font-size: 1rem;
     color: #4b5563;
