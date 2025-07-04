@@ -4,7 +4,10 @@ module.exports = {
     "./pages/**/*.{js,ts,jsx,tsx}",
     "./components/**/*.{js,ts,jsx,tsx}",
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './**/*.html', // Scan all HTML files in all directories
+    './*.html',
+    './articles/**/*.html',
+    './playground/**/*.html',
+    './projects/**/*.html',
     './*.{js,jsx,ts,tsx}', // Scan JS, JSX, TS, TSX files in the root directory
     "./styles/**/*.css"
   ],
@@ -46,6 +49,9 @@ module.exports = {
           '0%': { transform: 'translateY(100%)' },
           '100%': { transform: 'translateY(0)' }
         }
+      },
+      spacing: {
+        '14': '3.5rem',
       }
     },
   },
