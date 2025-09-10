@@ -27,7 +27,7 @@
 }
 
 .article-content {
-    max-width: 65ch;
+    max-width: 80%;
     margin: 0 auto;
 }
 
@@ -62,9 +62,25 @@
     }
 }
 
+@media (min-width: 768px) {
+    .article-subtitle {
+        font-size: 1.875rem;
+    }
+}
+
 .article-body {
     font-family: 'Baskervville', 'Baskerville', serif;
     font-size: 1.2rem;
+    margin-top: 3rem;
+}
+
+.article-subtitle {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: 1.6rem;
+    color: #1d3557;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
 }
 
 @media (min-width: 768px) {
@@ -73,40 +89,10 @@
     }
 }
 
-.article-body > * + * {
-    margin-top: 3rem;
-}
-
-.article-image {
-    width: 60%;
-    height: auto;
-    margin: 1rem auto;
-}
-
-.image-caption {
-    font-family: 'Raleway', sans-serif;
-    width: 60%;
-    margin: 0 auto;
-    font-weight: 300;
-    font-size: 1rem;
-    color: #4b5563;
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-/* Article Components */
-@import url('https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&display=swap');
-
 .article-paragraph {
     line-height: 1.6;
     font-weight: 400;
     font-family: 'Baskervville', 'Baskerville', serif;
-}
-
-@media (min-width: 768px) {
-    .article-paragraph {
-        line-height: 2;
-    }
 }
 
 .article-blockquote {
@@ -115,6 +101,84 @@
     text-align: center;
     margin: 3rem 0;
     font-style: italic;
+}
+
+/* .article-body > * + * {
+    margin-top: 3rem;
+} */
+
+.article-image {
+    width: 100%; /* Mobile first: full width on small screens */
+    height: auto;
+    margin: 1rem auto;
+}
+
+/* Tablet and up: responsive sizing based on aspect ratio */
+@media (min-width: 768px) {
+    .article-image {
+        width: 60%; /* Default for landscape images */
+    }
+    
+    /* Portrait images get smaller width for better proportions */
+    .article-image.portrait {
+        width: 40%;
+    }
+    
+    /* Landscape images use default width */
+    .article-image.landscape {
+        width: 60%;
+    }
+}
+
+/* Large screens: slightly smaller for better reading experience */
+@media (min-width: 1024px) {
+    .article-image {
+        width: 55%;
+    }
+    
+    .article-image.portrait {
+        width: 35%;
+    }
+    
+    .article-image.landscape {
+        width: 55%;
+    }
+}
+
+.image-caption {
+    font-family: 'Raleway', sans-serif;
+    width: 90%; /* Mobile first: wider caption on small screens */
+    margin: 0 auto;
+    font-weight: 300;
+    font-size: 1rem;
+    color: #4b5563;
+    text-align: center;
+    /* margin-bottom: 1rem; */
+}
+
+/* Tablet and up: narrower captions to match image widths */
+@media (min-width: 768px) {
+    .image-caption {
+        width: 60%;
+    }
+}
+
+/* Large screens: slightly narrower captions */
+@media (min-width: 1024px) {
+    .image-caption {
+        width: 55%;
+    }
+}
+
+/* Article Components */
+@import url('https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&display=swap');
+
+
+
+@media (min-width: 768px) {
+    .article-paragraph {
+        line-height: 2;
+    }
 }
 
 @media (min-width: 768px) {
@@ -285,3 +349,4 @@
         font-size: 1.25rem;
     }
 }
+

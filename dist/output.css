@@ -1107,6 +1107,14 @@ video {
   height: 1px;
 }
 
+.h-1\/2 {
+  height: 50%;
+}
+
+.\!max-h-40 {
+  max-height: 10rem !important;
+}
+
 .max-h-12 {
   max-height: 3rem;
 }
@@ -1114,6 +1122,14 @@ video {
 .max-h-min {
   max-height: -moz-min-content;
   max-height: min-content;
+}
+
+.max-h-80 {
+  max-height: 20rem;
+}
+
+.max-h-\[500px\] {
+  max-height: 500px;
 }
 
 .min-h-32 {
@@ -1150,6 +1166,10 @@ video {
 
 .w-2 {
   width: 0.5rem;
+}
+
+.w-2\/5 {
+  width: 40%;
 }
 
 .w-24 {
@@ -1196,10 +1216,6 @@ video {
   width: 24rem;
 }
 
-.w-\[100\%\] {
-  width: 100%;
-}
-
 .w-\[200px\] {
   width: 200px;
 }
@@ -1240,6 +1256,14 @@ video {
 
 .w-px {
   width: 1px;
+}
+
+.\!w-2\/5 {
+  width: 40% !important;
+}
+
+.\!w-3\/5 {
+  width: 60% !important;
 }
 
 .min-w-0 {
@@ -1643,10 +1667,6 @@ video {
 
 .overflow-hidden {
   overflow: hidden;
-}
-
-.overflow-x-auto {
-  overflow-x: auto;
 }
 
 .overflow-y-auto {
@@ -2081,6 +2101,16 @@ video {
 .px-10 {
   padding-left: 2.5rem;
   padding-right: 2.5rem;
+}
+
+.px-12 {
+  padding-left: 3rem;
+  padding-right: 3rem;
+}
+
+.px-14 {
+  padding-left: 3.5rem;
+  padding-right: 3.5rem;
 }
 
 .px-16 {
@@ -2927,6 +2957,14 @@ video {
     width: auto;
   }
 
+  .sm\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .sm\:grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+
   .sm\:flex-row {
     flex-direction: row;
   }
@@ -2937,6 +2975,11 @@ video {
 
   .sm\:p-3 {
     padding: 0.75rem;
+  }
+
+  .sm\:px-10 {
+    padding-left: 2.5rem;
+    padding-right: 2.5rem;
   }
 
   .sm\:text-left {
@@ -3087,6 +3130,10 @@ video {
     width: 300px;
   }
 
+  .lg\:\!w-3\/5 {
+    width: 60% !important;
+  }
+
   .lg\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3095,12 +3142,21 @@ video {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .lg\:flex-row {
     flex-direction: row;
   }
 
   .lg\:gap-16 {
     gap: 4rem;
+  }
+
+  .lg\:px-12 {
+    padding-left: 3rem;
+    padding-right: 3rem;
   }
 
   .lg\:px-16 {
@@ -3134,6 +3190,11 @@ video {
 }
 
 @media (min-width: 1280px) {
+  .xl\:px-14 {
+    padding-left: 3.5rem;
+    padding-right: 3.5rem;
+  }
+
   .xl\:px-32 {
     padding-left: 8rem;
     padding-right: 8rem;
