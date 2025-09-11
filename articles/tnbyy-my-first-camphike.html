@@ -72,14 +72,18 @@
                     max-width: 90vw;
                     max-height: 90vh;
                     text-align: center;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
                 `;
                 
                 const enlargedImage = document.createElement('img');
                 enlargedImage.style.cssText = `
                     max-width: 100%;
-                    max-height: 80vh;
+                    max-height: 65vh;
                     object-fit: contain;
-                    margin-bottom: 1rem;
+                    margin-bottom: 0.5rem;
                 `;
                 
                 const caption = document.createElement('p');
@@ -87,10 +91,13 @@
                     color: white;
                     font-family: 'Raleway', sans-serif;
                     font-weight: 300;
-                    font-size: 1.2rem;
+                    font-size: 1rem;
                     text-align: center;
-                    margin: 1.5rem 0;
-                    padding: 0 2rem;
+                    margin: 0.5rem 0;
+                    padding: 0 1rem;
+                    max-height: 20vh;
+                    overflow-y: auto;
+                    line-height: 1.4;
                 `;
                 
                 const closeButton = document.createElement('button');
