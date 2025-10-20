@@ -1,0 +1,43 @@
+REMAINING PHILOSOPHIES TO EXPAND:
+
+1. Deontology - Already has structure, needs full description
+   Philosopher: Immanuel Kant
+   
+2. Virtue Ethics - Needs expansion
+   Philosopher: Aristotle (384-322 BCE)
+   
+3. Skepticism - Needs expansion
+   Philosopher: Pyrrho, Sextus Empiricus, David Hume
+   
+4. Monism - Needs expansion
+   Philosopher: Baruch Spinoza
+   
+5. Dualism - Needs expansion  
+   Philosopher: René Descartes
+   
+6. Pantheism - Needs expansion
+   Philosopher: Baruch Spinoza, Giordano Bruno
+   
+7. Logical Positivism - Needs expansion
+   Philosopher: A.J. Ayer, Rudolf Carnap, Vienna Circle
+   
+8. Structuralism - Needs expansion
+   Philosopher: Ferdinand de Saussure, Claude Lévi-Strauss
+   
+9. Postmodernism - Needs expansion
+   Philosopher: Jacques Derrida, Jean-François Lyotard, Michel Foucault
+   
+10. Absurdism - Needs expansion
+    Philosopher: Albert Camus
+    
+11. Taoism - Needs expansion
+    Philosopher: Laozi (Lao Tzu), Zhuangzi
+    
+12. Buddhism - Needs expansion
+    Philosopher: Gautama Buddha (563-483 BCE)
+    
+13. Confucianism - Needs expansion
+    Philosopher: Confucius (551-479 BCE), Mencius
+
+Use this template for each:
+{"ideologyLabel": "NAME", "description": "<p>3 detailed paragraphs...</p>", "category": "category", "philosopher": "Name (dates), Other Names", ...}
