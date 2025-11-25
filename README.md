@@ -11,7 +11,7 @@ It's messy, it's imperfect, and that's exactly how I like it.
 
 ## What's this site about?
 
-terrancehah.com is a collection of my thoughts, articles, and projects.
+[terrancehah.com](https://terrancehah.com) is a collection of my thoughts, articles, and projects.
 
 This is where I:
 

@@ -11,8 +11,8 @@ from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel
 
-# Load environment variables from root
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+# Load environment variables (from .env locally, from Vercel dashboard in production)
+load_dotenv()  # Don't specify path - works with both local .env and Vercel env vars
 
 # ----------------------
 # Models
