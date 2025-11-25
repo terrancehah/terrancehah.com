@@ -1,10 +1,70 @@
+# Environment
 .env
-node_modules
-travel-rizz-server.js
-.vercel
-.export-to-pdf.js
 .env.local
+
+# Dependencies
+node_modules
+
+# Vercel
+.vercel
+
+# Next.js
 .next
-# 
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# FastAPI / Python project specific
+projects/fastapi_experiment/.env
+*.log
+
+# Build artifacts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Editor configs
+.vscode/settings.json
+.windsurfrules
+.idea/
+*.swp
+*.swo
+*~
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backups
+*.bak
+*.backup
+*-ori.html
+*-old.*
+
+# Test files
+test.js
+*-test.js
+*-testdata.js
+
+# Archive
+.archive/
+
+# Project specific
+travel-rizz-server.js
+.export-to-pdf.js
 travel-rizz.html
 travel-rizz
+story.html

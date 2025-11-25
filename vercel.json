@@ -16,5 +16,11 @@
         "api/travel-rizz-conclusion.js": {
             "maxDuration": 60
         }
-    }
+    },
+    "rewrites": [
+        {
+            "source": "/projects/fastapi-experiment/:path*",
+            "destination": "/api/fastapi_app.py"
+        }
+    ]
 }
