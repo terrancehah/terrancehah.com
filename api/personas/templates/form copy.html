@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Insurance Customer Persona Generator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .form-description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .required-indicator {
+            color: #dc3545;
+            margin-left: 4px;
+        }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 6px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: help;
+            position: relative;
+        }
+        .info-icon:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: normal;
+            white-space: nowrap;
+            z-index: 1;
+            transition: opacity 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        input.valid {
+            border-color: #28a745;
+        }
+        input.invalid {
+            border-color: #dc3545;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .optional-badge {
+            display: inline-block;
+            background-color: #e9ecef;
+            color: #6c757d;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            margin-left: 6px;
+        }
+        .form-footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        .checkbox-item:hover {
+            background-color: #e9ecef;
+            border-color: #007bff;
+        }
+        .checkbox-item.checked {
+            background-color: #e7f3ff;
+            border-color: #007bff;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+            accent-color: #007bff;
+            pointer-events: none;
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            color: #495057;
+            flex: 1;
+            pointer-events: none;
+        }
+        .checkbox-item.checked label {
+            color: #007bff;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Customer Persona Generator</h1>
+        <p class="form-description">Help us understand your customer better by providing the following information. Fields marked with <span style="color: #dc3545;">*</span> are required.</p>
+        
+        <form action="/persona/" method="post">
+            <!-- Name Field -->
+            <div class="form-group">
+                <label for="name">
+                    Full Name<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Enter customer's full legal name</span>
+                    </span>
+                </label>
+                <input type="text" id="name" name="name" placeholder="e.g., John Smith" required>
+                <div class="help-text">Please provide the customer's complete name</div>
+            </div>
+            
+            <!-- Gender Field -->
+            <div class="form-group">
+                <label for="gender">
+                    Gender<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Select the customer's gender identity</span>
+                    </span>
+                </label>
+                <select id="gender" name="gender" required>
+                    <option value="">-- Please select --</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            
+            <!-- Age Field -->
+            <div class="form-group">
+                <label for="age">
+                    Age<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Customer's current age in years</span>
+                    </span>
+                </label>
+                <input type="number" id="age" name="age" placeholder="e.g., 35" min="18" max="120" required>
+                <div class="help-text">Enter age between 18-120 years</div>
+            </div>
+            
+            <!-- Occupation Field -->
+            <div class="form-group">
+                <label for="occupation">
+                    Occupation<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Customer's current job title or role</span>
+                    </span>
+                </label>
+                <input type="text" id="occupation" name="occupation" placeholder="e.g., Software Engineer, Teacher" required>
+                <div class="help-text">Specify the customer's job title or profession</div>
+            </div>
+            
+            <!-- Occupation Field -->
+            <div class="form-group">
+                <label for="occupation_field">
+                    Occupation Field<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Industry or sector of employment</span>
+                    </span>
+                </label>
+                <input type="text" id="occupation_field" name="occupation_field" placeholder="e.g., Technology, Education, Healthcare" required>
+                <div class="help-text">Enter the industry or field they work in</div>
+            </div>
+            
+            <!-- Income Field -->
+            <div class="form-group">
+                <label for="income">
+                    Monthly Income (RM)<span class="required-indicator">*</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Total monthly income in Malaysian Ringgit</span>
+                    </span>
+                </label>
+                <input type="number" id="income" name="income" placeholder="e.g., 3500" step="100" min="1700" required>
+                <div class="help-text">Enter monthly gross income in Malaysian Ringgit (RM)</div>
+            </div>
+            
+            <!-- Insurance Type Field (Optional) -->
+            <div class="form-group">
+                <label>
+                    Insurance Type<span class="optional-badge">Optional</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Type of insurance the customer has or needs</span>
+                    </span>
+                </label>
+                <div class="help-text" style="margin-bottom: 8px;">Select all that apply</div>
+                <div class="checkbox-group" id="insurance-checkbox-group">
+                    <!-- Checkboxes will be generated by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Insurance Coverage Field (Optional) -->
+            <div class="form-group">
+                <label for="insurance_coverage">
+                    Insurance Coverage (RM)<span class="optional-badge">Optional</span>
+                    <span class="info-icon">
+                        i
+                        <span class="tooltip">Coverage amount in Malaysian Ringgit (numbers only)</span>
+                    </span>
+                </label>
+                <input type="number" id="insurance_coverage" name="insurance_coverage" placeholder="e.g., 100000" step="1000" min="0">
+                <div class="help-text">Enter coverage amount in RM (numbers only, e.g., 100000 for RM100,000)</div>
+            </div>
+            
+            <button type="submit">Generate Customer Persona</button>
+            
+            <div class="form-footer">
+                🔒 Your information is secure and will only be used to generate a customer persona
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Insurance types configuration
+        const insuranceTypes = [
+            { id: 'life', label: 'Life Insurance', value: 'Life Insurance' },
+            { id: 'health', label: 'Health Insurance', value: 'Health Insurance' },
+            { id: 'motor', label: 'Motor Insurance', value: 'Motor Insurance' },
+            { id: 'education', label: 'Education Insurance', value: 'Education Insurance' },
+            { id: 'retirement', label: 'Retirement Insurance', value: 'Retirement Insurance' },
+            { id: 'other', label: 'Other', value: 'Other' }
+        ];
+
+        // Generate checkboxes dynamically
+        const checkboxGroup = document.getElementById('insurance-checkbox-group');
+        insuranceTypes.forEach(type => {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            div.innerHTML = `
+                <input type="checkbox" id="insurance_${type.id}" name="insurance_type" value="${type.value}">
+                <label for="insurance_${type.id}">${type.label}</label>
+            `;
+            
+            // Make entire div clickable
+            div.addEventListener('click', function(e) {
+                const checkbox = this.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+                this.classList.toggle('checked', checkbox.checked);
+            });
+            
+            checkboxGroup.appendChild(div);
+        });
+    </script>
+</body>
+</html>

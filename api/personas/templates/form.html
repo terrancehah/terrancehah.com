@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="../../styles/output.css" rel="stylesheet">
+    <link href="../../styles/style.css" type="text/css" rel="stylesheet">
+    <link rel="icon" href="../../resources/TH-logo.png" type="image/x-icon">
+    <title>Student Persona Generator - Terrance's Playground</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+        
+        .form-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-description {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+        label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .required-indicator {
+            color: #e63946;
+            margin-left: 4px;
+        }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            margin-left: 6px;
+            background-color: #457B9D;
+            color: white;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: help;
+            position: relative;
+        }
+        .info-icon:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: normal;
+            white-space: nowrap;
+            z-index: 1;
+            transition: opacity 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #333;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #457B9D;
+        }
+        input.valid {
+            border-color: #28a745;
+        }
+        input.invalid {
+            border-color: #e63946;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #457B9D;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d3557;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .form-footer {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            user-select: none;
+        }
+        .checkbox-item:hover {
+            background-color: #e9ecef;
+            border-color: #457B9D;
+        }
+        .checkbox-item.checked {
+            background-color: #e7f3ff;
+            border-color: #457B9D;
+        }
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 10px;
+            cursor: pointer;
+            accent-color: #457B9D;
+            pointer-events: none;
+        }
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            color: #495057;
+            flex: 1;
+            pointer-events: none;
+        }
+        .checkbox-item.checked label {
+            color: #457B9D;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="m-0 relative h-full bg-white overflow-x-hidden font-lato">
+    <header class="w-full inline-block">
+        <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
+            <!-- Left: Title -->
+            <div class="flex flex-col lg:flex-row items-center w-auto md:w-[300px] gap-1">
+                <h1 class="font-lato font-semibold text-[#1d3557] text-2xl md:text-3xl p-0 text-center sm:text-left sm:w-auto">
+                    Terrance's Playground
+                </h1>
+            </div>
+
+            <!-- Middle: Nav buttons -->
+            <nav class="flex flex-wrap justify-center gap-2">
+                <a href="../../index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Home</a>
+                <a href="../../articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Articles</a>
+                <a href="../../projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue bg-light-blue">Projects</a>
+                <a href="../../playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Playground</a>
+            </nav>
+        
+            <!-- Right side: Social Icons -->
+            <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
+                <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../../resources/facebook.png" alt="facebook" class="w-full h-full">
+                </a>
+                <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../../resources/instagram.png" alt="instagram" class="w-full h-full">
+                </a>
+                <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
+                    <img src="../../resources/x.png" alt="x" class="w-full h-full">
+                </a>
+                <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../../resources/linkedin.png" alt="linkedin" class="w-full h-full">
+                </a>
+                <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
+                    <img src="../../resources/github.png" alt="github" class="w-full h-full">
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full px-4 md:px-8 lg:px-16 xl:px-32 py-8 max-w-screen-2xl mx-auto">
+        <div class="form-container max-w-2xl mx-auto">
+            <h1 class="font-lato font-bold text-3xl sm:text-3xl md:text-4xl text-[#1d3557] text-center mb-4">Student Persona Generator</h1>
+            <p class="form-description">Help us understand your study preferences better by providing the following information. Fields marked with <span style="color: #e63946;">*</span> are required.</p>
+            
+            <form action="/projects/fastapi-experiment/persona/" method="post">
+                <!-- Name Field -->
+                <div class="form-group">
+                    <label for="name">
+                        Full Name<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Enter your full name</span>
+                        </span>
+                    </label>
+                    <input type="text" id="name" name="name" placeholder="e.g., Terrance Hah" required>
+                </div>
+                
+                <!-- Gender Field -->
+                <div class="form-group">
+                    <label for="gender">
+                        Gender<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Select your gender</span>
+                        </span>
+                    </label>
+                    <select id="gender" name="gender" required>
+                        <option value="">-- Please select --</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                
+                <!-- Form Field -->
+                <div class="form-group">
+                    <label for="form">
+                        Form<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Your current study level</span>
+                        </span>
+                    </label>
+                    <select id="form" name="form" required>
+                        <option value="">-- Please select --</option>
+                        <option value="peralihan">Peralihan</option>
+                        <option value="form1">Form 1</option>
+                        <option value="form2">Form 2</option>
+                        <option value="form3">Form 3</option>
+                        <option value="form4">Form 4</option>
+                        <option value="form5">Form 5</option>
+                    </select>
+                </div>
+                
+                <!-- School Field -->
+                <div class="form-group">
+                    <label for="school">
+                        School<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Your school</span>
+                        </span>
+                    </label>
+                    <input type="text" id="school" name="school" placeholder="e.g., SMK Taman Connaught" required>
+                    <div class="help-text">Specify your school</div>
+                </div>
+                
+                <!-- Preferred Language Field -->
+                <div class="form-group">
+                    <label for="preferred_language">
+                        Preferred Language<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Your preferred language</span>
+                        </span>
+                    </label>
+                    <select id="preferred_language" name="preferred_language" required>
+                        <option value="">-- Please select --</option>
+                        <option value="english">English</option>
+                        <option value="malay">Malay</option>
+                        <option value="mandarin">Mandarin</option>
+                    </select>
+                    <div class="help-text">Select your preferred language</div>
+                </div>
+                
+                <!-- Preferred Subjects Field -->
+                <div class="form-group">
+                    <label>
+                        Preferred Subjects<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Your preferred subjects</span>
+                        </span>
+                    </label>
+                    <div class="help-text" style="margin-bottom: 8px;">Select all that apply</div>
+                    <div class="checkbox-group" id="study-checkbox-group">
+                        <!-- Checkboxes will be generated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Study Frequency Field -->
+                <div class="form-group">
+                    <label for="study_frequency">
+                        Study Frequency<span class="required-indicator">*</span>
+                        <span class="info-icon">
+                            i
+                            <span class="tooltip">Your study frequency per week</span>
+                        </span>
+                    </label>
+                    <select id="study_frequency" name="study_frequency" required>
+                        <option value="">-- Please select --</option>
+                        <option value="daily">Daily</option>
+                        <option value="4-6days">4-6 days per week</option>
+                        <option value="2-3days">2-3 days per week</option>
+                        <option value="0-1days">0-1 days per week</option>
+                    </select>
+                    <div class="help-text">Select your study frequency</div>
+                </div>
+                
+                <button type="submit">Generate Student Persona</button>
+                
+                <div class="form-footer">
+                    🔒 Your information is secure and will only be used to generate a persona regarding your education needs
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer will be inserted by footer.js -->
+    <script src="../../js/footer.js"></script>
+
+    <script>
+        // Preferred subjects configuration
+        const preferredSubjects = [
+            { id: 'bahasamelayu', label: 'Bahasa Melayu', value: 'Bahasa Melayu' },
+            { id: 'english', label: 'English', value: 'English' },
+            { id: 'bahasacina', label: 'Bahasa Cina', value: 'Bahasa Cina' },
+            { id: 'science', label: 'Science', value: 'Science' },
+            { id: 'mathematics', label: 'Mathematics', value: 'Mathematics' },
+            { id: 'geography', label: 'Geography', value: 'Geography' },
+            { id: 'history', label: 'History', value: 'History' },
+            { id: 'biology', label: 'Biology', value: 'Biology' },
+            { id: 'chemistry', label: 'Chemistry', value: 'Chemistry' },
+            { id: 'physics', label: 'Physics', value: 'Physics' },
+            { id: 'moral', label: 'Moral Education', value: 'Moral Education' },
+            { id: 'art', label: 'Art', value: 'Art' },
+            { id: 'physical', label: 'Physical Education', value: 'Physical Education' },
+            { id: 'ict', label: 'Information and Communication Technology', value: 'Information and Communication Technology' },
+            { id: 'accounting', label: 'Accounting', value: 'Accounting' },
+            { id: 'economics', label: 'Economics', value: 'Economics' }
+        ];
+
+        // Generate checkboxes dynamically
+        const checkboxGroup = document.getElementById('study-checkbox-group');
+        preferredSubjects.forEach(subject => {
+            const div = document.createElement('div');
+            div.className = 'checkbox-item';
+            div.innerHTML = `
+                <input type="checkbox" id="study_${subject.id}" name="favourite_subjects" value="${subject.value}">
+                <label for="study_${subject.id}">${subject.label}</label>
+            `;
+            
+            // Make entire div clickable
+            div.addEventListener('click', function(e) {
+                const checkbox = this.querySelector('input[type="checkbox"]');
+                checkbox.checked = !checkbox.checked;
+                this.classList.toggle('checked', checkbox.checked);
+            });
+            
+            checkboxGroup.appendChild(div);
+        });
+    </script>
+</body>
+</html>
