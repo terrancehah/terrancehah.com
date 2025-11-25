@@ -3,7 +3,7 @@
     "rewrites": [
         {
             "source": "/projects/fastapi-experiment/:path*",
-            "destination": "/api/fastapi_app"
+            "destination": "/api/index"
         }
     ]
 }
