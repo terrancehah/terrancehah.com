@@ -24,9 +24,9 @@ app = FastAPI(root_path="/projects/fastapi-experiment")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # ----------------------
-# Load environment variables
+# Load environment variables from root
 # ----------------------
-load_dotenv()
+load_dotenv(dotenv_path=BASE_DIR.parent.parent / ".env")
 
 # ----------------------
 # LLM setup
@@ -34,7 +34,7 @@ load_dotenv()
 llm = ChatOpenAI(
     openai_api_key=os.getenv("OPENAI_API_KEY"),
     temperature=0.8,
-    model_name="gpt-4o-mini" # Updated to a valid model name, assuming gpt-5-nano was a placeholder or typo
+    model_name="gpt-5-nano"
 )
 
 

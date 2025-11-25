@@ -24,7 +24,6 @@ ENV/
 .venv
 
 # FastAPI / Python project specific
-projects/fastapi_experiment/.env
 *.log
 
 # Build artifacts
