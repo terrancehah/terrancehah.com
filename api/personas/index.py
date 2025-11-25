@@ -94,8 +94,18 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI()
+app = FastAPI(root_path="/api/personas")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+# Debug route to verify path handling
+@app.get("/debug")
+async def debug_request(request: Request):
+    return {
+        "base_url": str(request.base_url),
+        "url": str(request.url),
+        "scope_path": request.scope.get("path"),
+        "root_path": request.scope.get("root_path")
+    }
 
 # LLM setup
 # We initialize this lazily or inside the function to avoid startup crashes if env vars are missing
