@@ -94,7 +94,7 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI()  # Remove root_path - let Vercel handle routing via rewrite
+app = FastAPI(root_path="/api/personas")  # Set root_path to match the Vercel rewrite destination
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # LLM setup
@@ -107,7 +107,7 @@ def get_llm():
     return ChatOpenAI(
         openai_api_key=api_key,
         temperature=0.8,
-        model_name="gpt-4o-mini"
+        model_name="gpt-5-nano"
     )
 
 # ----------------------

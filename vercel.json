@@ -2,8 +2,16 @@
     "cleanUrls": true,
     "rewrites": [
         {
-            "source": "/projects/fastapi-experiment/:path*",
-            "destination": "/api/personas/:path*"
+            "source": "/projects/fastapi-experiment",
+            "destination": "/api/personas"
+        },
+        {
+            "source": "/projects/fastapi-experiment/",
+            "destination": "/api/personas"
+        },
+        {
+            "source": "/projects/fastapi-experiment/:path+",
+            "destination": "/api/personas/:path+"
         }
     ]
 }
