@@ -94,7 +94,7 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(root_path="/projects/fastapi-experiment")
+app = FastAPI()  # Remove root_path - let Vercel handle routing via rewrite
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # LLM setup
