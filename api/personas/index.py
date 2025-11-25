@@ -98,11 +98,17 @@ app = FastAPI()  # Remove root_path - let Vercel handle routing via rewrite
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # LLM setup
-llm = ChatOpenAI(
-    openai_api_key=os.getenv("OPENAI_API_KEY"),
-    temperature=0.8,
-    model_name="gpt-5-nano"
-)
+# We initialize this lazily or inside the function to avoid startup crashes if env vars are missing
+def get_llm():
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("WARNING: OPENAI_API_KEY is missing")
+        return None
+    return ChatOpenAI(
+        openai_api_key=api_key,
+        temperature=0.8,
+        model_name="gpt-4o-mini"
+    )
 
 # ----------------------
 # Endpoints
@@ -123,6 +129,16 @@ def generate_persona(
     favourite_subjects: Optional[List[str]] = Form(None),
     study_frequency: str = Form(...)
 ):
+    # Initialize LLM here
+    llm = get_llm()
+    if not llm:
+        return templates.TemplateResponse("result.html", {
+            "request": request,
+            "student_text": "Error: OpenAI API Key is missing in environment variables.",
+            "persona_result": "System Configuration Error",
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
+        })
+
     # Create StudentInfo object
     subjects_list = favourite_subjects or []
     

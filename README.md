@@ -30,7 +30,6 @@ I decided to learn programming, and I hope to help kids embrace technology as a 
 This site is built with:
 
 - HTML, CSS, JavaScript
-- Next.js for some projects
 - Python and FastAPI for backend experiments
 - Tailwind CSS for styling
 - Hosted on Vercel
