@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel
+from mangum import Mangum
 
 # Load environment variables (from .env locally, from Vercel dashboard in production)
 load_dotenv()  # Don't specify path - works with both local .env and Vercel env vars
@@ -188,3 +189,5 @@ def generate_persona(
         "persona_result": persona_text,
         "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
     })
+
+handler = Mangum(app)
