@@ -94,7 +94,7 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Debug route to verify path handling
@@ -128,7 +128,7 @@ def get_llm():
 async def show_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
-@app.post("/persona/", response_class=HTMLResponse)
+@app.post("/", response_class=HTMLResponse)
 @observe()
 def generate_persona(
     request: Request,
