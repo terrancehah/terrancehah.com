@@ -1,10 +1,5 @@
 {
     "cleanUrls": true,
-    "functions": {
-        "api/**/*.py": {
-            "runtime": "python3.9"
-        }
-    },
     "rewrites": [
         {
             "source": "/projects/fastapi-experiment",
