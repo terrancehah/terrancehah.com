@@ -1,14 +1,4 @@
 {
     "framework": null,
-    "cleanUrls": true,
-    "rewrites": [
-        {
-            "source": "/projects/fastapi-experiment",
-            "destination": "/api"
-        },
-        {
-            "source": "/projects/fastapi-experiment/:path*",
-            "destination": "/api/:path*"
-        }
-    ]
+    "cleanUrls": true
 }
