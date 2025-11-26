@@ -6,8 +6,8 @@
             "destination": "/api/index"
         },
         {
-            "source": "/projects/fastapi-experiment/(.*)",
-            "destination": "/api/index/$1"
+            "source": "/projects/fastapi-experiment/:path*",
+            "destination": "/api/index"
         }
     ]
 }
