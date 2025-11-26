@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel
-from mangum import Mangum
 
 # Load environment variables (from .env locally, from Vercel dashboard in production)
 load_dotenv()  # Don't specify path - works with both local .env and Vercel env vars
@@ -95,7 +94,7 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(root_path="/projects/fastapi-experiment")
+app = FastAPI()
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Debug route to verify path handling
@@ -189,5 +188,3 @@ def generate_persona(
         "persona_result": persona_text,
         "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
     })
-
-handler = Mangum(app)
