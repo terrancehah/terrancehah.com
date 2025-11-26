@@ -94,7 +94,7 @@ def create_persona_prompt(text_summary: str) -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(root_path="/api/personas")
+app = FastAPI(root_path="/api/index")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Debug route to verify path handling
@@ -104,7 +104,8 @@ async def debug_request(request: Request):
         "base_url": str(request.base_url),
         "url": str(request.url),
         "scope_path": request.scope.get("path"),
-        "root_path": request.scope.get("root_path")
+        "root_path": request.scope.get("root_path"),
+        "env_root_path": os.getenv("ROOT_PATH")
     }
 
 # LLM setup
