@@ -106,7 +106,12 @@
 
             <div class="result-card">
                 <div class="result-label">AI Generated Persona & Learning Strategy:</div>
-                <div class="result-content">{{ persona_result }}</div>
+                <div id="persona-content" class="result-content">
+                    <div id="loading-indicator" style="display: flex; align-items: center; gap: 10px; color: #666;">
+                        <div class="spinner" style="width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #457B9D; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                        Generating persona... This may take a few seconds.
+                    </div>
+                </div>
                 <div class="timestamp">Generated on: {{ timestamp }}</div>
             </div>
 
@@ -117,5 +122,54 @@
     </main>
 
     <script src="../../js/footer.js"></script>
+
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async function() {
+            const studentText = document.querySelector('.result-content').innerText.trim();
+            const contentDiv = document.getElementById('persona-content');
+            const loadingDiv = document.getElementById('loading-indicator');
+            
+            try {
+                const response = await fetch('/api/generate-stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text_summary: studentText })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                
+                // Clear loading indicator once data starts coming
+                let firstChunk = true;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    if (firstChunk) {
+                        loadingDiv.remove();
+                        firstChunk = false;
+                    }
+
+                    const text = decoder.decode(value);
+                    contentDiv.textContent += text;
+                }
+            } catch (error) {
+                loadingDiv.innerHTML = `<span style="color: #e63946;">Error generating persona: ${error.message}</span>`;
+            }
+        });
+    </script>
 </body>
 </html>

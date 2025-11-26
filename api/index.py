@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langfuse import observe
@@ -25,6 +25,9 @@ class StudentInfo(BaseModel):
     preferred_language: str
     favourite_subjects: List[str]
     study_frequency: str
+
+class StreamRequest(BaseModel):
+    text_summary: str
 
 # ----------------------
 # Utility Functions
@@ -118,7 +121,8 @@ def get_llm():
     return ChatOpenAI(
         openai_api_key=api_key,
         temperature=0.8,
-        model_name="gpt-5-nano"
+        model_name="gpt-5-nano",
+        model_kwargs={"reasoning_effort": "minimal"}
     )
 
 # ----------------------
@@ -130,7 +134,7 @@ async def show_form(request: Request):
 
 @app.post("/", response_class=HTMLResponse)
 @observe()
-def generate_persona(
+def render_result_page(
     request: Request,
     name: str = Form(...),
     gender: str = Form(...),
@@ -140,16 +144,6 @@ def generate_persona(
     favourite_subjects: Optional[List[str]] = Form(None),
     study_frequency: str = Form(...)
 ):
-    # Initialize LLM here
-    llm = get_llm()
-    if not llm:
-        return templates.TemplateResponse("result.html", {
-            "request": request,
-            "student_text": "Error: OpenAI API Key is missing in environment variables.",
-            "persona_result": "System Configuration Error",
-            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
-        })
-
     # Create StudentInfo object
     subjects_list = favourite_subjects or []
     
@@ -166,8 +160,25 @@ def generate_persona(
     # Create student text summary
     text_summary = student_text(student)
 
+    # Return the result page immediately with the text summary
+    return templates.TemplateResponse("result.html", {
+        "request": request,
+        "student_text": text_summary,
+        "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    })
+
+@app.post("/generate-stream")
+async def generate_stream(request: StreamRequest):
+    # Initialize LLM here
+    llm = get_llm()
+    if not llm:
+        return StreamingResponse(
+            iter(["Error: OpenAI API Key is missing in environment variables."]), 
+            media_type="text/plain"
+        )
+
     # Build prompt
-    prompt_str = create_persona_prompt(text_summary)
+    prompt_str = create_persona_prompt(request.text_summary)
     
     # Build LCEL chain
     chain = (
@@ -175,16 +186,15 @@ def generate_persona(
         | llm
     )
 
-    # Run chain
-    result = chain.invoke({"text_summary": text_summary})
-    
-    # Extract the AI-generated text from result
-    persona_text = result.content if hasattr(result, 'content') else str(result)
+    # Generator function for streaming
+    async def event_generator():
+        try:
+            async for chunk in chain.astream({"text_summary": request.text_summary}):
+                if hasattr(chunk, 'content'):
+                    yield chunk.content
+                else:
+                    yield str(chunk)
+        except Exception as e:
+            yield f"Error during generation: {str(e)}"
 
-    # Render the result template
-    return templates.TemplateResponse("result.html", {
-        "request": request,
-        "student_text": text_summary,
-        "persona_result": persona_text,
-        "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
-    })
+    return StreamingResponse(event_generator(), media_type="text/plain")
