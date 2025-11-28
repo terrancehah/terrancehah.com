@@ -1,399 +1,895 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="../../styles/output.css" rel="stylesheet">
-    <link href="../../styles/style.css" type="text/css" rel="stylesheet">
-    <link rel="icon" href="../../resources/TH-logo.png" type="image/x-icon">
-    <title>Student Persona Generator - Terrance's Playground</title>
+<html>
+  <head>
+    <title>Student Persona Generator</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
-        
-        .form-container {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial,
+          sans-serif;
+        max-width: 600px;
+        margin: 50px auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .form-container {
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .form-description {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+      .form-group {
+        margin-bottom: 24px;
+        position: relative;
+      }
+      label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+        color: #333;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .required-indicator {
+        color: #dc3545;
+        margin-left: 4px;
+      }
+      .info-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        margin-left: 6px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 50%;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: help;
+        position: relative;
+      }
+      .info-icon:hover .tooltip {
+        visibility: visible;
+        opacity: 1;
+      }
+      .tooltip {
+        visibility: hidden;
+        opacity: 0;
+        position: absolute;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: normal;
+        white-space: nowrap;
+        z-index: 1;
+        transition: opacity 0.3s;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      .tooltip::after {
+        content: "";
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 5px solid transparent;
+        border-top-color: #333;
+      }
+      .help-text {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+        font-weight: normal;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        box-sizing: border-box;
+        font-size: 14px;
+        transition: border-color 0.3s;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+      input.valid {
+        border-color: #28a745;
+      }
+      input.invalid {
+        border-color: #dc3545;
+      }
+      button {
+        width: 100%;
+        padding: 14px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:active {
+        transform: scale(0.98);
+      }
+      .optional-badge {
+        display: inline-block;
+        background-color: #e9ecef;
+        color: #6c757d;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+        margin-left: 6px;
+      }
+      .form-footer {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+        text-align: center;
+        font-size: 12px;
+        color: #6c757d;
+      }
+      .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        margin-top: 8px;
+      }
+      .checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        user-select: none;
+      }
+      .checkbox-item:hover {
+        background-color: #e9ecef;
+        border-color: #007bff;
+      }
+      .checkbox-item.checked {
+        background-color: #e7f3ff;
+        border-color: #007bff;
+      }
+      .checkbox-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        margin-right: 10px;
+        cursor: pointer;
+        accent-color: #007bff;
+        pointer-events: none;
+      }
+      .checkbox-item label {
+        margin: 0;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 14px;
+        color: #495057;
+        flex: 1;
+        pointer-events: none;
+      }
+      .checkbox-item.checked label {
+        color: #007bff;
+        font-weight: 600;
+      }
+      
+      /* Status Indicator Styles */
+      .status-indicator-container {
+          text-align: center;
+          padding: 40px 20px;
+          margin-bottom: 30px;
+      }
+      
+      .status-icon {
+          font-size: 56px;
+          margin-bottom: 20px;
+          display: inline-block;
+      }
+      
+      .status-icon.pulse {
+          animation: statusPulse 2s ease-in-out infinite;
+      }
+      
+      .status-icon.rotate {
+          animation: statusRotate 2s linear infinite;
+      }
+      
+      .status-icon.complete {
+          animation: statusScaleIn 0.5s ease-out;
+      }
+      
+      @keyframes statusPulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(1.05); }
+      }
+      
+      @keyframes statusRotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+      }
+      
+      @keyframes statusScaleIn {
+          from { transform: scale(0); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
+      }
+      
+      .status-message {
+          font-size: 18px;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 8px;
+      }
+      
+      .status-detail {
+          font-size: 14px;
+          color: #666;
+          font-weight: normal;
+      }
+      /* Streaming Results Container Styles */
+      .results-container {
+        background: white;
+        padding: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: none;
+        animation: fadeIn 0.3s ease-in;
+      }
+
+      .results-container.show {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
         }
-        .form-description {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
+        to {
+          opacity: 1;
+          transform: translateY(0);
         }
-        .form-group {
-            margin-bottom: 24px;
-            position: relative;
+      }
+
+      .loading-container {
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      .loading-spinner {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #007bff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
         }
-        label {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
+        100% {
+          transform: rotate(360deg);
         }
-        .required-indicator {
-            color: #e63946;
-            margin-left: 4px;
+      }
+
+      .loading-text {
+        color: #007bff;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .loading-subtext {
+        color: #6c757d;
+        font-size: 14px;
+      }
+
+      .result-section {
+        margin-bottom: 30px;
+      }
+
+      .result-section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #007bff;
+        margin-bottom: 10px;
+        padding-bottom: 5px;
+        border-bottom: 2px solid #007bff;
+      }
+
+      .result-section-content {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 6px;
+        line-height: 1.8;
+        color: #333;
+        white-space: pre-wrap;
+        min-height: 60px;
+      }
+
+      .student-summary {
+        background-color: #e7f3ff;
+        border-left: 4px solid #007bff;
+      }
+
+      .persona-result {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        position: relative;
+      }
+
+      .typing-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        background-color: #007bff;
+        margin-left: 2px;
+        animation: blink 1s infinite;
+      }
+
+      @keyframes blink {
+        0%,
+        50% {
+          opacity: 1;
         }
-        .info-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            margin-left: 6px;
-            background-color: #457B9D;
-            color: white;
-            border-radius: 50%;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: help;
-            position: relative;
+        51%,
+        100% {
+          opacity: 0;
         }
-        .info-icon:hover .tooltip {
-            visibility: visible;
-            opacity: 1;
+      }
+
+      .success-badge {
+        text-align: center;
+        color: #28a745;
+        font-size: 48px;
+        margin-bottom: 20px;
+        animation: scaleIn 0.5s ease-out;
+      }
+
+      @keyframes scaleIn {
+        from {
+          transform: scale(0);
         }
-        .tooltip {
-            visibility: hidden;
-            opacity: 0;
-            position: absolute;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #333;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: normal;
-            white-space: nowrap;
-            z-index: 1;
-            transition: opacity 0.3s;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        to {
+          transform: scale(1);
         }
-        .tooltip::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 5px solid transparent;
-            border-top-color: #333;
+      }
+
+      .result-timestamp {
+        text-align: center;
+        color: #6c757d;
+        font-size: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e9ecef;
+      }
+
+      .btn-restart {
+        width: 100%;
+        padding: 14px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        margin-top: 20px;
+      }
+
+      .btn-restart:hover {
+        background-color: #0056b3;
+      }
+
+      .error-container {
+        background-color: #f8d7da;
+        border-left: 4px solid #dc3545;
+        padding: 20px;
+        border-radius: 6px;
+        margin-top: 20px;
+      }
+
+      .error-title {
+        color: #721c24;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      .error-message {
+        color: #721c24;
+        margin-bottom: 15px;
+      }
+
+      .fade-out {
+        animation: fadeOut 0.3s ease-out forwards;
+      }
+
+      @keyframes fadeOut {
+        from {
+          opacity: 1;
+          transform: translateY(0);
         }
-        .help-text {
-            font-size: 12px;
-            color: #666;
-            margin-top: 4px;
-            font-weight: normal;
+        to {
+          opacity: 0;
+          transform: translateY(-10px);
         }
-        input, select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            font-size: 14px;
-            transition: border-color 0.3s;
-        }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #457B9D;
-        }
-        input.valid {
-            border-color: #28a745;
-        }
-        input.invalid {
-            border-color: #e63946;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background-color: #457B9D;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #1d3557;
-        }
-        button:active {
-            transform: scale(0.98);
-        }
-        .form-footer {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e9ecef;
-            text-align: center;
-            font-size: 12px;
-            color: #6c757d;
-        }
-        .checkbox-group {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-top: 8px;
-        }
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            user-select: none;
-        }
-        .checkbox-item:hover {
-            background-color: #e9ecef;
-            border-color: #457B9D;
-        }
-        .checkbox-item.checked {
-            background-color: #e7f3ff;
-            border-color: #457B9D;
-        }
-        .checkbox-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            margin-right: 10px;
-            cursor: pointer;
-            accent-color: #457B9D;
-            pointer-events: none;
-        }
-        .checkbox-item label {
-            margin: 0;
-            cursor: pointer;
-            font-weight: 500;
-            font-size: 14px;
-            color: #495057;
-            flex: 1;
-            pointer-events: none;
-        }
-        .checkbox-item.checked label {
-            color: #457B9D;
-            font-weight: 600;
-        }
+      }
     </style>
-</head>
+  </head>
+  <body>
+    <div class="form-container">
+      <h1>Student Persona Generator</h1>
+      <p class="form-description">
+        Help us understand your study preferences better by providing the
+        following information. Fields marked with
+        <span style="color: #dc3545">*</span> are required.
+      </p>
 
-<body class="m-0 relative h-full bg-white overflow-x-hidden font-lato">
-    <header class="w-full inline-block">
-        <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
-            <!-- Left: Title -->
-            <div class="flex flex-col lg:flex-row items-center w-auto md:w-[300px] gap-1">
-                <h1 class="font-lato font-semibold text-[#1d3557] text-2xl md:text-3xl p-0 text-center sm:text-left sm:w-auto">
-                    Terrance's Playground
-                </h1>
-            </div>
+      <form action="/persona/" method="post">
+        <!-- Name Field -->
+        <div class="form-group">
+          <label for="name">
+            Full Name<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Enter your full name</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            placeholder="e.g., Terrance Hah"
+            required
+          />
+          <!-- <div class="help-text">Please provide your complete name</div> -->
+        </div>
 
-            <!-- Middle: Nav buttons -->
-            <nav class="flex flex-wrap justify-center gap-2">
-                <a href="../../index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Home</a>
-                <a href="../../articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Articles</a>
-                <a href="../../projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue bg-light-blue">Projects</a>
-                <a href="../../playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-sky-blue hover:bg-light-blue">Playground</a>
-            </nav>
+        <!-- Gender Field -->
+        <div class="form-group">
+          <label for="gender">
+            Gender<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Select your gender</span>
+            </span>
+          </label>
+          <select id="gender" name="gender" required>
+            <option value="">-- Please select --</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <!-- Form Field -->
+        <div class="form-group">
+          <label for="form">
+            Form<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Customer's current age in years</span>
+            </span>
+          </label>
+          <select id="form" name="form" required>
+            <option value="">-- Please select --</option>
+            <option value="Peralihan">Peralihan</option>
+            <option value="Form 1">Form 1</option>
+            <option value="Form 2">Form 2</option>
+            <option value="Form 3">Form 3</option>
+            <option value="Form 4">Form 4</option>
+            <option value="Form 5">Form 5</option>
+          </select>
+          <!-- <div class="help-text">Select form</div> -->
+        </div>
+
+        <!-- School Field -->
+        <div class="form-group">
+          <label for="school">
+            School<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Your school</span>
+            </span>
+          </label>
+          <input
+            type="text"
+            id="school"
+            name="school"
+            placeholder="e.g., SMK Taman Connaught"
+            required
+          />
+          <div class="help-text">Specify your school</div>
+        </div>
+
+        <!-- Preferred Language Field -->
+        <div class="form-group">
+          <label for="preferred_language">
+            Preferred Language<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Your preferred language</span>
+            </span>
+          </label>
+          <select id="preferred_language" name="preferred_language" required>
+            <option value="">-- Please select --</option>
+            <option value="English">English</option>
+            <option value="Malay">Malay</option>
+            <option value="Mandarin">Mandarin</option>
+          </select>
+          <div class="help-text">Select your preferred language</div>
+        </div>
+
+        <!-- Preferred Subjects Field -->
+        <div class="form-group">
+          <label>
+            Preferred Subjects<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Your preferred subjects</span>
+            </span>
+          </label>
+          <div class="help-text" style="margin-bottom: 8px">
+            Select all that apply
+          </div>
+          <div class="checkbox-group" id="study-checkbox-group">
+            <!-- Checkboxes will be generated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Study Frequency Field -->
+        <div class="form-group">
+          <label for="study_frequency">
+            Study Frequency<span class="required-indicator">*</span>
+            <span class="info-icon">
+              i
+              <span class="tooltip">Your study frequency per week</span>
+            </span>
+          </label>
+          <select id="study_frequency" name="study_frequency" required>
+            <option value="">-- Please select --</option>
+            <option value="monthly">0-1 days per week</option>
+            <option value="weekly">2-3 days per week</option>
+            <option value="monthly">4-6 days per week</option>
+            <option value="daily">Daily</option>
+          </select>
+          <div class="help-text">Select your study frequency</div>
+        </div>
+
+        <button type="submit">Generate Student Persona</button>
+
+        <div class="form-footer">
+          🔒 Your information is secure and will only be used to generate a
+          persona regarding your education needs
+        </div>
+      </form>
+    </div>
+
+    <!-- Results Container (Hidden by default, shown when streaming) -->
+    <div class="results-container" id="resultsContainer">
         
-            <!-- Right side: Social Icons -->
-            <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
-                <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../../resources/facebook.png" alt="facebook" class="w-full h-full">
-                </a>
-                <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../../resources/instagram.png" alt="instagram" class="w-full h-full">
-                </a>
-                <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
-                    <img src="../../resources/x.png" alt="x" class="w-full h-full">
-                </a>
-                <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../../resources/linkedin.png" alt="linkedin" class="w-full h-full">
-                </a>
-                <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
-                    <img src="../../resources/github.png" alt="github" class="w-full h-full">
-                </a>
+        <!-- Success/Result Container (Shown immediately for streaming) -->
+        <div id="successContainer" style="display: none;">
+            <div class="success-badge" id="successBadge" style="display: none;">✓</div>
+            <h1 id="resultTitle">Generating Student Persona...</h1>
+            
+            <!-- Student Summary Section (Hidden until summary arrives) -->
+            <div class="result-section" id="summarySection" style="display: none;">
+                <div class="result-section-title">Student Summary</div>
+                <div class="result-section-content student-summary" id="studentSummary"></div>
+            </div>
+            
+            <!-- Status Indicator (Shows loading stages) -->
+            <div class="status-indicator-container" id="statusIndicatorContainer">
+                <div class="status-icon" id="statusIcon">📤</div>
+                <div class="status-message" id="statusMessage">Sending your request...</div>
+                <div class="status-detail" id="statusDetail"></div>
+            </div>
+            
+            <!-- AI-Generated Persona Section -->
+            <div class="result-section">
+                <div class="result-section-title">AI-Generated Persona & Learning Recommendations</div>
+                <div class="result-section-content persona-result" id="personaResult">
+                    <span class="typing-cursor" id="typingCursor"></span>
+                </div>
+            </div>
+            
+            <!-- Timestamp -->
+            <div class="result-timestamp" id="resultTimestamp" style="display: none;"></div>
+            
+            <!-- Restart Button -->
+            <button class="btn-restart" id="restartBtn" onclick="resetForm()" style="display: none;">Generate Another Persona</button>
+        </div>
+
+        <!-- Error State (Hidden initially) -->
+        <div id="errorContainer" style="display: none;">
+            <div class="error-container">
+                <div class="error-title">⚠️ Error Generating Persona</div>
+                <div class="error-message" id="errorMessage"></div>
+                <button class="btn-restart" onclick="resetForm()">Try Again</button>
             </div>
         </div>
-    </header>
+    </div>
 
-    <main class="w-full px-4 md:px-8 lg:px-16 xl:px-32 py-8 max-w-screen-2xl mx-auto">
-        <div class="form-container max-w-2xl mx-auto">
-            <h1 class="font-lato font-bold text-3xl sm:text-3xl md:text-4xl text-[#1d3557] text-center mb-4">Student Persona Generator</h1>
-            <p class="form-description">Help us understand your study preferences better by providing the following information. Fields marked with <span style="color: #e63946;">*</span> are required.</p>
-            
-            <form action="./" method="post">                <!-- Name Field -->
-                <div class="form-group">
-                    <label for="name">
-                        Full Name<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Enter your full name</span>
-                        </span>
-                    </label>
-                    <input type="text" id="name" name="name" placeholder="e.g., Terrance Hah" required>
-                </div>
-                
-                <!-- Gender Field -->
-                <div class="form-group">
-                    <label for="gender">
-                        Gender<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Select your gender</span>
-                        </span>
-                    </label>
-                    <select id="gender" name="gender" required>
-                        <option value="">-- Please select --</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                    </select>
-                </div>
-                
-                <!-- Form Field -->
-                <div class="form-group">
-                    <label for="form">
-                        Form<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Your current study level</span>
-                        </span>
-                    </label>
-                    <select id="form" name="form" required>
-                        <option value="">-- Please select --</option>
-                        <option value="peralihan">Peralihan</option>
-                        <option value="form1">Form 1</option>
-                        <option value="form2">Form 2</option>
-                        <option value="form3">Form 3</option>
-                        <option value="form4">Form 4</option>
-                        <option value="form5">Form 5</option>
-                    </select>
-                </div>
-                
-                <!-- School Field -->
-                <div class="form-group">
-                    <label for="school">
-                        School<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Your school</span>
-                        </span>
-                    </label>
-                    <input type="text" id="school" name="school" placeholder="e.g., SMK Taman Connaught" required>
-                    <div class="help-text">Specify your school</div>
-                </div>
-                
-                <!-- Preferred Language Field -->
-                <div class="form-group">
-                    <label for="preferred_language">
-                        Preferred Language<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Your preferred language</span>
-                        </span>
-                    </label>
-                    <select id="preferred_language" name="preferred_language" required>
-                        <option value="">-- Please select --</option>
-                        <option value="english">English</option>
-                        <option value="malay">Malay</option>
-                        <option value="mandarin">Mandarin</option>
-                    </select>
-                    <div class="help-text">Select your preferred language</div>
-                </div>
-                
-                <!-- Preferred Subjects Field -->
-                <div class="form-group">
-                    <label>
-                        Preferred Subjects<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Your preferred subjects</span>
-                        </span>
-                    </label>
-                    <div class="help-text" style="margin-bottom: 8px;">Select all that apply</div>
-                    <div class="checkbox-group" id="study-checkbox-group">
-                        <!-- Checkboxes will be generated by JavaScript -->
-                    </div>
-                </div>
-
-                <!-- Study Frequency Field -->
-                <div class="form-group">
-                    <label for="study_frequency">
-                        Study Frequency<span class="required-indicator">*</span>
-                        <span class="info-icon">
-                            i
-                            <span class="tooltip">Your study frequency per week</span>
-                        </span>
-                    </label>
-                    <select id="study_frequency" name="study_frequency" required>
-                        <option value="">-- Please select --</option>
-                        <option value="daily">Daily</option>
-                        <option value="4-6days">4-6 days per week</option>
-                        <option value="2-3days">2-3 days per week</option>
-                        <option value="0-1days">0-1 days per week</option>
-                    </select>
-                    <div class="help-text">Select your study frequency</div>
-                </div>
-                
-                <button type="submit">Generate Student Persona</button>
-                
-                <div class="form-footer">
-                    🔒 Your information is secure and will only be used to generate a persona regarding your education needs
-                </div>
-            </form>
-        </div>
-    </main>
-
-    <!-- Footer will be inserted by footer.js -->
-    <script src="../../js/footer.js"></script>
 
     <script>
-        // Preferred subjects configuration
-        const preferredSubjects = [
-            { id: 'bahasamelayu', label: 'Bahasa Melayu', value: 'Bahasa Melayu' },
-            { id: 'english', label: 'English', value: 'English' },
-            { id: 'bahasacina', label: 'Bahasa Cina', value: 'Bahasa Cina' },
-            { id: 'science', label: 'Science', value: 'Science' },
-            { id: 'mathematics', label: 'Mathematics', value: 'Mathematics' },
-            { id: 'geography', label: 'Geography', value: 'Geography' },
-            { id: 'history', label: 'History', value: 'History' },
-            { id: 'biology', label: 'Biology', value: 'Biology' },
-            { id: 'chemistry', label: 'Chemistry', value: 'Chemistry' },
-            { id: 'physics', label: 'Physics', value: 'Physics' },
-            { id: 'moral', label: 'Moral Education', value: 'Moral Education' },
-            { id: 'art', label: 'Art', value: 'Art' },
-            { id: 'physical', label: 'Physical Education', value: 'Physical Education' },
-            { id: 'ict', label: 'Information and Communication Technology', value: 'Information and Communication Technology' },
-            { id: 'accounting', label: 'Accounting', value: 'Accounting' },
-            { id: 'economics', label: 'Economics', value: 'Economics' }
-        ];
+      // Preferred subjects configuration
+      const preferredSubjects = [
+        { id: "bahasamelayu", label: "Bahasa Melayu", value: "Bahasa Melayu" },
+        { id: "english", label: "English", value: "English" },
+        { id: "bahasacina", label: "Bahasa Cina", value: "Bahasa Cina" },
+        { id: "science", label: "Science", value: "Science" },
+        { id: "mathematics", label: "Mathematics", value: "Mathematics" },
+        { id: "geography", label: "Geography", value: "Geography" },
+        { id: "history", label: "History", value: "History" },
+        { id: "biology", label: "Biology", value: "Biology" },
+        { id: "chemistry", label: "Chemistry", value: "Chemistry" },
+        { id: "physics", label: "Physics", value: "Physics" },
+        { id: "moral", label: "Moral Education", value: "Moral Education" },
+        { id: "art", label: "Art", value: "Art" },
+        {
+          id: "physical",
+          label: "Physical Education",
+          value: "Physical Education",
+        },
+        {
+          id: "ict",
+          label: "Information and Communication Technology",
+          value: "Information and Communication Technology",
+        },
+        { id: "accounting", label: "Accounting", value: "Accounting" },
+        { id: "economics", label: "Economics", value: "Economics" },
+      ];
 
-        // Generate checkboxes dynamically
-        const checkboxGroup = document.getElementById('study-checkbox-group');
-        preferredSubjects.forEach(subject => {
-            const div = document.createElement('div');
-            div.className = 'checkbox-item';
-            div.innerHTML = `
+      // Generate checkboxes dynamically
+      const checkboxGroup = document.getElementById("study-checkbox-group");
+      preferredSubjects.forEach((subject) => {
+        const div = document.createElement("div");
+        div.className = "checkbox-item";
+        div.innerHTML = `
                 <input type="checkbox" id="study_${subject.id}" name="favourite_subjects" value="${subject.value}">
                 <label for="study_${subject.id}">${subject.label}</label>
             `;
+
+        // Make entire div clickable
+        div.addEventListener("click", function (e) {
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          this.classList.toggle("checked", checkbox.checked);
+        });
+
+        checkboxGroup.appendChild(div);
+      });
+
+        // ==========================================
+        // Stage Indicator Functions
+        // ==========================================
+        const STAGES = {
+            sending: { icon: '📤', animation: 'pulse' },
+            processing: { icon: '🔄', animation: 'rotate' },
+            thinking: { icon: '🧠', animation: 'pulse' },
+            streaming: { icon: '⚡', animation: 'pulse' },
+            complete: { icon: '✅', animation: 'complete' }
+        };
+        
+        function updateStageIndicator(stage, message, detail = '') {
+            const statusIcon = document.getElementById('statusIcon');
+            const statusMessage = document.getElementById('statusMessage');
+            const statusDetail = document.getElementById('statusDetail');
             
-            // Make entire div clickable
-            div.addEventListener('click', function(e) {
-                const checkbox = this.querySelector('input[type="checkbox"]');
-                checkbox.checked = !checkbox.checked;
-                this.classList.toggle('checked', checkbox.checked);
+            const config = STAGES[stage];
+            if (!config) return;
+            
+            statusIcon.textContent = config.icon;
+            statusIcon.className = 'status-icon ' + config.animation;
+            statusMessage.textContent = message;
+            statusDetail.textContent = detail;
+        }
+
+        // ==========================================
+        // Streaming Form Submission Handler
+        // ==========================================
+        const form = document.querySelector('form');
+        const formContainer = document.querySelector('.form-container');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const loadingContainer = document.getElementById('loadingContainer');
+        const successContainer = document.getElementById('successContainer');
+        const errorContainer = document.getElementById('errorContainer');
+        const studentSummary = document.getElementById('studentSummary');
+        const personaResult = document.getElementById('personaResult');
+        const typingCursor = document.getElementById('typingCursor');
+        const resultTimestamp = document.getElementById('resultTimestamp');
+        const errorMessage = document.getElementById('errorMessage');
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Collect form data
+            const formData = new FormData(form);
+            
+            // Hide form with fade out animation
+            formContainer.classList.add('fade-out');
+            
+            // Wait for fade out animation
+            setTimeout(() => {
+                formContainer.style.display = 'none';
+                resultsContainer.classList.add('show');
+                
+                // Show success container immediately (for status)
+                successContainer.style.display = 'block';
+                
+                // Hide completion elements initially
+                document.getElementById('successBadge').style.display = 'none';
+                document.getElementById('resultTimestamp').style.display = 'none';
+                document.getElementById('restartBtn').style.display = 'none';
+                document.getElementById('summarySection').style.display = 'none';
+                
+                // Set initial title
+                document.getElementById('resultTitle').textContent = 'Generating Student Persona...';
+                
+                // Reset status
+                updateStageIndicator('sending', 'Sending your request...');
+                
+            }, 300);
+
+            try {
+                // Make streaming request
+                const response = await fetch("{{ url_for('generate_persona_stream') }}", {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let personaText = '';
+                let startTime = Date.now();
+
+                // Read the stream
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // Process complete SSE messages
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop(); // Keep incomplete message in buffer
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const jsonData = line.substring(6);
+                            
+                            try {
+                                const event = JSON.parse(jsonData);
+                                
+                                switch (event.type) {
+                                    case 'stage':
+                                        const detail = event.elapsed 
+                                            ? `Generated in ${event.elapsed.toFixed(1)}s`
+                                            : '';
+                                        updateStageIndicator(event.stage, event.message, detail);
+                                        
+                                        if (event.stage === 'complete') {
+                                            // Show completion elements
+                                            document.getElementById('successBadge').style.display = 'block';
+                                            document.getElementById('resultTimestamp').style.display = 'block';
+                                            document.getElementById('restartBtn').style.display = 'block';
+                                            document.getElementById('resultTitle').textContent = 'Student Persona Generated Successfully';
+                                        }
+                                        break;
+
+                                    case 'summary':
+                                        // Display student summary
+                                        document.getElementById('summarySection').style.display = 'block';
+                                        studentSummary.textContent = event.content;
+                                        break;
+                                    
+                                    case 'token':
+                                        // Append token to persona text
+                                        personaText += event.content;
+                                        personaResult.textContent = personaText;
+                                        personaResult.appendChild(typingCursor);
+                                        
+                                        // Auto-scroll to bottom
+                                        // personaResult.scrollTop = personaResult.scrollHeight;
+                                        break;
+                                    
+                                    case 'done':
+                                        // Remove typing cursor
+                                        typingCursor.remove();
+                                        
+                                        // Display timestamp
+                                        resultTimestamp.textContent = `Generated on ${event.timestamp}`;
+                                        break;
+                                    
+                                    case 'error':
+                                        throw new Error(event.message);
+                                }
+                            } catch (parseError) {
+                                console.error('Error parsing SSE event:', parseError);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Streaming error:', error);
+                
+                // Show error container
+                successContainer.style.display = 'none';
+                errorContainer.style.display = 'block';
+                errorMessage.textContent = error.message || 'An unexpected error occurred. Please try again.';
+            }
+        });
+
+        // Reset form function
+        function resetForm() {
+            // Reset form fields
+            form.reset();
+            
+            // Clear checkboxes
+            document.querySelectorAll('.checkbox-item').forEach(item => {
+                item.classList.remove('checked');
+                item.querySelector('input[type="checkbox"]').checked = false;
             });
             
-            checkboxGroup.appendChild(div);
-        });
+            // Clear results
+            studentSummary.textContent = '';
+            personaResult.textContent = '';
+            personaResult.appendChild(typingCursor);
+            resultTimestamp.textContent = '';
+            
+            // Hide results container
+            resultsContainer.classList.remove('show');
+            
+            // Reset containers
+            loadingContainer.style.display = 'block';
+            successContainer.style.display = 'none';
+            errorContainer.style.display = 'none';
+            
+            // Show form container
+            formContainer.style.display = 'block';
+            formContainer.classList.remove('fade-out');
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     </script>
-</body>
+  </body>
 </html>

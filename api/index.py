@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langfuse import observe
@@ -10,6 +10,9 @@ from datetime import datetime
 from typing import List, Optional
 from pathlib import Path
 from pydantic import BaseModel
+import asyncio
+import json
+from langchain_core.callbacks import AsyncCallbackHandler
 
 # Load environment variables (from .env locally, from Vercel dashboard in production)
 load_dotenv()  # Don't specify path - works with both local .env and Vercel env vars
@@ -67,25 +70,24 @@ def student_text(c: StudentInfo) -> str:
     return paragraph
 
 
-def create_persona_prompt(text_summary: str) -> str:
-    return f"""
+def create_persona_prompt() -> str:
+    return """
         
         You are an expert tutor creating a student persona to assess education needs.
 
         Student Information: {text_summary}
 
-        Based on the information above, generate a single-paragraph persona summary (maximum 400 words). 
-        Describe the student's possible personality, study preferences and life vision. 
-        From this persona, infer potential learning preferences with the famous 6-types of learning styles,
+        Based on the information above, generate a student persona summary. 
+        Describe the student’s possible personality, study preferences and life vision in one concise paragraph. 
+        Then from this persona, infer potential learning preferences with the famous 6-types of learning styles,
         Feynman, Mnemonic, Visualisation, Contextual, Key points, and Repitition Learning Methods.
-        Explain the rationale for each within the same paragraph.
+        Explain the rationale and proper examples for each learning method in suitable headings and paragraphs.
         
-        Apply this preferred language rule:
-        - If the student's name is in Malay and studying in SMK, conclude that the student has already mastered Malay as the studying language.
-        - Otherwise, conclude that the student is open to non-takaful or conventional products.
+        Apply this preferred rule if conditions are met:
+        - If the student's name is in Malay and studying in SMK, conclude that Malay is the studying language.
+        - Otherwise, conclude that Malay is not the primary studying language.
 
-        Do not use bullet points or separate sections. 
-        Produce the output in English only, and do not add information not present in the customer data.
+        Produce the output in English only, and do not add information not present in the student data.
         
         """
 
@@ -118,19 +120,68 @@ def get_llm():
     return ChatOpenAI(
         openai_api_key=api_key,
         temperature=0.8,
-        model_name="gpt-4o-mini"
+        model_name="gpt-5-nano",
+        streaming=True
     )
 
+@app.get("/", response_class=HTMLResponse)
+async def show_form(request: Request):
+    return templates.TemplateResponse("form.html", {"request": request})
+
+class SimpleStreamingCallback(AsyncCallbackHandler):
+    """Minimal callback for stage indicators"""
+    
+    def __init__(self, event_queue):
+        self.event_queue = event_queue
+        self.word_count = 0
+        self.start_time = None
+    
+    async def on_llm_start(self, serialized, prompts, **kwargs) -> None:
+        self.start_time = datetime.now()
+        await self.event_queue.put({
+            'type': 'stage',
+            'stage': 'thinking',
+            'message': 'AI is analyzing your profile...'
+        })
+    
+    async def on_llm_new_token(self, token: str, **kwargs) -> None:
+        if self.word_count == 0:
+            await self.event_queue.put({
+                'type': 'stage',
+                'stage': 'streaming',
+                'message': 'Generating persona...'
+            })
+        
+        # Count words
+        if token.strip():
+            self.word_count += len(token.split())
+        
+        # Send token
+        await self.event_queue.put({
+            'type': 'token',
+            'content': token,
+            'word_count': self.word_count
+        })
+    
+    async def on_llm_end(self, response, **kwargs) -> None:
+        elapsed = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
+        await self.event_queue.put({
+            'type': 'stage',
+            'stage': 'complete',
+            'message': 'Complete!',
+            'elapsed': elapsed
+        })
+
 # ----------------------
-# Endpoints
+# Streaming Endpoints
 # ----------------------
 @app.get("/", response_class=HTMLResponse)
 async def show_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
-@app.post("/", response_class=HTMLResponse)
-@observe()
-def generate_persona(
+@app.post("/persona/stream/", name="generate_persona_stream")
+@observe()  # Langfuse observation decorator for monitoring
+async def generate_persona_stream(
     request: Request,
     name: str = Form(...),
     gender: str = Form(...),
@@ -140,51 +191,114 @@ def generate_persona(
     favourite_subjects: Optional[List[str]] = Form(None),
     study_frequency: str = Form(...)
 ):
-    # Initialize LLM here
-    llm = get_llm()
-    if not llm:
-        return templates.TemplateResponse("result.html", {
-            "request": request,
-            "student_text": "Error: OpenAI API Key is missing in environment variables.",
-            "persona_result": "System Configuration Error",
-            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
-        })
-
-    # Create StudentInfo object
-    subjects_list = favourite_subjects or []
+    """Streaming version of persona generation for Vercel timeout handling"""
     
-    student = StudentInfo(
-        name=name,
-        gender=gender,
-        form=form,
-        school=school,
-        preferred_language=preferred_language,
-        favourite_subjects=subjects_list,
-        study_frequency=study_frequency
+    async def generate_stream():
+        try:
+            # Stage 2: Processing
+            yield f"data: {json.dumps({
+                'type': 'stage',
+                'stage': 'processing',
+                'message': 'Processing student information...'
+            })}\n\n"
+            
+            # Step 1: Create StudentInfo object
+            subjects_list = favourite_subjects or []
+            
+            student = StudentInfo(
+                name=name,
+                gender=gender,
+                form=form,
+                school=school,
+                preferred_language=preferred_language,
+                favourite_subjects=subjects_list,
+                study_frequency=study_frequency
+            )
+            
+            # Step 2: Create student text summary
+            text_summary = student_text(student)
+            
+            # Step 3: Send student summary
+            yield f"data: {json.dumps({'type': 'summary', 'content': text_summary})}\n\n"
+            
+            # Step 4: Setup callback and queue
+            event_queue = asyncio.Queue()
+            callback = SimpleStreamingCallback(event_queue)
+            
+            # Step 5: Build prompt
+            prompt_str = create_persona_prompt()
+            
+            # Initialize LLM
+            llm = get_llm()
+            if not llm:
+                raise ValueError("OpenAI API Key not found")
+            
+            # Step 6: Build LCEL chain
+            chain = (
+                PromptTemplate.from_template(prompt_str)
+                | llm
+            )
+            
+            # Step 7: Run chain in background task
+            async def run_chain():
+                try:
+                    # We use astream but rely on the callback for events
+                    # We iterate to ensure execution, but ignore the direct chunks
+                    # as the callback handles them
+                    async for _ in chain.astream(
+                        {"text_summary": text_summary},
+                        config={'callbacks': [callback]}
+                    ):
+                        pass
+                except Exception as e:
+                    await event_queue.put({
+                        'type': 'error',
+                        'message': str(e)
+                    })
+                finally:
+                    # Signal done if not already handled (though on_llm_end should handle it)
+                    # We can send a sentinel if needed, but on_llm_end is better
+                    pass
+
+            task = asyncio.create_task(run_chain())
+            
+            # Step 8: Consume queue and yield events
+            while not task.done() or not event_queue.empty():
+                try:
+                    # Wait for next event
+                    event = await asyncio.wait_for(
+                        event_queue.get(),
+                        timeout=0.1
+                    )
+                    
+                    yield f"data: {json.dumps(event)}\n\n"
+                    
+                    # If complete or error, we can break after sending
+                    if event['type'] == 'stage' and event['stage'] == 'complete':
+                        # Send final done marker with timestamp
+                        timestamp = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+                        yield f"data: {json.dumps({'type': 'done', 'timestamp': timestamp})}\n\n"
+                        break
+                    
+                    if event['type'] == 'error':
+                        break
+                        
+                except asyncio.TimeoutError:
+                    continue
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                    break
+            
+        except Exception as e:
+            # Send error to client
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
     )
-    
-    # Create student text summary
-    text_summary = student_text(student)
-
-    # Build prompt
-    prompt_str = create_persona_prompt(text_summary)
-    
-    # Build LCEL chain
-    chain = (
-        PromptTemplate.from_template(prompt_str)
-        | llm
-    )
-
-    # Run chain
-    result = chain.invoke({"text_summary": text_summary})
-    
-    # Extract the AI-generated text from result
-    persona_text = result.content if hasattr(result, 'content') else str(result)
-
-    # Render the result template
-    return templates.TemplateResponse("result.html", {
-        "request": request,
-        "student_text": text_summary,
-        "persona_result": persona_text,
-        "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p")
-    })
