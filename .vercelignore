@@ -54,7 +54,6 @@ test.js
 .gitignore
 
 # Build artifacts
-dist/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
