@@ -13,10 +13,6 @@
         {
             "source": "/projects/persona/",
             "destination": "/api"
-        },
-        {
-            "source": "/projects/persona/:path*",
-            "destination": "/api/:path*"
         }
     ]
 }

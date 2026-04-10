@@ -233,7 +233,7 @@ class SimpleStreamingCallback(AsyncCallbackHandler):
 # ----------------------
 # Streaming Endpoints
 # ----------------------
-@app.post("/persona/stream/", name="generate_persona_stream")
+@app.post("/", name="generate_persona_stream")
 async def generate_persona_stream(
     request: Request,
     name: str = Form(...),
