@@ -1,0 +1,66 @@
+# Python virtual environment
+venv/
+env/
+ENV/
+.venv
+
+# Archive directory
+.archive/
+
+# Node modules (Vercel handles this, but being explicit)
+node_modules/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Development files
+.env.local
+*.log
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.windsurfrules
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backups
+*.bak
+*.backup
+*-ori.html
+*-old.*
+
+# Test files
+test.js
+*-test.js
+*-testdata.js
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+dist/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Development scripts
+start-dev.sh
+proxy-server.js
+
+# Vercel
+.vercel/
