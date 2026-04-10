@@ -1,6 +1,13 @@
 {
   "private": true,
   "scripts": {
-    "build": "echo 'No build step'"
+    "build": "echo 'No build step'",
+    "dev": "bash start-dev.sh",
+    "static": "http-server . -p 3000 -c-1",
+    "api": "source venv/bin/activate && uvicorn api.index:app --reload --port 8000"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "http-proxy": "^1.18.1"
   }
 }

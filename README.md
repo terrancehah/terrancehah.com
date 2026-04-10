@@ -34,6 +34,32 @@ This site is built with:
 - Tailwind CSS for styling
 - Hosted on Vercel
 
+## Local Development
+
+To run the site locally with the persona generator:
+
+```bash
+npm run dev
+```
+
+This starts:
+- Static site on `http://localhost:3000`
+- Persona generator at `http://localhost:3000/projects/persona`
+
+First time setup:
+```bash
+# Install Node dependencies
+npm install
+
+# Set up Python environment
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Create .env file with your OpenAI API key
+echo "OPENAI_API_KEY=your_key_here" > .env
+```
+
 ## Contact
 
 Find me on:
