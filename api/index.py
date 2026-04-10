@@ -96,7 +96,12 @@ def create_persona_prompt() -> str:
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(root_path="/api")
+# Determine root_path based on environment
+# In production (Vercel), we're served at /projects/persona
+# Locally, we might be at /api or root
+root_path = os.getenv("ROOT_PATH", "/projects/persona")
+
+app = FastAPI(root_path=root_path)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Debug route to verify path handling
