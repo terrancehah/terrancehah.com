@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path as _Path
+
+# Add _lib/ to Python path so the langchain shim is found by Langfuse.
+# The shim lives in _lib/ (not api/) to avoid Vercel treating it as a serverless function.
+sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "_lib"))
+
 from fastapi import FastAPI, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
