@@ -1,18 +1,13 @@
 {
     "cleanUrls": true,
-    "functions": {
-        "api/index.py": {
-            "excludeFiles": "{resources/**,public/**,playground/**,articles/**,projects/**,styles/**,js/**,src/**,.git/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb}"
-        }
-    },
     "rewrites": [
         {
-            "source": "/projects/persona/:path*",
-            "destination": "/api/index"
+            "source": "/projects/persona",
+            "destination": "/api"
         },
         {
-            "source": "/projects/persona",
-            "destination": "/api/index"
+            "source": "/projects/persona/:path*",
+            "destination": "/api/:path*"
         }
     ]
 }
