@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, Form
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.prompts import PromptTemplate
@@ -28,6 +29,19 @@ class StudentInfo(BaseModel):
     preferred_language: str
     favourite_subjects: List[str]
     study_frequency: str
+
+# Structured Output Models
+class LearningMethod(BaseModel):
+    """Individual learning method recommendation"""
+    name: str
+    icon: str
+    rationale: str
+    example: str
+
+class PersonaResponse(BaseModel):
+    """Complete persona analysis response"""
+    persona_summary: str
+    learning_methods: List[LearningMethod]
 
 # ----------------------
 # Utility Functions
@@ -72,24 +86,49 @@ def student_text(c: StudentInfo) -> str:
 
 def create_persona_prompt() -> str:
     return """
-        
-        You are an expert tutor creating a student persona to assess education needs.
+You are an expert tutor creating a student persona to assess education needs.
 
-        Student Information: {text_summary}
+Student Information: {text_summary}
 
-        Based on the information above, generate a student persona summary. 
-        Describe the student’s possible personality, study preferences and life vision in one concise paragraph. 
-        Then from this persona, infer potential learning preferences with the famous 6-types of learning styles,
-        Feynman, Mnemonic, Visualisation, Contextual, Key points, and Repitition Learning Methods.
-        Explain the rationale and proper examples for each learning method in suitable headings and paragraphs.
-        
-        Apply this preferred rule if conditions are met:
-        - If the student's name is in Malay and studying in SMK, conclude that Malay is the studying language.
-        - Otherwise, conclude that Malay is not the primary studying language.
+Generate a student persona analysis with this structure:
 
-        Produce the output in English only, and do not add information not present in the student data.
-        
-        """
+## Student Persona Summary
+[Write a concise paragraph describing the student's personality, study preferences, and life vision]
+
+## Learning Methods Recommendations
+
+For each of the 6 learning methods below, provide analysis:
+
+### 1) Feynman Technique 🧠
+**Rationale:** [Why this suits the student based on their subjects/interests]
+**Example:** [Specific example using their actual subjects]
+
+### 2) Mnemonic 🎯
+**Rationale:** [Why this suits the student]
+**Example:** [Specific example with their subjects]
+
+### 3) Visualisation 👁️
+**Rationale:** [Why this suits the student]
+**Example:** [Specific example with their subjects]
+
+### 4) Contextual 🌍
+**Rationale:** [Why this suits the student]
+**Example:** [Specific example with their subjects]
+
+### 5) Key Points 🔑
+**Rationale:** [Why this suits the student]
+**Example:** [Specific example with their subjects]
+
+### 6) Spaced Repetition ⏰
+**Rationale:** [Why this suits the student]
+**Example:** [Specific example with their subjects]
+
+Rules:
+- If student's name is Malay and studying in SMK, conclude Malay is the studying language
+- Use English only
+- Base recommendations on provided student data only
+- Make examples specific to their subjects
+    """
 
 # ----------------------
 # FastAPI Setup
@@ -102,6 +141,21 @@ BASE_DIR = Path(__file__).resolve().parent
 root_path = os.getenv("ROOT_PATH", "/projects/persona")
 
 app = FastAPI(root_path=root_path)
+
+# Add CORS middleware for local development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://*.vercel.app",
+        "https://terrancehah.com"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 # Debug route to verify path handling
@@ -125,7 +179,7 @@ def get_llm():
     return ChatOpenAI(
         openai_api_key=api_key,
         temperature=0.8,
-        model_name="gpt-5-nano",
+        model_name="gpt-5.4-nano",
         streaming=True
     )
 
@@ -134,12 +188,12 @@ async def show_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
 class SimpleStreamingCallback(AsyncCallbackHandler):
-    """Minimal callback for stage indicators"""
+    """Callback for streaming tokens and status updates"""
     
     def __init__(self, event_queue):
         self.event_queue = event_queue
-        self.word_count = 0
         self.start_time = None
+        self.word_count = 0
     
     async def on_llm_start(self, serialized, prompts, **kwargs) -> None:
         self.start_time = datetime.now()
@@ -157,15 +211,13 @@ class SimpleStreamingCallback(AsyncCallbackHandler):
                 'message': 'Generating persona...'
             })
         
-        # Count words
         if token.strip():
             self.word_count += len(token.split())
         
-        # Send token
+        # Send token to frontend
         await self.event_queue.put({
             'type': 'token',
-            'content': token,
-            'word_count': self.word_count
+            'content': token
         })
     
     async def on_llm_end(self, response, **kwargs) -> None:
@@ -185,7 +237,7 @@ async def show_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
 @app.post("/persona/stream/", name="generate_persona_stream")
-@observe()  # Langfuse observation decorator for monitoring
+@observe()
 async def generate_persona_stream(
     request: Request,
     name: str = Form(...),
@@ -238,7 +290,7 @@ async def generate_persona_stream(
             if not llm:
                 raise ValueError("OpenAI API Key not found")
             
-            # Step 6: Build LCEL chain
+            # Step 6: Build LCEL chain (simple text streaming)
             chain = (
                 PromptTemplate.from_template(prompt_str)
                 | llm
@@ -247,9 +299,7 @@ async def generate_persona_stream(
             # Step 7: Run chain in background task
             async def run_chain():
                 try:
-                    # We use astream but rely on the callback for events
-                    # We iterate to ensure execution, but ignore the direct chunks
-                    # as the callback handles them
+                    # Simple streaming - callback handles tokens
                     async for _ in chain.astream(
                         {"text_summary": text_summary},
                         config={'callbacks': [callback]}
@@ -260,10 +310,6 @@ async def generate_persona_stream(
                         'type': 'error',
                         'message': str(e)
                     })
-                finally:
-                    # Signal done if not already handled (though on_llm_end should handle it)
-                    # We can send a sentinel if needed, but on_llm_end is better
-                    pass
 
             task = asyncio.create_task(run_chain())
             

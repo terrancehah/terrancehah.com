@@ -41,8 +41,7 @@
       }
       /* Main content wrapper */
       .content-wrapper {
-        max-width: 680px;
-        margin: 0 auto;
+        margin: 0 10%;
         padding: clamp(2rem, 3vw, 2rem) clamp(1rem, 3vw, 1.5rem);
         background: #ffffff;
         min-height: calc(100vh - 120px);
@@ -635,6 +634,83 @@
           transform: translateY(-10px);
         }
       }
+
+      /* Learning Methods Dashboard Styles */
+      .learning-methods-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: clamp(1rem, 3vw, 1.5rem);
+        margin-top: 1.5rem;
+      }
+
+      @media (min-width: 768px) {
+        .learning-methods-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .learning-method-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 16px;
+        padding: clamp(1.25rem, 4vw, 1.75rem);
+        transition: all 0.2s ease;
+      }
+
+      .learning-method-card:hover {
+        border-color: #457B9D;
+        box-shadow: 0 4px 12px rgba(69, 123, 157, 0.12);
+        transform: translateY(-2px);
+      }
+
+      .learning-method-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+
+      .learning-method-icon {
+        font-size: clamp(1.5rem, 4vw, 1.75rem);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, rgba(69, 123, 157, 0.1) 0%, rgba(69, 123, 157, 0.05) 100%);
+        border-radius: 12px;
+      }
+
+      .learning-method-name {
+        font-family: 'Raleway', sans-serif;
+        font-size: clamp(1rem, 2.5vw, 1.125rem);
+        font-weight: 700;
+        color: #1d3557;
+        margin: 0;
+      }
+
+      .learning-method-section {
+        margin-bottom: 1rem;
+      }
+
+      .learning-method-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .learning-method-label {
+        font-family: 'Raleway', sans-serif;
+        font-size: clamp(0.8125rem, 2vw, 0.875rem);
+        font-weight: 600;
+        color: #457B9D;
+        margin-bottom: 0.375rem;
+        display: block;
+      }
+
+      .learning-method-text {
+        font-size: clamp(0.875rem, 2.5vw, 0.9375rem);
+        line-height: 1.6;
+        color: #495057;
+      }
     </style>
   </head>
   <body class="m-0 bg-white">
@@ -829,12 +905,11 @@
         
         <!-- Success/Result Container (Shown immediately for streaming) -->
         <div id="successContainer" style="display: none;">
-            <div class="success-badge" id="successBadge" style="display: none;">✓</div>
             <h1 id="resultTitle">Generating Student Persona...</h1>
             
             <!-- Student Summary Section (Hidden until summary arrives) -->
             <div class="result-section" id="summarySection" style="display: none;">
-                <div class="result-section-title">Student Summary</div>
+                <div class="result-section-title">Student Persona</div>
                 <div class="result-section-content student-summary" id="studentSummary"></div>
             </div>
             
@@ -845,11 +920,11 @@
                 <div class="status-detail" id="statusDetail"></div>
             </div>
             
-            <!-- AI-Generated Persona Section -->
-            <div class="result-section">
-                <div class="result-section-title">AI-Generated Persona & Learning Recommendations</div>
-                <div class="result-section-content persona-result" id="personaResult">
-                    <span class="typing-cursor" id="typingCursor"></span>
+            <!-- Learning Methods Dashboard (Hidden until data arrives) -->
+            <div id="learningMethodsContainer" style="display: none;">
+                <div class="result-section-title" style="margin-top: 2rem;">Potential Learning Preferences (6 Learning Styles + Methods)</div>
+                <div id="learningMethodsGrid" class="learning-methods-grid">
+                    <!-- Learning method cards will be dynamically inserted here -->
                 </div>
             </div>
             
@@ -928,7 +1003,7 @@
             processing: { icon: '🔄', animation: 'rotate' },
             thinking: { icon: '🧠', animation: 'pulse' },
             streaming: { icon: '⚡', animation: 'pulse' },
-            complete: { icon: '✅', animation: 'complete' }
+            complete: { icon: '✓', animation: 'complete' }
         };
         
         function updateStageIndicator(stage, message, detail = '') {
@@ -946,12 +1021,111 @@
         }
 
         // ==========================================
+        // Parse Markdown and Display Dashboard
+        // ==========================================
+        function parseAndDisplayPersona(markdownText) {
+            if (!markdownText || markdownText.trim().length === 0) {
+                console.error('No markdown text to parse');
+                return;
+            }
+            
+            console.log('=== PARSING MARKDOWN ===');
+            console.log('Full text length:', markdownText.length);
+            
+            // Extract persona summary
+            const summaryMatch = markdownText.match(/## Student Persona Summary\s*([\s\S]*?)(?=\n##|$)/);
+            const personaSummary = summaryMatch ? summaryMatch[1].trim() : '';
+            
+            // Display persona summary
+            if (personaSummary) {
+                const summarySection = document.getElementById('summarySection');
+                if (summarySection && studentSummary) {
+                    summarySection.style.display = 'block';
+                    studentSummary.textContent = personaSummary;
+                }
+            }
+            
+            // Extract learning methods - more flexible regex
+            const methodPattern = /###\s*\d+\)\s*(.+?)\s*([🧠🎯👁️🌍🔑⏰])\s*\n\*\*Rationale:\*\*\s*([\s\S]*?)\n\*\*Example:\*\*\s*([\s\S]*?)(?=\n###|\n##|$)/g;
+            const methods = [];
+            let match;
+            
+            while ((match = methodPattern.exec(markdownText)) !== null) {
+                methods.push({
+                    name: match[1].trim(),
+                    icon: match[2],
+                    rationale: match[3].trim(),
+                    example: match[4].trim()
+                });
+            }
+            
+            console.log('Methods found:', methods.length);
+            
+            // Display learning methods if found
+            if (methods.length > 0) {
+                displayLearningMethods(methods);
+            } else {
+                console.warn('No learning methods found in markdown');
+                console.log('Markdown sample:', markdownText.substring(0, 500));
+            }
+            
+            // Hide the raw persona result container
+            if (personaResult) {
+                personaResult.style.display = 'none';
+            }
+        }
+        
+        // ==========================================
+        // Display Learning Methods Dashboard
+        // ==========================================
+        function displayLearningMethods(methods) {
+            const container = document.getElementById('learningMethodsContainer');
+            const grid = document.getElementById('learningMethodsGrid');
+            
+            // Clear existing content
+            grid.innerHTML = '';
+            
+            // Create card for each learning method
+            methods.forEach(method => {
+                const card = document.createElement('div');
+                card.className = 'learning-method-card';
+                
+                // Format text to preserve line breaks and handle basic markdown
+                const formatText = (text) => {
+                    return text
+                        .replace(/\n/g, '<br>')
+                        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.+?)\*/g, '<em>$1</em>');
+                };
+                
+                card.innerHTML = `
+                    <div class="learning-method-header">
+                        <div class="learning-method-icon">${method.icon}</div>
+                        <h3 class="learning-method-name">${method.name}</h3>
+                    </div>
+                    <div class="learning-method-section">
+                        <span class="learning-method-label">Rationale:</span>
+                        <p class="learning-method-text">${formatText(method.rationale)}</p>
+                    </div>
+                    <div class="learning-method-section">
+                        <span class="learning-method-label">Example:</span>
+                        <p class="learning-method-text">${formatText(method.example)}</p>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+            
+            // Show the container
+            container.style.display = 'block';
+        }
+
+        // ==========================================
         // Streaming Form Submission Handler
         // ==========================================
         const form = document.querySelector('form');
         const formContainer = document.querySelector('.form-container');
         const resultsContainer = document.getElementById('resultsContainer');
-        const loadingContainer = document.getElementById('loadingContainer');
         const successContainer = document.getElementById('successContainer');
         const errorContainer = document.getElementById('errorContainer');
         const studentSummary = document.getElementById('studentSummary');
@@ -978,10 +1152,10 @@
                 successContainer.style.display = 'block';
                 
                 // Hide completion elements initially
-                document.getElementById('successBadge').style.display = 'none';
                 document.getElementById('resultTimestamp').style.display = 'none';
                 document.getElementById('restartBtn').style.display = 'none';
                 document.getElementById('summarySection').style.display = 'none';
+                document.getElementById('learningMethodsContainer').style.display = 'none';
                 
                 // Set initial title
                 document.getElementById('resultTitle').textContent = 'Generating Student Persona...';
@@ -1022,10 +1196,16 @@
                     
                     for (const line of lines) {
                         if (line.startsWith('data: ')) {
-                            const jsonData = line.substring(6);
+                            const jsonData = line.substring(6).trim();
+                            
+                            // Skip empty data
+                            if (!jsonData) continue;
                             
                             try {
                                 const event = JSON.parse(jsonData);
+                                
+                                // Skip if event doesn't have type
+                                if (!event || !event.type) continue;
                                 
                                 switch (event.type) {
                                     case 'stage':
@@ -1035,8 +1215,10 @@
                                         updateStageIndicator(event.stage, event.message, detail);
                                         
                                         if (event.stage === 'complete') {
+                                            // Hide status indicator
+                                            document.getElementById('statusIndicatorContainer').style.display = 'none';
+                                            
                                             // Show completion elements
-                                            document.getElementById('successBadge').style.display = 'block';
                                             document.getElementById('resultTimestamp').style.display = 'block';
                                             document.getElementById('restartBtn').style.display = 'block';
                                             document.getElementById('resultTitle').textContent = 'Student Persona Generated Successfully';
@@ -1044,24 +1226,28 @@
                                         break;
 
                                     case 'summary':
-                                        // Display student summary
-                                        document.getElementById('summarySection').style.display = 'block';
-                                        studentSummary.textContent = event.content;
+                                        // Skip - we'll get summary from JSON at the end
                                         break;
                                     
                                     case 'token':
                                         // Append token to persona text
                                         personaText += event.content;
-                                        personaResult.textContent = personaText;
-                                        personaResult.appendChild(typingCursor);
-                                        
-                                        // Auto-scroll to bottom
-                                        // personaResult.scrollTop = personaResult.scrollHeight;
+                                        if (personaResult) {
+                                            personaResult.textContent = personaText;
+                                            if (typingCursor && typingCursor.parentNode) {
+                                                personaResult.appendChild(typingCursor);
+                                            }
+                                        }
                                         break;
                                     
                                     case 'done':
-                                        // Remove typing cursor
-                                        typingCursor.remove();
+                                        // Remove typing cursor safely
+                                        if (typingCursor && typingCursor.parentNode) {
+                                            typingCursor.remove();
+                                        }
+                                        
+                                        // Parse markdown text into dashboard
+                                        parseAndDisplayPersona(personaText);
                                         
                                         // Display timestamp
                                         resultTimestamp.textContent = `Generated on ${event.timestamp}`;
@@ -1071,7 +1257,12 @@
                                         throw new Error(event.message);
                                 }
                             } catch (parseError) {
-                                console.error('Error parsing SSE event:', parseError);
+                                // Only log non-JSON parse errors (actual important errors)
+                                if (parseError instanceof SyntaxError && parseError.message.includes('JSON')) {
+                                    // Silently skip malformed JSON chunks during streaming
+                                } else {
+                                    console.error('Error parsing SSE event:', parseError);
+                                }
                             }
                         }
                     }
@@ -1089,31 +1280,46 @@
         // Reset form function
         function resetForm() {
             // Reset form fields
-            form.reset();
+            if (form) form.reset();
             
             // Clear checkboxes
             document.querySelectorAll('.checkbox-item').forEach(item => {
                 item.classList.remove('checked');
-                item.querySelector('input[type="checkbox"]').checked = false;
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = false;
             });
             
-            // Clear results
-            studentSummary.textContent = '';
-            personaResult.textContent = '';
-            personaResult.appendChild(typingCursor);
-            resultTimestamp.textContent = '';
+            // Clear results with null checks
+            if (studentSummary) studentSummary.textContent = '';
+            if (personaResult) {
+                personaResult.textContent = '';
+                personaResult.style.display = 'block';
+                if (typingCursor) {
+                    personaResult.appendChild(typingCursor);
+                }
+            }
+            if (resultTimestamp) resultTimestamp.textContent = '';
+            
+            // Clear learning methods
+            const methodsGrid = document.getElementById('learningMethodsGrid');
+            const methodsContainer = document.getElementById('learningMethodsContainer');
+            if (methodsGrid) methodsGrid.innerHTML = '';
+            if (methodsContainer) methodsContainer.style.display = 'none';
             
             // Hide results container
-            resultsContainer.classList.remove('show');
+            if (resultsContainer) resultsContainer.classList.remove('show');
             
             // Reset containers
-            loadingContainer.style.display = 'block';
-            successContainer.style.display = 'none';
-            errorContainer.style.display = 'none';
+            if (successContainer) successContainer.style.display = 'none';
+            if (errorContainer) errorContainer.style.display = 'none';
+            const statusIndicator = document.getElementById('statusIndicatorContainer');
+            if (statusIndicator) statusIndicator.style.display = 'block';
             
             // Show form container
-            formContainer.style.display = 'block';
-            formContainer.classList.remove('fade-out');
+            if (formContainer) {
+                formContainer.style.display = 'block';
+                formContainer.classList.remove('fade-out');
+            }
             
             // Scroll to top
             window.scrollTo({ top: 0, behavior: 'smooth' });
