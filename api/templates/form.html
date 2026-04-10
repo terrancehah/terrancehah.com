@@ -8,6 +8,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Raleway:wght@400;500;600;700&display=swap" rel="stylesheet">
     
+    <!-- Lucide Icons for learning method cards -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <!-- Tailwind CSS for header/footer -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -1045,17 +1048,34 @@
                 }
             }
             
-            // Extract learning methods - more flexible regex
-            const methodPattern = /###\s*\d+\)\s*(.+?)\s*([🧠🎯👁️🌍🔑⏰])\s*\n\*\*Rationale:\*\*\s*([\s\S]*?)\n\*\*Example:\*\*\s*([\s\S]*?)(?=\n###|\n##|$)/g;
+            // Hardcoded icon mapping — matches method name keyword to Lucide icon name
+            const methodIconMap = {
+                'feynman': 'brain',
+                'mnemonic': 'target',
+                'visuali': 'eye',
+                'contextual': 'globe',
+                'key point': 'key-round',
+                'spaced': 'alarm-clock'
+            };
+            
+            // Extract learning methods — flexible regex that ignores the AI emoji
+            const methodPattern = /###\s*\d+\)\s*(.+?)\s*(?:[🧠🎯👁️🌍🔑⏰\p{Emoji}]*)\s*\n\*\*Rationale:\*\*\s*([\s\S]*?)\n\*\*Example:\*\*\s*([\s\S]*?)(?=\n###|\n##|$)/gu;
             const methods = [];
             let match;
             
             while ((match = methodPattern.exec(markdownText)) !== null) {
+                const methodName = match[1].trim();
+                
+                // Look up the Lucide icon name based on keyword in method name
+                const iconName = Object.entries(methodIconMap).find(
+                    ([keyword]) => methodName.toLowerCase().includes(keyword)
+                )?.[1] || 'lightbulb';  // Fallback icon
+                
                 methods.push({
-                    name: match[1].trim(),
-                    icon: match[2],
-                    rationale: match[3].trim(),
-                    example: match[4].trim()
+                    name: methodName,
+                    icon: iconName,
+                    rationale: match[2].trim(),
+                    example: match[3].trim()
                 });
             }
             
@@ -1100,7 +1120,7 @@
                 
                 card.innerHTML = `
                     <div class="learning-method-header">
-                        <div class="learning-method-icon">${method.icon}</div>
+                        <div class="learning-method-icon"><i data-lucide="${method.icon}"></i></div>
                         <h3 class="learning-method-name">${method.name}</h3>
                     </div>
                     <div class="learning-method-section">
@@ -1118,6 +1138,9 @@
             
             // Show the container
             container.style.display = 'block';
+            
+            // Initialize Lucide icons for the newly created cards
+            lucide.createIcons();
         }
 
         // ==========================================

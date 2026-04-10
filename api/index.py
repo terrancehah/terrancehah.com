@@ -4,7 +4,8 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
-from langfuse import observe
+from langfuse import get_client
+from langfuse.langchain import CallbackHandler as LangfuseCallbackHandler
 from dotenv import load_dotenv
 import os
 from datetime import datetime
@@ -237,7 +238,6 @@ async def show_form(request: Request):
     return templates.TemplateResponse("form.html", {"request": request})
 
 @app.post("/persona/stream/", name="generate_persona_stream")
-@observe()
 async def generate_persona_stream(
     request: Request,
     name: str = Form(...),
@@ -282,6 +282,9 @@ async def generate_persona_stream(
             event_queue = asyncio.Queue()
             callback = SimpleStreamingCallback(event_queue)
             
+            # Initialize Langfuse LangChain callback handler for tracing
+            langfuse_handler = LangfuseCallbackHandler()
+            
             # Step 5: Build prompt
             prompt_str = create_persona_prompt()
             
@@ -300,9 +303,11 @@ async def generate_persona_stream(
             async def run_chain():
                 try:
                     # Simple streaming - callback handles tokens
+                    # Pass both callbacks: SimpleStreamingCallback for frontend streaming,
+                    # LangfuseCallbackHandler for LLM tracing (prompt, output, tokens, cost)
                     async for _ in chain.astream(
                         {"text_summary": text_summary},
-                        config={'callbacks': [callback]}
+                        config={'callbacks': [callback, langfuse_handler]}
                     ):
                         pass
                 except Exception as e:
@@ -310,6 +315,9 @@ async def generate_persona_stream(
                         'type': 'error',
                         'message': str(e)
                     })
+                finally:
+                    # Flush Langfuse events in serverless environment (Vercel)
+                    get_client().flush()
 
             task = asyncio.create_task(run_chain())
             
