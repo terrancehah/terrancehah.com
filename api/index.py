@@ -233,10 +233,6 @@ class SimpleStreamingCallback(AsyncCallbackHandler):
 # ----------------------
 # Streaming Endpoints
 # ----------------------
-@app.get("/", response_class=HTMLResponse)
-async def show_form(request: Request):
-    return templates.TemplateResponse("form.html", {"request": request})
-
 @app.post("/persona/stream/", name="generate_persona_stream")
 async def generate_persona_stream(
     request: Request,
