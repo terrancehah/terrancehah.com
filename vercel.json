@@ -2,7 +2,7 @@
     "cleanUrls": true,
     "functions": {
         "api/index.py": {
-            "excludeFiles": "{public/**,playground/**,articles/**,projects/**,dist/**,src/**,.git/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb}"
+            "excludeFiles": "{resources/**,public/**,playground/**,articles/**,projects/**,dist/**,src/**,.git/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb}"
         }
     },
     "rewrites": [
