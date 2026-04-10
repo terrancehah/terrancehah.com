@@ -1,5 +1,4 @@
 fastapi==0.121.2
-langchain==1.2.15
 langchain_core==1.2.28
 langchain_openai==1.0.3
 langfuse==3.10.0
