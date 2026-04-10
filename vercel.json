@@ -8,11 +8,11 @@
     "rewrites": [
         {
             "source": "/projects/persona/:path*",
-            "destination": "/api/index.py"
+            "destination": "/api/index"
         },
         {
             "source": "/projects/persona",
-            "destination": "/api/index.py"
+            "destination": "/api/index"
         }
     ]
 }
