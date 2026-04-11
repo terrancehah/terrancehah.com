@@ -1,9 +1,23 @@
-// Make entire articles container clickable
+// Make article cards clickable
 document.addEventListener('DOMContentLoaded', function() {
-    const articles = document.querySelectorAll('.articles');
-    articles.forEach(article => {
-        article.addEventListener('click', function(e) {
-            // Prevent navigation if clicking on the actual link inside
+    const articleHero = document.querySelector('.article-hero');
+    const articleCards = document.querySelectorAll('.article-card');
+    
+    // Handle hero card click
+    if (articleHero) {
+        articleHero.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A') {
+                const url = this.getAttribute('data-url');
+                if (url) {
+                    window.location.href = url;
+                }
+            }
+        });
+    }
+    
+    // Handle grid card clicks
+    articleCards.forEach(card => {
+        card.addEventListener('click', function(e) {
             if (e.target.tagName !== 'A') {
                 const url = this.getAttribute('data-url');
                 if (url) {
