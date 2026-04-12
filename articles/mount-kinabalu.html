@@ -18,7 +18,6 @@
         <meta property="og:type" content="article">
         <meta property="og:title" content="Mount Kinabalu, 30-31 March 2026 - Terrance's Playground">
         <meta property="og:description" content="Mount Kinabalu is probably just another ordinary hike.” — Me, before the hike. Well, I was wrong.">
-        <!-- NOTE: Consider exporting a web-friendly OG image from resources/TNBYY/ -->
         <meta property="og:image" content="https://terrancehah.com/resources/silhouette.jpg">
 
         <!-- Twitter Meta Tags -->
@@ -81,7 +80,7 @@
                 const enlargedImage = document.createElement('img');
                 enlargedImage.style.cssText = `
                     max-width: 100%;
-                    max-height: 65vh;
+                    max-height: 85vh;
                     object-fit: contain;
                     margin-bottom: 0.5rem;
                 `;
@@ -95,9 +94,12 @@
                     text-align: center;
                     margin: 0.5rem 0;
                     padding: 0 1rem;
-                    max-height: 20vh;
+                    max-width: 70vw;
+                    max-height: 40vh;
                     overflow-y: auto;
                     line-height: 1.4;
+                    word-wrap: break-word;
+                    white-space: normal;
                 `;
                 
                 const closeButton = document.createElement('button');
@@ -249,22 +251,23 @@
             <article class="article-content">
                 <!-- Article Title and Datestamp -->
                 <h1 class="article-title">Mount Kinabalu, 30-31 March 2026</h1>
-                <p class="article-date">written on 11 April 2026</p>
+                <p class="article-date">written on 12 April 2026</p>
                 
                 <!-- Body content uses existing utility classes from articles.css -->
                 <div class="article-body">
                     <!-- Lead: set a humble and reflective tone -->
                     <p class="article-paragraph">"Mount Kinabalu is probably just another ordinary hike." - me days before the hike.</p>
                     <p class="article-paragraph">Well, it was - to some extent.</p>
-                    <p class="article-paragraph">Well-maintained trails, cozy beds, delicious buffet meals, Mount Kinabalu is hardly considered difficult compared to other hikes (links to TNYBB article) I have done before. Plus, countless social media posts calling it "有腿就行" ("you can do it as long as you have legs") meant my expectations were not high to even start with.</p>
+                    <p class="article-paragraph">
+                        Well-maintained trails, cozy beds, delicious buffet meals, Mount Kinabalu is hardly considered difficult compared to <a href="tnbyy-my-first-camphike.html" target="_blank" class="article-link">other hikes</a> I have done before. 
+                        Plus, countless social media posts calling it "有腿就行" ("you can do it as long as you have legs") meant my expectations were not high to even start with.
+                    </p>
                     <p class="article-paragraph">Well, not until I saw this with my own eyes.</p>
 
-                    <section class="my-8" aria-label="peak sunrise">
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/peak-sunrise-landscape.jpeg" alt="Sunrise at the peak" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">Sunrise at the peak.</figcaption>
-                            </figure>
-                    </section>
+                    <figure class="hero-image">
+                        <img src="../resources/Kinabalu/peak-sunrise-landscape.jpeg" alt="Sunrise at the peak" class="cursor-pointer" loading="lazy" decoding="async">
+                        <figcaption>Sunrise at Low's Peak, 4095.2 metres above sea level.</figcaption>
+                    </figure>
 
                     <!-- Unprepared trip -->
                     <h2 class="article-subtitle">Impromptu(?) Trip</h2>
@@ -275,28 +278,32 @@
                     <p class="article-paragraph">That was it. No serious preparation beforehand, just blind confidence (and ignorance) in myself.</p>
 
 
-                    <!-- Kinabalu moments (no JS) -->
-                    <section class="my-8" aria-label="Kinabalu moments grid">
-                        <div class="grid lg:grid-cols-2 grid-cols-1 gap-4">
-                            <figure class="my-auto">
-                                <!-- Apply narrower width modifier for training images -->
-                                <img src="../resources/Kinabalu/homy-seafront-hostel.jpeg" alt="Homy Seafront Hostel" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">Homy Seafront Hostel, a hostel literally facing the sea, as you can tell from its name.</figcaption>
+                    <!-- Kinabalu moments -->
+                    <section class="journey-grid" aria-label="Kinabalu moments">
+                        <div class="journey-grid-container">
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/homy-seafront-hostel.jpeg" alt="Homy Seafront Hostel" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>Homy Seafront Hostel, a hostel literally facing the sea, as you can tell from its name.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <!-- Apply narrower width modifier for training images -->
-                                <img src="../resources/Kinabalu/kk-sunset-portrait.jpeg" alt="KK Sunset Portrait" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">KK Sunset Portrait.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/kk-sunset-portrait.jpeg" alt="KK Sunset Portrait" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>KK Sunset Portrait.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <!-- Apply narrower width modifier for training images -->
-                                <img src="../resources/Kinabalu/kk-sunset-landscape.jpeg" alt="KK Sunset Landscape" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">KK Sunset Landscape.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/kk-sunset-landscape.jpeg" alt="KK Sunset Landscape" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>KK Sunset Landscape.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <!-- Apply narrower width modifier for training images -->
-                                <img src="../resources/Kinabalu/padang-merdeka-vans.jpeg" alt="Vans at Padang Merdeka" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">The ride from Kota Kinabalu to Kundasang cost me RM30.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/padang-merdeka-vans.jpeg" alt="Vans at Padang Merdeka" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>The ride from Kota Kinabalu to Kundasang cost me RM30.</figcaption>
                             </figure>
                         </div>
                     </section>
@@ -304,89 +311,121 @@
 
                     <!-- Day 1 narrative -->
                     <h2 class="article-subtitle">Day 0 —  Kundasang</h2>
-                    <p class="article-paragraph">I arrived in Kundasang so late that I only got to register at the Kinabalu Park HQ and missed exploring the neighbouring area. And it got foggy real quick, since Kundasang is at about 1,800m elevation.</p>
+                    <p class="article-paragraph">
+                        I arrived in Kundasang so late that I only got to register at the Kinabalu Park HQ and missed exploring the neighbouring area. 
+                        And it got foggy real quick, since Kundasang is at about 1,800m elevation.
+                    </p>
                     
                     <p class="article-paragraph">Things got ugly when the capsule hotel owner told me the WiFi was down, and I had to sit outdoors in bone-chilling wind just to get proper signal for my phone.</p>
                         
-                    <!-- Image: Space Capsule -->
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/space-capsule.jpeg" alt="Space Capsule" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">The space capsule I stayed for a night before the hike.</figcaption>
-                    </figure>
+                    <section class="journey-grid" aria-label="Park entry">
+                        <div class="journey-grid-container">
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/space-capsule.jpeg" alt="Space Capsule" class="cursor-pointer">
+                                </div>
+                                <figcaption>The space capsule I stayed for a night before the hike.</figcaption>
+                            </figure>
 
-                    <!-- Image: Space Capsule Hostel View -->
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/capsule-view.jpeg" alt="Space Capsule View" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Despite the poorly sound-insulated sleeping capsule, the view offered by the hostel was magnificent indeed.</figcaption>
-                    </figure>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/capsule-view.jpeg" alt="Space Capsule View" class="cursor-pointer">
+                                </div>
+                                <figcaption>Despite the poorly sound-insulated sleeping capsule, the view offered by the hostel was magnificent indeed.</figcaption>
+                            </figure>
+                        </div>
+                    </section>
                         
-
                     <!-- Day 2 narrative: all three peaks in a single day (G6 push) -->
                     <h2 class="article-subtitle">Day 1 — Timpohon Gate to Panalaban</h2>
-                    <p class="article-paragraph">After meeting two fellow hikers at the Kinabalu Park HQ at 7am, we started recruiting more hikers to share the guide fee. We ended up with a 70-year-old local Sabahan uncle. Turned out it was his 5th Mount Kinabalu hike. Imagine my shocked face LOL. (The uncle was super fit and pacey, which we didn't know by then.)</p>
-                    <!-- Kinabalu moments (no JS) -->
-                    <section class="my-8" aria-label="Kinabalu moments grid">
-                        <div class="grid lg:grid-cols-2 grid-cols-1 gap-4">
-                            <figure class="my-8">
-                                <img src="../resources/Kinabalu/mount-k-overview.jpeg" alt="mount-k-overview" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">Mount Kinabalu from the HQ.</figcaption>
+                    <p class="article-paragraph">
+                        After meeting two fellow hikers at the Kinabalu Park HQ at 7am, we started recruiting more hikers to share the guide fee. We ended up with a 70-year-old local Sabahan uncle. 
+                        Turned out it was his 5th Mount Kinabalu hike. Imagine my shocked face LOL. (The uncle was super fit and pacey, which we didn't know by then.)
+                    </p>
+                    
+                    <section class="journey-grid" aria-label="Park entry">
+                        <div class="journey-grid-container">
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/mount-k-overview.jpeg" alt="mount-k-overview" class="cursor-pointer">
+                                </div>
+                                <figcaption>Mount Kinabalu from the HQ.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/park-gate.jpeg" alt="Kinabalu Park Gate" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">Kinabalu Park Gate.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/park-gate.jpeg" alt="Kinabalu Park Gate" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>Kinabalu Park Gate.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/park-sign.jpeg" alt="Kinabalu Park Sign" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">Kinabalu Park World Heritage sign.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/park-sign.jpeg" alt="Kinabalu Park Sign" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>Kinabalu Park World Heritage sign.</figcaption>
                             </figure>
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/random-trees.jpeg" alt="Random Trees" class="article-image lg:!w-3/5 rounded cursor-pointer" loading="lazy" decoding="async">
-                                <figcaption class="image-caption mt-2">Some random trees.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/random-trees.jpeg" alt="Random Trees" class="cursor-pointer" loading="lazy" decoding="async">
+                                </div>
+                                <figcaption>Some random trees.</figcaption>
                             </figure>
                         </div>
                     </section>
 
-                    <p class="article-paragraph">If I were to describe the Timpohon Gate - Panalaban trail with one word, it would be "well-maintained". About 7km long, the trail is equipped with tons of stairs, making the ascent manageable. There are toilets and gazebos each kilometre, super convenient for resting and rehydrating.</p>
+                    <p class="article-paragraph">
+                        If I were to describe the Timpohon Gate - Panalaban trail with one word, it would be "well-maintained". 
+                        About 7km long, the trail is equipped with tons of stairs, making the ascent manageable. 
+                        There are toilets and gazebos each kilometre, super convenient for resting and rehydrating.
+                    </p>
                     
                     <p class="article-paragraph">It took us about four and a half hours to reach the Panalaban, where we rested for the night and prepped ourselves for the summit push the next midnight.</p>
                         
-                    <section class="my-8" aria-label="Kinabalu moments grid">
-                        <div class="grid lg:grid-cols-2 grid-cols-1 gap-4">
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/white-flowers.jpeg" alt="white flowers" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">White flowers along the trail.</figcaption>
+                    <section class="journey-grid" aria-label="Panalaban area">
+                        <div class="journey-grid-container">
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/white-flowers.jpeg" alt="white flowers" class="cursor-pointer">
+                                </div>
+                                <figcaption>White flowers along the trail.</figcaption>
                             </figure>
                             
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/panalaban.jpeg" alt="panalaban" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">Me at Panalaban.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/panalaban.jpeg" 
+                                         alt="panalaban" 
+                                         class="cursor-pointer" 
+                                         style="min-width: 170%; transform: translateX(-80px); object-position: 50% 70%;">
+                                </div>
+                                <figcaption>Me at Panalaban.</figcaption>
                             </figure>
 
-                            <figure class="my-auto">
-                                <img src="../resources/Kinabalu/panalaban-balcony.JPG" alt="panalaban balcony" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">View from the Panalaban restaurant balcony.</figcaption>
-                            </figure>
-                            
-                            <figure class="my-8">
-                                <img src="../resources/Kinabalu/panalaban-sunset.jpeg" alt="panalaban sunset" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">Panalaban sunset.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/panalaban-balcony.JPG" alt="panalaban balcony" class="cursor-pointer">
+                                </div>
+                                <figcaption>View from the Panalaban restaurant balcony.</figcaption>
                             </figure>
 
-                            <figure class="my-8">
-                                <img src="../resources/Kinabalu/pitcher-plant.jpeg" alt="pitcher plant" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">Pitcher plant.</figcaption>
-                            </figure>
-
-                            <figure class="my-8">
-                                <img src="../resources/Kinabalu/postbox.jpeg" alt="postbox" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                                <figcaption class="image-caption">Highest altitude post box in Malaysia.</figcaption>
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/postbox.jpeg" alt="postbox" class="cursor-pointer">
+                                </div>
+                                <figcaption>Highest altitude post box in Malaysia.</figcaption>
                             </figure>
                         </div>
                     </section>
+                    
+                    <figure class="hero-image-vertical">
+                        <img src="../resources/Kinabalu/panalaban-sunset.JPG" alt="panalaban sunset" class="cursor-pointer">
+                        <figcaption>Panalaban sunset — the calm before the summit attack.</figcaption>
+                    </figure>
 
                     <!-- Day 2 narrative: Summit attack -->
                     <h2 class="article-subtitle">Day 2 — Summit attack</h2>
-                    <p class="article-paragraph">Woke up at 1.40am to prepare for the summit attack. Had to fight for seat for breakfast as the restaurant was packed. It was 2.30am when we started the summit attack. All gear's up, and heat-retaining done from head to toe.</p>
+                    <p class="article-paragraph">
+                        Woke up at 1.40am to prepare for the summit attack. Had to fight for seat for breakfast as the restaurant was packed. 
+                        It was 2.30am when we started the summit attack. All gear's up, and heat-retaining done from head to toe.
+                    </p>
                     
                     <blockquote class="article-blockquote">
                         "Stairs, stairs and more stairs. Bare stone slopes.<br>
@@ -397,49 +436,67 @@
                         😂"
                     </blockquote>
                     
-                    <p class="article-paragraph">My AllTrails review for the summit attack. No bullshit. The summit attack is basically 50% stairs + 50% bare stone slopes.</p> 
+                    <p class="article-paragraph">My AllTrails review for the summit attack. No bullshit. The summit attack is basically 50% stairs + 50% bare stone slopes.</p>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/milky-way.jpeg" alt="milky-way" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">The Milky way right above me.</figcaption>
+                    <figure class="hero-image-vertical">
+                        <img src="../resources/Kinabalu/milky-way.JPG" alt="milky-way" class="cursor-pointer">
+                        <figcaption>The Milky Way right above me at 3,800 metres.</figcaption>
                     </figure>
                     
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/lows-peak-under-stars.jpeg" alt="lows-peak-under-stars" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Low's Peak under the stars.</figcaption>
+                    <figure class="hero-image-vertical">
+                        <img src="../resources/Kinabalu/lows-peak-under-stars.jpeg" alt="lows-peak-under-stars" class="cursor-pointer">
+                        <figcaption>Low's Peak under the stars, waiting for sunrise.</figcaption>
                     </figure>
                     
+                    <figure class="hero-image-vertical">
+                        <img src="../resources/Kinabalu/peak-sunrise.JPG" alt="peak-sunrise" class="cursor-pointer">
+                        <figcaption>Sunrise at Low's Peak.</figcaption>
+                    </figure>
+
                     <p class="article-paragraph">Words can't describe what I saw. Those moments are forever etched in my memory.</p>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/peak-sunrise.jpeg" alt="peak-sunrise" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Sunrise at Low's Peak.</figcaption>
-                    </figure>
 
                     <!-- Day 2.5 - Descent -->
                     <h2 class="article-subtitle">Day 2.5 - The Descent</h2>
-                    <p class="article-paragraph">The descent was slightly tougher than the ascent, as my rusty knees begged me to take it easy. I didn't want to push too hard, as I knew I had to be fresh for surfing lessons the next few days.</p>
+                    <p class="article-paragraph">
+                        The descent was slightly tougher than the ascent, as my rusty knees begged me to take it easy. 
+                        I didn't want to push too hard, as I knew I had to be fresh for surfing lessons the next few days.
+                    </p>
                     
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/rm100-notes.jpeg" alt="rm100-notes" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">The iconic RM100 notes shot.</figcaption>
+                    <figure class="hero-image">
+                        <img src="../resources/Kinabalu/rm100-notes.jpeg" alt="rm100-notes" class="cursor-pointer">
+                        <figcaption>The iconic RM100 notes shot.</figcaption>
                     </figure>
                     
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/squatting-guide.JPG" alt="squatting-guide" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Some random guide.</figcaption>
-                    </figure>
+                    <section class="journey-grid" aria-label="Descent moments">
+                        <div class="journey-grid-container">
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/squatting-guide.JPG" alt="squatting-guide" class="cursor-pointer">
+                                </div>
+                                <figcaption>Some random guide.</figcaption>
+                            </figure>
+                            
+                            <figure class="journey-grid-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/uncle-on-slope.jpg" alt="uncle-on-slope" class="cursor-pointer" style="object-position: 15% 50%;">
+                                </div>
+                                <figcaption>
+                                    The 70-year-old uncle that I mentioned earlier, he could keep up with me most of the summit attack, and the entire descent back to Panalaban. 
+                                    Hats off to him.
+                                </figcaption>
+                            </figure>
+                        </div>
+                    </section>
                     
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/uncle-on-slope.jpg" alt="uncle-on-slope" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">The 70-year-old uncle that I mentioned earlier, he could keep up with me most of the summit attack, and the entire descent back to Panalaban. Hats off to him.</figcaption>
-                    </figure>
-                    
-                    <p class="article-paragraph">The descent got pretty tiring at one point I started feeling bored and sleepy. Nevertheless, still a good descent due to the well-maintained trail.</p>
+                    <p class="article-paragraph">
+                        The descent got pretty tiring at one point I started feeling bored and sleepy. 
+                        Nevertheless, still a good descent due to the well-maintained trail.
+                    </p>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/group-photo.jpeg" alt="group-photo" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Me and fellow hikers at Low's Peak, 4095.2 metres.<br>
+                    <figure class="hero-image-vertical">
+                        <img src="../resources/Kinabalu/group-photo.jpeg" alt="group-photo" class="cursor-pointer" style="object-position: 80% 50%;">
+                        <figcaption>Me and fellow hikers at Low's Peak, 4095.2 metres.<br>
                         Thank you all for being so accommodating. I wasn't expecting that at all.</figcaption>
                     </figure>
 
@@ -452,38 +509,118 @@
                         I might not return to the same mountain again, but all the pieces of it I will carry with me forever.
                     </p>
 
-                    <h2 class="article-subtitle">Some sneak peeks</h2>
-                    <p class="article-paragraph">Here are some random photos I took along the way.</p>
+                    <section class="masonry-gallery">
+                        <h2 class="article-subtitle">Some sneak peeks</h2>
+                        <p class="article-paragraph">Here are some random photos I took along the way.</p>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/tea.JPG" alt="tea" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">A hot cup of tea at Panabalan. What more could a man ask for.</figcaption>
-                    </figure>
+                        <div class="masonry-grid">
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/tea.JPG" alt="tea" class="cursor-pointer">
+                                </div>
+                                <figcaption>A hot cup of tea at Panalaban. What more could a man ask for.</figcaption>
+                            </figure>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/plane-on-cotton-candy.JPG" alt="plane-on-cotton-candy" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Plane on cotton candy like clouds.</figcaption>
-                    </figure>
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/pitcher-plant.jpeg" alt="pitcher plant" class="cursor-pointer">
+                                </div>
+                                <figcaption>Pitcher plant.</figcaption>
+                            </figure>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/surfing.JPG" alt="surfing" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Surfing in Tanjung Aru after the hike.</figcaption>
-                    </figure>
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/sayat-sayat.JPG" 
+                                        alt="sayat-sayat" 
+                                        class="cursor-pointer" 
+                                        >
+                                </div>
+                                <figcaption>Took me one and a half hour to reach Sayat Sayat checkpoint, eligible to get the coloured certificate upon checking in here.</figcaption>
+                            </figure>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/surfing-board.JPG" alt="surfing-board" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Ended up taking two surfing lessons.</figcaption>
-                    </figure>
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/me-pointing-at-peak.JPG" 
+                                        alt="me-pointing-at-peak" 
+                                        class="cursor-pointer" 
+                                        >
+                                </div>
+                                <figcaption>Me and the South Peak of Mount Kinabalu.</figcaption>
+                            </figure>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/dji-nano.JPG" alt="dji nano" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Almost lost it in the sea during surfing, me and my coach we searched for it for about half an hour. Stepped on it just the moment I thought of giving up searching for it. Took it off for the rest of my surfing session.🤡</figcaption>
-                    </figure>
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/postcards.JPG" 
+                                        alt="postcards" 
+                                        class="cursor-pointer" 
+                                        >
+                                </div>
+                                <figcaption>Postcards with limited edition stamps on.</figcaption>
+                            </figure>
 
-                    <figure class="my-8">
-                        <img src="../resources/Kinabalu/tanjung-aru-sunset.JPG" alt="tanjung aru sunset" class="article-image lg:!w-3/5 rounded cursor-pointer">
-                        <figcaption class="image-caption">Sunset at Tanjung Aru beach.</figcaption>
-                    </figure>
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/climbathon.JPG" 
+                                        alt="climbathon" 
+                                        class="cursor-pointer" 
+                                        >
+                                </div>
+                                <figcaption>My mind could not comprehend how a human being can complete the entire ascent and descent in about 3 hours, like WTF?</figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/surfing.JPG" alt="surfing" class="cursor-pointer" 
+                                    style="min-width: 120%; transform: translateX(-20px); object-position: 50% 90%;">
+                                </div>
+                                <figcaption>Surfing in Tanjung Aru after the hike.</figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/dji-nano.JPG" alt="dji nano" class="cursor-pointer">
+                                </div>
+                                <figcaption>
+                                    Almost lost it in the sea during surfing, me and my coach we searched for it for about half an hour. 
+                                    Stepped on it just the moment I thought of giving up searching for it. Took it off for the rest of my surfing session.🤡
+                                </figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/surfing-board.JPG" alt="surfing-board" class="cursor-pointer">
+                                </div>
+                                <figcaption>Ended up taking two surfing lessons.</figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/tanjung-aru-sunset.JPG" alt="tanjung aru sunset" class="cursor-pointer">
+                                </div>
+                                <figcaption>Sunset at Tanjung Aru beach.</figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/plane-on-cotton-candy.JPG" 
+                                        alt="plane-on-cotton-candy" 
+                                        class="cursor-pointer" 
+                                        style="min-width: 140%; transform: translateX(-55px);">
+                                </div>
+                                <figcaption>Plane on cotton candy like clouds.</figcaption>
+                            </figure>
+
+                            <figure class="masonry-item">
+                                <div class="image-container">
+                                    <img src="../resources/Kinabalu/noodles.JPG" 
+                                        alt="noodles" 
+                                        class="cursor-pointer" 
+                                        >
+                                </div>
+                                <figcaption>生肉面 recommended by a friend, this was like my first legit Sabahan meal after having fast food for days before the hike LOL.</figcaption>
+                            </figure>
+                        </div>
+                    </section>
 
                     <p class="article-paragraph">
                         I hope to return to the city someday, though I'm not sure when. Till then!

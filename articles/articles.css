@@ -27,7 +27,7 @@
 }
 
 .article-content {
-    max-width: 80%;
+    max-width: 90%;
     margin: 0 auto;
 }
 
@@ -110,43 +110,6 @@
     }
 }
 
-.article-image {
-    width: 100%; /* Mobile first: full width on small screens */
-    height: auto;
-    margin: 1rem auto;
-}
-
-/* Tablet and up: responsive sizing based on aspect ratio */
-@media (min-width: 768px) {
-    .article-image {
-        width: 60%; /* Default for landscape images */
-    }
-    
-    /* Portrait images get smaller width for better proportions */
-    .article-image.portrait {
-        width: 40%;
-    }
-    
-    /* Landscape images use default width */
-    .article-image.landscape {
-        width: 60%;
-    }
-}
-
-/* Large screens: slightly smaller for better reading experience */
-@media (min-width: 1024px) {
-    .article-image {
-        width: 55%;
-    }
-    
-    .article-image.portrait {
-        width: 35%;
-    }
-    
-    .article-image.landscape {
-        width: 55%;
-    }
-}
 
 .image-caption {
     font-family: 'Raleway', sans-serif;
@@ -157,23 +120,190 @@
     color: #4b5563;
     text-align: center;
     line-height: 1.5;
+    min-height: 3rem;
 }
 
 @media (min-width: 768px) {
     .image-caption {
         width: 60%;
         margin-top: 1rem;
+        min-height: 3.5rem;
     }
 }
 
 @media (min-width: 1024px) {
     .image-caption {
         width: 55%;
+        min-height: 4rem;
     }
 }
 
 /* Article Components */
 @import url('https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&display=swap');
+
+/* ============================================
+   PHOTO ESSAY LAYOUT STYLES
+   ============================================ */
+
+/* Hero Images - Horizontal (landscape) */
+
+.hero-image {
+    width: 100%;
+    margin: 3rem auto;
+}
+
+.hero-image img {
+    width: 100%;
+    height: 400px;
+    display: block;
+    border-radius: 0.5rem;
+    object-fit: cover;
+}
+
+/* Hero Images - Vertical (portrait) */
+.hero-image-vertical {
+    width: 100%;
+    margin: 3rem auto;
+}
+
+.hero-image-vertical img {
+    height: 500px;
+    display: block;
+    border-radius: 0.5rem;
+    margin: auto;
+    object-fit: cover;
+}
+
+/* Shared caption styles for hero images */
+.hero-image figcaption,
+.hero-image-vertical figcaption {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 300;
+    font-size: clamp(0.9375rem, 0.4vw + 0.875rem, 1.0625rem);
+    color: #4b5563;
+    text-align: center;
+    line-height: 1.5;
+    margin-top: 1rem;
+    padding: 0 1rem;
+    min-height: 3rem;
+}
+
+@media (min-width: 768px) {
+    .hero-image {
+        margin: 4rem auto;
+        max-width: 90%;
+    }
+    
+    .hero-image img {
+        height: 500px;
+    }
+
+    .hero-image-vertical {
+        margin: 4rem auto;
+        max-width: 90%;
+    }
+
+    .hero-image-vertical img {
+        height: 600px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .hero-image {
+        max-width: 85%;
+    }
+    
+    .hero-image img {
+        height: 550px;
+    }
+
+    .hero-image-vertical {
+        max-width: 85%;
+    }
+    
+    .hero-image-vertical img {
+        height: 850px;
+    }
+}
+
+/* ============================================
+   MASONRY GALLERY LAYOUT
+   3-column grid for "sneak peeks" and photo collections
+   ============================================ */
+
+.masonry-gallery {
+    margin: 3rem 0;
+}
+
+.masonry-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+@media (min-width: 640px) {
+    .masonry-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2.5rem;
+    }
+}
+
+.masonry-item {
+    break-inside: avoid;
+    margin-bottom: 0;
+}
+
+/* Image container wrapper for masonry */
+.masonry-item .image-container {
+    width: 100%;
+    height: 350px;
+    overflow: hidden;
+    border-radius: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+@media (min-width: 768px) {
+    .masonry-item .image-container {
+        height: 400px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .masonry-item .image-container {
+        height: 450px;
+    }
+}
+
+.masonry-item:hover .image-container {
+    transform: translateY(-4px);
+}
+
+/* Images inside masonry container */
+.masonry-item .image-container img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.masonry-item figcaption {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 300;
+    font-size: clamp(0.875rem, 0.3vw + 0.8rem, 1rem);
+    color: #4b5563;
+    text-align: center;
+    line-height: 1.5;
+    margin-top: 0.75rem;
+    padding: 0 0.5rem;
+}
 
 
 
@@ -182,7 +312,7 @@
 /* Article Links */
 .article-link {
     color: #457B9D;
-    font-style: italic;
+    /* font-style: italic; */
     text-decoration: none;
 }
 
@@ -204,9 +334,78 @@
     @apply leading-loose font-light;
 }
 
-/* Article Grid Layouts */
-.article-grid {
-    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+/* ============================================
+   JOURNEY GRID LAYOUT
+   2-column grids for journey sections
+   ============================================ */
+
+.journey-grid {
+    margin: 3rem 0;
+}
+
+.journey-grid-container {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .journey-grid-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .journey-grid-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6rem;
+    }
+}
+
+.journey-grid-item {
+    break-inside: avoid;
+    margin-bottom: 0;
+}
+
+/* Image container wrapper for journey grid */
+.journey-grid-item .image-container {
+    width: 100%;
+    height: 400px;
+    overflow: hidden;
+    border-radius: 0.5rem;
+}
+
+@media (min-width: 768px) {
+    .journey-grid-item .image-container {
+        height: 500px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .journey-grid-item .image-container {
+        height: 600px;
+    }
+}
+
+/* Images inside journey grid container */
+.journey-grid-item .image-container img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.journey-grid-item figcaption {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 300;
+    font-size: clamp(0.9375rem, 0.4vw + 0.875rem, 1.0625rem);
+    color: #4b5563;
+    text-align: center;
+    line-height: 1.5;
+    margin-top: 0.75rem;
+    padding: 0 0.5rem;
+    min-height: 3.5rem;
 }
 
 /* Article Code Blocks */
@@ -365,7 +564,6 @@
     color: rgba(255, 255, 255, 0.8);
 }
 
-/* Articles Grid - Masonry Layout */
 .articles-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -389,7 +587,6 @@
     }
 }
 
-/* Masonry Card Size Variants */
 /* 1x1 - Default small card */
 .article-card.size-1x1 {
     grid-column: span 1;
