@@ -80,14 +80,14 @@
                 const enlargedImage = document.createElement('img');
                 enlargedImage.style.cssText = `
                     max-width: 100%;
-                    max-height: 70vh;
+                    max-height: 60vh;
                     object-fit: contain;
                     margin-bottom: 0.5rem;
                 `;
                 
-                // Increase max-height for larger screens
+                // Increase max-height for larger screens (desktop doesn't have bottom toolbar)
                 if (window.innerWidth >= 768) {
-                    enlargedImage.style.maxHeight = '85vh';
+                    enlargedImage.style.maxHeight = '80vh';
                 }
                 
                 const caption = document.createElement('p');
@@ -157,7 +157,7 @@
                 // Close handlers
                 function closeOverlay() {
                     overlay.style.display = 'none';
-                    document.body.style.overflow = 'auto';
+                    document.body.style.overflow = '';
                 }
                 
                 closeButton.addEventListener('click', closeOverlay);
@@ -212,7 +212,7 @@
         <!-- Fix Embla UMD script URL per docs: https://www.embla-carousel.com/get-started/cdn/ -->
     </head>
 
-    <body class="m-0 relative h-full bg-white overflow-x-hidden">
+    <body class="m-0 relative bg-white">
         <!-- Header/Nav copied to match existing article layout -->
         <header class="w-full inline-block">
             <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
@@ -421,7 +421,9 @@
                     </section>
                     
                     <figure class="hero-image-vertical">
-                        <img src="../resources/Kinabalu/panalaban-sunset.JPG" alt="panalaban sunset" class="cursor-pointer">
+                        <div class="image-container">
+                            <img src="../resources/Kinabalu/panalaban-sunset.JPG" alt="panalaban sunset" class="cursor-pointer">
+                        </div>
                         <figcaption>Panalaban sunset — the calm before the summit attack.</figcaption>
                     </figure>
 
@@ -475,6 +477,7 @@
                     
                     <section class="journey-grid" aria-label="Descent moments">
                         <div class="journey-grid-container">
+
                             <figure class="journey-grid-item">
                                 <div class="image-container">
                                     <img src="../resources/Kinabalu/squatting-guide.JPG" alt="squatting-guide" class="cursor-pointer">
@@ -491,6 +494,7 @@
                                     Hats off to him.
                                 </figcaption>
                             </figure>
+                            
                         </div>
                     </section>
                     
