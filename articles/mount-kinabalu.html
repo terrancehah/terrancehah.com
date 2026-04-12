@@ -80,10 +80,15 @@
                 const enlargedImage = document.createElement('img');
                 enlargedImage.style.cssText = `
                     max-width: 100%;
-                    max-height: 85vh;
+                    max-height: 70vh;
                     object-fit: contain;
                     margin-bottom: 0.5rem;
                 `;
+                
+                // Increase max-height for larger screens
+                if (window.innerWidth >= 768) {
+                    enlargedImage.style.maxHeight = '85vh';
+                }
                 
                 const caption = document.createElement('p');
                 caption.style.cssText = `
@@ -439,7 +444,7 @@
                     <p class="article-paragraph">My AllTrails review for the summit attack. No bullshit. The summit attack is basically 50% stairs + 50% bare stone slopes.</p>
 
                     <figure class="hero-image-vertical">
-                        <img src="../resources/Kinabalu/milky-way.JPG" alt="milky-way" class="cursor-pointer">
+                        <img src="../resources/Kinabalu/milky-way.JPG" alt="milky-way" class="cursor-pointer" loading="lazy" decoding="async">
                         <figcaption>The Milky Way right above me at 3,800 metres.</figcaption>
                     </figure>
                     
@@ -563,7 +568,7 @@
                                     <img src="../resources/Kinabalu/climbathon.JPG" 
                                         alt="climbathon" 
                                         class="cursor-pointer" 
-                                        >
+                                        loading="lazy" decoding="async">
                                 </div>
                                 <figcaption>My mind could not comprehend how a human being can complete the entire ascent and descent in about 3 hours, like WTF?</figcaption>
                             </figure>
@@ -588,7 +593,7 @@
 
                             <figure class="masonry-item">
                                 <div class="image-container">
-                                    <img src="../resources/Kinabalu/surfing-board.JPG" alt="surfing-board" class="cursor-pointer">
+                                    <img src="../resources/Kinabalu/surfing-board.JPG" alt="surfing-board" class="cursor-pointer" loading="lazy" decoding="async">
                                 </div>
                                 <figcaption>Ended up taking two surfing lessons.</figcaption>
                             </figure>
