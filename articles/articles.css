@@ -71,7 +71,7 @@
 
 .article-paragraph {
     line-height: 1.7;
-    font-weight: 400;
+    font-weight: 500;
     font-family: 'Baskervville', 'Baskerville', serif;
     margin-bottom: 1.5rem;
 }
@@ -178,7 +178,7 @@
 .hero-image figcaption,
 .hero-image-vertical figcaption {
     font-family: 'Raleway', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     font-size: clamp(0.9375rem, 0.4vw + 0.875rem, 1.0625rem);
     color: #4b5563;
     text-align: center;
@@ -296,7 +296,7 @@
 
 .masonry-item figcaption {
     font-family: 'Raleway', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     font-size: clamp(0.875rem, 0.3vw + 0.8rem, 1rem);
     color: #4b5563;
     text-align: center;
@@ -398,7 +398,7 @@
 
 .journey-grid-item figcaption {
     font-family: 'Raleway', sans-serif;
-    font-weight: 300;
+    font-weight: 400;
     font-size: clamp(0.9375rem, 0.4vw + 0.875rem, 1.0625rem);
     color: #4b5563;
     text-align: center;
