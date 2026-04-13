@@ -292,6 +292,7 @@
     height: 100%;
     display: block;
     object-fit: cover;
+    border-radius: 0.5rem;
 }
 
 .masonry-item figcaption {
@@ -390,10 +391,12 @@
 
 /* Images inside journey grid container */
 .journey-grid-item .image-container img {
-    width: 100%;
+    width: 80%;
     height: 100%;
     display: block;
     object-fit: cover;
+    margin: auto;
+    border-radius: 0.5rem;
 }
 
 .journey-grid-item figcaption {
