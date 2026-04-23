@@ -1,140 +1,343 @@
-/* Styles for projects page */
+/* Projects List Page Styles - Green Color Scheme */
 
-/* Container for the list of project items */
 .projects-list-container {
     width: 100%;
-    padding: 2.5rem; /* Default padding */
-    display: grid;
-    grid-template-columns: 1fr; /* Default to a single column */
-    gap: 2rem; /* Space between items */
-}
-
-/* Responsive padding for container */
-@media (min-width: 640px) {
-    .projects-list-container {
-        padding: 2.5rem 4rem; /* Wider padding on larger screens */
-    }
-}
-
-@media (min-width: 1024px) {
-    .projects-list-container {
-        padding: 2.5rem 6rem; /* Even wider padding on very large screens */
-    }
-}
-
-/* Responsive grid layout for container */
-@media (min-width: 1280px) {
-    .projects-list-container {
-        grid-template-columns: repeat(2, 1fr); /* Two columns on extra large screens */
-    }
-}
-
-/* Styling for individual project items */
-.projects {
-    width: auto; /* Default width, takes available space in grid cell */
-    padding: 2rem; /* Inner padding for content */
-    border-radius: 1rem; /* Rounded corners */
-    background-color: #e2fbe8; /* Light lime background */
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Standard shadow */
-    transition: all 0.3s ease; /* Smooth transition for hover effects */
-    cursor: pointer; /* Indicates the item is clickable */
-    min-height: 200px; /* Minimum height to ensure consistency */
+    max-width: 1536px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Pushes date to the bottom if item grows */
-    gap: 1rem; /* Space between title, description, and date */
+    gap: 2rem;
 }
 
-/* Hover state for project items */
-.projects:hover {
-    box-shadow: 0 6px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.05); /* Slightly reduced shadow */
-    transform: translateY(2px); /* Slight upward lift */
-    background-color: #cdf8dd; /* Slightly darker green background on hover */
-}
-
-/* Active state for project items (when clicked) */
-.projects:active {
-    box-shadow: none; /* No shadow when active */
-    transform: translateY(4px); /* More pronounced lift/press effect */
-}
-
-/* Styling for project item titles */
-.project-list-title {
-    font-family: 'Raleway', sans-serif;
-    font-weight: 500;
-    font-size: 1.25rem; /* Default title font size */
-    color: #295234; /* Dark green title color */
-    text-decoration: underline; /* Underline for emphasis */
-}
-
-/* Responsive font size for titles */
 @media (min-width: 640px) {
-    .project-list-title {
-        font-size: 1.25rem; /* Larger title on larger screens */
+    .projects-list-container {
+        padding: 2.5rem 2rem;
     }
 }
 
 @media (min-width: 1024px) {
-    .project-list-title {
-        font-size: 1.25rem;
+    .projects-list-container {
+        padding: 3rem 4rem;
+        gap: 3rem;
     }
 }
 
-/* Hover state for project item titles (when item is hovered) */
-.projects:hover .project-list-title {
-    color: #3f7b4f; /* Lighter green title color on hover */
+/* Hero Card - Latest Project */
+.project-hero {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    border-radius: 1rem;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    transition: all 0.4s ease;
 }
 
-/* Styling for project item descriptions */
-p.project-description {
+@media (min-width: 768px) {
+    .project-hero {
+        height: 500px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .project-hero {
+        height: 600px;
+    }
+}
+
+.project-hero:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 35px -5px rgba(0, 0, 0, 0.2), 0 10px 15px -6px rgba(0, 0, 0, 0.15);
+}
+
+.project-hero:hover .project-hero-image img {
+    transform: scale(1.05);
+}
+
+.project-hero:active {
+    transform: translateY(-2px);
+}
+
+.project-hero-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.project-hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+}
+
+.project-hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(41, 82, 52, 0.3) 70%, rgba(41, 82, 52, 0.85) 100%);
+}
+
+.project-hero-content {
+    position: relative;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2rem;
+    color: white;
+    z-index: 1;
+}
+
+@media (min-width: 768px) {
+    .project-hero-content {
+        padding: 3rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .project-hero-content {
+        padding: 4rem;
+    }
+}
+
+.project-badge {
+    display: inline-block;
+    width: fit-content;
+    padding: 0.5rem 1rem;
+    background-color: #3f7b4f;
+    color: white;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-hero-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 1.2vw + 0.8rem, 2.25rem);
+    color: white;
+    margin-bottom: 1rem;
+    line-height: 1.3;
+}
+
+.project-hero-description {
     font-family: 'Baskervville', 'Baskerville', serif;
     font-weight: 400;
-    font-size: 1.125rem; /* Default description font size */
-    color: #3f7b4f; /* Medium blue description color */
-    overflow: hidden; /* Required for text ellipsis */
-    text-overflow: ellipsis; /* Show ellipsis for overflowed text */
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* Limit description to 2 lines */
-    -webkit-box-orient: vertical;
-    line-clamp: 2; /* Fallback for non-webkit browsers */
+    font-size: clamp(1.0625rem, 0.6vw + 0.75rem, 1.375rem);
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 1rem;
+    line-height: 1.6;
+    max-width: 100%;
 }
 
-/* Responsive font size for descriptions */
-@media (min-width: 640px) {
-    p.project-description {
-        font-size: 1.25rem; /* Larger description on medium screens */
-    }
-}
-
-@media (min-width: 768px) {
-    p.project-description {
-        font-size: 1.5rem; /* Even larger description on large screens */
-    }
-}
-
-/* Hover state for project item descriptions (when item is hovered) */
-.projects:hover p.project-description {
-    color: #295234; /* Darker description color on hover */
-}
-
-/* Styling for project item dates */
-.project-list-date {
+.project-hero-date {
     font-family: 'Raleway', sans-serif;
-    font-weight: 300; /* Lighter font weight for dates */
-    font-size: 1rem; /* Default date font size */
-    color: #4b5563; /* Greyish-blue date color */
-    /* Text alignment will be default (left) */
+    font-weight: 400;
+    font-size: clamp(0.875rem, 0.3vw + 0.75rem, 1rem);
+    color: rgba(255, 255, 255, 0.8);
 }
 
-/* Responsive font size for dates */
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 180px;
+    gap: 1.5rem;
+}
+
 @media (min-width: 640px) {
-    .project-list-date {
-        font-size: 1rem; /* Larger date on medium screens */
+    .projects-grid {
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 200px;
+        gap: 1.5rem;
     }
 }
 
-@media (min-width: 768px) {
-    .project-list-date {
-        font-size: 1rem; /* Even larger date on large screens */
+@media (min-width: 1024px) {
+    .projects-grid {
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: 200px;
+        gap: 2rem;
     }
+}
+
+/* Grid size classes */
+.project-card.size-1x1 {
+    grid-column: span 1;
+    grid-row: span 1;
+}
+
+.project-card.size-1x2 {
+    grid-column: span 1;
+    grid-row: span 2;
+}
+
+.project-card.size-2x1 {
+    grid-column: span 2;
+    grid-row: span 1;
+}
+
+.project-card.size-2x2 {
+    grid-column: span 2;
+    grid-row: span 2;
+}
+
+.project-card.size-2x3 {
+    grid-column: span 2;
+    grid-row: span 3;
+}
+
+.project-card.size-3x2 {
+    grid-column: span 3;
+    grid-row: span 2;
+}
+
+/* Mobile: All cards span full width */
+@media (max-width: 639px) {
+    .project-card.size-1x1,
+    .project-card.size-1x2,
+    .project-card.size-2x1,
+    .project-card.size-2x2,
+    .project-card.size-2x3,
+    .project-card.size-3x2 {
+        grid-column: span 2;
+        grid-row: span 2;
+    }
+}
+
+/* Tablet: All cards span full width in 2-column grid */
+@media (min-width: 640px) and (max-width: 1023px) {
+    .project-card.size-2x2,
+    .project-card.size-3x2 {
+        grid-column: span 2;
+        grid-row: span 2;
+    }
+}
+
+/* Project Card */
+.project-card {
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+    cursor: pointer;
+    height: 100%;
+}
+
+.project-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.15), 0 6px 10px -3px rgba(0, 0, 0, 0.1);
+}
+
+.project-card:active {
+    transform: translateY(-2px);
+}
+
+.project-card-image {
+    width: 100%;
+    height: 250px;
+    overflow: hidden;
+    background-color: #e2fbe8;
+}
+
+.project-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.project-card:hover .project-card-image img {
+    transform: scale(1.08);
+}
+
+.project-card-content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex-grow: 1;
+    background-color: #e2fbe8;
+}
+
+.project-card:hover .project-card-content {
+    background-color: #cdf8dd;
+}
+
+.project-card-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: clamp(1.125rem, 1vw + 0.5rem, 1.5rem);
+    color: #3f7b4f;
+    line-height: 1.4;
+    margin: 0;
+}
+
+@media (min-width: 1280px) {
+    .project-card-title {
+        font-size: clamp(1.25rem, 0.8vw + 0.7rem, 1.625rem);
+    }
+}
+
+@media (min-width: 1536px) {
+    .project-card-title {
+        font-size: clamp(1.375rem, 0.6vw + 0.9rem, 1.75rem);
+    }
+}
+
+.project-card:hover .project-card-title {
+    color: #295234;
+}
+
+.project-card-description {
+    font-family: 'Baskervville', 'Baskerville', serif;
+    font-weight: 400;
+    font-size: clamp(1rem, 0.5vw + 0.75rem, 1.25rem);
+    color: #295234;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    line-clamp: 3;
+    flex-grow: 1;
+}
+
+@media (min-width: 1280px) {
+    .project-card-description {
+        font-size: clamp(1.125rem, 0.4vw + 0.85rem, 1.375rem);
+    }
+}
+
+@media (min-width: 1536px) {
+    .project-card-description {
+        font-size: clamp(1.1875rem, 0.3vw + 0.95rem, 1.5rem);
+    }
+}
+
+.project-card:hover .project-card-description {
+    color: #295234;
+}
+
+.project-card-date {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 400;
+    font-size: clamp(0.875rem, 0.3vw + 0.75rem, 1.125rem);
+    color: #4b5563;
+    margin-top: auto;
 }

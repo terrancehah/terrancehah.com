@@ -70,29 +70,57 @@
             </div>
         </header>
 
-        <main class="w-full p-10 toys-list-container">
-            <div class="toys" data-url="./playground/philosophy-sphere.html">
-                <h2 class="toy-list-title">Philosophy Sphere - Interactive Ideology Explorer</h2>
-                <p class="toy-description">Explore philosophical ideologies and their relationships in an interactive 3D visualization. Navigate through major philosophical schools like Idealism, Existentialism, and Materialism. Discover how different concepts influence and oppose each other in the world of philosophical thought.</p>
-                <p class="toy-list-date">created on 20 October 2025</p>
-            </div>
+        <main class="w-full toys-list-container">
+            <!-- Hero Card - Latest Playground Item -->
+            <article class="toy-hero" data-url="./playground/philosophy-sphere.html">
+                <div class="toy-hero-image">
+                    <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=600&fit=crop" alt="Philosophy Sphere" loading="lazy">
+                    <div class="toy-hero-overlay"></div>
+                </div>
+                <div class="toy-hero-content">
+                    <span class="toy-badge">Latest</span>
+                    <h2 class="toy-hero-title">Philosophy Sphere - Interactive Ideology Explorer</h2>
+                    <p class="toy-hero-description">
+                        Explore philosophical ideologies and their relationships in an interactive 3D visualization. Navigate through major philosophical schools like Idealism, Existentialism, and Materialism.
+                    </p>
+                    <p class="toy-hero-date">created on 20 October 2025</p>
+                </div>
+            </article>
 
-            <div class="toys" data-url="./playground/ar-model-test.html">
-                <h2 class="toy-list-title">Myvi with Marker Test</h2>
-                <p class="toy-description">This is the testing page for my updated Myvi AR. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='./resources/Myvi-QR.png' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
-                <p class="toy-list-date">written on 16 July 2023</p>
-            </div>
+            <!-- Grid Container for Remaining Playground Items -->
+            <div class="toys-grid">
+                <article class="toy-card size-2x2" data-url="./playground/ar-model-test.html">
+                    <div class="toy-card-image">
+                        <img src="./resources/myvi-purple.jpg" alt="Myvi with Marker Test" loading="lazy">
+                    </div>
+                    <div class="toy-card-content">
+                        <h3 class="toy-card-title">Myvi with Marker Test</h3>
+                        <p class="toy-card-description">This is the testing page for my updated Myvi AR. Visit the <a target="_blank" href='./resources/Myvi-QR.png' class="toy-inline-link">Myvi Photo</a> on another device to access the photo needed to run the AR Test.</p>
+                        <p class="toy-card-date">written on 16 July 2023</p>
+                    </div>
+                </article>
 
-            <div class="toys" data-url="./playground/car-ar-test.html">
-                <h2 class="toy-list-title">Myvi Test</h2>
-                <p class="toy-description">This is the testing page for my Myvi AR. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='./resources/myvi-purple.jpg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">Myvi Photo</a></p>
-                <p class="toy-list-date">written on 11 October 2021</p>
-            </div>
+                <article class="toy-card size-2x2" data-url="./playground/car-ar-test.html">
+                    <div class="toy-card-image">
+                        <img src="./resources/myvi-purple.jpg" alt="Myvi Test" loading="lazy">
+                    </div>
+                    <div class="toy-card-content">
+                        <h3 class="toy-card-title">Myvi Test</h3>
+                        <p class="toy-card-description">This is the testing page for my Myvi AR. Visit the <a target="_blank" href='./resources/myvi-purple.jpg' class="toy-inline-link">Myvi Photo</a> on another device to access the photo needed to run the AR Test.</p>
+                        <p class="toy-card-date">written on 11 October 2021</p>
+                    </div>
+                </article>
 
-            <div class="toys" data-url="./playground/dino-ar-test.html">
-                <h2 class="toy-list-title">T-Rex Test</h2>
-                <p class="toy-description">This is the playground for testing AR features. Visit the link below on another device to access the photo needed to run the AR Test: <a target="_blank" href='https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/image-tracking/nft/trex-image-big.jpeg' class="text-lg sm:text-xl md:text-2xl text-[#457B9D] font-normal font-lato hover:text-[#1d3557] underline">T-Rex Photo</a></p>
-                <p class="toy-list-date">written on 7 June 2021</p>
+                <article class="toy-card size-2x2" data-url="./playground/dino-ar-test.html">
+                    <div class="toy-card-image">
+                        <img src="https://images.unsplash.com/photo-1548192746-dd526f154ed9?w=800&h=500&fit=crop" alt="T-Rex Test" loading="lazy">
+                    </div>
+                    <div class="toy-card-content">
+                        <h3 class="toy-card-title">T-Rex Test</h3>
+                        <p class="toy-card-description">This is the playground for testing AR features. Visit the <a target="_blank" href='https://raw.githubusercontent.com/AR-js-org/AR.js/master/aframe/examples/image-tracking/nft/trex-image-big.jpeg' class="toy-inline-link">T-Rex Photo</a> on another device to access the photo needed to run the AR Test.</p>
+                        <p class="toy-card-date">written on 7 June 2021</p>
+                    </div>
+                </article>
             </div>
         </main>
 

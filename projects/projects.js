@@ -1,23 +1,34 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Select all elements with the class 'projects'
-    const projects = document.querySelectorAll('.projects');
-
-    // Iterate over each project element
-    projects.forEach(project => {
-        // Add a click event listener to each project
-        project.addEventListener('click', () => {
-            // Retrieve the URL from the 'data-url' attribute
-            const url = project.getAttribute('data-url');
-            
-            // Check if the URL exists
-            if (url) {
-                // Check if the URL is an external link
-                if (url.startsWith('http://') || url.startsWith('https://')) {
-                    // Open external links in a new tab
-                    window.open(url, '_blank');
-                } else {
-                    // Navigate to internal links in the current tab
-                    window.location.href = url;
+    const projectHero = document.querySelector('.project-hero');
+    const projectCards = document.querySelectorAll('.project-card');
+    
+    // Handle hero card click
+    if (projectHero) {
+        projectHero.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A') {
+                const url = this.getAttribute('data-url');
+                if (url) {
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        window.open(url, '_blank');
+                    } else {
+                        window.location.href = url;
+                    }
+                }
+            }
+        });
+    }
+    
+    // Handle grid card clicks
+    projectCards.forEach(card => {
+        card.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'A') {
+                const url = this.getAttribute('data-url');
+                if (url) {
+                    if (url.startsWith('http://') || url.startsWith('https://')) {
+                        window.open(url, '_blank');
+                    } else {
+                        window.location.href = url;
+                    }
                 }
             }
         });
