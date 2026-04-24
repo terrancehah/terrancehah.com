@@ -743,19 +743,12 @@ section {
    Only active when body has .home-page class
    ============================================ */
 
-/* Lock horizontal overflow at the root so the slide-in quote
-   (which briefly sits at translateX(60px)) cannot create a
-   horizontal scrollbar or white-space gutter on the right. */
-html {
-    overflow-x: hidden;
-}
-
-body.home-page {
-    overflow-x: hidden;
-    max-width: 100vw;
-}
-
-/* Clip any animating children to their section bounds */
+/* Contain the slide-in pull-quote (translateX(60px)) at the section
+   level using `overflow-x: clip`. Unlike `overflow-x: hidden`, `clip`
+   does NOT promote the element to a scroll container, so it won't
+   interfere with iOS Safari's document-root scroll gestures (toolbar
+   minimize on scroll). The body keeps its tailwind `overflow-x-hidden`
+   class as a final safety net, matching every other page on the site. */
 body.home-page #nature-section,
 body.home-page #tech-section,
 body.home-page .transition-section {
