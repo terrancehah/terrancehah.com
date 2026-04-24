@@ -1,0 +1,829 @@
+/* ============================================
+   HOMEPAGE - Chapter Cards & Photo Grid
+   ============================================ */
+
+/* Ensure smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* ============================================
+   ANIMATIONS - Keyframes
+   ============================================ */
+
+/* Basic fade in from below */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Slow zoom for hero background (Ken Burns effect) */
+@keyframes kenBurns {
+    from {
+        transform: scale(1.05);
+    }
+    to {
+        transform: scale(1.15);
+    }
+}
+
+/* Subtle float animation for article link cards */
+@keyframes subtleFloat {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+/* Slide up reveal for chapter text */
+@keyframes slideUpReveal {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Image reveal - clip path */
+@keyframes imageReveal {
+    from {
+        opacity: 0;
+        transform: scale(1.1);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Hero entrance */
+.fade-in {
+    animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.fade-in-delay {
+    opacity: 0;
+    animation: fadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards;
+}
+
+/* Scroll-triggered fade-in with stagger support */
+.scroll-fade {
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.scroll-fade.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* -------- Photo item individual fade-in --------
+   Each photo-item gets its own IntersectionObserver
+   so fade-in timing is tied to when the photo itself
+   scrolls into view (not the parent card). */
+
+.photo-fade {
+    opacity: 0;
+    transform: translateY(30px) scale(0.98);
+    transition: opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: opacity, transform;
+}
+
+.photo-fade.photo-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+/* -------- Pull quote slide-in from right -------- */
+
+@keyframes quoteSlideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(60px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Override default scroll-fade motion for pull-quotes: slide from right */
+.pull-quote.scroll-fade {
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 1.5s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pull-quote.scroll-fade.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* -------- Typewriter effect --------
+   Characters are pre-rendered invisible so the paragraph keeps
+   its final size from the start (no layout shift as text appears).
+   Cursor blinks forever once typing has begun. */
+
+.typewriter {
+    /* Reserve block space even before any character becomes visible */
+    min-height: 1em;
+}
+
+/* Each character starts invisible but takes up its natural width */
+.tw-char {
+    opacity: 0;
+    /* Short fade so character 'pops' in cleanly */
+    transition: opacity 0.08s linear;
+}
+
+.tw-char.tw-visible {
+    opacity: 1;
+}
+
+/* Blinking cursor sits inline at the end of the paragraph */
+.typewriter-active::after {
+    content: '|';
+    display: inline-block;
+    margin-left: 2px;
+    font-weight: 300;
+    color: currentColor;
+    animation: typewriterBlink 0.8s step-end infinite;
+}
+
+@keyframes typewriterBlink {
+    0%, 50%   { opacity: 1; }
+    50.01%, 100% { opacity: 0; }
+}
+
+/* ============================================
+   HERO SECTION - Silhouette background
+   ============================================ */
+
+.hero-section {
+    position: relative;
+    width: 100%;
+    height: 45vh;
+    min-height: 300px;
+    max-height: 600px;
+    overflow: hidden;
+    display: flex;
+    /* Push hero text down toward bottom for better composition */
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 3rem;
+}
+
+@media (min-width: 768px) {
+    .hero-section {
+        padding-bottom: 4rem;
+    }
+}
+
+.hero-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+}
+
+.hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    animation: kenBurns 20s ease-in-out infinite alternate;
+}
+
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(30, 70, 32, 0.55) 0%,
+        rgba(12, 35, 64, 0.65) 100%
+    );
+}
+
+.hero-content {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    padding: 0 1.5rem;
+    max-width: 90rem;
+    margin: 0 auto;
+}
+
+.hero-title {
+    font-family: 'Lato', sans-serif;
+    font-size: clamp(2.5rem, 7vw, 4.5rem);
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.75rem;
+    line-height: 1.05;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+    letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+    font-family: 'Raleway', sans-serif;
+    font-size: clamp(0.95rem, 2vw, 1.35rem);
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.02em;
+}
+
+/* ============================================
+   SECTION INTRO TEXT
+   Styled intro paragraph above chapter cards
+   ============================================ */
+
+.section-intro {
+    max-width: 48rem;
+    margin-bottom: 2rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    padding: 1rem 0;
+    position: relative;
+}
+
+/* Decorative accent line above intro */
+.section-intro::before {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 3px;
+    margin-bottom: 1.5rem;
+    opacity: 0.4;
+}
+
+.section-intro-text {
+    font-family: 'Lato', sans-serif;
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    font-weight: 400;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+}
+
+@media (min-width: 768px) {
+    .section-intro {
+        margin-bottom: 5rem;
+    }
+}
+
+/* ============================================
+   PULL QUOTE TYPOGRAPHY
+   Distinctive serif quote styling
+   ============================================ */
+
+.pull-quote {
+    position: relative;
+    max-width: 42rem;
+    margin: 2.5rem 0 2.5rem 0;
+    padding: 1.5rem 0 1.5rem 2rem;
+}
+
+/* Large decorative opening quote mark */
+.pull-quote::before {
+    content: '\201C';
+    position: absolute;
+    left: -0.5rem;
+    top: -1.5rem;
+    font-family: 'Baskervville', Georgia, serif;
+    font-size: 5rem;
+    line-height: 1;
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.pull-quote-text {
+    font-family: 'Baskervville', Georgia, serif;
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-style: italic;
+    line-height: 1.35;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    margin: 0 0 1rem 0;
+}
+
+.pull-quote-cite {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-style: normal;
+    opacity: 0.85;
+}
+
+@media (min-width: 768px) {
+    .pull-quote {
+        padding-left: 2.5rem;
+        margin: 3rem 0;
+    }
+    
+    .pull-quote::before {
+        font-size: 6rem;
+        left: -0.25rem;
+        top: -2rem;
+    }
+}
+
+/* Standalone pull-quote variant: transitional quote between chapter cards.
+   Larger, more breathing room, centered, no card background behind it. */
+.pull-quote-standalone {
+    max-width: 48rem;
+    margin: 3rem auto;
+    padding: 2rem 1rem 2rem 3rem;
+    text-align: left;
+}
+
+.pull-quote-standalone .pull-quote-text {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    line-height: 1.3;
+}
+
+.pull-quote-standalone::before {
+    font-size: 7rem;
+    top: -2.5rem;
+    left: 0.25rem;
+    opacity: 0.25;
+}
+
+@media (min-width: 768px) {
+    .pull-quote-standalone {
+        margin: 4rem auto;
+        padding-left: 4rem;
+    }
+}
+
+/* ============================================
+   TRANSITION SECTION - Gradient bridge
+   From nature green to tech blue
+   ============================================ */
+
+.transition-section {
+    width: 100%;
+    padding: 5rem 0;
+    /* Gradient bridges the two section colors */
+    background: linear-gradient(
+        to bottom,
+        #d4edda 0%,
+        #e8f0ea 35%,
+        #e4ecee 50%,
+        #dce7ef 65%,
+        #cfe2f3 100%
+    );
+    position: relative;
+}
+
+@media (min-width: 768px) {
+    .transition-section {
+        padding: 6rem 0;
+    }
+}
+
+.transition-text {
+    font-family: 'Lato', sans-serif;
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+    font-weight: 400;
+    line-height: 1.6;
+    text-align: center;
+    /* Gradient text color blending the two palettes */
+    background: linear-gradient(90deg, #1e4620 0%, #0c2340 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    max-width: 40rem;
+    margin: 0 auto;
+}
+
+/* ============================================
+   CHAPTER CARD
+   Rounded card containing story + photo grid
+   ============================================ */
+
+.chapter-card {
+    border-radius: 1.2rem;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 768px) {
+    .chapter-card {
+        padding: 3rem 2.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .chapter-card {
+        padding: 4rem 3.5rem;
+    }
+}
+
+.chapter-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.875rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 1rem;
+}
+
+.chapter-title {
+    font-family: 'Lato', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1.5rem;
+}
+
+.chapter-text {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.125rem;
+    line-height: 1.7;
+    max-width: 42rem;
+    margin-bottom: 1rem;
+}
+
+@media (min-width: 768px) {
+    .chapter-text {
+        font-size: 1.25rem;
+    }
+}
+
+
+/* ============================================
+   ARTICLE LINK CARD
+   Shorter standout card (~60% height of square)
+   ============================================ */
+
+.article-link {
+    display: block;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), 
+                box-shadow 0.4s ease;
+    /* Layered shadow: tight contact shadow + softer elevation shadow.
+       Makes the card feel lifted and obviously clickable. */
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.08),
+        0 6px 16px rgba(0, 0, 0, 0.18),
+        0 12px 28px rgba(0, 0, 0, 0.12);
+    grid-column: span 1;
+    /* 60% of normal square - wider than tall */
+    aspect-ratio: 1 / 0.6;
+    /* Stick to the top edge of the grid cell, not centered */
+    align-self: start;
+}
+
+.article-link:hover {
+    transform: translateY(-6px) scale(1.02);
+    /* Deepen the shadow on hover to reinforce the lift */
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.1),
+        0 14px 28px rgba(0, 0, 0, 0.25),
+        0 22px 40px rgba(0, 0, 0, 0.18);
+}
+
+.article-link-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    padding: 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.article-link-label {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    opacity: 0.75;
+}
+
+.article-link-title {
+    font-family: 'Lato', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-top: auto;
+}
+
+.article-link-arrow {
+    position: absolute;
+    top: 1rem;
+    right: 1.25rem;
+    font-size: 1.5rem;
+    line-height: 1;
+    transition: transform 0.3s ease;
+}
+
+.article-link:hover .article-link-arrow {
+    transform: translate(4px, -4px);
+}
+
+/* Article link short variant - explicit override */
+.article-link-short {
+    aspect-ratio: 1 / 0.8;
+    grid-column: span 1;
+}
+
+/* Blank grid cell - creates visual breathing room */
+.photo-item.blank {
+    background: transparent !important;
+    border: none;
+    pointer-events: none;
+    box-shadow: none !important;
+}
+
+/* ============================================
+   PHOTO GRID SYSTEM
+   Only landscape (2x1) and square (1x1) images
+   ============================================ */
+
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+    width: 100%;
+    margin-top: 2.5rem;
+}
+
+@media (min-width: 768px) {
+    .photo-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (min-width: 1024px) {
+    .photo-grid {
+        gap: 2rem;
+    }
+}
+
+/* Photo Item Base */
+.photo-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 1rem;
+}
+
+.photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+
+.photo-item:hover img {
+    transform: scale(1.05);
+}
+
+/* Square Images (1x1) */
+.photo-item.square {
+    grid-column: span 1;
+    aspect-ratio: 1 / 1;
+}
+
+/* Landscape Images (2x1) */
+.photo-item.landscape {
+    grid-column: span 2;
+    aspect-ratio: 2.1 / 1;
+}
+
+/* Desktop: Landscape takes 2 columns in 4-column grid.
+   Aspect-ratio is cleared so the landscape stretches to match
+   the row height defined by adjacent squares — otherwise the
+   column gap makes landscape = (2col + gap)/2 > square height. */
+@media (min-width: 768px) {
+    .photo-item.landscape {
+        grid-column: span 2;
+        /* aspect-ratio: auto; */
+        height: 100%;
+    }
+    
+    .photo-item.square {
+        grid-column: span 1;
+    }
+}
+
+/* ============================================
+   PER-CHAPTER DESKTOP GRID LAYOUTS
+   Mobile keeps the 2-col auto-flow (with blanks
+   providing pleasant asymmetry). At >=768px each
+   chapter card uses explicit grid placement so
+   every column holds at least one image or link,
+   and each card has its own distinct rhythm.
+   ============================================ */
+
+@media (min-width: 768px) {
+
+    /* Article-link stays 1 column (small, like mobile) in all layouts */
+    .chapter-grid > .article-link {
+        grid-column: span 1;
+    }
+
+    /* ---------- Mount Kinabalu ----------
+       Row 1: [ landscape (span 2) ][ me-at-peak ][ lows-peak ]
+       Row 2: [ blank ][ blank ][ article-link ][ empty ]
+       Columns covered: c1,c2 (landscape), c3 (me-at-peak/article),
+                        c4 (lows-peak)
+    */
+    .chapter-grid--kinabalu > *:nth-child(1) { grid-column: 1 / span 2; grid-row: 1; } /* landscape */
+    .chapter-grid--kinabalu > *:nth-child(2) { grid-column: 2;          grid-row: 2; } /* me-at-peak */
+    .chapter-grid--kinabalu > *:nth-child(3) { grid-column: 1;          grid-row: 2; } /* blank */
+    .chapter-grid--kinabalu > *:nth-child(4) { grid-column: 3;          grid-row: 1; } /* blank */
+    .chapter-grid--kinabalu > *:nth-child(5) { grid-column: 4;          grid-row: 1; } /* lows-peak */
+    .chapter-grid--kinabalu > *:nth-child(6) { grid-column: 3;          grid-row: 2; } /* article-link */
+
+    /* ---------- TNBYY ----------
+       Row 1: [ landscape (span 2) ][ mossy ][ elephant ]
+       Row 2: [ article-link ][ blank ][ empty ][ empty ]
+       (article-link on the LEFT for visual variety vs Kinabalu)
+    */
+    .chapter-grid--tnbyy > *:nth-child(1) { grid-column: 1 / span 2; grid-row: 1; } /* landscape */
+    .chapter-grid--tnbyy > *:nth-child(2) { grid-column: 4;          grid-row: 2; } /* mossy */
+    .chapter-grid--tnbyy > *:nth-child(3) { grid-column: 4;          grid-row: 1; } /* blank */
+    .chapter-grid--tnbyy > *:nth-child(4) { grid-column: 2;          grid-row: 2; } /* article-link */
+    .chapter-grid--tnbyy > *:nth-child(5) { grid-column: 3;          grid-row: 1; } /* elephant */
+
+    /* ---------- Tech / Education ----------
+       Row 1: [ blank ][ landscape (span 2) ][ technology ]
+       Row 2: [ kids ][ blank ][ empty ][ article-link ]
+       (article-link far-right — third distinct position)
+    */
+    .chapter-grid--tech > *:nth-child(1) { grid-column: 2 / span 2; grid-row: 1; } /* landscape */
+    .chapter-grid--tech > *:nth-child(2) { grid-column: 1;          grid-row: 2; } /* kids */
+    .chapter-grid--tech > *:nth-child(3) { grid-column: 1;          grid-row: 1; } /* blank */
+    .chapter-grid--tech > *:nth-child(4) { grid-column: 2;          grid-row: 2; } /* blank */
+    .chapter-grid--tech > *:nth-child(5) { grid-column: 4;          grid-row: 1; } /* technology */
+    .chapter-grid--tech > *:nth-child(6) { grid-column: 4;          grid-row: 2; } /* article-link */
+}
+
+/* ============================================
+   RESPONSIVE TYPOGRAPHY
+   ============================================ */
+
+@media (max-width: 640px) {
+    .font-lato,
+    .font-raleway {
+        line-height: 1.5;
+    }
+}
+
+/* ============================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================ */
+
+.photo-item img {
+    will-change: transform;
+}
+
+section {
+    will-change: background-color;
+}
+
+/* Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .scroll-fade {
+        opacity: 1;
+        transform: none;
+    }
+
+    /* Make photos visible immediately for users who prefer reduced motion */
+    .photo-fade {
+        opacity: 1;
+        transform: none;
+    }
+
+    /* Stop cursor blinking */
+    .typewriter-active::after {
+        animation: none;
+        opacity: 0;
+    }
+    
+    .photo-item:hover img {
+        transform: none;
+    }
+}
+
+/* ============================================
+   HOMEPAGE-SCOPED HEADER & FOOTER
+   Light green header (nature) + light blue footer (tech)
+   Only active when body has .home-page class
+   ============================================ */
+
+/* Lock horizontal overflow at the root so the slide-in quote
+   (which briefly sits at translateX(60px)) cannot create a
+   horizontal scrollbar or white-space gutter on the right. */
+html {
+    overflow-x: hidden;
+}
+
+body.home-page {
+    overflow-x: hidden;
+    max-width: 100vw;
+}
+
+/* Clip any animating children to their section bounds */
+body.home-page #nature-section,
+body.home-page #tech-section,
+body.home-page .transition-section {
+    overflow-x: clip;
+}
+
+/* Header in light green matching nature section.
+   Extra padding-bottom so the green extends seamlessly into
+   the breathing gap above the hero (no white gutter). */
+body.home-page > header {
+    background-color: #d4edda;
+    border-bottom: 1px solid rgba(30, 70, 32, 0.08);
+    padding-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    body.home-page > header {
+        padding-bottom: 2.5rem;
+    }
+}
+
+/* Logo text in deep green instead of default navy */
+body.home-page .home-logo {
+    color: #1e4620; /* nature-900 */
+}
+
+/* -------- Nav link styling (homepage only) -------- */
+
+/* Default nav link: deep green text on transparent bg */
+body.home-page .home-nav .nav-link {
+    color: #1e4620; /* nature-900 */
+    background-color: transparent;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    text-decoration: none;
+}
+
+/* Hover & focus: soft green pill background */
+body.home-page .home-nav .nav-link:hover,
+body.home-page .home-nav .nav-link:focus-visible {
+    background-color: #a9d3af; /* nature-400 */
+    color: #1e4620; /* stay nature-900 */
+    outline: none;
+}
+
+/* Active page indicator: solid medium green pill with light text */
+body.home-page .home-nav .nav-link-active {
+    background-color: #447f46; /* nature-500 */
+    color: #f7fff9; /* nature-50 */
+}
+
+body.home-page .home-nav .nav-link-active:hover,
+body.home-page .home-nav .nav-link-active:focus-visible {
+    /* Slightly deeper green on hover to signal interactivity */
+    background-color: #3f7b4f; /* nature-600 */
+    color: #f7fff9;
+}
+
+/* Footer in light blue matching tech section */
+body.home-page > footer.footer {
+    background-color: #cfe2f3;
+    border-top: 1px solid rgba(12, 35, 64, 0.08);
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    margin-top: 0;
+}
+
+/* Ensure footer text color reads well on blue bg */
+body.home-page > footer.footer .copyright,
+body.home-page > footer.footer .cookie-notice {
+    color: #0c2340;
+}

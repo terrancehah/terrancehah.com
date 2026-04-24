@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="./styles/style.css" type="text/css" rel="stylesheet">
     <link href="./styles/output.css" rel="stylesheet">
+    <link href="./styles/homepage.css" type="text/css" rel="stylesheet">
     <meta property="og:title" content="Terrance's Homepage">
     <meta property="og:description" content="Terrance's Homepage">
     <link rel="icon" href="./resources/TH-logo.png" type="image/x-icon">
@@ -15,7 +16,7 @@
     <script src="./js/footer.js"></script>
     <title>Terrance's Homepage</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Baskervville:ital@0;1&display=swap');
     </style>
         <!-- Vercel Analytics -->
         <script>
@@ -29,24 +30,25 @@
         <script defer src="/_vercel/speed-insights/script.js"></script>
     </head>
 
-<body class="m-0 relative h-full bg-white overflow-x-hidden">
+<body class="home-page m-0 relative h-full w-full bg-white overflow-x-hidden">
     
     <header class="w-full inline-block">
         <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
             
             <!-- Left: Logo -->
             <div class="flex flex-col md:flex-row items-center w-auto md:w-[300px] gap-1">
-                <h1 class="block font-lato font-semibold text-[#1d3557] text-2xl md:text-3xl p-0 text-left sm:w-auto">
+                <h1 class="home-logo block font-lato font-semibold text-2xl md:text-3xl p-0 text-left sm:w-auto">
                     Terrance's Playground
                 </h1>
             </div>
             
-            <!-- Middle: Nav buttons -->
-            <nav class="flex flex-wrap justify-center gap-2">
-                <a href="./index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-light-blue bg-light-blue">Home</a>
-                <a href="./articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-light-blue">Articles</a>
-                <a href="./projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-light-blue">Projects</a>
-                <a href="./playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-light-blue">Playground</a>
+            <!-- Middle: Nav buttons (homepage variant — green theme) -->
+            <nav class="home-nav flex flex-wrap justify-center gap-2">
+                <!-- Active page: Home — solid green pill -->
+                <a href="./index.html" class="nav-link nav-link-active relative p-2 font-raleway font-medium text-lg md:text-xl rounded-md">Home</a>
+                <a href="./articles.html" class="nav-link relative p-2 font-raleway font-medium text-lg md:text-xl rounded-md">Articles</a>
+                <a href="./projects.html" class="nav-link relative p-2 font-raleway font-medium text-lg md:text-xl rounded-md">Projects</a>
+                <a href="./playground.html" class="nav-link relative p-2 font-raleway font-medium text-lg md:text-xl rounded-md">Playground</a>
             </nav>
             
             <!-- Right side: Social Icons -->
@@ -71,54 +73,346 @@
     </header>
     
     <main class="w-full">
-        <div id="banner" class="w-full md:h-[500px] h-[250px] relative">
-            <img src="./resources/books.jpg" alt="Books" class="opacity-50 h-full w-full absolute object-cover">
-            <div class="relative h-full flex flex-col items-center justify-center text-[#1d3557]">
-                <span id="name" class="font-lato text-xl sm:text-2xl md:text-3xl lg:text-4xl text-center m-0">I am Terrance!</span>
-                <p class="font-lato text-lg sm:text-xl md:text-2xl lg:text-3xl text-center m-0">A tuition tutor, and a self-teaching programmer.</p>
+        <!-- ========================================
+             HERO BANNER - Silhouette background image
+             ======================================== -->
+        <section id="hero" class="hero-section">
+            <!-- Background image with overlay -->
+            <div class="hero-bg">
+                <img src="./resources/TNBYY/silhouette.jpg" alt="Mountain Silhouette" class="hero-image">
+                <div class="hero-overlay"></div>
             </div>
-        </div>
-        
-        <div class="w-full md:h-[450px] h-[220px] relative mt-[30px] overflow-hidden flex justify-center items-center">
-            <img src="./resources/business-building.jpg" alt="business building" 
-            class="opacity-25 h-full w-full absolute object-cover transition-all duration-500 ease-in-out hover:opacity-50 hover:scale-110">
-            <h3 class="relative font-lato text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-[#1d3557] text-center mx-[10%] pointer-events-none">
-                I'm an International Business major. After I graduated, I decided to get involved in the educational field.
-            </h3>
-        </div>
-        
-        <div class="w-full md:h-[450px] h-[220px] relative mt-[30px] overflow-hidden flex justify-center items-center">
-            <img src="./resources/education.jpg" alt="education"
-            class="opacity-25 h-full w-full absolute object-cover transition-all duration-500 ease-in-out hover:opacity-50 hover:scale-110">
-            <h3 class="relative font-lato text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-[#1d3557] text-center mx-[10%] pointer-events-none">
-                After working in the field for a while, I realized that there's a lot of work to be done. A lot of our current education system just doesn't work.
-            </h3>
-        </div>
-        
-        <div class="w-full md:h-[450px] h-[220px] relative mt-[30px] overflow-hidden flex justify-center items-center">
-            <img src="./resources/employee.jpg" alt="employee"
-            class="opacity-25 h-full w-full absolute object-cover transition-all duration-500 ease-in-out hover:opacity-50 hover:scale-110">
-            <h3 class="relative font-lato text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-[#1d3557] text-center mx-[10%] pointer-events-none">
-                Kids are only taught to be good employees. No one asked if they enjoy learning in school. Grades matter more than ever. Talents beyond academic performance aren't valued.
-            </h3>
-        </div>
-        
-        <div class="w-full md:h-[450px] h-[220px] relative mt-[30px] overflow-hidden flex justify-center items-center">
-            <img src="./resources/kids-playing-phone.jpg" alt="kids playing phone"
-            class="opacity-25 h-full w-full absolute object-cover transition-all duration-500 ease-in-out hover:opacity-50 hover:scale-110">
-            <h3 class="relative font-lato text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-[#1d3557] text-center mx-[10%] pointer-events-none">
-                And there's a trend of kids being addicted to technology. I started to think, instead of stopping kids from using phones and computers, why not help them embrace the power of technology?
-            </h3>
-        </div>
-        
-        <div class="w-full md:h-[450px] h-[220px] relative mt-[30px] overflow-hidden flex justify-center items-center mb-8">
-            <img src="./resources/technology.jpg" alt="technology"
-            class="opacity-25 h-full w-full absolute object-cover transition-all duration-500 ease-in-out hover:opacity-50 hover:scale-110">
-            <h3 class="relative font-lato text-base sm:text-lg md:text-xl lg:text-2xl font-medium text-[#1d3557] text-center mx-[10%] pointer-events-none">
-                So here I am, teaching myself to be a programmer so I can empower the children with the power of technology.
-            </h3>
-        </div>
+            <!-- Hero content -->
+            <div class="hero-content">
+                <h1 class="hero-title fade-in">
+                    I am Terrance!
+                </h1>
+                <p class="hero-subtitle fade-in-delay">
+                    Adventurer • Tuition Tutor • Self-taught Programmer
+                </p>
+            </div>
+        </section>
+
+        <!-- ========================================
+             NATURE / ADVENTURE SECTION
+             Light green tinted background
+             ======================================== -->
+        <section id="nature-section" class="w-full bg-nature-300">
+            <div class="max-w-6xl mx-auto">
+                
+                <!-- Section Intro -->
+                <div class="section-intro scroll-fade">
+                    <p class="section-intro-text typewriter text-nature-900" data-typewriter>
+                        The mountains have always called to me. Every trail, every peak, has taught me lessons no classroom ever could.
+                    </p>
+                </div>
+
+                <!-- Chapter Card: Mount Kinabalu -->
+                <article class="chapter-card scroll-fade bg-nature-500">
+                    <h2 class="chapter-title text-nature-100">Mount Kinabalu</h2>
+                    <p class="chapter-text text-nature-50">
+                        The altitude, the cold, the challenge—it pushed me beyond what I thought possible. 
+                        Standing at Low's Peak at sunrise, I understood something I couldn't before.
+                    </p>
+
+                    <div class="photo-grid chapter-grid chapter-grid--kinabalu">
+                        <div class="photo-item landscape">
+                            <img src="./resources/Kinabalu/peak-sunrise-landscape.jpeg" alt="Peak Sunrise">
+                        </div>
+                        <div class="photo-item square">
+                            <img src="./resources/Kinabalu/me-at-peak.JPG" alt="Me at Peak">
+                        </div>
+                        <div class="photo-item square blank"></div>
+                        <div class="photo-item square blank"></div>
+                        <div class="photo-item square">
+                            <img src="./resources/Kinabalu/lows-peak-under-stars.jpeg" alt="Low's Peak Under Stars">
+                        </div>
+                        <a href="./articles/mount-kinabalu.html" class="photo-item article-link article-link-short bg-nature-200">
+                            <div class="article-link-inner text-nature-900">
+                                <span class="article-link-label">Read the <br>full story</span>
+                                <span class="article-link-title">Mount Kinabalu</span>
+                                <span class="article-link-arrow">↗</span>
+                            </div>
+                        </a>
+                    </div>
+                </article>
+
+                <!-- Transitional Pull Quote between Kinabalu & TNBYY -->
+                <blockquote class="pull-quote pull-quote-standalone text-nature-900 border-nature-500 scroll-fade">
+                    <p class="pull-quote-text">It's not the mountain we conquer, but ourselves.</p>
+                    <footer class="pull-quote-cite text-nature-700">— Sir Edmund Hillary</footer>
+                </blockquote>
+
+                <!-- Chapter Card: TNBYY -->
+                <article class="chapter-card scroll-fade bg-nature-500">
+                    <h2 class="chapter-title text-nature-100">TNBYY Traverse</h2>
+                    <p class="chapter-text text-nature-50">
+                        Three days, two nights in the jungle. No phone signal, no safety net. 
+                        Just me and the trail.
+                    </p>
+
+                    <!-- Pull Quote from TNBYY article -->
+                    <blockquote class="pull-quote scroll-fade text-nature-50 border-nature-100">
+                        <p class="pull-quote-text">The jungle answered with something better than confidence—honesty.</p>
+                        <footer class="pull-quote-cite text-nature-100">— from my TNBYY journal</footer>
+                    </blockquote>
+
+                    <div class="photo-grid chapter-grid chapter-grid--tnbyy">
+                        <div class="photo-item landscape">
+                            <img src="./resources/TNBYY/merdeka-at-yongyap.jpeg" alt="Merdeka at Yongyap" style="object-position: center 80%;">
+                        </div>
+                        <div class="photo-item square">
+                            <img src="./resources/TNBYY/mossy-vibe.jpg" alt="Mossy Vibe">
+                        </div>
+                        <div class="photo-item square blank"></div>
+                        <a href="./articles/tnbyy-my-first-camphike.html" class="photo-item article-link article-link-short bg-nature-200">
+                            <div class="article-link-inner text-nature-900">
+                                <span class="article-link-label">Read the <br>full story</span>
+                                <span class="article-link-title">TNBYY Camphike</span>
+                                <span class="article-link-arrow">↗</span>
+                            </div>
+                        </a>
+                        <div class="photo-item square">
+                            <img src="./resources/TNBYY/elephant-moss.jpg" alt="Elephant Moss">
+                        </div>
+                        
+                       
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- ========================================
+             TRANSITION SECTION - Gradient bridge
+             ======================================== -->
+        <section id="transition" class="transition-section">
+            <div class="max-w-4xl mx-auto px-6 sm:px-8 lg:px-10">
+                <div class="scroll-fade">
+                    <p class="transition-text">
+                        The same curiosity that drives me into the mountains led me to question our education system and embrace technology.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================
+             EDUCATION / TECH SECTION
+             Light blue tinted background
+             ======================================== -->
+        <section id="tech-section" class="w-full bg-tech-200">
+            <div class="max-w-6xl mx-auto">
+                
+                <!-- Section Intro -->
+                <div class="section-intro scroll-fade">
+                    <p class="section-intro-text typewriter text-tech-900" data-typewriter>
+                        I entered education with optimism. What I found was a system that fails the students it's meant to serve.
+                    </p>
+                </div>
+
+                <!-- Chapter Card: Education & Tech -->
+                <article class="chapter-card scroll-fade bg-tech-900">
+                    <h2 class="chapter-title text-tech-100">Education & Code</h2>
+                    <p class="chapter-text text-tech-200">
+                        Students memorize, not think. Graded on compliance, not creativity.
+                        Kids glued to screens? Don't ban it—teach them to harness it.
+                    </p>
+                    <p class="chapter-text text-tech-200">
+                        So I taught myself to code. HTML, CSS, JavaScript, Python, AI.
+                        Every line is a step toward empowering the next generation.
+                    </p>
+
+                    <!-- Pull Quote from articles -->
+                    <blockquote class="pull-quote scroll-fade text-tech-200 border-tech-400">
+                        <p class="pull-quote-text">The more I learn, the more I realize how much I don't know.</p>
+                        <footer class="pull-quote-cite text-tech-400">— Albert Einstein</footer>
+                    </blockquote>
+
+                    <div class="photo-grid chapter-grid chapter-grid--tech">
+                        <div class="photo-item landscape">
+                            <img src="./resources/education.jpg" alt="Education">
+                        </div>
+                        <div class="photo-item square">
+                            <img src="./resources/kids-playing-phone.jpg" alt="Kids with Phones">
+                        </div>
+                        <div class="photo-item square blank"></div>
+                        <div class="photo-item square blank"></div>
+                        <div class="photo-item square">
+                            <img src="./resources/technology.jpg" alt="Programming">
+                        </div>
+                        <a href="./articles/about-writing.html" class="photo-item article-link article-link-short bg-tech-100">
+                            <div class="article-link-inner text-tech-900">
+                                <span class="article-link-label">Why I write</span>
+                                <span class="article-link-title">About Writing</span>
+                                <span class="article-link-arrow">↗</span>
+                            </div>
+                        </a>
+                    </div>
+                </article>
+
+            </div>
+        </section>
+
     </main>
+    
+    <!-- Scroll Animation Script -->
+    <script>
+        // Intersection Observer for scroll-triggered animations
+        document.addEventListener('DOMContentLoaded', function() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            // Main observer: toggles scroll-fade class + (re)runs typewriter
+            // every time an element enters the viewport, and resets it when
+            // it leaves, so the animation plays on every scroll-past.
+            const observer = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+
+                        // Kick off typewriter (or restart it) for intros
+                        const typeTarget = entry.target.querySelector('[data-typewriter]');
+                        if (typeTarget) {
+                            runTypewriter(typeTarget);
+                        }
+                    } else {
+                        // Element has left the viewport: reset so it replays next time
+                        entry.target.classList.remove('visible');
+
+                        // Also reset any typewriter inside so it restarts from blank
+                        const typeTarget = entry.target.querySelector('[data-typewriter]');
+                        if (typeTarget) {
+                            resetTypewriter(typeTarget);
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            // Observe all scroll-fade elements
+            const fadeElements = document.querySelectorAll('.scroll-fade');
+            fadeElements.forEach(element => {
+                observer.observe(element);
+            });
+
+            // Separate observer for individual photo-item fade-in with stagger.
+            // Also toggles on exit so photos re-fade each time they reappear.
+            const photoObserver = new IntersectionObserver(function(entries) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const delay = parseInt(entry.target.dataset.photoDelay || '0', 10);
+                        entry.target.style.transitionDelay = `${delay}ms`;
+                        entry.target.classList.add('photo-visible');
+                    } else {
+                        // Reset so the fade-in plays again next time
+                        entry.target.classList.remove('photo-visible');
+                    }
+                });
+            }, { threshold: 0.15, rootMargin: '0px 0px -30px 0px' });
+
+            // Register each photo-item (skip blanks) with staggered delay per grid
+            document.querySelectorAll('.photo-grid').forEach(grid => {
+                const items = grid.querySelectorAll('.photo-item:not(.blank)');
+                items.forEach((item, i) => {
+                    item.classList.add('photo-fade');
+                    // Stagger: 80ms per item, capped so later items don't wait too long
+                    item.dataset.photoDelay = Math.min(i * 80, 480);
+                    photoObserver.observe(item);
+                });
+            });
+
+            // Cancellation tokens per element so fast scroll up/down cannot
+            // spawn overlapping typewriter runs on the same paragraph.
+            const typewriterTokens = new WeakMap();
+
+            // Typewriter effect: reveals text char-by-char while KEEPING
+            // the container's final size reserved from the start, so the
+            // layout doesn't shift as characters appear.
+            //
+            // Called every time the intro enters the viewport so the
+            // effect replays on each scroll-past.
+            function runTypewriter(el) {
+                // Cancel any in-flight run on this element
+                const prev = typewriterTokens.get(el);
+                if (prev) prev.cancelled = true;
+
+                // Cache the original text once so we can always restart cleanly
+                if (!el.dataset.originalText) {
+                    el.dataset.originalText = el.textContent.trim();
+                }
+                const fullText = el.dataset.originalText;
+
+                // Clear current content and rebuild the char-span skeleton
+                el.textContent = '';
+                const spans = [];
+                for (const ch of fullText) {
+                    const span = document.createElement('span');
+                    span.className = 'tw-char';
+                    span.textContent = ch;
+                    el.appendChild(span);
+                    spans.push(span);
+                }
+
+                // Activate blinking cursor (stays on as long as typed)
+                el.classList.add('typewriter-active');
+
+                const token = { cancelled: false };
+                typewriterTokens.set(el, token);
+
+                const speed = 22; // ms per character
+                let i = 0;
+
+                function tick() {
+                    if (token.cancelled) return;
+                    if (i < spans.length) {
+                        spans[i].classList.add('tw-visible');
+                        i++;
+                        setTimeout(tick, speed);
+                    }
+                }
+                tick();
+            }
+
+            // Reset typewriter element back to an empty, space-reserved state
+            // so it can be replayed next time it enters the viewport.
+            function resetTypewriter(el) {
+                const prev = typewriterTokens.get(el);
+                if (prev) prev.cancelled = true;
+
+                // Keep the original text cached; just clear rendered content
+                if (!el.dataset.originalText) {
+                    el.dataset.originalText = el.textContent.trim();
+                }
+
+                // Rebuild invisible char spans so the block keeps its size
+                el.textContent = '';
+                for (const ch of el.dataset.originalText) {
+                    const span = document.createElement('span');
+                    span.className = 'tw-char'; // opacity: 0 by default
+                    span.textContent = ch;
+                    el.appendChild(span);
+                }
+
+                // Hide cursor while off-screen
+                el.classList.remove('typewriter-active');
+            }
+
+            // Subtle parallax effect for hero image
+            const heroSection = document.getElementById('hero');
+            const heroImage = heroSection.querySelector('img');
+            
+            window.addEventListener('scroll', function() {
+                const scrolled = window.pageYOffset;
+                const heroHeight = heroSection.offsetHeight;
+                
+                if (scrolled < heroHeight) {
+                    const parallaxSpeed = 0.5;
+                    heroImage.style.transform = `translateY(${scrolled * parallaxSpeed}px)`;
+                }
+            }, { passive: true });
+        });
+    </script>
     
 </body>
 
