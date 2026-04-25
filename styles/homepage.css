@@ -55,6 +55,16 @@ html {
     }
 }
 
+/* Arrow nudge animation - subtle loop to indicate clickability */
+@keyframes arrowNudge {
+    0%, 100% {
+        transform: translate(0, 0);
+    }
+    50% {
+        transform: translate(3px, -3px);
+    }
+}
+
 /* Image reveal - clip path */
 @keyframes imageReveal {
     from {
@@ -149,15 +159,16 @@ html {
     opacity: 0;
     /* Short fade so character 'pops' in cleanly */
     transition: opacity 0.08s linear;
+    /* Preserve whitespace including newlines */
+    white-space: pre-wrap;
 }
 
 .tw-char.tw-visible {
     opacity: 1;
 }
 
-/* Blinking cursor sits inline at the end of the paragraph */
-.typewriter-active::after {
-    content: '|';
+/* Real inline cursor element (inserted by JS) that follows the text */
+.tw-cursor {
     display: inline-block;
     margin-left: 2px;
     font-weight: 300;
@@ -168,6 +179,83 @@ html {
 @keyframes typewriterBlink {
     0%, 50%   { opacity: 1; }
     50.01%, 100% { opacity: 0; }
+}
+
+/* ============================================
+   TITLE CORRECTION EFFECT
+   Hand-drawn cross-out + replacement word
+   ============================================ */
+
+.title-correction {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    position: relative;
+}
+
+/* Word to be crossed out with handwriting overlay */
+.word-to-cross {
+    display: inline-block;
+    position: relative;
+}
+
+/* Handwriting crossout image overlay - positioned over the first word */
+.handwriting-crossout {
+    position: absolute;
+    /* Width, top, and left are set dynamically by JavaScript */
+    height: auto;
+    pointer-events: none;
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    /* Invert colors to white and increase boldness */
+    filter: invert(1) brightness(1.0) contrast(1.5);
+}
+
+/* Animate the handwriting stroke from left to right */
+.scroll-fade.visible .handwriting-crossout {
+    animation: drawCrossout 0.8s 0.3s cubic-bezier(.25, .46, .45, .94) forwards;
+}
+
+@keyframes drawCrossout {
+    0% {
+        clip-path: inset(0 100% 0 0);
+        opacity: 1;
+    }
+    100% {
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+    }
+}
+
+/* Replacement word that fades in after cross-out */
+.word-replacement {
+    display: inline-block;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: opacity 0.8s cubic-bezier(.34, 1.56, .64, 1) 1.2s,
+                transform 0.8s cubic-bezier(.34, 1.56, .64, 1) 1.2s;
+}
+
+/* Trigger replacement word reveal when card becomes visible */
+.scroll-fade.visible .word-replacement {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Disable animations for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .handwriting-crossout {
+        animation: none !important;
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+    }
+    
+    .word-replacement {
+        transition: none !important;
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 /* ============================================
@@ -253,34 +341,34 @@ html {
 
 .section-intro {
     max-width: 48rem;
-    margin-bottom: 2rem;
-    margin-left: 2rem;
-    margin-right: 2rem;
-    padding: 1rem 0;
+    padding: 3rem;
+    margin: 0 auto;
     position: relative;
+    z-index: 1;
+    text-align: center;
 }
 
 /* Decorative accent line above intro */
-.section-intro::before {
+/* .section-intro::before {
     content: '';
     display: block;
     width: 60px;
     height: 3px;
-    margin-bottom: 1.5rem;
+    background-color: currentColor;
+    margin: 0 auto 1rem auto;
     opacity: 0.4;
-}
+} */
 
 .section-intro-text {
     font-family: 'Lato', sans-serif;
     font-size: clamp(1.25rem, 2.5vw, 1.75rem);
     font-weight: 400;
-    line-height: 1.55;
-    letter-spacing: -0.005em;
+    line-height: 1.6;
 }
 
 @media (min-width: 768px) {
     .section-intro {
-        margin-bottom: 5rem;
+        padding: 5rem;
     }
 }
 
@@ -536,6 +624,7 @@ html {
     font-size: 1.5rem;
     line-height: 1;
     transition: transform 0.3s ease;
+    animation: arrowNudge 1.5s ease-in-out infinite;
 }
 
 .article-link:hover .article-link-arrow {
