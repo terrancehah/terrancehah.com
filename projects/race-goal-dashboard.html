@@ -311,6 +311,12 @@
                     </button>
                 </nav>
 
+                <!-- Mobile theme toggle — icon only, sticky bottom-right, above the tab bar -->
+                <button class="rgd-theme-toggle-mobile" id="rgd-theme-toggle-mobile" title="Toggle theme">
+                    <svg class="rgd-theme-toggle-mobile-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    <svg class="rgd-theme-toggle-mobile-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+
                 <!-- Main Content -->
                 <div class="rgd-content" id="rgd-content">
 
@@ -318,6 +324,7 @@
                     <div class="rgd-demo-banner" id="rgd-demo-banner" hidden>
                             <svg class="rgd-demo-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             <span class="rgd-demo-banner-text">You're viewing sample data in demo mode.</span>
+                            <button class="rgd-demo-banner-cta" id="rgd-demo-banner-cta">Connect Garmin</button>
                         </div>
 
                     <!-- ========== PAGE: Overview ========== -->
@@ -401,20 +408,16 @@
                         </section>
                         <!-- Pace Distribution + HR vs Pace: 50/50 side by side on large screens -->
                         <div class="rgd-charts-row">
-                            <section class="rgd-section">
-                                <h3 class="rgd-section-title">Pace Distribution vs Goal Pace</h3>
-                                <p class="rgd-section-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training. Bars show total distance in each band.</p>
-                                <div class="rgd-chart-card">
-                                    <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
-                                </div>
-                            </section>
-                            <section class="rgd-section">
-                                <h3 class="rgd-section-title">HR vs Pace Trend</h3>
-                                <p class="rgd-section-sub">Each dot is a run from the last 12 weeks — pace on the horizontal axis, average heart rate on the vertical. Colour indicates how recent the run is. Over time, dots shifting downward and rightward means you are getting faster at the same heart rate — a key sign of improving fitness.</p>
-                                <div class="rgd-chart-card">
-                                    <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
-                                </div>
-                            </section>
+                            <div class="rgd-chart-card rgd-chart-card--equal">
+                                <h3 class="rgd-card-title">Pace Distribution vs Goal Pace</h3>
+                                <p class="rgd-card-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training.</p>
+                                <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
+                            </div>
+                            <div class="rgd-chart-card rgd-chart-card--equal">
+                                <h3 class="rgd-card-title">HR vs Pace Trend</h3>
+                                <p class="rgd-card-sub">Each dot is a run from the last 12 weeks. Colour indicates recency — darker dots are older. Dots shifting down and right over time means improving fitness.</p>
+                                <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
+                            </div>
                         </div>
                         <section class="rgd-section">
                             <a class="rgd-section-title rgd-section-title--link" href="#activities">Recent Activities</a>
@@ -531,6 +534,11 @@
                             <div class="rgd-summary-error" hidden></div>
                             <button class="rgd-btn rgd-btn-secondary rgd-refresh-btn" id="rgd-refresh-analysis" hidden>Regenerate Insights</button>
                         </section>
+                    </div>
+                    <!-- Demo CTA — shown at the bottom of every page in demo mode -->
+                    <div class="rgd-demo-cta" id="rgd-demo-cta" hidden>
+                        <p class="rgd-demo-cta-text">Connect your Garmin account to see your real training data and AI-powered insights.</p>
+                        <button class="rgd-btn rgd-btn-primary rgd-demo-cta-btn" id="rgd-demo-cta-btn">Connect Garmin</button>
                     </div>
                 </div>
             </div>

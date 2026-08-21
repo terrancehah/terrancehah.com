@@ -678,6 +678,54 @@ header.rgd-header-offset.rgd-header-collapsed {
     background: rgba(107, 163, 208, 0.15);
 }
 
+/* Mobile theme toggle — icon only, sticky bottom-right, above the tab bar */
+.rgd-theme-toggle-mobile {
+    display: none; /* hidden on desktop, shown via media query */
+    position: fixed;
+    top: 0.7rem; /* sits above the tab bar (bottom 1.5rem + height 3.5rem + 2rem gap) */
+    right: 1.5rem;
+    z-index: 30;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 40%;
+    border: 0.0625rem solid var(--rgd-border);
+    background: var(--rgd-surface);
+    box-shadow: 0 0.125rem 0.5rem rgba(29, 53, 87, 0.12);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--rgd-muted);
+    transition: background-color 0.3s ease, color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Hidden on desktop — only shown on mobile via media query override */
+@media (min-width: 48.0625rem) {
+    .rgd-theme-toggle-mobile { display: none !important; }
+}
+
+@media (max-width: 48rem) {
+    .rgd-theme-toggle-mobile { display: flex; }
+}
+
+.rgd-theme-toggle-mobile:hover { color: var(--rgd-navy); }
+.rgd-theme-toggle-mobile:active { transform: scale(0.9); }
+
+/* Show sun icon in dark mode, moon icon in light mode */
+[data-theme="dark"] .rgd-theme-toggle-mobile-sun { display: block; }
+[data-theme="dark"] .rgd-theme-toggle-mobile-moon { display: none; }
+[data-theme="light"] .rgd-theme-toggle-mobile-sun { display: none; }
+[data-theme="light"] .rgd-theme-toggle-mobile-moon { display: block; }
+
+/* Dark mode styling for the toggle itself */
+[data-theme="dark"] .rgd-theme-toggle-mobile {
+    background: rgba(22, 34, 52, 0.9);
+    border-color: rgba(42, 63, 86, 0.6);
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
+    color: #a8c5e8;
+}
+
 /* ---- Sidebar ---- */
 .rgd-sidebar {
     width: var(--rgd-sidebar-w);
@@ -1053,6 +1101,53 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-label);
     color: var(--rgd-muted);
+    flex: 1;
+}
+
+/* "Connect Garmin" button inside the demo banner */
+.rgd-demo-banner-cta {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: #fff;
+    background: var(--rgd-blue);
+    border: none;
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.35rem 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.rgd-demo-banner-cta:hover { background: #3a6b8a; }
+.rgd-demo-banner-cta:active { transform: scale(0.96); }
+
+/* Bottom-of-page demo CTA — shown on every page in demo mode */
+.rgd-demo-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+    padding: clamp(1.5rem, 3vw, 2.5rem) 1rem;
+    margin-top: clamp(1rem, 2vw, 2rem);
+    border-top: 0.0625rem solid var(--rgd-border);
+}
+
+.rgd-demo-cta[hidden] { display: none; }
+
+.rgd-demo-cta-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-muted);
+    max-width: 28rem;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.rgd-demo-cta-btn {
+    padding: 0.6rem 1.5rem;
 }
 
 .rgd-page { display: flex; flex-direction: column; gap: clamp(1.25rem, 2.5vw, 2rem); }
@@ -1453,7 +1548,27 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-weight: 700;
     font-size: var(--rgd-text-subheading);
     color: var(--rgd-navy);
+    margin: 0 0 0.35rem;
+}
+
+/* Subtitle / explanation text inside a chart card */
+.rgd-card-sub {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
     margin: 0 0 0.75rem;
+    line-height: 1.4;
+}
+
+/* Equal-height chart cards — grid's default `align-items: stretch` already
+   makes both cards in a row the same height. We only need height:100% on the
+   card so its background/border fills the stretched grid cell. The canvas
+   keeps the global 20rem max-height cap (set on .rgd-chart-canvas below) to
+   avoid a circular height dependency that caused infinite growth. */
+.rgd-chart-card--equal {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .rgd-chart-wrap { width: 100%; height: clamp(10rem, 20vw, 14rem); }

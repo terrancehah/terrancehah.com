@@ -184,7 +184,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (labelEl) labelEl.textContent = theme === 'dark' ? 'Dark' : 'Light';
     }
 
-    themeToggle.addEventListener('click', () => {
+    // Shared toggle handler — flips theme and re-renders charts
+    function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') || 'light';
         applyTheme(current === 'light' ? 'dark' : 'light');
         // Re-render charts so label/grid colors adapt to the new theme
@@ -198,11 +199,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderMileageChart(lastMileageWeeks);
             }
         }
-    });
+    }
 
-    // Restore saved theme on load (default to light)
-    const savedTheme = localStorage.getItem('rgd_theme') || 'light';
-    applyTheme(savedTheme);
+    themeToggle.addEventListener('click', toggleTheme);
+
+    // Mobile theme toggle — same behaviour, floating button on small screens
+    const mobileThemeToggle = $('#rgd-theme-toggle-mobile');
+    if (mobileThemeToggle) {
+        mobileThemeToggle.addEventListener('click', toggleTheme);
+    }
+
+    // Auto-detect theme from browser local time:
+    // Dark mode between 7pm–7am, light mode during the day.
+    // If user explicitly toggled, use their saved preference instead.
+    function getAutoTheme() {
+        const hour = new Date().getHours();
+        return (hour >= 19 || hour < 7) ? 'dark' : 'light';
+    }
+
+    const savedTheme = localStorage.getItem('rgd_theme');
+    applyTheme(savedTheme || getAutoTheme());
 
     // Hash-based page routing
     function getPageFromHash() {
@@ -350,6 +366,9 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
         localStorage.setItem('rgd_session_token', 'demo');
         window.__demoMode = true;
+        // Show demo CTAs across all pages
+        const demoCta = $('#rgd-demo-cta');
+        if (demoCta) demoCta.hidden = false;
         showDashboard();
     }
 
@@ -1884,11 +1903,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 $('#rgd-settings-email').textContent = '--';
                 $('#rgd-settings-device').textContent = '--';
             }
+            // Real session — show disconnect button
+            settingsLogoutBtn.textContent = 'Disconnect Garmin';
+            settingsLogoutBtn.className = 'rgd-btn rgd-btn-danger';
         } else {
-            // Demo mode — show placeholder
+            // Demo mode — show placeholder + connect button
             $('#rgd-settings-name').textContent = 'Demo Runner';
             $('#rgd-settings-email').textContent = 'demo@example.com';
             $('#rgd-settings-device').textContent = 'Demo Device';
+            settingsLogoutBtn.textContent = 'Connect Garmin';
+            settingsLogoutBtn.className = 'rgd-btn rgd-btn-primary';
         }
         settingsPopup.hidden = false;
     }
@@ -1902,11 +1926,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === settingsPopup) closeSettingsPopup();
     });
 
-    // Logout from within the settings popup
+    // Settings popup action button — disconnect if logged in, connect if demo
     settingsLogoutBtn.addEventListener('click', () => {
-        if (confirm('Disconnect your Garmin account? You will return to demo mode.')) {
+        if (sessionToken && sessionToken !== 'demo') {
+            if (confirm('Disconnect your Garmin account? You will return to demo mode.')) {
+                closeSettingsPopup();
+                logout();
+            }
+        } else {
             closeSettingsPopup();
-            logout();
+            openLoginModal();
         }
     });
 
@@ -1918,6 +1947,12 @@ document.addEventListener('DOMContentLoaded', function () {
             openSettingsPopup();
         });
     }
+
+    // Demo CTA buttons — open the login modal to connect Garmin
+    const demoBannerCta = $('#rgd-demo-banner-cta');
+    const demoPageCtaBtn = $('#rgd-demo-cta-btn');
+    if (demoBannerCta) demoBannerCta.addEventListener('click', openLoginModal);
+    if (demoPageCtaBtn) demoPageCtaBtn.addEventListener('click', openLoginModal);
 
     // Logout function — shared between settings and session expiry
     async function logout() {
@@ -1951,6 +1986,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const cachedRaceGoal = localStorage.getItem('rgd_race_goal');
         const hasCachedRaceGoal = cachedRaceGoal && cachedRaceGoal !== 'null';
         window.__demoMode = false;
+        // Hide demo CTAs since we have a real session
+        const demoCta = $('#rgd-demo-cta');
+        if (demoCta) demoCta.hidden = true;
 
         // Show dashboard immediately from cached data — no flash of demo mode
         // while waiting for the check-session network round-trip
