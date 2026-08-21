@@ -65,6 +65,7 @@
     width: 100%;
     display: flex;
     background: var(--rgd-bg);
+    min-height: 100dvh;
 }
 
 .rgd-screen {
