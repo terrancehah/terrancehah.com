@@ -26,27 +26,34 @@ from garminconnect import (
 
 
 class _StripPrefixMiddleware:
-    """ASGI middleware that strips a path prefix from incoming HTTP requests.
+    """ASGI middleware that strips path prefixes ending with the function name.
 
-    In Vercel file-based mode, the full request path (e.g. /api/garmin-auth) is
-    passed to each function's ASGI app. Routes are defined at "/", so without
-    stripping the prefix FastAPI returns 404. This middleware rewrites the ASGI
-    scope's path by removing the /api/<function_name> prefix before the request
-    reaches FastAPI's router.
+    In Vercel file-based mode, the full request path is passed to each
+    function's ASGI app. For direct routes this is /api/<function_name>; for
+    rewritten routes (e.g. /projects/race-goal-dashboard/api/<function_name>)
+    Vercel passes the ORIGINAL pre-rewrite path. Both need to be stripped
+    down to "/" so routes defined at @app.get("/") or @app.post("/") match.
+
+    This middleware strips any prefix that ends with /<function_name>,
+    handling both direct /api/<name> and rewritten /projects/.../api/<name>
+    paths.
     """
 
-    def __init__(self, app, prefix):
+    def __init__(self, app, function_name):
         self.app = app
-        self.prefix = prefix
+        # The suffix to match: e.g. "/check-session"
+        self.suffix = f"/{function_name}"
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             path = scope.get("path", "")
-            if path.startswith(self.prefix):
-                # Strip the prefix; keep the remainder or default to "/"
-                remaining = path[len(self.prefix):]
-                scope["path"] = remaining if remaining else "/"
-                scope["raw_path"] = scope["path"].encode()
+            # If the path ends with /<function_name>, strip the entire path
+            # down to "/" so routes at @app.get("/") match. This handles both
+            # direct /api/<name> and rewritten /projects/.../api/<name> paths
+            # since Vercel passes the original pre-rewrite path to the function.
+            if path.endswith(self.suffix):
+                scope["path"] = "/"
+                scope["raw_path"] = b"/"
         await self.app(scope, receive, send)
 
 
@@ -55,20 +62,19 @@ def create_app(function_name: str) -> FastAPI:
 
     Wraps the app with two middlewares (CORS outermost, prefix-stripping inner):
     1. CORSMiddleware — handles cross-origin requests from the frontend.
-    2. _StripPrefixMiddleware — strips /api/<function_name> from the request
-       path so routes defined at "/" match what Vercel sends.
+    2. _StripPrefixMiddleware — strips any path prefix ending with
+       /<function_name> so routes defined at "/" match what Vercel sends,
+       whether from direct /api/<name> or rewritten /projects/.../api/<name>.
 
     Args:
         function_name: The filename without .py (e.g. "garmin-auth"). Used to
-                       build the prefix "/api/<function_name>" to strip.
+                       match the suffix to strip from the request path.
     """
     app = FastAPI()
 
-    prefix = f"/api/{function_name}"
-
     # Add prefix-stripping first (becomes inner middleware — runs after CORS,
     # before FastAPI's router sees the path).
-    app.add_middleware(_StripPrefixMiddleware, prefix=prefix)
+    app.add_middleware(_StripPrefixMiddleware, function_name=function_name)
 
     # Add CORS second (becomes outer middleware — handles preflight OPTIONS
     # and injects CORS headers on all responses).
