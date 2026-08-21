@@ -1,0 +1,5 @@
+[tool.vercel]
+# Tell Vercel this is a FastAPI project — enables the framework preset so ALL
+# requests route to the single FastAPI function (instead of file-based routing
+# which only serves /api and 404s on every sub-path).
+entrypoint = "api/index.py:app"

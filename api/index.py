@@ -148,9 +148,11 @@ Rules:
 BASE_DIR = Path(__file__).resolve().parent
 
 # Determine root_path based on environment
-# In production (Vercel), we're served at /projects/persona
+# In production (Vercel), the FastAPI function is mounted at /api, so all
+# incoming paths start with /api — FastAPI strips this prefix before route
+# matching (e.g. /api/race-goal/auth becomes /race-goal/auth).
 # Locally, we might be at /api or root
-root_path = os.getenv("ROOT_PATH", "/projects/persona")
+root_path = os.getenv("ROOT_PATH", "/api")
 
 app = FastAPI(root_path=root_path)
 
