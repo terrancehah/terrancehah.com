@@ -793,13 +793,15 @@ header.rgd-header-offset.rgd-header-collapsed {
     cursor: pointer;
     padding: 0.125rem;
     border-radius: 0.25rem;
-    opacity: 0;
+    /* Always visible — no longer hidden until hover */
+    opacity: 0.5;
     transition: opacity 0.15s ease, color 0.15s ease;
     flex-shrink: 0;
 }
 
-.rgd-sidebar-goal-row:hover .rgd-reset-goal-icon { opacity: 0.6; }
-.rgd-reset-goal-icon:hover { opacity: 1 !important; color: var(--rgd-accent-red); }
+/* Brighten on hover using the project's blue accent — no red */
+.rgd-sidebar-goal-row:hover .rgd-reset-goal-icon { opacity: 0.8; }
+.rgd-reset-goal-icon:hover { opacity: 1 !important; color: var(--rgd-blue); }
 
 /* Sidebar nav */
 .rgd-sidebar-nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
