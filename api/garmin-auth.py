@@ -15,7 +15,7 @@ from garminconnect import (
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import GarminAuthRequest, _race_sessions, _save_sessions_to_disk, create_app
+from lib._shared import GarminAuthRequest, _save_session, _update_session, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/garmin-auth so routes at "/" match)
@@ -60,15 +60,16 @@ async def garmin_auth(body: GarminAuthRequest):
             "detail": str(e)
         })
 
-    # Create a session — store credentials for lazy re-authentication after restarts
+    # Create a session — store credentials for lazy re-authentication.
+    # The Garmin client object is NOT stored (can't be serialized for Redis);
+    # it is re-created from email+password by _get_garmin_client when needed.
     token = str(uuid.uuid4())
-    _race_sessions[token] = {
-        "garmin_client": client,
+    _save_session(token, {
         "email": body.email,
         "password": body.password,
         "race_goal": None,
         "created_at": datetime.now().isoformat(),
-    }
+    })
 
     # Fetch display name — fallback to email username if Garmin doesn't provide one
     display_name = getattr(client, "display_name", None) or body.email.split("@")[0]
@@ -114,13 +115,12 @@ async def garmin_auth(body: GarminAuthRequest):
         pass
 
     # Store profile info in session for later use (check-session returns these)
-    _race_sessions[token]["display_name"] = display_name
-    _race_sessions[token]["full_name"] = full_name
-    _race_sessions[token]["profile_image_url"] = profile_image_url
-    _race_sessions[token]["device_name"] = device_name
-
-    # Persist session to disk so it survives server restarts
-    _save_sessions_to_disk()
+    _update_session(token, {
+        "display_name": display_name,
+        "full_name": full_name,
+        "profile_image_url": profile_image_url,
+        "device_name": device_name,
+    })
 
     return JSONResponse(content={
         "session_token": token,

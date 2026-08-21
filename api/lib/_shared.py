@@ -2,16 +2,26 @@
 
 This file lives in api/lib/ so Vercel doesn't treat it as a serverless
 function (only .py files directly in api/ become functions). It contains
-the session store, Garmin client helpers, and Pydantic models used across
-all race-goal endpoint files.
+the session store (backed by Upstash Redis), Garmin client helpers, and
+Pydantic models used across all race-goal endpoint files.
+
+Session storage architecture:
+  In Vercel's file-based serverless mode, each api/*.py file is a separate
+  function with its own isolated memory and /tmp directory. To share session
+  state across functions, we use Upstash Redis as an external store. Only
+  serializable data (credentials, race goal, profile info) is stored — the
+  live Garmin client object is re-created from credentials on each request
+  that needs it (see _get_garmin_client).
+
+  For local development without Redis configured, an in-memory dict fallback
+  is used automatically when UPSTASH env vars are not present.
 """
 
 import os
 import json
 import uuid
 from datetime import datetime, date, timedelta
-from typing import Dict
-from pathlib import Path
+from typing import Dict, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -113,105 +123,150 @@ class RaceGoalRequest(BaseModel):
 class AnalysisRequest(BaseModel):
     session_token: str
 
-# --- In-memory session store ---
-# Key: session_token (str), Value: dict with garmin_client, race_goal, etc.
-# Sessions are persisted to disk so they survive server restarts.
-# The Garmin client object can't be serialized, so it's stored only in memory
-# and lazily re-created from saved credentials on the first API call after a restart.
-_race_sessions: Dict[str, dict] = {}
+# --- Redis-backed session store ---
+#
+# Upstash Redis is used as the shared session store so that all serverless
+# functions can read/write session state. The Vercel Upstash integration
+# injects env vars with a configurable prefix — we check multiple possible
+# names to handle different prefix configurations.
+#
+# The custom prefix "STORAGE" was set in the Vercel dashboard, so the env
+# vars are likely STORAGE_REDIS_REST_URL / STORAGE_REDIS_REST_TOKEN.
+# We also check the default UPSTASH_REDIS_REST_* names as a fallback.
 
-# Path to the session persistence file (stored in /tmp for Vercel serverless,
-# which is the only writable directory in production)
-_RACE_SESSIONS_FILE = Path("/tmp/.race_sessions.json")
+_redis_url = (
+    os.getenv("STORAGE_REDIS_REST_URL")
+    or os.getenv("STORAGE_URL")
+    or os.getenv("UPSTASH_REDIS_REST_URL")
+)
+_redis_token = (
+    os.getenv("STORAGE_REDIS_REST_TOKEN")
+    or os.getenv("STORAGE_TOKEN")
+    or os.getenv("UPSTASH_REDIS_REST_TOKEN")
+)
+
+# Initialize Redis client if env vars are present (production / preview envs).
+# Falls back to None for local dev — _local_sessions dict is used instead.
+_redis = None
+if _redis_url and _redis_token:
+    from upstash_redis import Redis
+    _redis = Redis(url=_redis_url, token=_redis_token)
+
+# In-memory fallback for local development when Redis is not configured.
+# This is NOT shared across processes — only use for local testing.
+_local_sessions: Dict[str, dict] = {}
+
+# Redis key prefix and session TTL (sliding expiration)
+SESSION_PREFIX = "race:session:"
+SESSION_TTL = 3600 * 12  # 12 hours — refreshed on each successful access
 
 
-def _save_sessions_to_disk():
-    """Persist session metadata (excluding the live Garmin client) to disk.
+def _save_session(token: str, data: dict, ttl: int = SESSION_TTL):
+    """Save a session to Redis (or local fallback).
 
-    Stores email + password so the Garmin client can be re-created after a
-    server restart. In production (Vercel), /tmp is the only writable directory.
+    Strips the garmin_client field before saving since the Garmin client
+    object is not JSON-serializable. The client is lazily re-created from
+    stored credentials by _get_garmin_client when needed.
     """
-    serializable = {}
-    for token, sess in _race_sessions.items():
-        serializable[token] = {
-            "email": sess.get("email", ""),
-            "password": sess.get("password", ""),
-            "race_goal": sess.get("race_goal"),
-            "created_at": sess.get("created_at", ""),
-            "display_name": sess.get("display_name", ""),
-            "full_name": sess.get("full_name", ""),
-            "profile_image_url": sess.get("profile_image_url", ""),
-            "device_name": sess.get("device_name", ""),
-        }
-    try:
-        with open(_RACE_SESSIONS_FILE, "w") as f:
-            json.dump(serializable, f, indent=2)
-    except Exception:
-        pass  # Non-fatal — sessions still work in-memory
+    # Remove any non-serializable fields before persisting
+    clean = {k: v for k, v in data.items() if k != "garmin_client"}
+    if _redis:
+        _redis.set(f"{SESSION_PREFIX}{token}", json.dumps(clean), ex=ttl)
+    else:
+        _local_sessions[token] = clean
 
-
-def _load_sessions_from_disk():
-    """Load saved sessions from disk on server startup.
-
-    The Garmin client is NOT restored here — it's lazily re-created on the
-    first API call that needs it (see _get_garmin_client).
-    """
-    if not _RACE_SESSIONS_FILE.exists():
-        return
-    try:
-        with open(_RACE_SESSIONS_FILE, "r") as f:
-            saved = json.load(f)
-        for token, sess in saved.items():
-            _race_sessions[token] = {
-                "garmin_client": None,
-                "email": sess.get("email", ""),
-                "password": sess.get("password", ""),
-                "race_goal": sess.get("race_goal"),
-                "created_at": sess.get("created_at", ""),
-                "display_name": sess.get("display_name", ""),
-                "full_name": sess.get("full_name", ""),
-                "profile_image_url": sess.get("profile_image_url", ""),
-                "device_name": sess.get("device_name", ""),
-            }
-    except Exception:
-        pass  # Corrupt file — start fresh
-
-
-# Load persisted sessions when the module initializes
-_load_sessions_from_disk()
-
-
-# --- Session helpers ---
 
 def _get_session(token: str) -> dict:
-    """Retrieve session or raise 401."""
-    sess = _race_sessions.get(token)
-    if not sess:
-        raise HTTPException(status_code=401, detail="Session expired or invalid. Please log in again.")
-    return sess
+    """Retrieve a session from Redis (or local fallback).
+
+    Raises HTTPException(401) if the token doesn't exist or has expired.
+    Refreshes the TTL on each successful access (sliding expiration) so
+    active sessions stay alive while inactive ones expire after 12 hours.
+    """
+    if _redis:
+        raw = _redis.get(f"{SESSION_PREFIX}{token}")
+        if not raw:
+            raise HTTPException(
+                status_code=401,
+                detail="Session expired or invalid. Please log in again."
+            )
+        # upstash-redis may return the value as a string or bytes
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        sess = json.loads(raw)
+        # Sliding expiration — refresh TTL on each successful access
+        _redis.expire(f"{SESSION_PREFIX}{token}", SESSION_TTL)
+        return sess
+    else:
+        sess = _local_sessions.get(token)
+        if not sess:
+            raise HTTPException(
+                status_code=401,
+                detail="Session expired or invalid. Please log in again."
+            )
+        return sess
+
+
+def _update_session(token: str, updates: dict):
+    """Merge updates into an existing session and re-save.
+
+    Reads the current session, applies the updates dict, and saves back.
+    Used by endpoints like onboarding that modify part of a session
+    (e.g. setting race_goal after the session was created by garmin-auth).
+    """
+    sess = _get_session(token)
+    sess.update({k: v for k, v in updates.items() if k != "garmin_client"})
+    if _redis:
+        _redis.set(f"{SESSION_PREFIX}{token}", json.dumps(sess), ex=SESSION_TTL)
+    else:
+        _local_sessions[token] = sess
+
+
+def _delete_session(token: str):
+    """Remove a session from Redis (or local fallback)."""
+    if _redis:
+        _redis.delete(f"{SESSION_PREFIX}{token}")
+    else:
+        _local_sessions.pop(token, None)
+
+
+def _session_exists(token: str) -> bool:
+    """Check if a session token exists without raising 401.
+
+    Used by check-session which returns a JSON {valid: false} response
+    instead of an error when the token is missing.
+    """
+    if _redis:
+        return _redis.exists(f"{SESSION_PREFIX}{token}") > 0
+    else:
+        return token in _local_sessions
 
 
 def _get_garmin_client(token: str) -> Garmin:
-    """Retrieve the authenticated Garmin client from a session.
+    """Re-create an authenticated Garmin client from stored credentials.
 
-    If the client is missing (e.g. after a server restart where the session
-    was restored from disk but the live client couldn't be), re-create it
-    by re-authenticating with the stored credentials.
+    The Garmin client object cannot be serialized, so it is NOT stored in
+    Redis. Each call re-creates the client by logging in with the email
+    and password stored in the session. This is the correct serverless
+    pattern — stateless functions with external state storage.
+
+    Raises HTTPException(401) if credentials are missing or login fails.
     """
     sess = _get_session(token)
-    client = sess.get("garmin_client")
-    if client:
-        return client
-
     email = sess.get("email", "")
     password = sess.get("password", "")
     if not email or not password:
-        raise HTTPException(status_code=401, detail="Garmin session not found. Please log in again.")
+        raise HTTPException(
+            status_code=401,
+            detail="Garmin session not found. Please log in again."
+        )
 
     try:
         client = Garmin(email, password)
         client.login()
-        sess["garmin_client"] = client
         return client
     except Exception:
-        raise HTTPException(status_code=401, detail="Garmin re-authentication failed. Please log in again.")
+        raise HTTPException(
+            status_code=401,
+            detail="Garmin re-authentication failed. Please log in again."
+        )

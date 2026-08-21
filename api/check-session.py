@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _race_sessions, create_app
+from lib._shared import _session_exists, _get_session, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -23,9 +23,9 @@ async def check_session(token: str = ""):
     display_name — if it looks like a UUID, fall back to full_name instead.
     This fixes sessions created before the UUID detection was added.
     """
-    if not token or token not in _race_sessions:
+    if not token or not _session_exists(token):
         return JSONResponse(content={"valid": False})
-    sess = _race_sessions[token]
+    sess = _get_session(token)
     raw_display = sess.get("display_name", "")
     full_name = sess.get("full_name", "")
     # If display_name looks like a UUID, prefer full_name

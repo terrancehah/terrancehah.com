@@ -9,7 +9,7 @@ from openai import AsyncOpenAI
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, create_app
+from lib._shared import _get_session, _get_garmin_client, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/ai-radar so routes at "/" match)
@@ -25,12 +25,11 @@ async def ai_radar(token: str = ""):
     threshold, aerobic endurance, running economy, strength/durability, VO2max/speed,
     fatigue resistance), each with specific strengths and gaps referencing real data.
     """
+    # _get_garmin_client re-creates the Garmin client from stored credentials
+    # (raises 401 if the session is invalid or credentials are missing)
+    client = _get_garmin_client(token)
     sess = _get_session(token)
-    client = sess.get("garmin_client")
     race_goal = sess.get("race_goal")
-
-    if not client:
-        return JSONResponse(status_code=401, content={"error": "Garmin session not found."})
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:

@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, create_app
+from lib._shared import _get_garmin_client, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/radar so routes at "/" match)
@@ -17,10 +17,9 @@ app = create_app("radar")
 @app.get("/")
 async def radar(token: str = ""):
     """Return estimated scores for the 6 race-goal dimensions based on real Garmin data."""
-    sess = _get_session(token)
-    client = sess.get("garmin_client")
-    if not client:
-        return JSONResponse(status_code=401, content={"error": "Garmin session not found."})
+    # _get_garmin_client re-creates the Garmin client from stored credentials
+    # (raises 401 if the session is invalid or credentials are missing)
+    client = _get_garmin_client(token)
 
     today = date.today().isoformat()
     radar = {

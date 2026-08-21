@@ -8,7 +8,7 @@ from datetime import datetime
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, _save_sessions_to_disk, create_app
+from lib._shared import _get_session, _update_session, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/onboarding so routes at "/" match)
@@ -31,10 +31,12 @@ async def onboarding(
     """Save the user's race goal to their session.
 
     Accepts form data (multipart/form-data) from the dashboard onboarding form.
-    The race goal is stored in the session and persisted to disk so it survives
-    server restarts. All fields except token are optional with empty defaults.
+    The race goal is stored in the session (Redis in production, in-memory
+    locally) with a sliding 12-hour TTL. All fields except token are optional
+    with empty defaults.
     """
-    sess = _get_session(token)
+    # Validate the session exists (raises 401 if not)
+    _get_session(token)
     goal = {
         "purpose": purpose,
         "distance": distance,
@@ -47,7 +49,6 @@ async def onboarding(
         "age": age,
         "saved_at": datetime.now().isoformat(),
     }
-    sess["race_goal"] = goal
-    # Persist updated race goal to disk
-    _save_sessions_to_disk()
+    # Merge the race goal into the existing session and re-save to Redis
+    _update_session(token, {"race_goal": goal})
     return JSONResponse(content={"message": "Race goal saved.", "goal": goal})
