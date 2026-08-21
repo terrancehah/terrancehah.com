@@ -1,2 +1,15 @@
+[project]
+name = "terrancehah-com"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.121.2",
+    "openai==2.8.1",
+    "pydantic==2.12.4",
+    "python-dotenv==1.2.1",
+    "python-multipart==0.0.20",
+    "garminconnect==0.3.11",
+]
+
 [tool.vercel]
 entrypoint = "api/index.py:app"
