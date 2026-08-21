@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# Session persistence (contains Garmin credentials — never commit)
+.race_sessions.json
+
 # Dependencies
 node_modules
 

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Compiled Tailwind + shared base styles (maintained convention uses ../styles) -->
+        <link href="../styles/output.css" rel="stylesheet">
+        <link href="../styles/style.css" type="text/css" rel="stylesheet">
+        <!-- Dashboard-specific styles for this tool (semantic classes, no Tailwind build needed) -->
+        <link href="./running-posture-analyser.css" type="text/css" rel="stylesheet">
+        <link rel="icon" href="../resources/TH-logo.png" type="image/x-icon">
+        <meta property="og:title" content="Running Posture Analyser - Terrance's Playground">
+        <meta property="og:description" content="Upload side-view running photos and get a structured running form analysis.">
+        <meta property="og:image" content="https://terrancehah.com/resources/TH-logo.png">
+        <meta property="og:type" content="article">
+        <meta property="og:url" content="https://terrancehah.com/projects/running-posture-analyser.html">
+
+        <title>Running Posture Analyser - Terrance's Playground</title>
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+        </style>
+        <!-- Vercel Analytics -->
+        <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+        </script>
+        <script defer src="/_vercel/insights/script.js"></script>
+        <!-- Vercel Speed Insights -->
+        <script>
+        window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+        </script>
+        <script defer src="/_vercel/speed-insights/script.js"></script>
+    </head>
+
+    <body class="m-0 relative h-full bg-white overflow-x-hidden">
+        <header class="w-full inline-block">
+            <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
+                <!-- Left: Title -->
+                <div class="flex flex-col md:flex-row items-center w-auto md:w-80 gap-1">
+                    <h1 class="font-lato font-semibold text-[#1d3557] text-2xl md:text-3xl p-0 text-center sm:text-left sm:w-auto">
+                        Terrance's Playground
+                    </h1>
+                </div>
+
+                <!-- Middle: Nav buttons -->
+                <nav class="flex flex-wrap justify-center gap-2">
+                    <a href="../index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-[#c0e9fc]">Home</a>
+                    <a href="../articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-[#c0e9fc]">Articles</a>
+                    <a href="../projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-[#c0e9fc] bg-[#c0e9fc]">Projects</a>
+                    <a href="../playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl text-[#457B9D] hover:bg-[#c0e9fc]">Playground</a>
+                </nav>
+
+                <!-- Right side: Social Icons -->
+                <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
+                    <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
+                        <img src="../resources/facebook.png" alt="facebook" class="w-full h-full">
+                    </a>
+                    <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
+                        <img src="../resources/instagram.png" alt="instagram" class="w-full h-full">
+                    </a>
+                    <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
+                        <img src="../resources/x.png" alt="x" class="w-full h-full">
+                    </a>
+                    <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
+                        <img src="../resources/linkedin.png" alt="linkedin" class="w-full h-full">
+                    </a>
+                    <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
+                        <img src="../resources/github.png" alt="github" class="w-full h-full">
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main class="rpa-main">
+            <!-- Intro / page heading -->
+            <section class="rpa-intro">
+                <!-- <span class="rpa-eyebrow">Side View Only</span> -->
+                <h2 class="rpa-title">Running Posture Analyser</h2>
+                <p class="rpa-subtitle">
+                    Upload side-view photos from your running video and get a clear, structured read on your form.
+                    No scores, no drills &mdash; just observations on what the photos show.
+                </p>
+                <p class="rpa-privacy-note">Your photos are processed for this session only and are not stored on the server.</p>
+                <div class="rpa-intro-actions">
+                    <button type="button" class="rpa-btn rpa-btn-ghost" id="rpa-demo-btn">
+                        View Demo Dashboard
+                    </button>
+                </div>
+            </section>
+
+            
+
+            <!-- Runner profile: optional context to tailor the analysis -->
+            <section class="rpa-section" aria-labelledby="rpa-profile-heading">
+                <h3 id="rpa-profile-heading" class="rpa-section-heading">Your running profile</h3>
+                <p class="rpa-section-lead">
+                    Optional, but it helps tailor the observations to you. Nothing here is stored on the server.
+                </p>
+
+                <form class="rpa-profile-form" id="rpa-profile-form">
+                    <!-- Body metrics -->
+                    <fieldset class="rpa-field-group">
+                        <legend class="rpa-group-legend">Body metrics</legend>
+
+                        <!-- Switches height/weight fields between metric and imperial -->
+                        <!-- <div class="rpa-unit-toggle" role="group" aria-label="Measurement units">
+                            <button type="button" class="rpa-unit-btn is-active" data-units="metric">Metric</button>
+                            <button type="button" class="rpa-unit-btn" data-units="imperial">Imperial</button>
+                        </div> -->
+
+                        <div class="rpa-field-grid">
+                            <!-- Height (metric) -->
+                            <label class="rpa-field" data-unit-field="metric">
+                                <span class="rpa-field-label">Height</span>
+                                <span class="rpa-input-wrap">
+                                    <input type="number" class="rpa-input" id="rpa-height-cm" min="0" placeholder="e.g. 175" inputmode="numeric" required>
+                                    <span class="rpa-input-suffix">cm</span>
+                                </span>
+                            </label>
+                            <!-- Weight (metric) -->
+                            <label class="rpa-field" data-unit-field="metric">
+                                <span class="rpa-field-label">Weight</span>
+                                <span class="rpa-input-wrap">
+                                    <input type="number" class="rpa-input" id="rpa-weight-kg" min="0" placeholder="e.g. 68" inputmode="numeric" required>
+                                    <span class="rpa-input-suffix">kg</span>
+                                </span>
+                            </label>
+                            
+                            <!-- Age -->
+                            <label class="rpa-field">
+                                <span class="rpa-field-label">Age</span>
+                                <span class="rpa-input-wrap">
+                                    <input type="number" class="rpa-input" id="rpa-age" min="0" max="120" placeholder="e.g. 30" inputmode="numeric" required>
+                                    <span class="rpa-input-suffix">yrs</span>
+                                </span>
+                            </label>
+                            <!-- Gender -->
+                            <label class="rpa-field">
+                                <span class="rpa-field-label">Gender</span>
+                                <select class="rpa-select" id="rpa-gender" required>
+                                    <option value="">Select gender</option>
+                                    <option value="female">Female</option>
+                                    <option value="male">Male</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Training profile -->
+                    <fieldset class="rpa-field-group">
+                        <legend class="rpa-group-legend">Training profile</legend>
+                        <div class="rpa-field-grid">
+                            <!-- Experience level as a segmented control -->
+                            <!-- <div class="rpa-field rpa-field--full">
+                                <span class="rpa-field-label">Experience</span>
+                                <div class="rpa-segment" role="group" aria-label="Experience level" id="rpa-experience">
+                                    <button type="button" class="rpa-segment-btn" data-value="beginner">Beginner</button>
+                                    <button type="button" class="rpa-segment-btn" data-value="intermediate">Intermediate</button>
+                                    <button type="button" class="rpa-segment-btn" data-value="advanced">Advanced</button>
+                                </div>
+                            </div> -->
+                            <!-- Monthly running volume -->
+                            <label class="rpa-field">
+                                <span class="rpa-field-label">Monthly running volume</span>
+                                <span class="rpa-input-wrap">
+                                    <input type="number" class="rpa-input" id="rpa-volume" min="0" placeholder="e.g. 120" inputmode="numeric" required>
+                                    <span class="rpa-input-suffix">km</span>
+                                </span>
+                            </label>
+                            <!-- Typical pace — separate minute and second inputs -->
+                            <label class="rpa-field">
+                                <span class="rpa-field-label">Typical pace <span class="rpa-optional">(per km)</span></span>
+                                <div class="rpa-input-row">
+                                    <span class="rpa-input-wrap">
+                                        <input type="number" class="rpa-input" id="rpa-pace-min" min="0" max="59" placeholder="0" inputmode="numeric" required>
+                                        <span class="rpa-input-suffix">min</span>
+                                    </span>
+                                    <span class="rpa-input-wrap">
+                                        <input type="number" class="rpa-input" id="rpa-pace-sec" min="0" max="59" placeholder="00" inputmode="numeric" required>
+                                        <span class="rpa-input-suffix">sec</span>
+                                    </span>
+                                </div>
+                            </label>
+                        </div>
+                    </fieldset>
+
+                    <!-- Goals -->
+                    <!-- <fieldset class="rpa-field-group">
+                        <legend class="rpa-group-legend">Goals</legend>
+                        <div class="rpa-field-grid">
+                            <label class="rpa-field">
+                                <span class="rpa-field-label">Primary goal</span>
+                                <select class="rpa-select" id="rpa-goal">
+                                    <option value="">Select a goal</option>
+                                    <option value="fitness">General fitness</option>
+                                    <option value="faster">Run faster</option>
+                                    <option value="race">Train for a race</option>
+                                    <option value="injury">Return from injury</option>
+                                    <option value="form">Improve form</option>
+                                </select>
+                            </label>
+                            Race details, revealed only when the goal is "Train for a race" -->
+                            <!-- <label class="rpa-field" id="rpa-race-distance-field" hidden>
+                                <span class="rpa-field-label">Race distance</span>
+                                <select class="rpa-select" id="rpa-race-distance">
+                                    <option value="">Select distance</option>
+                                    <option value="5k">5K</option>
+                                    <option value="10k">10K</option>
+                                    <option value="half">Half marathon</option>
+                                    <option value="marathon">Marathon</option>
+                                    <option value="ultra">Ultra</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </label>
+                            <label class="rpa-field" id="rpa-race-date-field" hidden>
+                                <span class="rpa-field-label">Target date</span>
+                                <input type="date" class="rpa-input rpa-input--date" id="rpa-race-date">
+                            </label>
+                        </div>
+                    </fieldset> -->
+                </form>
+            </section>
+
+            <!-- Instructions: which moments to capture -->
+            <section class="rpa-section" aria-labelledby="rpa-instructions-heading">
+                <h3 id="rpa-instructions-heading" class="rpa-section-heading">How to capture your photos</h3>
+                <p class="rpa-section-lead">
+                    Record a short side-view clip of yourself running, then screenshot these four key moments of your
+                    stride. Keep the whole body in frame and the camera roughly level with your hips.
+                </p>
+                <div class="rpa-phase-grid">
+                    <div class="rpa-phase-card">
+                        <img class="rpa-phase-img" src="../resources/running-posture/initial-contact.png" alt="Runner at initial ground contact" loading="lazy">
+                        <span class="rpa-phase-number">1</span>
+                        <h4 class="rpa-phase-title">Initial Ground Contact</h4>
+                        <p class="rpa-phase-text">The lead foot first touches down, reaching ahead of the body.</p>
+                    </div>
+                    <div class="rpa-phase-card">
+                        <img class="rpa-phase-img" src="../resources/running-posture/full-contact.png" alt="Runner at full ground contact" loading="lazy">
+                        <span class="rpa-phase-number">2</span>
+                        <h4 class="rpa-phase-title">Full Ground Contact</h4>
+                        <p class="rpa-phase-text">Body weight passes directly over the planted foot.</p>
+                    </div>
+                    <div class="rpa-phase-card">
+                        <img class="rpa-phase-img" src="../resources/running-posture/toe-off.png" alt="Runner at toe-off with trailing leg extended" loading="lazy">
+                        <span class="rpa-phase-number">3</span>
+                        <h4 class="rpa-phase-title">Toe-Off</h4>
+                        <p class="rpa-phase-text">Push-off, when the trailing ankle reaches farthest behind you.</p>
+                    </div>
+                    <div class="rpa-phase-card">
+                        <img class="rpa-phase-img" src="../resources/running-posture/swing.png" alt="Runner during swing with thigh raised" loading="lazy">
+                        <span class="rpa-phase-number">4</span>
+                        <h4 class="rpa-phase-title">Swing (Thigh Raised)</h4>
+                        <p class="rpa-phase-text">The leg swings through with the thigh lifted toward the top.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upload panel -->
+            <section class="rpa-section" aria-labelledby="rpa-upload-heading">
+                <h3 id="rpa-upload-heading" class="rpa-section-heading">Upload your photos</h3>
+                <p class="rpa-section-lead">Recommended: one side-view image for each of the four moments above. Image files only (JPG, PNG, WebP).</p>
+
+                <!-- Drop zone doubles as a click target for the hidden file input -->
+                <label for="rpa-file-input" class="rpa-dropzone" id="rpa-dropzone">
+                    <input type="file" id="rpa-file-input" class="rpa-file-input" accept="image/*" multiple>
+                    <div class="rpa-dropzone-inner">
+                        <span class="rpa-dropzone-icon" aria-hidden="true">&#8682;</span>
+                        <p class="rpa-dropzone-title">Drag &amp; drop photos here</p>
+                        <p class="rpa-dropzone-hint">or click to browse from your device</p>
+                    </div>
+                </label>
+
+                <!-- Live previews of selected photos -->
+                <div class="rpa-preview-grid" id="rpa-preview-grid" aria-live="polite"></div>
+
+                <div class="rpa-actions">
+                    <button type="button" class="rpa-btn rpa-btn-primary" id="rpa-analyse-btn" disabled>
+                        Analyse Form
+                    </button>
+                    <button type="button" class="rpa-btn rpa-btn-ghost" id="rpa-clear-btn" hidden>
+                        Clear all
+                    </button>
+                    <span class="rpa-file-count" id="rpa-file-count">No photos selected</span>
+                </div>
+            </section>
+
+            <!-- Results dashboard (template placeholder until AI + overlay are wired up) -->
+            <section class="rpa-section rpa-results" id="rpa-results" hidden aria-labelledby="rpa-results-heading">
+                <div class="rpa-results-header">
+                    <h3 id="rpa-results-heading" class="rpa-section-heading">
+                        Form analysis
+                        <span class="rpa-demo-badge" id="rpa-demo-badge" hidden>Demo</span>
+                    </h3>
+                    <div class="rpa-results-actions">
+                        <button type="button" class="rpa-btn rpa-btn-ghost" id="rpa-new-analysis-btn">
+                            &#8617; New analysis
+                        </button>
+                        <button type="button" class="rpa-btn rpa-btn-ghost" id="rpa-export-btn" disabled title="Export is coming soon">
+                            Export (coming soon)
+                        </button>
+                    </div>
+                </div>
+                <p class="rpa-results-note" id="rpa-results-note">
+                    This is a layout preview. AI analysis is not connected yet &mdash; the summary and each phase below
+                    show where the observations will appear.
+                </p>
+
+                <!-- At-a-glance count of Good / Fair / Needs attention statuses -->
+                <div class="rpa-score-summary" id="rpa-score-summary" hidden></div>
+
+                <!-- Recap of the runner profile inputs used for this analysis -->
+                <div class="rpa-profile-recap" id="rpa-profile-recap"></div>
+
+                <!-- Read-only strip of the photos submitted for this analysis -->
+                <div class="rpa-photo-strip" id="rpa-photo-strip" hidden></div>
+
+                <!-- Overall posture summary (spans the whole stride) -->
+                <div class="rpa-overall" id="rpa-overall"></div>
+
+                <!-- One panel per gait phase, generated in running-posture-analyser.js -->
+                <div class="rpa-phase-stack" id="rpa-phase-stack"></div>
+            </section>
+        </main>
+
+        <!-- Analysis loading overlay — shown during the API call with rotating prompts -->
+        <div class="rpa-loading-overlay" id="rpa-loading-overlay" hidden role="status" aria-live="polite">
+            <div class="rpa-loading-card">
+                <div class="rpa-loading-spinner" aria-hidden="true"></div>
+                <p class="rpa-loading-prompt" id="rpa-loading-prompt">Examining your running form&hellip;</p>
+            </div>
+        </div>
+
+        <!-- Footer will be inserted by footer.js -->
+        <script src="../js/footer.js"></script>
+        <script src="./running-posture-analyser.js"></script>
+    </body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="../styles/output.css" rel="stylesheet">
+    <link href="../styles/style.css" type="text/css" rel="stylesheet">
+    <link href="./race-goal-dashboard.css" type="text/css" rel="stylesheet">
+    <link rel="icon" href="../resources/TH-logo.png" type="image/x-icon">
+    <meta property="og:title" content="RunAssist - Terrance's Playground">
+    <meta property="og:description" content="Track your training progress toward your race goal with Garmin data and AI-powered insights.">
+    <meta property="og:image" content="https://terrancehah.com/resources/TH-logo.png">
+    <meta property="og:type" content="article">
+    <meta property="og:url" content="https://terrancehah.com/projects/race-goal-dashboard.html">
+
+    <title>RunAssist - Terrance's Playground</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Baskervville:ital@0;1&display=swap');
+    </style>
+    <!-- Chart.js for radar chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Vercel Analytics -->
+    <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    <script>
+    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/speed-insights/script.js"></script>
+</head>
+
+<body class="m-0 relative h-full bg-white overflow-x-hidden">
+    <!-- Shared site header -->
+    <header class="w-full inline-block rgd-header-offset">
+        <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
+            <div class="flex flex-col md:flex-row items-center w-auto md:w-80 gap-1">
+                <h1 class="font-lato font-semibold text-[#1d3557] rgd-header-title text-2xl md:text-3xl p-0 text-center sm:text-left sm:w-auto">
+                    Terrance's Playground
+                </h1>
+            </div>
+            <nav class="flex flex-wrap justify-center gap-2">
+                <a href="../index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Home</a>
+                <a href="../articles.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Articles</a>
+                <a href="../projects.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link rgd-header-link--active hover:bg-[#c0e9fc] bg-[#c0e9fc]">Projects</a>
+                <a href="../playground.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Playground</a>
+            </nav>
+            <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
+                <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../resources/facebook.png" alt="facebook" class="w-full h-full rgd-social-icon">
+                </a>
+                <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../resources/instagram.png" alt="instagram" class="w-full h-full rgd-social-icon">
+                </a>
+                <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
+                    <img src="../resources/x.png" alt="x" class="w-full h-full rgd-social-icon">
+                </a>
+                <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
+                    <img src="../resources/linkedin.png" alt="linkedin" class="w-full h-full rgd-social-icon">
+                </a>
+                <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
+                    <img src="../resources/github.png" alt="github" class="w-full h-full rgd-social-icon">
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="rgd-main">
+        <!-- ========== LOGIN MODAL (popup, triggered from sidebar settings) ========== -->
+        <div class="rgd-modal-overlay" id="rgd-login-modal" hidden>
+            <div class="rgd-auth-card">
+                <button class="rgd-modal-close" id="rgd-login-modal-close" title="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="rgd-auth-header">
+                    <span class="rgd-eyebrow">Garmin Connect</span>
+                    <h2 class="rgd-auth-title">Connect Your Garmin</h2>
+                    <p class="rgd-auth-subtitle">
+                        Connect your Garmin account to pull in your training data.
+                        Your credentials are used only for this session and never stored.
+                    </p>
+                </div>
+                <form class="rgd-auth-form" id="rgd-login-form">
+                    <div class="rgd-field">
+                        <label for="rgd-email" class="rgd-label">Garmin Email</label>
+                        <input type="email" id="rgd-email" class="rgd-input" placeholder="you@email.com" required autocomplete="email">
+                    </div>
+                    <div class="rgd-field">
+                        <label for="rgd-password" class="rgd-label">Garmin Password</label>
+                        <input type="password" id="rgd-password" class="rgd-input" placeholder="Enter your password" required autocomplete="current-password">
+                    </div>
+                    <div class="rgd-auth-error" id="rgd-auth-error" hidden></div>
+                    <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-login-btn">
+                        <span class="rgd-btn-text">Connect Garmin</span>
+                        <span class="rgd-btn-spinner" hidden></span>
+                    </button>
+                </form>
+                <p class="rgd-auth-footer">
+                    We use <a href="https://github.com/cyberjunky/python-garminconnect" target="_blank" rel="noopener">python-garminconnect</a>
+                    to communicate with Garmin. Your password is never saved.
+                </p>
+            </div>
+        </div>
+
+        <!-- ========== ONBOARDING SCREEN ========== -->
+        <section class="rgd-screen" id="rgd-onboarding-screen" hidden>
+            <div class="rgd-onboard-card">
+                <div class="rgd-onboard-header">
+                    <span class="rgd-eyebrow">Step 2 of 3</span>
+                    <h2 class="rgd-onboard-title">Tell us about your race goal</h2>
+                    <p class="rgd-onboard-subtitle">
+                        This helps the AI tailor its analysis to what you're training for.
+                    </p>
+                </div>
+                <form class="rgd-onboard-form" id="rgd-onboard-form" novalidate>
+                    <!-- Race Purpose -->
+                    <div class="rgd-field">
+                        <label for="rgd-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>
+                        <select id="rgd-purpose" class="rgd-input rgd-select" required>
+                            <option value="" disabled selected>Select race type</option>
+                            <option value="5K">5K</option>
+                            <option value="10K">10K</option>
+                            <option value="Half Marathon">Half Marathon</option>
+                            <option value="Marathon">Marathon</option>
+                            <option value="Ultra Marathon">Ultra Marathon</option>
+                            <option value="Triathlon">Triathlon</option>
+                        </select>
+                        <span class="rgd-field-error" hidden>Please select a race type.</span>
+                    </div>
+
+                    <!-- Time Target — duration picker H : M : S -->
+                    <div class="rgd-field">
+                        <label class="rgd-label">Time Target <span class="rgd-required">*</span></label>
+                        <div class="rgd-duration-picker" id="rgd-duration-picker">
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-time-h" class="rgd-input rgd-duration-input" placeholder="0" min="0" max="99" required>
+                                <span class="rgd-duration-label">hr</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-time-m" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">min</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-time-s" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">sec</span>
+                            </div>
+                        </div>
+                        <span class="rgd-field-error" hidden>Please set a target time.</span>
+                    </div>
+
+                    <!-- Race Date -->
+                    <div class="rgd-field">
+                        <label for="rgd-race-date" class="rgd-label">Race Date <span class="rgd-required">*</span></label>
+                        <input type="date" id="rgd-race-date" class="rgd-input" required>
+                        <span class="rgd-field-error" hidden>Please select a race date.</span>
+                    </div>
+
+                    <!-- Weekly Mileage + unit -->
+                    <div class="rgd-field">
+                        <label for="rgd-mileage" class="rgd-label">Weekly Mileage <span class="rgd-required">*</span></label>
+                        <div class="rgd-mileage-row">
+                            <input type="number" id="rgd-mileage" class="rgd-input rgd-mileage-input" placeholder="e.g. 40" min="1" max="300" required>
+                            <select id="rgd-mileage-unit" class="rgd-input rgd-select rgd-unit-select">
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                            </select>
+                        </div>
+                        <span class="rgd-field-error" hidden>Please enter your weekly mileage.</span>
+                    </div>
+
+                    <!-- Gender + Age -->
+                    <div class="rgd-field-row">
+                        <div class="rgd-field">
+                            <label for="rgd-gender" class="rgd-label">Gender <span class="rgd-required">*</span></label>
+                            <select id="rgd-gender" class="rgd-input rgd-select" required>
+                                <option value="" disabled selected>Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <span class="rgd-field-error" hidden>Please select your gender.</span>
+                        </div>
+                        <div class="rgd-field">
+                            <label for="rgd-age" class="rgd-label">Age <span class="rgd-required">*</span></label>
+                            <input type="number" id="rgd-age" class="rgd-input" placeholder="e.g. 30" min="10" max="120" required>
+                            <span class="rgd-field-error" hidden>Please enter your age.</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-onboard-btn">
+                        <span class="rgd-btn-text">Save & Continue</span>
+                        <span class="rgd-btn-spinner" hidden></span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========== DASHBOARD SCREEN ========== -->
+        <section class="rgd-screen" id="rgd-dashboard-screen" hidden>
+            <div class="rgd-dashboard-layout">
+                <!-- Collapsible Sidebar -->
+                <aside class="rgd-sidebar" id="rgd-sidebar">
+                    <div class="rgd-sidebar-inner">
+                        <!-- Toggle at top — panel collapse/expand icons -->
+                        <button class="rgd-sidebar-toggle" id="rgd-sidebar-toggle" title="Collapse sidebar">
+                            <!-- Icon shown when sidebar is expanded (click to collapse) -->
+                            <svg class="rgd-sidebar-toggle-icon--collapse" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <line x1="9" y1="3" x2="9" y2="21"/>
+                            </svg>
+                            <!-- Icon shown when sidebar is collapsed (click to expand) -->
+                            <svg class="rgd-sidebar-toggle-icon--expand" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                <line x1="15" y1="3" x2="15" y2="21"/>
+                            </svg>
+                        </button>
+                        <div class="rgd-sidebar-header">
+                            <div class="rgd-sidebar-profile">
+                                <div class="rgd-sidebar-avatar" id="rgd-sidebar-avatar">
+                                    <!-- Generic runner icon placeholder for avatar -->
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="5" r="2.5"/>
+                                        <path d="M8 22l3-8 2 2 3-2 2 8"/>
+                                        <path d="M9 12l-2-3"/>
+                                        <path d="M15 12l2-3"/>
+                                    </svg>
+                                </div>
+                                <span class="rgd-sidebar-greeting" id="rgd-greeting">Demo Runner</span>
+                            </div>
+                            <div class="rgd-sidebar-goal-row">
+                                <span class="rgd-sidebar-goal" id="rgd-sidebar-goal"></span>
+                                <button class="rgd-reset-goal-icon" id="rgd-reset-goal-btn" title="Reset race goal">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <nav class="rgd-sidebar-nav">
+                            <a class="rgd-nav-item active" href="#overview">
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                <span class="rgd-nav-label">Overview</span>
+                            </a>
+                            <a class="rgd-nav-item" href="#activities">
+                                <!-- Records/list icon — represents activity history -->
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
+                                <span class="rgd-nav-label">Activities</span>
+                            </a>
+                            <a class="rgd-nav-item" href="#readiness">
+                                <!-- Radar chart icon — represents the readiness radar -->
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polygon points="12 7 17 10 17 14 12 17 7 14 7 10 12 7"/></svg>
+                                <span class="rgd-nav-label">Readiness</span>
+                            </a>
+                            <a class="rgd-nav-item" href="#insights">
+                                <!-- Lightbulb icon — represents AI insights -->
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                                <span class="rgd-nav-label">Insights</span>
+                            </a>
+                        </nav>
+                        <!-- Theme toggle (light/dark) — above settings button -->
+                        <button class="rgd-sidebar-theme-toggle" id="rgd-theme-toggle" title="Switch theme">
+                            <!-- Sun icon — visible in light mode, rotates out in dark mode -->
+                            <svg class="rgd-theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="5"/>
+                                <line x1="12" y1="1" x2="12" y2="3"/>
+                                <line x1="12" y1="21" x2="12" y2="23"/>
+                                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                                <line x1="1" y1="12" x2="3" y2="12"/>
+                                <line x1="21" y1="12" x2="23" y2="12"/>
+                                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                            </svg>
+                            <!-- Moon icon — hidden in light mode, rotates in for dark mode -->
+                            <svg class="rgd-theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                            </svg>
+                            <span class="rgd-sidebar-theme-label" id="rgd-theme-label">Light</span>
+                        </button>
+                        <!-- Gear icon at bottom — settings & account -->
+                        <button class="rgd-sidebar-settings" id="rgd-settings-btn" title="Settings & Account">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="3"/>
+                                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                            </svg>
+                            <span class="rgd-sidebar-settings-label">Settings</span>
+                        </button>
+                    </div>
+                </aside>
+
+                <!-- Mobile Bottom Tab Bar -->
+                <nav class="rgd-tabbar" id="rgd-tabbar">
+                    <a class="rgd-tab-item active" href="#overview">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                    </a>
+                    <a class="rgd-tab-item" href="#activities">
+                        <!-- Records/list icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
+                    </a>
+                    <a class="rgd-tab-item" href="#readiness">
+                        <!-- Radar chart icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polygon points="12 7 17 10 17 14 12 17 7 14 7 10 12 7"/></svg>
+                    </a>
+                    <a class="rgd-tab-item" href="#insights">
+                        <!-- Lightbulb icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+                    </a>
+                </nav>
+
+                <!-- Main Content -->
+                <div class="rgd-content" id="rgd-content">
+
+                    <!-- Project title + intro + demo banner -->
+                    <div class="rgd-content-header">
+                        <h1 class="rgd-project-title">RunAssist</h1>
+                        <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights.</p>
+                        
+                    </div>
+
+                    <div class="rgd-demo-banner" id="rgd-demo-banner" hidden>
+                            <svg class="rgd-demo-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span class="rgd-demo-banner-text">You're viewing sample data in demo mode.</span>
+                        </div>
+
+                    <!-- ========== PAGE: Overview ========== -->
+                    <div class="rgd-page" id="rgd-page-overview">
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Training Snapshot</h2>
+                            <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
+                        </section>
+                        <section class="rgd-section">
+                            <div class="rgd-charts-row">
+                                <div class="rgd-chart-card">
+                                    <h3 class="rgd-card-title">Weekly Mileage</h3>
+                                    <div class="rgd-chart-wrap"><canvas id="rgd-mileage-chart"></canvas></div>
+                                </div>
+                                <div class="rgd-chart-card rgd-chart-card--calendar">
+                                    <h3 class="rgd-card-title" id="rgd-calendar-title">Calendar</h3>
+                                    <div class="rgd-calendar" id="rgd-calendar"></div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="rgd-section">
+                            <div class="rgd-readiness-row">
+                                <!-- Race Goal Specifics — left column on laptop, top on mobile -->
+                                <div class="rgd-readiness-card" id="rgd-goal-specifics">
+                                    <h3 class="rgd-readiness-card-title">Race Goal Specifics</h3>
+                                    <!-- Countdown highlight — top-right corner of the container -->
+                                    <div class="rgd-countdown-highlight" id="rgd-countdown-highlight">
+                                        <span class="rgd-countdown-value" id="rgd-countdown-value">--</span>
+                                        <span class="rgd-countdown-label" id="rgd-countdown-label">days to go</span>
+                                    </div>
+                                    <div class="rgd-goal-specifics-grid" id="rgd-goal-specifics-grid"></div>
+                                </div>
+                                <!-- Race Readiness radar — right column on laptop, bottom on mobile -->
+                                <div class="rgd-readiness-card">
+                                    <h3 class="rgd-readiness-card-title">
+                                        <a class="rgd-readiness-card-link" href="#readiness">Race Readiness</a>
+                                    </h3>
+                                    <p class="rgd-readiness-card-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. Click a label for details.</p>
+                                    <div class="rgd-radar-wrap">
+                                        <canvas class="rgd-radar-chart"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="rgd-section">
+                            <a class="rgd-section-title rgd-section-title--link" href="#activities">Recent Activities</a>
+                            <div class="rgd-activities-list" id="rgd-activities-list"></div>
+                        </section>
+                        <section class="rgd-section">
+                            <a class="rgd-section-title rgd-section-title--link" href="#insights">Pre Race Insights</a>
+                            <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
+                            <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
+                            <div class="rgd-summary-error" hidden></div>
+                        </section>
+                    </div>
+
+                    <!-- ========== PAGE: Activities ========== -->
+                    <div class="rgd-page" id="rgd-page-activities" hidden>
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">All Activities</h2>
+                            <div class="rgd-activities-list" id="rgd-activities-full"></div>
+                        </section>
+                    </div>
+
+                    <!-- ========== PAGE: Readiness ========== -->
+                    <div class="rgd-page" id="rgd-page-readiness" hidden>
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Race Readiness</h2>
+                            <p class="rgd-section-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. Each score shows how close you are to where you need to be on race day. Click a label for details.</p>
+                            <div class="rgd-readiness-card">
+                                <div class="rgd-radar-wrap rgd-radar-wrap--full">
+                                    <canvas class="rgd-radar-chart" height="400"></canvas>
+                                </div>
+                            </div>
+                            <!-- Contextual explanation: educates the user on how each
+                                 dimension influences race performance -->
+                            <div class="rgd-dimension-explainer">
+                                <h3 class="rgd-dimension-explainer-title">Understanding Your Six Dimensions</h3>
+                                <div class="rgd-dimension-explainer-grid">
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(196, 75, 75, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">Lactate Threshold</span>
+                                            <p class="rgd-dimension-explainer-desc">The pace at which lactate accumulates faster than your body can clear it. A higher threshold means you can sustain faster speeds for longer before fatigue sets in — critical for maintaining race pace in the middle third of your race.</p>
+                                        </div>
+                                    </div>
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(63, 123, 79, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">Aerobic Endurance</span>
+                                            <p class="rgd-dimension-explainer-desc">Your cardiovascular foundation — how efficiently your heart and lungs deliver oxygen to working muscles over sustained effort. This is the base that lets you complete the full race distance without fading.</p>
+                                        </div>
+                                    </div>
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(212, 160, 23, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">Running Economy</span>
+                                            <p class="rgd-dimension-explainer-desc">How much energy you expend at a given pace. Better economy means you use less oxygen to maintain the same speed, effectively giving you more fuel in the tank for the closing kilometers.</p>
+                                        </div>
+                                    </div>
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(93, 109, 176, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">Strength / Durability</span>
+                                            <p class="rgd-dimension-explainer-desc">Musculoskeletal resilience — how well your muscles, tendons, and joints handle the repetitive impact of running. Stronger durability means lower injury risk and better late-race form when fatigue sets in.</p>
+                                        </div>
+                                    </div>
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(69, 123, 157, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">VO₂max / Speed</span>
+                                            <p class="rgd-dimension-explainer-desc">Your maximum oxygen uptake and raw speed ceiling. A higher VO₂max gives you more headroom above race pace, making goal pace feel easier and allowing you to surge when needed.</p>
+                                        </div>
+                                    </div>
+                                    <div class="rgd-dimension-explainer-item">
+                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(56, 142, 142, 0.7)"></span>
+                                        <div>
+                                            <span class="rgd-dimension-explainer-name">Fatigue Resistance</span>
+                                            <p class="rgd-dimension-explainer-desc">Your ability to maintain performance as fatigue accumulates over the race. This determines whether you can hold your target pace through the final kilometers or whether you slow down in the closing stages.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- ========== PAGE: Insights (formerly Analysis) ========== -->
+                    <div class="rgd-page" id="rgd-page-insights" hidden>
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Pre Race Insights</h2>
+                            <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
+                            <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
+                            <div class="rgd-summary-error" hidden></div>
+                            <button class="rgd-btn rgd-btn-secondary rgd-refresh-btn" id="rgd-refresh-analysis" hidden>Regenerate Insights</button>
+                        </section>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========== LOADING OVERLAY ========== -->
+        <div class="rgd-overlay" id="rgd-overlay" hidden>
+            <div class="rgd-overlay-content">
+                <div class="rgd-spinner"></div>
+                <p class="rgd-overlay-text" id="rgd-overlay-text">Loading...</p>
+            </div>
+        </div>
+
+        <!-- Metric detail popup — shows gauge bar with zones and explanation -->
+        <div class="rgd-modal-overlay" id="rgd-metric-popup" hidden>
+            <div class="rgd-metric-popup-card">
+                <button class="rgd-modal-close" id="rgd-metric-popup-close" title="Close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <!-- Popup content populated dynamically by JS -->
+                <div class="rgd-metric-popup-content" id="rgd-metric-popup-content"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="./race-goal-dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,1058 @@
+/* Running Posture Analyser - dashboard styles.
+   Self-contained so it does not depend on un-compiled Tailwind utilities.
+   Palette follows the site's blue project-page scheme. */
+
+:root {
+    --rpa-navy: #1d3557;       /* primary headings */
+    --rpa-blue: #457b9d;       /* accents / secondary text */
+    --rpa-sky: #c0e9fc;        /* light highlight */
+    --rpa-mint: #a8dadc;       /* soft accent */
+    --rpa-bg: #f5fafd;         /* page surface tint */
+    --rpa-border: #d6e6f2;     /* card borders */
+    --rpa-muted: #4e6070;      /* helper text */
+}
+
+/* ---------- Layout shell ---------- */
+.rpa-main {
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+@media (min-width: 768px) {
+    .rpa-main {
+        padding: 2.5rem 2rem 5rem;
+        gap: 3rem;
+    }
+}
+
+/* ---------- Intro ---------- */
+.rpa-intro {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto;
+}
+
+.rpa-eyebrow {
+    display: inline-block;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--rpa-blue);
+    background-color: var(--rpa-sky);
+    padding: 0.35rem 0.9rem;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+}
+
+.rpa-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.8rem, 3vw + 1rem, 2.75rem);
+    color: var(--rpa-navy);
+    line-height: 1.2;
+    margin: 0 0 0.75rem;
+}
+
+.rpa-subtitle {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 400;
+    font-size: clamp(1rem, 0.6vw + 0.85rem, 1.2rem);
+    color: #2e5f7c;
+    line-height: 1.65;
+    margin: 0 0 0.75rem;
+}
+
+.rpa-privacy-note {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.9rem;
+    color: var(--rpa-muted);
+    margin: 0;
+}
+
+/* ---------- Generic section ---------- */
+.rpa-section {
+    background-color: var(--rpa-bg);
+    border: 1px solid var(--rpa-border);
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 4px rgba(29, 53, 87, 0.06);
+}
+
+@media (min-width: 768px) {
+    .rpa-section {
+        padding: 2rem;
+    }
+}
+
+.rpa-section-heading {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1.25rem, 1vw + 0.9rem, 1.65rem);
+    color: var(--rpa-navy);
+    line-height: 1.25;
+    margin: 0 0 0.6rem;
+}
+
+.rpa-section-lead {
+    font-family: 'Raleway', sans-serif;
+    font-size: 1rem;
+    color: #2e5f7c;
+    line-height: 1.65;
+    margin: 0 0 1.5rem;
+}
+
+/* ---------- Phase instructions ---------- */
+.rpa-phase-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+}
+
+.rpa-phase-card {
+    background-color: #ffffff;
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    text-align: center;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rpa-phase-card:hover {
+    box-shadow: 0 4px 14px rgba(29, 53, 87, 0.1);
+    transform: translateY(-2px);
+}
+
+/* Phase illustration in the instructions grid */
+.rpa-phase-img {
+    display: block;
+    width: auto;
+    height: 130px;
+    margin: 0 auto 0.75rem;
+    object-fit: contain;
+}
+
+.rpa-phase-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background-color: var(--rpa-mint);
+    color: var(--rpa-navy);
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.rpa-phase-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 1.05rem;
+    color: var(--rpa-navy);
+    margin: 0 0 0.35rem;
+}
+
+.rpa-phase-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.92rem;
+    color: var(--rpa-muted);
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* ---------- Runner profile form ---------- */
+.rpa-profile-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+}
+
+/* Reset the native fieldset chrome and group related fields */
+.rpa-field-group {
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.85rem;
+    background-color: #ffffff;
+    padding: 1.25rem 1.4rem 1.4rem;
+    margin: 0;
+}
+
+.rpa-group-legend {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--rpa-navy);
+    padding: 0 0.4rem;
+}
+
+/* Responsive grid of fields within a group */
+.rpa-field-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem 1.25rem;
+    margin-top: 0.5rem;
+}
+
+@media (min-width: 560px) {
+    .rpa-field-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.rpa-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Field that should span the full grid width (e.g. the segmented control) */
+.rpa-field--full {
+    grid-column: 1 / -1;
+}
+
+.rpa-field-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--rpa-navy);
+}
+
+.rpa-optional {
+    font-weight: 400;
+    color: var(--rpa-muted);
+}
+
+/* Text/number/select inputs share a consistent look */
+.rpa-input,
+.rpa-select {
+    width: 100%;
+    font-family: 'Raleway', sans-serif;
+    font-size: 1rem;
+    color: var(--rpa-navy);
+    background-color: #ffffff;
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    box-sizing: border-box;
+}
+
+.rpa-input:focus,
+.rpa-select:focus {
+    outline: none;
+    border-color: var(--rpa-blue);
+    box-shadow: 0 0 0 3px var(--rpa-sky);
+}
+
+/* Wrap that lets an input sit beside a unit suffix or unit <select> */
+.rpa-input-wrap {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background-color: #ffffff;
+}
+
+.rpa-input-wrap:focus-within {
+    border-color: var(--rpa-blue);
+    box-shadow: 0 0 0 3px var(--rpa-sky);
+}
+
+/* Inputs inside a wrap drop their own border in favour of the wrap's */
+.rpa-input-wrap .rpa-input {
+    border: none;
+    border-radius: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.rpa-input-wrap .rpa-input:focus {
+    box-shadow: none;
+}
+
+/* Static unit label (cm, kg, yrs) pinned to the right of an input */
+.rpa-input-suffix {
+    display: flex;
+    align-items: center;
+    padding: 0 0.7rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.85rem;
+    color: var(--rpa-muted);
+    background-color: var(--rpa-bg);
+    border-left: 1px solid var(--rpa-border);
+}
+
+/* Selectable unit (km/mi, /km //mi) pinned to the right of an input */
+.rpa-input-unit {
+    border: none;
+    border-left: 1px solid var(--rpa-border);
+    background-color: var(--rpa-bg);
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.85rem;
+    color: var(--rpa-navy);
+    padding: 0 0.6rem;
+    cursor: pointer;
+}
+
+.rpa-input-unit:focus {
+    outline: none;
+}
+
+/* Side-by-side inputs (e.g. feet + inches) */
+.rpa-input-row {
+    display: flex;
+    gap: 0.6rem;
+}
+
+.rpa-input-row .rpa-input-wrap {
+    flex: 1 1 0;
+}
+
+/* Metric/imperial pill toggle */
+.rpa-unit-toggle {
+    display: inline-flex;
+    border: 1px solid var(--rpa-border);
+    border-radius: 999px;
+    padding: 0.2rem;
+    margin-bottom: 1rem;
+    background-color: var(--rpa-bg);
+}
+
+.rpa-unit-btn {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--rpa-blue);
+    background: transparent;
+    border: none;
+    border-radius: 999px;
+    padding: 0.35rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.rpa-unit-btn.is-active {
+    background-color: var(--rpa-blue);
+    color: #ffffff;
+}
+
+/* Segmented control (experience level) */
+.rpa-segment {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.rpa-segment-btn {
+    flex: 1 1 auto;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--rpa-blue);
+    background-color: #ffffff;
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.rpa-segment-btn:hover {
+    border-color: var(--rpa-blue);
+}
+
+.rpa-segment-btn.is-active {
+    background-color: var(--rpa-blue);
+    border-color: var(--rpa-blue);
+    color: #ffffff;
+}
+
+/* ---------- Upload dropzone ---------- */
+.rpa-dropzone {
+    display: block;
+    border: 2px dashed var(--rpa-mint);
+    border-radius: 0.75rem;
+    background-color: #ffffff;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.rpa-dropzone:hover,
+.rpa-dropzone.is-dragover {
+    border-color: var(--rpa-blue);
+    background-color: var(--rpa-sky);
+}
+
+/* The native input is visually hidden but still accessible/clickable via the label */
+.rpa-file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+.rpa-dropzone-icon {
+    font-size: 2rem;
+    color: var(--rpa-blue);
+    line-height: 1;
+}
+
+.rpa-dropzone-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--rpa-navy);
+    margin: 0.75rem 0 0.25rem;
+}
+
+.rpa-dropzone-hint {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.95rem;
+    color: var(--rpa-muted);
+    margin: 0;
+}
+
+/* ---------- Preview thumbnails ---------- */
+.rpa-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.25rem;
+}
+
+.rpa-preview-grid:empty {
+    margin-top: 0;
+}
+
+.rpa-preview-item {
+    position: relative;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid var(--rpa-border);
+    aspect-ratio: 1 / 1;
+    background-color: #ffffff;
+}
+
+.rpa-preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.rpa-preview-remove {
+    position: absolute;
+    top: 0.35rem;
+    right: 0.35rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border: none;
+    border-radius: 50%;
+    background-color: rgba(29, 53, 87, 0.85);
+    color: #ffffff;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rpa-preview-remove:hover {
+    background-color: var(--rpa-navy);
+}
+
+/* ---------- Actions ---------- */
+.rpa-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.rpa-btn {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.01em;
+    padding: 0.75rem 1.75rem;
+    border-radius: 0.6rem;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.rpa-btn-primary {
+    background-color: var(--rpa-navy);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(29, 53, 87, 0.28);
+}
+
+.rpa-btn-primary:hover:not(:disabled) {
+    background-color: #162842;
+    box-shadow: 0 4px 14px rgba(29, 53, 87, 0.35);
+}
+
+.rpa-btn-ghost {
+    background-color: transparent;
+    color: var(--rpa-blue);
+    border: 1px solid var(--rpa-border);
+}
+
+.rpa-btn-ghost:hover:not(:disabled) {
+    background-color: var(--rpa-sky);
+}
+
+.rpa-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.rpa-file-count {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.95rem;
+    color: var(--rpa-muted);
+}
+
+/* ---------- Results dashboard ---------- */
+.rpa-results-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.rpa-results-note {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.95rem;
+    color: var(--rpa-muted);
+    line-height: 1.65;
+    margin: 0.5rem 0 1.75rem;
+}
+
+/* Recap of the runner profile shown at the top of the results */
+.rpa-profile-recap {
+    margin-bottom: 1.5rem;
+}
+
+.rpa-recap-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--rpa-blue);
+    margin: 0 0 0.5rem;
+}
+
+.rpa-recap-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.rpa-recap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.85rem;
+    color: var(--rpa-navy);
+    background-color: #ffffff;
+    border: 1px solid var(--rpa-border);
+    border-radius: 999px;
+    padding: 0.3rem 0.75rem;
+}
+
+.rpa-recap-key {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--rpa-muted);
+}
+
+.rpa-recap-empty {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.9rem;
+    color: var(--rpa-muted);
+    font-style: italic;
+    margin: 0 0 1.5rem;
+}
+
+/* Overall posture summary banner — uses a tinted background to distinguish it from element cards */
+.rpa-overall {
+    background-color: #eaf5fb;
+    border: 1.5px solid var(--rpa-mint);
+    border-radius: 0.85rem;
+    padding: 1.4rem 1.6rem;
+    margin-bottom: 1.75rem;
+}
+
+.rpa-overall-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--rpa-blue);
+    margin: 0 0 0.4rem;
+}
+
+.rpa-overall-summary {
+    font-family: 'Raleway', sans-serif;
+    font-size: 1rem;
+    color: var(--rpa-navy);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Vertical stack of phase panels */
+.rpa-phase-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* Group subheadings ("Whole-stride observations" / "Phase-specific observations") */
+.rpa-element-group-heading {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--rpa-navy);
+    margin: 0.5rem 0 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rpa-border);
+}
+
+/* No extra top margin for the very first group heading */
+.rpa-phase-stack > .rpa-element-group-heading:first-child {
+    margin-top: 0;
+}
+
+/* A single gait-phase panel: illustration beside its observations */
+.rpa-phase-panel {
+    display: grid;
+    grid-template-columns: 1fr;
+    background-color: #ffffff;
+    border: 1px solid var(--rpa-border);
+    border-radius: 0.85rem;
+    overflow: hidden;
+}
+
+@media (min-width: 640px) {
+    .rpa-phase-panel {
+        grid-template-columns: 200px 1fr;
+    }
+
+    /* AI result cards have no reference image — body should span the full width. */
+    .rpa-phase-panel--no-media {
+        grid-template-columns: 1fr;
+    }
+}
+
+.rpa-phase-panel-media {
+    background-color: var(--rpa-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--rpa-border);
+}
+
+@media (min-width: 640px) {
+    .rpa-phase-panel-media {
+        border-bottom: none;
+        border-right: 1px solid var(--rpa-border);
+    }
+}
+
+.rpa-phase-panel-media img {
+    width: auto;
+    height: 160px;
+    object-fit: contain;
+}
+
+.rpa-phase-panel-body {
+    padding: 1.4rem 1.6rem;
+}
+
+.rpa-phase-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--rpa-blue);
+    margin: 0 0 0.2rem;
+}
+
+.rpa-phase-name {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--rpa-navy);
+    margin: 0;
+}
+
+.rpa-phase-def {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.9rem;
+    color: var(--rpa-muted);
+    line-height: 1.5;
+    margin: 0 0 0.75rem;
+}
+
+.rpa-phase-observation {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.97rem;
+    color: var(--rpa-navy);
+    line-height: 1.65;
+    margin: 0 0 1.1rem;
+}
+
+.rpa-phase-observation.rpa-pending {
+    color: var(--rpa-muted);
+    font-style: italic;
+}
+
+/* Per-element insight rows inside a phase panel */
+.rpa-insight {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rpa-insight-row {
+    border-top: 1px solid var(--rpa-border);
+    padding-top: 0.6rem;
+}
+
+.rpa-insight-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.rpa-insight-title {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--rpa-navy);
+}
+
+.rpa-insight-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.92rem;
+    color: var(--rpa-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* Element card header: name on the left, status badge on the right */
+.rpa-element-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Status badge (Good / Fair / Needs attention) */
+.rpa-status-badge {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+.rpa-status-badge--good {
+    background-color: #d4ede5;
+    color: #1e6e4e;
+}
+
+.rpa-status-badge--fair {
+    background-color: #fff3d0;
+    color: #7a5500;
+}
+
+.rpa-status-badge--attention {
+    background-color: #fde9ea;
+    color: #9b2226;
+}
+
+/* Small measurement chip shown next to an insight title */
+.rpa-chip {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.72rem;
+    color: var(--rpa-blue);
+    background-color: var(--rpa-sky);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+}
+
+/* ---------- Demo dashboard ---------- */
+
+/* Secondary CTA under the intro copy */
+.rpa-intro-actions {
+    margin-top: 1.5rem;
+}
+
+/* "Demo" pill shown next to the results heading in demo mode */
+.rpa-demo-badge {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.6rem;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ffffff;
+    background-color: var(--rpa-blue);
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+}
+
+/* Dropzone locked state — active while analysis is running or results are displayed */
+.rpa-dropzone.is-locked {
+    pointer-events: none;
+    opacity: 0.45;
+    cursor: default;
+}
+
+/* ---------- Loading overlay ---------- */
+
+/* Full-viewport dark backdrop, centred over everything */
+.rpa-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(29, 53, 87, 0.55);
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+/* Only apply flex layout when the hidden attribute is absent — prevents display:flex
+   from overriding the browser's built-in [hidden]{ display:none } rule on page load */
+.rpa-loading-overlay:not([hidden]) {
+    display: flex;
+}
+
+.rpa-loading-card {
+    background-color: #ffffff;
+    border-radius: 1rem;
+    padding: 2.5rem 3rem;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(29, 53, 87, 0.22);
+    max-width: 320px;
+    width: 90%;
+}
+
+/* CSS-only spinning ring */
+.rpa-loading-spinner {
+    width: 44px;
+    height: 44px;
+    border: 3.5px solid var(--rpa-border);
+    border-top-color: var(--rpa-navy);
+    border-radius: 50%;
+    animation: rpa-spin 0.8s linear infinite;
+    margin: 0 auto 1.25rem;
+}
+
+@keyframes rpa-spin {
+    to { transform: rotate(360deg); }
+}
+
+.rpa-loading-prompt {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.97rem;
+    font-weight: 600;
+    color: var(--rpa-navy);
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* ---------- Submitted photos strip ---------- */
+
+/* Horizontal read-only row of the photos used for this analysis */
+.rpa-photo-strip {
+    display: flex;
+    gap: 0.75rem;
+    overflow-x: auto;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.35rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--rpa-border) transparent;
+}
+
+.rpa-photo-strip-item {
+    flex: 0 0 auto;
+    width: 130px;
+    height: 130px;
+    border-radius: 0.6rem;
+    overflow: hidden;
+    border: 1px solid var(--rpa-border);
+    background-color: #ffffff;
+}
+
+.rpa-photo-strip-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* ---------- Results header action group ---------- */
+
+/* Groups the New analysis + Export buttons side by side */
+.rpa-results-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* ---------- Image viewer overlay ---------- */
+
+/* Full-viewport dark overlay for expanding a submitted photo */
+.rpa-img-viewer-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.92);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 2rem;
+    z-index: 300;
+    cursor: pointer;
+}
+
+.rpa-img-viewer-overlay:not([hidden]) {
+    display: flex;
+}
+
+.rpa-img-viewer-img {
+    max-width: 90vw;
+    max-height: 80vh;
+    object-fit: contain;
+    border-radius: 0.5rem;
+    cursor: default;
+    display: block;
+}
+
+.rpa-img-viewer-caption {
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.65);
+    text-align: center;
+    margin: 0;
+}
+
+.rpa-img-viewer-close {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.5rem;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 2.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    transition: color 0.15s ease;
+}
+
+.rpa-img-viewer-close:hover {
+    color: #ffffff;
+}
+
+/* Zoom cursor + subtle scale on hover to signal the photos are clickable */
+.rpa-photo-strip-item {
+    cursor: zoom-in;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rpa-photo-strip-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(29, 53, 87, 0.15);
+}
+
+/* ---------- Score summary tally ---------- */
+
+/* Compact coloured-dot row above the profile chips showing status counts */
+.rpa-score-summary {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.25rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    flex-wrap: wrap;
+}
+
+.rpa-score-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.rpa-score-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.rpa-score-good  .rpa-score-dot { background-color: #22c55e; }
+.rpa-score-fair  .rpa-score-dot { background-color: #f59e0b; }
+.rpa-score-attention .rpa-score-dot { background-color: #ef4444; }
+
+.rpa-score-good  { color: #15803d; }
+.rpa-score-fair  { color: #b45309; }
+.rpa-score-attention { color: #b91c1c; }
+
+.rpa-score-sep {
+    color: var(--rpa-muted);
+    font-weight: 400;
+}
+
+/* ---------- Element card entrance animation ---------- */
+
+/* Staggered fade-up applied to each phase panel when AI results are rendered */
+@keyframes rpa-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+.rpa-panel-enter {
+    animation: rpa-fade-up 0.38s ease both;
+}
+

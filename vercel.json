@@ -13,6 +13,46 @@
         {
             "source": "/projects/persona/",
             "destination": "/api"
+        },
+        {
+            "source": "/projects/running-posture-analyser/analyse",
+            "destination": "/api/analyse"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/auth",
+            "destination": "/api/race-goal/auth"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/check-session",
+            "destination": "/api/race-goal/check-session"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/activities",
+            "destination": "/api/race-goal/activities"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/metrics",
+            "destination": "/api/race-goal/metrics"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/onboarding",
+            "destination": "/api/race-goal/onboarding"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/analysis",
+            "destination": "/api/race-goal/analysis"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/radar",
+            "destination": "/api/race-goal/radar"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/ai-radar",
+            "destination": "/api/race-goal/ai-radar"
+        },
+        {
+            "source": "/projects/race-goal-dashboard/api/logout",
+            "destination": "/api/race-goal/logout"
         }
     ]
 }

@@ -31,13 +31,36 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
-  // Route /projects/persona requests to FastAPI backend
+  // Route /projects/persona requests to FastAPI backend (persona generator).
   if (req.url.startsWith('/projects/persona')) {
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}`);
-    // Rewrite the URL to remove /projects/persona prefix
+    // Rewrite the URL to remove /projects/persona prefix.
     const apiUrl = req.url.replace('/projects/persona', '');
     req.url = apiUrl || '/';
     proxy.web(req, res, { 
+      target: `http://localhost:${API_PORT}`,
+      changeOrigin: true
+    });
+    return;
+  }
+
+  // Route /projects/running-posture-analyser/analyse to FastAPI /analyse endpoint.
+  if (req.url.startsWith('/projects/running-posture-analyser/analyse')) {
+    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}/analyse`);
+    req.url = '/analyse';
+    proxy.web(req, res, {
+      target: `http://localhost:${API_PORT}`,
+      changeOrigin: true
+    });
+    return;
+  }
+
+  // Route /projects/race-goal-dashboard/api/* to FastAPI /race-goal/* endpoints.
+  if (req.url.startsWith('/projects/race-goal-dashboard/api/')) {
+    const apiPath = req.url.replace('/projects/race-goal-dashboard/api/', '/race-goal/');
+    console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${apiPath}`);
+    req.url = apiPath;
+    proxy.web(req, res, {
       target: `http://localhost:${API_PORT}`,
       changeOrigin: true
     });
@@ -85,7 +108,9 @@ proxy.on('error', (err, req, res) => {
 
 server.listen(PORT, () => {
   console.log(`\n🚀 Development server running:`);
-  console.log(`   Static site: http://localhost:${PORT}`);
-  console.log(`   API proxied from: http://localhost:${API_PORT}`);
-  console.log(`\n   Access persona generator: http://localhost:${PORT}/projects/persona\n`);
+  console.log(`   Static site:               http://localhost:${PORT}`);
+  console.log(`   API proxied from:          http://localhost:${API_PORT}`);
+  console.log(`\n   Persona generator:         http://localhost:${PORT}/projects/persona`);
+  console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser`);
+  console.log(`   Race Goal Dashboard:      http://localhost:${PORT}/projects/race-goal-dashboard\n`);
 });
