@@ -13,7 +13,8 @@ from datetime import datetime, date, timedelta
 from typing import Dict
 from pathlib import Path
 from pydantic import BaseModel
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from garminconnect import (
@@ -22,6 +23,69 @@ from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectTooManyRequestsError,
 )
+
+
+class _StripPrefixMiddleware:
+    """ASGI middleware that strips a path prefix from incoming HTTP requests.
+
+    In Vercel file-based mode, the full request path (e.g. /api/garmin-auth) is
+    passed to each function's ASGI app. Routes are defined at "/", so without
+    stripping the prefix FastAPI returns 404. This middleware rewrites the ASGI
+    scope's path by removing the /api/<function_name> prefix before the request
+    reaches FastAPI's router.
+    """
+
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            path = scope.get("path", "")
+            if path.startswith(self.prefix):
+                # Strip the prefix; keep the remainder or default to "/"
+                remaining = path[len(self.prefix):]
+                scope["path"] = remaining if remaining else "/"
+                scope["raw_path"] = scope["path"].encode()
+        await self.app(scope, receive, send)
+
+
+def create_app(function_name: str) -> FastAPI:
+    """Create a FastAPI app configured for Vercel file-based serverless mode.
+
+    Wraps the app with two middlewares (CORS outermost, prefix-stripping inner):
+    1. CORSMiddleware — handles cross-origin requests from the frontend.
+    2. _StripPrefixMiddleware — strips /api/<function_name> from the request
+       path so routes defined at "/" match what Vercel sends.
+
+    Args:
+        function_name: The filename without .py (e.g. "garmin-auth"). Used to
+                       build the prefix "/api/<function_name>" to strip.
+    """
+    app = FastAPI()
+
+    prefix = f"/api/{function_name}"
+
+    # Add prefix-stripping first (becomes inner middleware — runs after CORS,
+    # before FastAPI's router sees the path).
+    app.add_middleware(_StripPrefixMiddleware, prefix=prefix)
+
+    # Add CORS second (becomes outer middleware — handles preflight OPTIONS
+    # and injects CORS headers on all responses).
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://*.vercel.app",
+            "https://terrancehah.com",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    return app
 
 # Load environment variables (from .env locally, from Vercel dashboard in production)
 load_dotenv()

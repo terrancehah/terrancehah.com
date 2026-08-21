@@ -1,28 +1,22 @@
 """POST /api/analyse — Running posture analysis via GPT-4o Vision."""
 
-from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from typing import List
 import os
 import base64
 import json
 from openai import AsyncOpenAI
+# Add the api/ directory to Python's search path so lib._shared can be found
+# when running as a Vercel serverless function (cwd is project root, not api/)
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-app = FastAPI()
+from lib._shared import create_app
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://terrancehah.com",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# create_app() wraps the app with prefix-stripping + CORS middleware for
+# Vercel file-based mode (strips /api/analyse so routes at "/" match)
+app = create_app("analyse")
 
 POSTURE_SYSTEM_INSTRUCTION = """You are an expert running coach and sports biomechanics analyst.
 You analyse side-view running photographs to provide qualitative, actionable feedback on running form.

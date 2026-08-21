@@ -1,7 +1,6 @@
 """POST /api/onboarding — Save the user's race goal via form data."""
 
-from fastapi import FastAPI, Form
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Form
 from fastapi.responses import JSONResponse
 from datetime import datetime
 # Add the api/ directory to Python's search path so lib._shared can be found
@@ -9,22 +8,11 @@ from datetime import datetime
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, _save_sessions_to_disk
+from lib._shared import _get_session, _save_sessions_to_disk, create_app
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://terrancehah.com",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# create_app() wraps the app with prefix-stripping + CORS middleware for
+# Vercel file-based mode (strips /api/onboarding so routes at "/" match)
+app = create_app("onboarding")
 
 
 @app.post("/")

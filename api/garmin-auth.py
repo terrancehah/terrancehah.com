@@ -1,7 +1,5 @@
 """POST /api/garmin-auth — Authenticate with Garmin Connect and create a session."""
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
 import uuid
@@ -17,22 +15,11 @@ from garminconnect import (
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import GarminAuthRequest, _race_sessions, _save_sessions_to_disk
+from lib._shared import GarminAuthRequest, _race_sessions, _save_sessions_to_disk, create_app
 
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "https://*.vercel.app",
-        "https://terrancehah.com",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# create_app() wraps the app with prefix-stripping + CORS middleware for
+# Vercel file-based mode (strips /api/garmin-auth so routes at "/" match)
+app = create_app("garmin-auth")
 
 
 @app.post("/")
