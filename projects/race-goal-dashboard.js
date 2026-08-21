@@ -327,6 +327,31 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Generate 12 weeks of mock weekly mileage data matching the
+    // /weekly-mileage endpoint format: {week_start, mileage_km, run_count}
+    // Shows a progressive training build toward a half marathon peak
+    function getMockWeeklyMileage() {
+        const today = new Date();
+        // Start from the Monday of 11 weeks ago (12 weeks total including current week)
+        // getDay() returns 0=Sunday..6=Saturday; convert to 0=Monday..6=Sunday
+        const daysSinceMonday = (today.getDay() + 6) % 7;
+        const startMonday = new Date(today);
+        startMonday.setDate(today.getDate() - daysSinceMonday - 11 * 7);
+        const weekDistances = [18.5, 22.0, 25.3, 28.0, 24.5, 31.2, 33.0, 29.8, 35.5, 38.0, 36.2, 22.0];
+        const weekRuns =      [3,    4,    4,    4,    3,    5,    5,    4,    5,    5,    4,    3];
+        const weeks = [];
+        for (let i = 0; i < 12; i++) {
+            const monday = new Date(startMonday);
+            monday.setDate(startMonday.getDate() + i * 7);
+            weeks.push({
+                week_start: monday.toISOString().slice(0, 10),
+                mileage_km: weekDistances[i],
+                run_count: weekRuns[i],
+            });
+        }
+        return weeks;
+    }
+
     // Mock radar: flat format matching /race-goal/radar endpoint
     // Mock radar data in AI radar format — dimensions array with 0-10 scores
     // Uses strengths/gaps format matching the updated AI prompt
@@ -605,9 +630,13 @@ document.addEventListener('DOMContentLoaded', function () {
             renderMetrics(getMockMetrics());
             const mockActs = generateMockActivities();
             renderActivities(mockActs);
-            renderMileageChart(mockActs);
+            // Weekly mileage chart expects {week_start, mileage_km, run_count}
+            // from the /weekly-mileage endpoint, not raw activities
+            renderMileageChart(getMockWeeklyMileage());
             renderCalendar(mockActs);
             renderPaceDistribution(mockActs);
+            // HR vs Pace scatter uses the same activities array
+            renderHrPaceScatter(mockActs);
             // Show immediately — no skeletons in demo mode
             renderRadarChart(getMockRadarData());
             renderPillars(getMockPillars());
