@@ -19,7 +19,7 @@
             "destination": "/api/analyse"
         },
         {
-            "source": "/projects/race-goal-dashboard/api/auth",
+            "source": "/projects/race-goal-dashboard/api/garmin-auth",
             "destination": "/api/garmin-auth"
         },
         {
@@ -53,6 +53,10 @@
         {
             "source": "/projects/race-goal-dashboard/api/logout",
             "destination": "/api/logout"
+        },
+        {
+            "source": "/api/(.*)",
+            "destination": "/api/index.py"
         }
     ]
 }

@@ -150,9 +150,9 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 
 # Determine root_path based on environment
-# In production (Vercel), the FastAPI function is mounted at /api, so all
-# incoming paths start with /api — FastAPI strips this prefix before route
-# matching (e.g. /api/race-goal/auth becomes /race-goal/auth).
+# In production (Vercel), requests arrive as /api/<route> — root_path="/api"
+# tells FastAPI to strip that prefix before route matching, so a request to
+# /api/garmin-auth matches @app.post("/garmin-auth").
 # Locally, we might be at /api or root
 root_path = os.getenv("ROOT_PATH", "/api")
 
