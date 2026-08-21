@@ -146,6 +146,8 @@ Rules:
 # FastAPI Setup
 # ----------------------
 BASE_DIR = Path(__file__).resolve().parent
+# Templates directory is inside api/ alongside this file
+TEMPLATES_DIR = BASE_DIR / "templates"
 
 # Determine root_path based on environment
 # In production (Vercel), the FastAPI function is mounted at /api, so all
@@ -170,7 +172,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # ----------------------
 # Running Posture Analyser — GPT-4o Vision
@@ -663,7 +665,7 @@ def _get_garmin_client(token: str) -> Garmin:
 
 
 # --- POST /race-goal/auth ---
-@app.post("/race-goal/auth")
+@app.post("/garmin-auth")
 async def race_goal_auth(body: GarminAuthRequest):
     """Authenticate with Garmin Connect and create a session."""
     try:
@@ -767,7 +769,7 @@ async def race_goal_auth(body: GarminAuthRequest):
 
 
 # --- GET /race-goal/check-session ---
-@app.get("/race-goal/check-session")
+@app.get("/check-session")
 async def race_goal_check_session(token: str = ""):
     """Check if a session token is still valid."""
     if not token or token not in _race_sessions:
@@ -794,7 +796,7 @@ async def race_goal_check_session(token: str = ""):
 
 
 # --- GET /race-goal/activities ---
-@app.get("/race-goal/activities")
+@app.get("/activities")
 async def race_goal_activities(token: str = "", limit: int = 10):
     """Fetch recent activities from Garmin."""
     client = _get_garmin_client(token)
@@ -830,7 +832,7 @@ async def race_goal_activities(token: str = "", limit: int = 10):
 
 
 # --- GET /race-goal/weekly-mileage ---
-@app.get("/race-goal/weekly-mileage")
+@app.get("/weekly-mileage")
 async def race_goal_weekly_mileage(token: str = "", weeks: int = 12):
     """Fetch running activities for the last N weeks and group by week.
 
@@ -890,7 +892,7 @@ async def race_goal_weekly_mileage(token: str = "", weeks: int = 12):
 
 
 # --- GET /race-goal/metrics ---
-@app.get("/race-goal/metrics")
+@app.get("/metrics")
 async def race_goal_metrics(token: str = ""):
     """Fetch aggregated performance metrics — Bodily patterns for Garmin data."""
     client = _get_garmin_client(token)
@@ -1069,7 +1071,7 @@ async def race_goal_metrics(token: str = ""):
 
 
 # --- POST /race-goal/onboarding ---
-@app.post("/race-goal/onboarding")
+@app.post("/onboarding")
 async def race_goal_onboarding(token: str = Form(""), purpose: str = Form(""), distance: str = Form(""),
                                 time_target: str = Form(""), race_date: str = Form(""),
                                 experience: str = Form(""), weekly_mileage: str = Form(""),
@@ -1096,7 +1098,7 @@ async def race_goal_onboarding(token: str = Form(""), purpose: str = Form(""), d
 
 
 # --- GET /race-goal/analysis ---
-@app.get("/race-goal/analysis")
+@app.get("/analysis")
 async def race_goal_analysis(token: str = ""):
     """Generate an AI-powered training analysis based on Garmin data + race goal."""
     sess = _get_session(token)
@@ -1310,7 +1312,7 @@ Return ONLY valid JSON:
 
 
 # --- GET /race-goal/radar ---
-@app.get("/race-goal/radar")
+@app.get("/radar")
 async def race_goal_radar(token: str = ""):
     """Return estimated scores for the 6 race-goal dimensions based on real Garmin data."""
     sess = _get_session(token)
@@ -1411,7 +1413,7 @@ async def race_goal_radar(token: str = ""):
 
 
 # --- GET /race-goal/ai-radar ---
-@app.get("/race-goal/ai-radar")
+@app.get("/ai-radar")
 async def race_goal_ai_radar(token: str = ""):
     """Send recent workout history to GPT for 6-dimension race readiness ratings."""
     sess = _get_session(token)
@@ -1504,7 +1506,7 @@ Return ONLY valid JSON:
 
 
 # --- DELETE /race-goal/logout ---
-@app.delete("/race-goal/logout")
+@app.delete("/logout")
 async def race_goal_logout(token: str = ""):
     """End a session and remove it from disk persistence."""
     if token in _race_sessions:

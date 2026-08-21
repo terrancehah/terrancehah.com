@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const email = $('#rgd-email').value.trim();
         const password = $('#rgd-password').value;
         try {
-            const resp = await fetch(`${API_BASE}/auth`, {
+            const resp = await fetch(`${API_BASE}/garmin-auth`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });

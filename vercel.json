@@ -1,10 +1,5 @@
 {
     "cleanUrls": true,
-    "functions": {
-        "api/index.py": {
-            "excludeFiles": "{resources/**,public/**,playground/**,articles/**,projects/**,dist/**,src/**,.git/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb}"
-        }
-    },
     "rewrites": [
         {
             "source": "/projects/persona",
@@ -20,39 +15,39 @@
         },
         {
             "source": "/projects/race-goal-dashboard/api/auth",
-            "destination": "/api/race-goal/auth"
+            "destination": "/api/garmin-auth"
         },
         {
             "source": "/projects/race-goal-dashboard/api/check-session",
-            "destination": "/api/race-goal/check-session"
+            "destination": "/api/check-session"
         },
         {
             "source": "/projects/race-goal-dashboard/api/activities",
-            "destination": "/api/race-goal/activities"
+            "destination": "/api/activities"
         },
         {
             "source": "/projects/race-goal-dashboard/api/metrics",
-            "destination": "/api/race-goal/metrics"
+            "destination": "/api/metrics"
         },
         {
             "source": "/projects/race-goal-dashboard/api/onboarding",
-            "destination": "/api/race-goal/onboarding"
+            "destination": "/api/onboarding"
         },
         {
             "source": "/projects/race-goal-dashboard/api/analysis",
-            "destination": "/api/race-goal/analysis"
+            "destination": "/api/analysis"
         },
         {
             "source": "/projects/race-goal-dashboard/api/radar",
-            "destination": "/api/race-goal/radar"
+            "destination": "/api/radar"
         },
         {
             "source": "/projects/race-goal-dashboard/api/ai-radar",
-            "destination": "/api/race-goal/ai-radar"
+            "destination": "/api/ai-radar"
         },
         {
             "source": "/projects/race-goal-dashboard/api/logout",
-            "destination": "/api/race-goal/logout"
+            "destination": "/api/logout"
         }
     ]
 }
