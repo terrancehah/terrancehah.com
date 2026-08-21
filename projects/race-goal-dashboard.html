@@ -305,18 +305,16 @@
                         <!-- Lightbulb icon -->
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
                     </a>
+                    <button class="rgd-tab-item" id="rgd-tab-settings" title="Settings">
+                        <!-- Cog / gear icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                    </button>
                 </nav>
 
                 <!-- Main Content -->
                 <div class="rgd-content" id="rgd-content">
 
-                    <!-- Project title + intro + demo banner -->
-                    <div class="rgd-content-header">
-                        <h1 class="rgd-project-title">RunAssist</h1>
-                        <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights.</p>
-                        
-                    </div>
-
+                    <!-- Demo banner — shown when viewing sample data in demo mode -->
                     <div class="rgd-demo-banner" id="rgd-demo-banner" hidden>
                             <svg class="rgd-demo-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             <span class="rgd-demo-banner-text">You're viewing sample data in demo mode.</span>
@@ -324,6 +322,11 @@
 
                     <!-- ========== PAGE: Overview ========== -->
                     <div class="rgd-page" id="rgd-page-overview">
+                        <!-- Project title + intro — only on the overview page -->
+                        <div class="rgd-content-header">
+                            <h1 class="rgd-project-title">RunAssist</h1>
+                            <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights.</p>
+                        </div>
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Training Snapshot</h2>
                             <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
@@ -357,13 +360,62 @@
                                     <h3 class="rgd-readiness-card-title">
                                         <a class="rgd-readiness-card-link" href="#readiness">Race Readiness</a>
                                     </h3>
-                                    <p class="rgd-readiness-card-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. Click a label for details.</p>
+                                    <p class="rgd-readiness-card-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. <span class="rgd-tap-hint">Tap a label for details.</span></p>
                                     <div class="rgd-radar-wrap">
                                         <canvas class="rgd-radar-chart"></canvas>
+                                        <div class="rgd-radar-skeleton" hidden>
+                                            <!-- Hexagon-based radar skeleton: outer boundary + 2 inner
+                                                 concentric levels mimic the radar chart grid -->
+                                            <svg class="rgd-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                                <!-- Outer hexagon (radar boundary) -->
+                                                <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.6"/>
+                                                <!-- Middle grid line -->
+                                                <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.35"/>
+                                                <!-- Inner grid line -->
+                                                <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.2"/>
+                                                <!-- Axis lines from center to each vertex -->
+                                                <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                                <!-- Shimmer fill over the data area -->
+                                                <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
+                                                    fill="rgba(69,123,157,0.08)" class="rgd-radar-skeleton-fill"/>
+                                                <!-- Vertex dots (6) matching the 6 dimensions -->
+                                                <circle cx="100" cy="20" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <circle cx="170" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <circle cx="170" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <circle cx="100" cy="180" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <circle cx="30" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <circle cx="30" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </section>
+                        <!-- Pace Distribution + HR vs Pace: 50/50 side by side on large screens -->
+                        <div class="rgd-charts-row">
+                            <section class="rgd-section">
+                                <h3 class="rgd-section-title">Pace Distribution vs Goal Pace</h3>
+                                <p class="rgd-section-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training. Bars show total distance in each band.</p>
+                                <div class="rgd-chart-card">
+                                    <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
+                                </div>
+                            </section>
+                            <section class="rgd-section">
+                                <h3 class="rgd-section-title">HR vs Pace Trend</h3>
+                                <p class="rgd-section-sub">Each dot is a run from the last 12 weeks — pace on the horizontal axis, average heart rate on the vertical. Colour indicates how recent the run is. Over time, dots shifting downward and rightward means you are getting faster at the same heart rate — a key sign of improving fitness.</p>
+                                <div class="rgd-chart-card">
+                                    <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
+                                </div>
+                            </section>
+                        </div>
                         <section class="rgd-section">
                             <a class="rgd-section-title rgd-section-title--link" href="#activities">Recent Activities</a>
                             <div class="rgd-activities-list" id="rgd-activities-list"></div>
@@ -392,6 +444,30 @@
                             <div class="rgd-readiness-card">
                                 <div class="rgd-radar-wrap rgd-radar-wrap--full">
                                     <canvas class="rgd-radar-chart" height="400"></canvas>
+                                    <div class="rgd-radar-skeleton" hidden>
+                                        <svg class="rgd-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                                            <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.6"/>
+                                            <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.35"/>
+                                            <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.2"/>
+                                            <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
+                                            <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
+                                                fill="rgba(69,123,157,0.08)" class="rgd-radar-skeleton-fill"/>
+                                            <circle cx="100" cy="20" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            <circle cx="170" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            <circle cx="170" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            <circle cx="100" cy="180" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            <circle cx="30" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                            <circle cx="30" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                        </svg>
+                                    </div>
                                 </div>
                             </div>
                             <!-- Contextual explanation: educates the user on how each
@@ -465,6 +541,42 @@
             <div class="rgd-overlay-content">
                 <div class="rgd-spinner"></div>
                 <p class="rgd-overlay-text" id="rgd-overlay-text">Loading...</p>
+            </div>
+        </div>
+
+        <!-- ========== SETTINGS POPUP ========== -->
+        <div class="rgd-settings-popup" id="rgd-settings-popup" hidden>
+            <div class="rgd-settings-popup-card">
+                <div class="rgd-settings-popup-header">
+                    <h3 class="rgd-settings-popup-title">Account</h3>
+                    <button class="rgd-settings-popup-close" id="rgd-settings-popup-close" title="Close">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="rgd-settings-popup-body">
+                    <div class="rgd-settings-field">
+                        <span class="rgd-settings-field-label">Name</span>
+                        <span class="rgd-settings-field-value" id="rgd-settings-name">--</span>
+                    </div>
+                    <div class="rgd-settings-field">
+                        <span class="rgd-settings-field-label">Email</span>
+                        <span class="rgd-settings-field-value" id="rgd-settings-email">--</span>
+                    </div>
+                    <div class="rgd-settings-field">
+                        <span class="rgd-settings-field-label">Device</span>
+                        <span class="rgd-settings-field-value" id="rgd-settings-device">--</span>
+                    </div>
+                    <div class="rgd-settings-field">
+                        <span class="rgd-settings-field-label">Language</span>
+                        <select class="rgd-settings-select" disabled>
+                            <option>English</option>
+                        </select>
+                        <span class="rgd-settings-field-hint">More languages coming soon</span>
+                    </div>
+                </div>
+                <div class="rgd-settings-popup-footer">
+                    <button class="rgd-btn rgd-btn-danger" id="rgd-settings-logout-btn">Disconnect Garmin</button>
+                </div>
             </div>
         </div>
 

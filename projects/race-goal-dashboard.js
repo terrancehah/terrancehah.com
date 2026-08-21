@@ -63,10 +63,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let sessionToken = '';
     let displayName = '';
     let raceGoal = null;
+    let raceGoalPaceMs = 0; // race goal pace in m/s — used for run classification
     let mileageChart = null;
     let lastMileageWeeks = null; // stored for theme-change re-render
     let radarCharts = []; // multiple instances — overview + readiness pages
     let lastRadarData = null; // stored for theme-change re-render
+    let paceDistChart = null; // pace distribution histogram
+    let hrPaceScatter = null; // HR vs Pace scatter plot
 
     // =========================================================================
     // API helpers
@@ -92,8 +95,33 @@ document.addEventListener('DOMContentLoaded', function () {
         return fetch(url, options);
     }
 
-    function showOverlay(text) { overlayText.textContent = text; overlay.hidden = false; }
-    function hideOverlay() { overlay.hidden = true; }
+    // Rotating loading messages — cycles through motivational phrases while data loads
+    const LOADING_MESSAGES = [
+        'Loading your training data…',
+        'Crunching the numbers…',
+        'Analysing your progress…',
+        'Almost there…',
+        'Preparing your dashboard…',
+        'Syncing with Garmin…',
+    ];
+    let loadingMsgTimer = null;
+
+    function showOverlay(text) {
+        overlayText.textContent = text;
+        overlay.hidden = false;
+        // Start rotating through messages every 2.5 seconds
+        let idx = 0;
+        if (loadingMsgTimer) clearInterval(loadingMsgTimer);
+        loadingMsgTimer = setInterval(() => {
+            idx = (idx + 1) % LOADING_MESSAGES.length;
+            overlayText.textContent = LOADING_MESSAGES[idx];
+        }, 2500);
+    }
+
+    function hideOverlay() {
+        overlay.hidden = true;
+        if (loadingMsgTimer) { clearInterval(loadingMsgTimer); loadingMsgTimer = null; }
+    }
     function setButtonLoading(btn, loading) {
         const t = btn.querySelector('.rgd-btn-text');
         const s = btn.querySelector('.rgd-btn-spinner');
@@ -560,6 +588,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderActivities(mockActs);
             renderMileageChart(mockActs);
             renderCalendar(mockActs);
+            renderPaceDistribution(mockActs);
             // Show immediately — no skeletons in demo mode
             renderRadarChart(getMockRadarData());
             renderPillars(getMockPillars());
@@ -570,7 +599,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
                 apiCall('GET', 'metrics'),
-                apiCall('GET', 'activities?limit=20'),
+                apiCall('GET', 'activities?limit=30'),
                 apiCall('GET', 'weekly-mileage?weeks=12'),
             ]);
             const metricsData = await metricsResp.json();
@@ -580,9 +609,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (activitiesResp.ok && activitiesData.activities) {
                 renderActivities(activitiesData.activities);
                 renderCalendar(activitiesData.activities);
+                // Pace distribution histogram + HR vs Pace scatter
+                renderPaceDistribution(activitiesData.activities);
+                renderHrPaceScatter(activitiesData.activities);
             }
             // Mileage chart uses dedicated weekly-mileage endpoint (not activities list)
-            if (mileageResp.ok && mileageData.weeks) renderMileageChart(mileageData.weeks);
+            if (mileageResp.ok && mileageData.weeks) {
+                renderMileageChart(mileageData.weeks);
+            }
         } catch (err) { console.error('Load error:', err); }
         hideOverlay();
 
@@ -976,16 +1010,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const cardTitle = calendarEl.closest('.rgd-chart-card')?.querySelector('.rgd-card-title');
         if (cardTitle) cardTitle.textContent = monthName;
 
-        // Map day → activity type (only one dot per day, prioritize longest)
+        // Map day → activity type (only one dot per day, prioritize longest).
+        // Exclude non-running activities (hiking, cycling, etc.)
         const dayMap = {};
         activities.forEach(a => {
+            if (!isRunningActivity(a)) return;
             const d = parseDate(a.start_time);
             if (isNaN(d.getTime())) return;
             if (d.getMonth() === month && d.getFullYear() === year) {
                 const day = d.getDate();
                 const dist = a.distance || 0;
                 const type = (a.type || 'run').toLowerCase();
-                const cat = type.includes('run') ? (dist > 15 ? 'long' : 'run') : 'other';
+                const cat = dist > 15 ? 'long' : 'run';
                 // Keep the "best" activity type for the day
                 const priority = { 'long': 3, 'run': 2, 'other': 1 };
                 if (!dayMap[day] || priority[cat] > priority[dayMap[day]]) {
@@ -1029,28 +1065,54 @@ document.addEventListener('DOMContentLoaded', function () {
     // Activities list
     // =========================================================================
 
+    // Render a list of activities grouped by month with month separator headers.
+    // showMonthTotal: when true (activities page), shows total km per month; hidden on overview
+    function buildActivityListHtml(activities, showMonthTotal = false) {
+        if (!activities.length) return '<p class="rgd-metric-label">No activities found.</p>';
+
+        // Group activities by month (YYYY-MM key) preserving original order
+        const groups = [];
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        activities.forEach((a, idx) => {
+            const d = a.start_time ? parseDate(a.start_time) : null;
+            const key = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : 'unknown';
+            if (!groups.length || groups[groups.length - 1].key !== key) {
+                groups.push({ key, month: d ? monthNames[d.getMonth()] : 'Unknown', year: d ? d.getFullYear() : '', activities: [], totalKm: 0 });
+            }
+            const group = groups[groups.length - 1];
+            group.activities.push({ activity: a, originalIndex: idx });
+            group.totalKm += a.distance || 0;
+        });
+
+        // Build HTML with month headers between groups.
+        // Month totals only shown on the full activities page, not the overview.
+        return groups.map(group => `
+            <div class="rgd-activity-month-header">
+                <span class="rgd-activity-month-name">${group.month} ${group.year}</span>
+                ${showMonthTotal ? `<span class="rgd-activity-month-total">${Math.round(group.totalKm)} km</span>` : ''}
+            </div>
+            ${group.activities.map(({ activity, originalIndex }) => buildActivityItem(activity, originalIndex)).join('')}
+        `).join('');
+    }
+
     function renderActivities(activities) {
-        if (!activities.length) {
+        // Filter out non-running activities (hiking, cycling, etc.) — only show runs
+        const runningOnly = activities.filter(isRunningActivity);
+        if (!runningOnly.length) {
             activitiesList.innerHTML = '<p class="rgd-metric-label">No recent activities found.</p>';
             if (activitiesFull) activitiesFull.innerHTML = '<p class="rgd-metric-label">No activities found.</p>';
             return;
         }
 
-        // Compute median pace and HR across all activities for run classification.
-        // The heuristic compares each run's pace/HR to the runner's typical values
-        // to determine if it's an easy, LSD, tempo, or interval workout.
-        const paces = activities.map(a => a.avg_pace).filter(p => p && p > 0).sort((a, b) => a - b);
-        const hrs = activities.map(a => a.avg_hr).filter(h => h && h > 0).sort((a, b) => a - b);
-        const distances = activities.map(a => a.distance).filter(d => d && d > 0).sort((a, b) => a - b);
-        const medianPace = paces.length ? paces[Math.floor(paces.length / 2)] : 0;
-        const medianHr = hrs.length ? hrs[Math.floor(hrs.length / 2)] : 0;
-        const medianDist = distances.length ? distances[Math.floor(distances.length / 2)] : 0;
-        const thresholds = { medianPace, medianHr, medianDist };
+        // Always recompute race goal pace for run classification — the goal
+        // may have changed since the last render (e.g. after onboarding)
+        raceGoalPaceMs = raceGoal ? computeGoalPaceMs(raceGoal) : 0;
 
-        // Overview: 5 latest
-        activitiesList.innerHTML = activities.slice(0, 5).map((a, i) => buildActivityItem(a, i, thresholds)).join('');
-        // Full page: all activities
-        if (activitiesFull) activitiesFull.innerHTML = activities.map((a, i) => buildActivityItem(a, i, thresholds)).join('');
+        // Overview: 5 latest, grouped by month — no month totals
+        activitiesList.innerHTML = buildActivityListHtml(runningOnly.slice(0, 5), false);
+        // Full page: all activities, grouped by month — show month totals
+        if (activitiesFull) activitiesFull.innerHTML = buildActivityListHtml(runningOnly, true);
     }
 
     // Running figure SVG used for activity icons (replaces text abbreviations)
@@ -1074,29 +1136,62 @@ document.addEventListener('DOMContentLoaded', function () {
     // - Tempo: fast pace, sustained (medium distance), high HR
     // - LSD: slow pace (above median), long distance (>130% of median)
     // - Easy: slow pace, short distance, low HR
-    function classifyRun(a, thresholds) {
-        const { medianPace, medianHr, medianDist } = thresholds;
-        if (!medianPace || !a.avg_pace) return { label: 'Run', className: 'rgd-run-tag--easy' };
-
-        const pace = a.avg_pace;       // m/s — higher = faster
-        const hr = a.avg_hr || 0;
-        const dist = a.distance || 0;
-
-        // Pace thresholds: pace above median means faster (m/s)
-        const isFast = pace > medianPace * 1.08;   // >8% faster than median
-        const isSlow = pace < medianPace * 0.92;   // >8% slower than median
-        const isLong = dist > medianDist * 1.3;     // >30% longer than median
-        const isShort = dist < medianDist * 0.6;    // <60% of median distance
-        const isHighHr = hr > medianHr * 1.08;      // >8% higher HR than median
-
-        if (isFast && isShort) return { label: 'Interval', className: 'rgd-run-tag--interval' };
-        if (isFast && isHighHr) return { label: 'Tempo', className: 'rgd-run-tag--tempo' };
-        if (isSlow && isLong) return { label: 'LSD', className: 'rgd-run-tag--lsd' };
-        if (isSlow || (!isFast && !isHighHr)) return { label: 'Easy', className: 'rgd-run-tag--easy' };
-        return { label: 'Run', className: 'rgd-run-tag--easy' };
+    // Compute race goal pace in m/s from the race goal data
+    // Uses the same distance mapping as renderGoalSpecifics
+    function computeGoalPaceMs(goal) {
+        if (!goal || !goal.time_target) return 0;
+        const distanceMap = {
+            '5K': 5, '10K': 10, 'Half Marathon': 21.1,
+            'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40,
+        };
+        const distKm = distanceMap[goal.purpose] || parseFloat(goal.distance) || 0;
+        if (!distKm) return 0;
+        // Parse H:MM:SS or MM:SS
+        const parts = goal.time_target.split(':').map(Number);
+        let totalSec = 0;
+        if (parts.length === 3) totalSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        else if (parts.length === 2) totalSec = parts[0] * 60 + parts[1];
+        if (totalSec <= 0) return 0;
+        // m/s = (km * 1000) / seconds
+        return (distKm * 1000) / totalSec;
     }
 
-    function buildActivityItem(a, i, thresholds) {
+    // Classify a run using race-goal-based heuristics:
+    // Check if an activity is a running workout (not hiking, cycling, etc.)
+    function isRunningActivity(a) {
+        const type = (a.type || '').toLowerCase();
+        if (!type) return true; // if no type, assume running
+        // Filter out known non-running types
+        const nonRunning = ['hiking', 'cycling', 'swimming', 'walking', 'other', 'uncategorized'];
+        return !nonRunning.some(t => type.includes(t));
+    }
+
+    // Classify a run using race-goal-based heuristics:
+    // Warmup: distance < 2km
+    // Speedwork: pace faster than race goal pace
+    // LSD: distance > 12km (long slow distance)
+    // Easy: everything else (base/recovery mileage)
+    function classifyRun(a) {
+        if (!a.avg_pace || a.avg_pace <= 0) return { label: 'Run', className: 'rgd-run-tag--easy' };
+        const dist = a.distance || 0;
+
+        // Warmup: runs shorter than 2km — excluded from charts
+        if (dist < 2) {
+            return { label: 'Warmup', className: 'rgd-run-tag--warmup' };
+        }
+        // Speedwork: the run's average pace (m/s) is faster than the race goal pace
+        if (raceGoalPaceMs > 0 && a.avg_pace > raceGoalPaceMs) {
+            return { label: 'Speedwork', className: 'rgd-run-tag--speedwork' };
+        }
+        // LSD: distance exceeds 12km — long endurance run
+        if (dist > 12) {
+            return { label: 'LSD', className: 'rgd-run-tag--lsd' };
+        }
+        // Everything else is easy/base mileage
+        return { label: 'Easy', className: 'rgd-run-tag--easy' };
+    }
+
+    function buildActivityItem(a, i) {
         const date = a.start_time ? parseDate(a.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '--';
         const pace = a.avg_pace ? formatPace(a.avg_pace) : '--';
         const hr = a.avg_hr ? `${a.avg_hr} bpm` : '--';
@@ -1105,8 +1200,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const cadence = a.avg_cadence ? `${Math.round(a.avg_cadence)} spm` : '--';
         const elapsedMin = a.elapsed_duration ? a.elapsed_duration : a.duration;
         const elapsed = elapsedMin ? formatDuration(elapsedMin) : '--';
-        // Classify the run type using pace + HR heuristic
-        const runTag = classifyRun(a, thresholds || {});
+        // Classify the run type using race-goal-based heuristics
+        const runTag = classifyRun(a);
 
         return `
             <div class="rgd-activity-item" data-index="${i}">
@@ -1178,6 +1273,255 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
+    // Pace Distribution vs Goal Pace — histogram of recent run paces
+    // overlaid with a vertical goal pace line
+    // =========================================================================
+
+    function renderPaceDistribution(activities) {
+        const canvas = document.getElementById('rgd-pace-distribution-chart');
+        if (!canvas || !activities.length) return;
+        if (paceDistChart) paceDistChart.destroy();
+
+        // Filter: only running activities, exclude warmup (<2km) and non-running types
+        const runs = activities.filter(a => isRunningActivity(a) && (a.distance || 0) >= 2);
+        if (!runs.length) return;
+
+        // Compute goal pace in decimal min/km to find which bucket it falls in
+        const goalPaceMinPerKm = raceGoalPaceMs > 0 ? (1000 / raceGoalPaceMs) / 60 : 0;
+
+        // Fixed 30-second pace buckets — 6 columns total
+        const buckets = [
+            { label: '<4:00', min: 0, max: 4.0 },
+            { label: '4:00–4:30', min: 4.0, max: 4.5 },
+            { label: '4:30–5:00', min: 4.5, max: 5.0 },
+            { label: '5:00–5:30', min: 5.0, max: 5.5 },
+            { label: '5:30–6:00', min: 5.5, max: 6.0 },
+            { label: '>6:00', min: 6.0, max: 99 },
+        ];
+
+        // Compute total distance and average HR per bucket
+        const bucketData = buckets.map(b => ({ label: b.label, distance: 0, hrSum: 0, count: 0 }));
+        runs.forEach(a => {
+            if (!a.avg_pace || a.avg_pace <= 0) return;
+            const paceMinPerKm = (1000 / a.avg_pace) / 60; // convert m/s → min/km
+            for (let i = 0; i < buckets.length; i++) {
+                if (paceMinPerKm >= buckets[i].min && paceMinPerKm < buckets[i].max) {
+                    bucketData[i].distance += a.distance || 0;
+                    if (a.avg_hr) bucketData[i].hrSum += a.avg_hr;
+                    bucketData[i].count++;
+                    break;
+                }
+            }
+        });
+
+        const distances = bucketData.map(b => Math.round(b.distance * 10) / 10);
+
+        // Find which bucket the goal pace falls into
+        const goalBucketIndex = buckets.findIndex(b => goalPaceMinPerKm >= b.min && goalPaceMinPerKm < b.max);
+
+        // Pace-based colour scheme for 6 fixed buckets:
+        // Goal bucket: green. Faster: red → orange. Slower: dark green → blue → navy
+        const pacePalette = [
+            'rgba(196, 75, 75, 0.8)',    // Fastest — red
+            'rgba(212, 160, 23, 0.8)',   // Faster — orange
+            'rgba(63, 123, 79, 0.8)',    // Goal pace — green
+            'rgba(47, 93, 59, 0.8)',     // Slightly slower — dark green
+            'rgba(69, 123, 157, 0.8)',   // Slower — light blue
+            'rgba(29, 53, 87, 0.8)',     // Slowest — navy
+        ];
+
+        let barColors;
+        if (goalBucketIndex >= 0) {
+            // Shift the palette so goal bucket always gets green (index 2)
+            const shift = 2 - goalBucketIndex;
+            barColors = buckets.map((_, i) => {
+                const idx = Math.min(Math.max(i + shift, 0), pacePalette.length - 1);
+                return pacePalette[idx];
+            });
+        } else {
+            barColors = pacePalette;
+        }
+
+        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+
+        paceDistChart = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: buckets.map(b => b.label),
+                datasets: [{
+                    label: 'Total Distance (km)',
+                    data: distances,
+                    backgroundColor: barColors,
+                    borderColor: barColors.map(c => c.replace('0.8', '1')),
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const b = bucketData[ctx.dataIndex];
+                                return `${ctx.raw} km · ${b.count} run${b.count !== 1 ? 's' : ''}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Total Distance (km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted, callback: v => Math.round(v) },
+                        grid: { color: chartGridColor }
+                    }
+                }
+            },
+            plugins: [{
+                // Custom plugin: draw a vertical line at the goal pace bucket
+                id: 'goalPaceLine',
+                afterDraw(chart) {
+                    if (goalBucketIndex < 0) return;
+                    const meta = chart.getDatasetMeta(0);
+                    if (!meta.data.length) return;
+                    const x = meta.data[goalBucketIndex].x;
+                    const topY = chart.scales.y.top;
+                    const bottomY = chart.scales.y.bottom;
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.setLineDash([6, 4]);
+                    ctx.strokeStyle = 'rgba(196, 75, 75, 0.7)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, topY);
+                    ctx.lineTo(x, bottomY);
+                    ctx.stroke();
+                    // Label above the line
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = '#c44b4b';
+                    ctx.font = '600 11px Raleway';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Goal pace', x, topY - 8);
+                    ctx.restore();
+                }
+            }]
+        });
+    }
+
+    // =========================================================================
+    // HR vs Pace Scatter — each dot is a run from the last 12 weeks
+    // X = pace (min/km), Y = average HR (bpm), colour = recency
+    // =========================================================================
+
+    function renderHrPaceScatter(activities) {
+        const canvas = document.getElementById('rgd-hr-pace-scatter');
+        if (!canvas || !activities.length) return;
+        if (hrPaceScatter) hrPaceScatter.destroy();
+
+        // Filter to runs only: exclude non-running types (hiking etc.), warmup runs (<2km),
+        // and require both pace + HR data, within the last 12 weeks
+        const now = new Date();
+        const twelveWeeksAgo = new Date(now.getTime() - 12 * 7 * 24 * 60 * 60 * 1000);
+        const validRuns = activities
+            .filter(a => isRunningActivity(a) && (a.distance || 0) >= 2)
+            .filter(a => a.avg_pace && a.avg_pace > 0 && a.avg_hr && a.avg_hr > 0 && a.start_time)
+            .map(a => ({
+                pace: (1000 / a.avg_pace) / 60, // m/s → min/km
+                hr: a.avg_hr,
+                date: parseDate(a.start_time),
+                distance: a.distance || 0,
+                name: a.name || '',
+            }))
+            .filter(r => r.date && r.date >= twelveWeeksAgo)
+            .sort((a, b) => a.date - b.date); // oldest first
+
+        if (!validRuns.length) return;
+
+        // Map each run to a recency colour: dark green (oldest) → light green (newest)
+        const minDate = validRuns[0].date.getTime();
+        const maxDate = validRuns[validRuns.length - 1].date.getTime();
+        const dateRange = maxDate - minDate || 1;
+
+        // Build point data + per-point colours in parallel arrays for Chart.js scatter
+        const scatterData = [];
+        const pointColors = [];
+        const pointBorders = [];
+
+        validRuns.forEach(r => {
+            const t = (r.date.getTime() - minDate) / dateRange; // 0 = oldest, 1 = newest
+            // Dark green (#1a472a) → light green (#7ddf90) based on recency
+            const r_col = Math.round(26 + t * 99);
+            const g_col = Math.round(71 + t * 152);
+            const b_col = Math.round(42 + t * 102);
+            scatterData.push({
+                x: Math.round(r.pace * 100) / 100,
+                y: r.hr,
+                distance: r.distance,
+                date: r.date,
+                name: r.name,
+            });
+            pointColors.push(`rgba(${r_col}, ${g_col}, ${b_col}, 0.7)`);
+            pointBorders.push(`rgba(${r_col}, ${g_col}, ${b_col}, 1)`);
+        });
+
+        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+
+        hrPaceScatter = new Chart(canvas, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Runs',
+                    data: scatterData,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: pointBorders,
+                    pointRadius: 6,
+                    pointHoverRadius: 9,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => {
+                                const p = scatterData[ctx.dataIndex];
+                                const paceStr = `${Math.floor(p.x)}:${String(Math.round((p.x % 1) * 60)).padStart(2, '0')}/km`;
+                                const dateStr = p.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                                return `${p.name || 'Run'}: ${paceStr} · ${p.y} bpm · ${p.distance}km · ${dateStr}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                        grid: { color: chartGridColor },
+                        // Reverse so faster paces (lower min/km) are on the left
+                        reverse: true,
+                    },
+                    y: {
+                        title: { display: true, text: 'Avg Heart Rate (bpm)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                        grid: { color: chartGridColor }
+                    }
+                }
+            }
+        });
+    }
+
+    // =========================================================================
     // Radar chart — non-AI, uses /race-goal/radar (calculated from metrics)
     // =========================================================================
 
@@ -1243,6 +1587,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const cssText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
+            // On narrow screens (phone), use a smaller point label font to prevent clipping.
+            // The canvas width determines whether we're in a compact layout.
+            const isNarrow = canvas.clientWidth < 320;
+            const pointLabelFontSize = isNarrow ? 9 : 11;
+
             radarCharts.push(new Chart(canvas, {
                 type: 'radar',
                 data: {
@@ -1270,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             // Hide tick number labels — only show grid lines
                             ticks: { display: false, stepSize: 2 },
                             pointLabels: {
-                                font: { size: 11, family: 'Raleway', weight: '600' },
+                                font: { size: pointLabelFontSize, family: 'Raleway', weight: '600' },
                                 color: cssNavy,
                                 // Make labels clickable via callback — we handle
                                 // clicks separately on the canvas element below
@@ -1332,11 +1681,68 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
-    // 6-Pillar AI Summary — uses /race-goal/ai-radar for per-dimension notes
+    // 6-Pillar AI Summary — uses /race-goal/ai-radar with localStorage cache
+    // Cache keyed by session token + race goal hash, 6-hour TTL
     // =========================================================================
 
-    async function loadAISummary() {
-        // Show skeleton placeholders while AI is processing
+    const AI_CACHE_KEY = 'rgd_ai_radar_cache';
+    const AI_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+    // Build a deterministic cache key from the session token and race goal
+    function getAICacheKey() {
+        const goalFingerprint = raceGoal ? `${raceGoal.purpose || ''}|${raceGoal.distance || ''}|${raceGoal.time_target || ''}|${raceGoal.race_date || ''}` : 'no-goal';
+        return `${sessionToken || 'demo'}::${goalFingerprint}`;
+    }
+
+    // Try to read cached AI radar data from localStorage; returns null if expired or missing
+    function readAICache() {
+        try {
+            const raw = localStorage.getItem(AI_CACHE_KEY);
+            if (!raw) return null;
+            const entry = JSON.parse(raw);
+            // Check that the cache matches the current session + goal
+            if (entry.key !== getAICacheKey()) return null;
+            // Check TTL expiry
+            if (Date.now() - entry.timestamp > AI_CACHE_TTL_MS) return null;
+            return entry.data;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Write AI radar data to localStorage cache
+    function writeAICache(data) {
+        try {
+            localStorage.setItem(AI_CACHE_KEY, JSON.stringify({
+                key: getAICacheKey(),
+                timestamp: Date.now(),
+                data: data,
+            }));
+        } catch (e) {
+            // localStorage full or unavailable — silently skip caching
+        }
+    }
+
+    // Clear the AI cache (called when user clicks "Regenerate Insights")
+    function clearAICache() {
+        localStorage.removeItem(AI_CACHE_KEY);
+    }
+
+    async function loadAISummary(forceRefresh = false) {
+        if (forceRefresh) clearAICache();
+
+        // Check cache first — if valid, render immediately without API call
+        const cached = !forceRefresh ? readAICache() : null;
+        if (cached) {
+            showRadarSkeleton(false);
+            renderRadarChart(cached);
+            renderPillars(cached);
+            refreshAnalysisBtn.hidden = false;
+            return;
+        }
+
+        // No valid cache — show radar + pillars skeletons and fetch from API
+        showRadarSkeleton(true);
         showPillarsSkeleton();
         summaryErrors.forEach(el => el.hidden = true);
         refreshAnalysisBtn.hidden = true;
@@ -1345,6 +1751,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('GET', 'ai-radar');
             const data = await resp.json();
             if (!resp.ok) {
+                showRadarSkeleton(false);
                 summaryErrors.forEach(el => {
                     el.textContent = data.error || 'Failed to load insights.';
                     el.hidden = false;
@@ -1353,10 +1760,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 refreshAnalysisBtn.hidden = false;
                 return;
             }
+            // Cache the successful response for future loads
+            writeAICache(data);
             // Render both the radar chart and the insight text from the same AI data
+            showRadarSkeleton(false);
             renderRadarChart(data);
             renderPillars(data);
         } catch (err) {
+            showRadarSkeleton(false);
             summaryErrors.forEach(el => {
                 el.textContent = 'Network error.';
                 el.hidden = false;
@@ -1366,6 +1777,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Show/hide all radar skeleton overlays (overview + readiness page)
+    function showRadarSkeleton(show) {
+        document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
+            el.hidden = !show;
+        });
+    }
+
     // Skeleton placeholder cards shown while AI is generating insights
     function showPillarsSkeleton() {
         const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
@@ -1373,7 +1791,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
                     <span class="rgd-pillar-name">${name}</span>
-                    <span class="rgd-pillar-score rgd-skeleton-text">--</span>
+                    <span class="rgd-pillar-score rgd-skeleton-text"></span>
                 </div>
                 <div class="rgd-skeleton-lines">
                     <div class="rgd-skeleton-line"></div>
@@ -1416,7 +1834,8 @@ document.addEventListener('DOMContentLoaded', function () {
         pillarsContents.forEach(el => el.innerHTML = html);
     }
 
-    refreshAnalysisBtn.addEventListener('click', loadAISummary);
+    // "Regenerate Insights" button — force a fresh AI call, bypassing the cache
+    refreshAnalysisBtn.addEventListener('click', () => loadAISummary(true));
 
     // =========================================================================
     // Reset goal
@@ -1425,10 +1844,13 @@ document.addEventListener('DOMContentLoaded', function () {
     $('#rgd-reset-goal-btn').addEventListener('click', () => {
         raceGoal = null;
         localStorage.removeItem('rgd_race_goal');
+        clearAICache(); // goal changed — cached insights are no longer valid
         sidebarGoalEl.textContent = '';
         // Return to onboarding
         if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
         radarCharts.forEach(c => c.destroy()); radarCharts = [];
+        if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
+        if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
         onboardForm.reset();
         showScreen(onboardScreen);
     });
@@ -1438,19 +1860,64 @@ document.addEventListener('DOMContentLoaded', function () {
     // (Also handles logout if already connected)
     // =========================================================================
 
-    settingsBtn.addEventListener('click', () => {
-        // If user has a real session (not demo), show logout option
-        // Otherwise, show the login modal to connect Garmin
+    // =========================================================================
+    // Settings popup — shows Garmin account details, language (disabled), logout
+    // =========================================================================
+    const settingsPopup = $('#rgd-settings-popup');
+    const settingsPopupClose = $('#rgd-settings-popup-close');
+    const settingsLogoutBtn = $('#rgd-settings-logout-btn');
+
+    async function openSettingsPopup() {
         if (sessionToken && sessionToken !== 'demo') {
-            // Already connected — offer logout
-            if (confirm('Disconnect your Garmin account? You will return to demo mode.')) {
-                logout();
+            // Populate account details from the latest check-session data
+            try {
+                const resp = await apiCall('GET', 'check-session');
+                const data = await resp.json();
+                if (data.valid) {
+                    $('#rgd-settings-name').textContent = data.full_name || data.display_name || '--';
+                    $('#rgd-settings-email').textContent = data.email || '--';
+                    $('#rgd-settings-device').textContent = data.device_name || '--';
+                }
+            } catch (e) {
+                // Fallback to cached data
+                $('#rgd-settings-name').textContent = displayName || '--';
+                $('#rgd-settings-email').textContent = '--';
+                $('#rgd-settings-device').textContent = '--';
             }
         } else {
-            // Not connected — show login modal
-            openLoginModal();
+            // Demo mode — show placeholder
+            $('#rgd-settings-name').textContent = 'Demo Runner';
+            $('#rgd-settings-email').textContent = 'demo@example.com';
+            $('#rgd-settings-device').textContent = 'Demo Device';
+        }
+        settingsPopup.hidden = false;
+    }
+
+    function closeSettingsPopup() { settingsPopup.hidden = true; }
+
+    settingsBtn.addEventListener('click', openSettingsPopup);
+    settingsPopupClose.addEventListener('click', closeSettingsPopup);
+    // Close when clicking outside the popup
+    settingsPopup.addEventListener('click', (e) => {
+        if (e.target === settingsPopup) closeSettingsPopup();
+    });
+
+    // Logout from within the settings popup
+    settingsLogoutBtn.addEventListener('click', () => {
+        if (confirm('Disconnect your Garmin account? You will return to demo mode.')) {
+            closeSettingsPopup();
+            logout();
         }
     });
+
+    // Mobile tab bar settings button — mirrors the sidebar settings button
+    const tabSettingsBtn = $('#rgd-tab-settings');
+    if (tabSettingsBtn) {
+        tabSettingsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSettingsPopup();
+        });
+    }
 
     // Logout function — shared between settings and session expiry
     async function logout() {
@@ -1458,11 +1925,14 @@ document.addEventListener('DOMContentLoaded', function () {
         sessionToken = ''; displayName = 'Demo Runner'; raceGoal = null; profileImageUrl = '';
         if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
         radarCharts.forEach(c => c.destroy()); radarCharts = [];
+        if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
+        if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
         // Clear all cached session data so the next load starts fresh
         localStorage.removeItem('rgd_session_token');
         localStorage.removeItem('rgd_race_goal');
         localStorage.removeItem('rgd_display_name');
         localStorage.removeItem('rgd_profile_image_url');
+        clearAICache(); // clear cached AI insights when logging out
         loginForm.reset(); onboardForm.reset();
         // Return to demo mode instead of login screen
         startDemoMode();

@@ -1001,7 +1001,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     overflow-x: hidden;
 }
 
-/* Content header — project title + demo banner */
+/* Content header — project title + intro (overview page only) */
 .rgd-content-header {
     display: flex;
     flex-direction: column;
@@ -1307,14 +1307,14 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: block;
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: var(--rgd-text-label);
+    font-size: var(--rgd-text-body);
     color: var(--rgd-navy);
     margin-bottom: 0.2rem;
 }
 
 .rgd-dimension-explainer-desc {
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-caption);
+    font-size: var(--rgd-text-label);
     line-height: 1.5;
     color: var(--rgd-muted);
     margin: 0;
@@ -1378,10 +1378,42 @@ header.rgd-header-offset.rgd-header-collapsed {
     min-height: 0; /* allow flex child to shrink */
     /* Minimum height ensures the radar is readable even in the side-by-side layout */
     min-height: 22rem;
+    position: relative; /* anchor for radar skeleton overlay */
 }
 
 .rgd-radar-wrap canvas {
     max-width: 100%;
+}
+
+/* Radar skeleton — hexagon-based SVG placeholder that mimics the actual radar chart
+   structure: outer boundary, two inner grid levels, axis lines, and vertex dots */
+.rgd-radar-skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.rgd-radar-skeleton[hidden] { display: none; }
+
+/* SVG fills the wrapper — constrained by padding so it stays within bounds */
+.rgd-radar-skeleton-svg {
+    width: 85%;
+    height: 85%;
+    max-width: 100%;
+    max-height: 100%;
+}
+
+/* Animated shimmer over the data fill area — pulses to indicate loading */
+@keyframes rgd-radar-pulse {
+    0%, 100% { opacity: 0.06; }
+    50% { opacity: 0.15; }
+}
+
+.rgd-radar-skeleton-fill {
+    animation: rgd-radar-pulse 2s ease-in-out infinite;
 }
 
 /* Full-page radar (readiness page) — significantly taller for better readability */
@@ -1425,6 +1457,9 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 .rgd-chart-wrap { width: 100%; height: clamp(10rem, 20vw, 14rem); }
+
+/* Generic chart canvas for standalone charts (pace distribution, time-in-zone) */
+.rgd-chart-canvas { width: 100%; max-height: 20rem; }
 .rgd-chart-wrap--large { max-width: 100%; margin: 0 auto; }
 /* Constrain the mileage chart so bars don't over-stretch on wide tablet screens */
 #rgd-mileage-chart { max-width: 100%; }
@@ -1534,7 +1569,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-pillar-name {
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: var(--rgd-text-label);
+    font-size: var(--rgd-text-body);
     color: var(--rgd-navy);
 }
 
@@ -1634,6 +1669,34 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* ---- Activities list ---- */
 .rgd-activities-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
+/* Month separator header — divides activities by month for easier scanning */
+.rgd-activity-month-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0 0.25rem;
+    margin-top: 0.5rem;
+    /* border-bottom: 0.0625rem solid var(--rgd-border); */
+}
+
+/* First month header in a list should not have extra top margin */
+.rgd-activity-month-header:first-child { margin-top: 0; }
+
+.rgd-activity-month-name {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rgd-activity-month-total {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
+
 .rgd-activity-item {
     background: var(--rgd-surface);
     border: 0.0625rem solid var(--rgd-border);
@@ -1713,16 +1776,17 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 /* Tag color variants — each workout type has a distinct color */
+/* Run type tags — colored badges indicating workout category */
 .rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.15); color: #5d6db0; }
 .rgd-run-tag--easy { background: rgba(56, 142, 142, 0.15); color: #388e8e; }
-.rgd-run-tag--tempo { background: rgba(212, 160, 23, 0.15); color: #b58618; }
-.rgd-run-tag--interval { background: rgba(196, 75, 75, 0.15); color: #c44b4b; }
+.rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.15); color: #c44b4b; }
+.rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.15); color: #888; }
 
 /* Dark mode tag colors — slightly brighter for visibility */
 [data-theme="dark"] .rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.25); color: #8b9ad6; }
 [data-theme="dark"] .rgd-run-tag--easy { background: rgba(56, 142, 142, 0.25); color: #5dbfbf; }
-[data-theme="dark"] .rgd-run-tag--tempo { background: rgba(212, 160, 23, 0.25); color: #e0b040; }
-[data-theme="dark"] .rgd-run-tag--interval { background: rgba(196, 75, 75, 0.25); color: #e07070; }
+[data-theme="dark"] .rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.25); color: #e07070; }
+[data-theme="dark"] .rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.25); color: #aaa; }
 
 .rgd-activity-meta {
     display: flex;
@@ -1884,6 +1948,137 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: 0;
 }
 
+/* ========== SETTINGS POPUP ========== */
+/* Popup anchored near the settings button, shows account details */
+.rgd-settings-popup {
+    position: fixed;
+    z-index: 90;
+    /* Positioned near the sidebar settings button — centered on larger screens */
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.rgd-settings-popup[hidden] { display: none; }
+
+.rgd-settings-popup-card {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: 20rem;
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+}
+
+.rgd-settings-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--rgd-border);
+}
+
+.rgd-settings-popup-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-navy);
+    margin: 0;
+}
+
+.rgd-settings-popup-close {
+    background: none;
+    border: none;
+    color: var(--rgd-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.rgd-settings-popup-close:hover { color: var(--rgd-navy); }
+
+.rgd-settings-popup-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+    gap: 0.6rem;
+}
+
+.rgd-settings-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.rgd-settings-field-label {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    flex-shrink: 0;
+    min-width: 4rem;
+}
+
+.rgd-settings-field-value {
+    font-family: 'Lato', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    font-weight: 600;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rgd-settings-select {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    padding: 0.25rem 0.5rem;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: 0.25rem;
+    background: var(--rgd-light);
+    color: var(--rgd-muted);
+    cursor: not-allowed;
+}
+
+.rgd-settings-field-hint {
+    display: block;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    margin-top: 0.15rem;
+    width: 100%;
+}
+
+.rgd-settings-popup-footer {
+    padding: 0.75rem 1rem;
+    border-top: 0.0625rem solid var(--rgd-border);
+}
+
+.rgd-btn-danger {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--rgd-radius-sm);
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    cursor: pointer;
+    background: rgba(196, 75, 75, 0.1);
+    color: #c44b4b;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rgd-btn-danger:hover {
+    background: rgba(196, 75, 75, 0.2);
+    color: #a33;
+}
+
 /* ========== RESPONSIVE BREAKPOINTS ========== */
 
 /* Tablet/mobile: hide sidebar, show bottom tab bar, content stacks */
@@ -1903,12 +2098,75 @@ header.rgd-header-offset.rgd-header-collapsed {
     /* Add bottom padding so content isn't hidden behind the floating tab bar */
     .rgd-content {
         padding: clamp(0.75rem, 2vw, 1rem);
-        padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0));
+        /* Extra bottom margin to comfortably clear the floating tab bar
+           (tab bar: bottom 1.5rem + height 3.5rem = 5rem, plus 2rem breathing room) */
+        padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0));
     }
 
     .rgd-nav-item { width: auto; white-space: nowrap; }
 
-    .rgd-content { padding: clamp(1.25rem, 2vw, 1.5rem); }
+    /* ---- Mobile interactive signals ---- */
+    /* Tappable cards: subtle shadow to indicate they're interactive */
+    .rgd-metric-tile {
+        box-shadow: 0 0.0625rem 0.25rem rgba(29, 53, 87, 0.1);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .rgd-metric-tile:active {
+        transform: scale(0.97);
+        box-shadow: 0 0.0625rem 0.125rem rgba(29, 53, 87, 0.08);
+    }
+
+    /* Readiness cards: elevation on mobile */
+    .rgd-readiness-card {
+        box-shadow: 0 0.0625rem 0.375rem rgba(29, 53, 87, 0.08);
+    }
+
+    /* Activity items: enhanced chevron for expandability */
+    .rgd-activity-header {
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .rgd-activity-header:active {
+        background: var(--rgd-light);
+    }
+
+    .rgd-activity-chevron {
+        width: 1.25rem;
+        height: 1.25rem;
+        opacity: 0.5;
+        transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    .rgd-activity-item.open .rgd-activity-chevron {
+        transform: rotate(180deg);
+        opacity: 0.8;
+    }
+
+    /* Tab bar items: enhanced active feedback */
+    .rgd-tab-item:active {
+        transform: scale(0.88);
+        transition: transform 0.1s ease;
+    }
+
+    /* Pillar cards: subtle elevation for scrollable content */
+    .rgd-pillar-card {
+        box-shadow: 0 0.0625rem 0.25rem rgba(29, 53, 87, 0.06);
+    }
+
+    /* Tap hint — shown only on touch devices to indicate radar labels are tappable */
+    .rgd-tap-hint {
+        display: inline;
+        color: var(--rgd-blue);
+        font-weight: 600;
+    }
+}
+
+/* Hide tap hints on desktop (devices with hover capability) */
+@media (hover: hover) and (pointer: fine) {
+    .rgd-tap-hint { display: none; }
 }
 
 /* Phone: single column, compact */

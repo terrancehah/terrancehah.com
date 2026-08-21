@@ -785,6 +785,8 @@ async def race_goal_check_session(token: str = ""):
         "display_name": display_name,
         "full_name": full_name,
         "profile_image_url": sess.get("profile_image_url", ""),
+        "email": sess.get("email", ""),
+        "device_name": sess.get("device_name", ""),
         "has_race_goal": sess.get("race_goal") is not None,
     })
 
@@ -799,13 +801,17 @@ async def race_goal_activities(token: str = "", limit: int = 10):
     except Exception as e:
         return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
 
-    # Extract only the fields we need for the dashboard
+    # Filter to running activities only — exclude hiking, cycling, walking, etc.
+    running_types = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
     slim = []
     for a in activities:
+        type_key = a.get("activityType", {}).get("typeKey", "unknown")
+        if type_key.lower() not in running_types:
+            continue
         slim.append({
             "id": a.get("activityId"),
             "name": a.get("activityName", "Unnamed"),
-            "type": a.get("activityType", {}).get("typeKey", "unknown"),
+            "type": type_key,
             "start_time": a.get("startTimeLocal"),
             "distance": round(a.get("distance", 0) / 1000, 2),  # metres → km
             "duration": round(a.get("duration", 0) / 60, 1),    # seconds → minutes
