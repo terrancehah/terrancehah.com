@@ -4,6 +4,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import re
+# Add the api/ directory to Python's search path so lib._shared can be found
+# when running as a Vercel serverless function (cwd is project root, not api/)
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from lib._shared import _race_sessions
 
 app = FastAPI()

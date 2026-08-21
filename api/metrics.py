@@ -5,6 +5,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime, date, timedelta
 import math
+# Add the api/ directory to Python's search path so lib._shared can be found
+# when running as a Vercel serverless function (cwd is project root, not api/)
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from lib._shared import _get_garmin_client, _get_session
 
 app = FastAPI()
