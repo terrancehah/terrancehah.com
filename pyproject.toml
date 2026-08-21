@@ -10,6 +10,3 @@ dependencies = [
     "python-multipart==0.0.20",
     "garminconnect==0.3.11",
 ]
-
-[tool.vercel]
-entrypoint = "api/index.py:app"
