@@ -126,23 +126,21 @@ class AnalysisRequest(BaseModel):
 # --- Redis-backed session store ---
 #
 # Upstash Redis is used as the shared session store so that all serverless
-# functions can read/write session state. The Vercel Upstash integration
-# injects env vars with a configurable prefix — we check multiple possible
-# names to handle different prefix configurations.
-#
-# The custom prefix "STORAGE" was set in the Vercel dashboard, so the env
-# vars are likely STORAGE_REDIS_REST_URL / STORAGE_REDIS_REST_TOKEN.
-# We also check the default UPSTASH_REDIS_REST_* names as a fallback.
-
+# functions can read/write session state. The Vercel KV / Upstash integration
+# injects env vars — the exact names depend on the integration used and any
+# custom prefix configured in the Vercel dashboard. We check all known names:
+#   KV_REST_API_URL / KV_REST_API_TOKEN          (Vercel KV integration)
+#   UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN  (Upstash direct)
+#   STORAGE_REDIS_REST_URL / STORAGE_REDIS_REST_TOKEN  (custom STORAGE prefix)
 _redis_url = (
-    os.getenv("STORAGE_REDIS_REST_URL")
-    or os.getenv("STORAGE_URL")
+    os.getenv("KV_REST_API_URL")
     or os.getenv("UPSTASH_REDIS_REST_URL")
+    or os.getenv("STORAGE_REDIS_REST_URL")
 )
 _redis_token = (
-    os.getenv("STORAGE_REDIS_REST_TOKEN")
-    or os.getenv("STORAGE_TOKEN")
+    os.getenv("KV_REST_API_TOKEN")
     or os.getenv("UPSTASH_REDIS_REST_TOKEN")
+    or os.getenv("STORAGE_REDIS_REST_TOKEN")
 )
 
 # Initialize Redis client if env vars are present (production / preview envs).
