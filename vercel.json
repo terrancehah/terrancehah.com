@@ -2,6 +2,7 @@
     "cleanUrls": true,
     "functions": {
         "api/index.py": {
+            "excludeFiles": "**",
             "includeFiles": "api/**"
         }
     },
