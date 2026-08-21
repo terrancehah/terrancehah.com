@@ -1,7 +1,7 @@
 {
     "cleanUrls": true,
     "functions": {
-        "pyproject.toml": {
+        "api/index.py": {
             "excludeFiles": "{resources/**,playground/**,articles/**,projects/**,dist/**,src/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb,*.json,*.md,*.txt,*.css,*.js,*.mjs,*.svg,*.ico,*.woff,*.woff2,*.ttf,*.eot,*.otf}"
         }
     },
