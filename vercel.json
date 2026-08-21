@@ -1,26 +1,13 @@
 {
     "cleanUrls": true,
-    "functions": {
-        "api/index.py": {
-            "excludeFiles": "{resources/**,public/**,playground/**,articles/**,projects/**,dist/**,src/**,.git/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb}"
-        }
-    },
     "rewrites": [
         {
-            "source": "/projects/persona",
-            "destination": "/api"
-        },
-        {
-            "source": "/projects/persona/",
-            "destination": "/api"
-        },
-        {
             "source": "/projects/running-posture-analyser/analyse",
-            "destination": "/api"
+            "destination": "/api/analyse"
         },
         {
             "source": "/projects/race-goal-dashboard/api/(.*)",
-            "destination": "/api"
+            "destination": "/api/$1"
         }
     ]
 }
