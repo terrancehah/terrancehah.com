@@ -53,10 +53,6 @@
         {
             "source": "/projects/race-goal-dashboard/api/logout",
             "destination": "/api/logout"
-        },
-        {
-            "source": "/api/(.*)",
-            "destination": "/api/index.py"
         }
     ]
 }
