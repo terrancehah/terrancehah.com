@@ -1,3 +1,21 @@
+[project]
+name = "terrancehah-com"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.121.2",
+    "langchain==1.2.15",
+    "langchain_core==1.2.28",
+    "langchain_openai==1.0.3",
+    "langfuse==3.10.0",
+    "pydantic==2.12.4",
+    "python-dotenv==1.2.1",
+    "jinja2==3.1.2",
+    "python-multipart==0.0.20",
+    "uvicorn==0.34.0",
+    "garminconnect==0.3.11",
+]
+
 [tool.vercel]
 # Tell Vercel this is a FastAPI project — enables the framework preset so ALL
 # requests route to the single FastAPI function (instead of file-based routing
