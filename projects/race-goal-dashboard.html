@@ -14,11 +14,24 @@
     <meta property="og:url" content="https://terrancehah.com/projects/race-goal-dashboard.html">
 
     <title>RunAssist - Terrance's Playground</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Baskervville:ital@0;1&display=swap');
-    </style>
-    <!-- Chart.js for radar chart -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Preconnect to Google Fonts origins — establishes the connection
+         early so the font CSS and font files download without delay.
+         Saves ~470ms on LCP (300ms gstatic + 170ms googleapis). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Preconnect to JSDelivr CDN for Chart.js — saves connection time
+         when the deferred script loads -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <!-- Load Google Fonts via <link> instead of @import — @import inside
+         a <style> tag is render-blocking and prevents preconnect from
+         helping. <link> with display=swap lets text render immediately
+         with fallback fonts while the web fonts load asynchronously. -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Baskervville:ital@0;1&display=swap" rel="stylesheet">
+    <!-- Chart.js — deferred so it doesn't block initial render.
+         The dashboard JS waits for DOMContentLoaded before using Chart,
+         so deferring this script is safe and saves ~1,830ms of
+         render-blocking time. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Vercel Analytics -->
     <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
@@ -47,19 +60,19 @@
             </nav>
             <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
                 <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../resources/facebook.png" alt="facebook" class="w-full h-full rgd-social-icon">
+                    <img src="../resources/facebook.webp" alt="facebook" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
                 </a>
                 <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../resources/instagram.png" alt="instagram" class="w-full h-full rgd-social-icon">
+                    <img src="../resources/instagram.webp" alt="instagram" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
                 </a>
                 <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
-                    <img src="../resources/x.png" alt="x" class="w-full h-full rgd-social-icon">
+                    <img src="../resources/x.webp" alt="x" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
                 </a>
                 <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="../resources/linkedin.png" alt="linkedin" class="w-full h-full rgd-social-icon">
+                    <img src="../resources/linkedin.webp" alt="linkedin" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
                 </a>
                 <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
-                    <img src="../resources/github.png" alt="github" class="w-full h-full rgd-social-icon">
+                    <img src="../resources/github.webp" alt="github" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
                 </a>
             </div>
         </div>
@@ -601,6 +614,9 @@
         </div>
     </main>
 
-    <script src="./race-goal-dashboard.js"></script>
+    <!-- Deferred so it downloads in parallel without blocking render.
+         Execution order is guaranteed: Chart.js (deferred in <head>)
+         runs first, then this script, then DOMContentLoaded fires. -->
+    <script defer src="./race-goal-dashboard.js"></script>
 </body>
 </html>
