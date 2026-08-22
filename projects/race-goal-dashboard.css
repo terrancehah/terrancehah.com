@@ -1808,6 +1808,37 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-blue);
 }
 
+/* Summary card variant — shown on the overview/home page. Contains only
+   the quick summary text (no concrete data) and a "View details" link.
+   The entire card is clickable and navigates to the full insight on the
+   insights page. */
+.rgd-pillar-card--summary {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rgd-pillar-card--summary:hover {
+    border-color: var(--rgd-blue);
+    box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.12);
+}
+
+.rgd-pillar-summary {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    line-height: 1.55;
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+.rgd-pillar-view-details {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--rgd-blue);
+    margin-top: auto;
+    padding-top: 0.25rem;
+}
+
 .rgd-pillar-note {
     /* Standardized to Raleway — matches all other body text in the dashboard */
     font-family: 'Raleway', sans-serif;

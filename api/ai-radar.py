@@ -131,16 +131,18 @@ RECENT ACTIVITIES (last 30):
 
 For each dimension, provide:
 - "score": number from 0–10 (0.5 increments allowed)
+- "summary": 3 sentences giving a high-level overview of your rating for this dimension. Do NOT cite specific paces, distances, heart rates, cadences, or workout names — keep it general and qualitative (e.g. "Your threshold work is developing but needs longer efforts"). This summary is shown as a quick read on the home dashboard.
 - "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific paces, distances, heart rates, cadences, or workout patterns from the activities above.
 - "gaps": 2–3 sentences describing the shortfalls relative to the race goal. Again, reference specific data. Explain how far the current level is from what the goal requires.
 
 Important rules:
-- Be specific. Generic comments without numbers from the data are not acceptable.
+- Be specific in strengths and gaps. Generic comments without numbers from the data are not acceptable.
+- Keep the summary general — no specific numbers. It should give the runner a quick sense of where they stand without the detailed evidence.
 - Keep strengths and gaps focused only on that dimension.
 - Do not invent data that is not present in the activities list.
 
 Return ONLY valid JSON:
-{{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "strengths": "", "gaps": ""}}, ...]}}"""
+{{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...]}}"""
 
     try:
         ai_client = AsyncOpenAI(api_key=api_key)

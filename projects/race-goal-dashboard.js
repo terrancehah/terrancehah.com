@@ -405,12 +405,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function getMockPillars() {
         return {
             dimensions: [
-                { name: 'Lactate Threshold', score: 6.0, strengths: 'Your recent tempo sessions at 5:10/km with HR around 152 bpm show you are developing lactate clearance at near-threshold effort. The 3x2km repeat session at 5:00/km pace demonstrates you can hold moderately hard efforts for short blocks. You have a foundation of quality work to build on.', gaps: 'For a 2:10:00 half marathon you need to sustain 6:10/km for 21km, but your threshold sessions are only 2km blocks — too short to confirm you can hold goal pace under fatigue. Your tempo runs at 5:10/km are faster than goal pace but last only 20-25 minutes. Add one 3x3km at 6:00/km session per week to build race-specific threshold endurance.' },
-                { name: 'Aerobic Endurance', score: 7.0, strengths: 'Your weekly volume of 35km with long runs reaching 20-21km is adequate for a half marathon goal. Most of your easy runs sit at 5:40-6:10/km with HR 142-148 bpm, showing good discipline in the aerobic zone. The consistent 4-5 runs per week pattern builds a solid cardiovascular base.', gaps: 'Your longest run is 21km which matches race distance, but you have not yet exceeded it. One or two runs of 22-24km in the final 6 weeks would build the extra durability needed for race day. Your weekly volume could also increase to 40-45km for peak readiness.' },
-                { name: 'Running Economy', score: 6.0, strengths: 'Your cadence is steady at 166-172 spm across most runs, which falls within the efficient range for your pace. Pace consistency on easy days is good with low variability between 5:40-6:10/km. You are maintaining reasonable form at sub-threshold intensities.', gaps: 'Your economy at goal race pace (6:10/km) has not been specifically tested — most of your runs are either faster tempo work or slower easy efforts. You are missing strides and drills that improve neuromuscular coordination at race pace. Add 4-6x100m strides after easy runs to sharpen efficiency at 6:10/km.' },
-                { name: 'Strength / Durability', score: 5.5, strengths: 'Your training load is consistent at 4-5 runs per week with no major gaps in frequency. Elevation gain on your trail runs (up to 120m per session) adds some musculoskeletal variety. You have a reasonable base of durability from regular training.', gaps: 'You have no visible strength training, cross-training, or dedicated hill sessions in your activity history. For a half marathon, weak hips and glutes are common injury risks that can derail training. Add 1-2 strength sessions per week focusing on single-leg work, calf raises, and core stability to improve structural resilience.' },
-                { name: 'VO₂max / Speed', score: 6.5, strengths: 'Your VO2max of 52 is reasonable for your age and provides a modest speed reserve above your 6:10/km goal pace. The 400m interval sessions at 4:40/km pace with HR reaching 160 bpm show you can access higher intensities. You have enough raw aerobic capacity to support a 2:10 half marathon.', gaps: 'Your interval sessions are infrequent — only 1-2 per month in the recent data, which is not enough to maintain VO2max. To preserve your speed reserve for race day, you need weekly high-intensity work. Without consistent stimulus you risk losing this fitness over the remaining training block.' },
-                { name: 'Fatigue Resistance', score: 5.5, strengths: 'Your back-to-back workout days show you can handle consecutive training stimuli without complete breakdown. The long run the day after a tempo session demonstrates reasonable fatigue tolerance. You have a sensible hard-easy-hard pattern that builds some resistance.', gaps: 'Your pace drops off 8-12% in the final third of long runs, indicating fatigue accumulation that would cost you significant time over 21km. For a 2:10:00 target you need to maintain 6:10/km through the full distance. Add negative-split long runs where you accelerate the final 5km to train late-race fatigue resistance.' },
+                { name: 'Lactate Threshold', score: 6.0, summary: 'Your threshold work is developing but the efforts are too short to confirm race-pace sustainability. You have a foundation of quality sessions but need longer blocks at goal pace. This is an area that needs targeted work before race day.', strengths: 'Your recent tempo sessions at 5:10/km with HR around 152 bpm show you are developing lactate clearance at near-threshold effort. The 3x2km repeat session at 5:00/km pace demonstrates you can hold moderately hard efforts for short blocks. You have a foundation of quality work to build on.', gaps: 'For a 2:10:00 half marathon you need to sustain 6:10/km for 21km, but your threshold sessions are only 2km blocks — too short to confirm you can hold goal pace under fatigue. Your tempo runs at 5:10/km are faster than goal pace but last only 20-25 minutes. Add one 3x3km at 6:00/km session per week to build race-specific threshold endurance.' },
+                { name: 'Aerobic Endurance', score: 7.0, summary: 'Your weekly volume and long-run distance are adequate for a half marathon goal. You are maintaining good discipline with mostly easy-effort running. You are on track but could push slightly higher volume for peak readiness.', strengths: 'Your weekly volume of 35km with long runs reaching 20-21km is adequate for a half marathon goal. Most of your easy runs sit at 5:40-6:10/km with HR 142-148 bpm, showing good discipline in the aerobic zone. The consistent 4-5 runs per week pattern builds a solid cardiovascular base.', gaps: 'Your longest run is 21km which matches race distance, but you have not yet exceeded it. One or two runs of 22-24km in the final 6 weeks would build the extra durability needed for race day. Your weekly volume could also increase to 40-45km for peak readiness.' },
+                { name: 'Running Economy', score: 6.0, summary: 'Your cadence is steady and your easy-run pacing is consistent, but your economy at goal race pace has not been tested enough. You are missing neuromuscular work like strides that sharpen efficiency at race pace. This is a moderate gap that can be addressed with small additions to your routine.', strengths: 'Your cadence is steady at 166-172 spm across most runs, which falls within the efficient range for your pace. Pace consistency on easy days is good with low variability between 5:40-6:10/km. You are maintaining reasonable form at sub-threshold intensities.', gaps: 'Your economy at goal race pace (6:10/km) has not been specifically tested — most of your runs are either faster tempo work or slower easy efforts. You are missing strides and drills that improve neuromuscular coordination at race pace. Add 4-6x100m strides after easy runs to sharpen efficiency at 6:10/km.' },
+                { name: 'Strength / Durability', score: 5.5, summary: 'Your training frequency is consistent but you lack any dedicated strength work or cross-training. This is a meaningful gap that increases injury risk over the training block. Addressing this now will pay dividends on race day.', strengths: 'Your training load is consistent at 4-5 runs per week with no major gaps in frequency. Elevation gain on your trail runs (up to 120m per session) adds some musculoskeletal variety. You have a reasonable base of durability from regular training.', gaps: 'You have no visible strength training, cross-training, or dedicated hill sessions in your activity history. For a half marathon, weak hips and glutes are common injury risks that can derail training. Add 1-2 strength sessions per week focusing on single-leg work, calf raises, and core stability to improve structural resilience.' },
+                { name: 'VO₂max / Speed', score: 6.5, summary: 'Your aerobic capacity provides a modest speed reserve above goal pace, but your high-intensity sessions are too infrequent to maintain it. Without consistent stimulus you risk losing this fitness. You have the raw potential but need more regular speed work.', strengths: 'Your VO2max of 52 is reasonable for your age and provides a modest speed reserve above your 6:10/km goal pace. The 400m interval sessions at 4:40/km pace with HR reaching 160 bpm show you can access higher intensities. You have enough raw aerobic capacity to support a 2:10 half marathon.', gaps: 'Your interval sessions are infrequent — only 1-2 per month in the recent data, which is not enough to maintain VO2max. To preserve your speed reserve for race day, you need weekly high-intensity work. Without consistent stimulus you risk losing this fitness over the remaining training block.' },
+                { name: 'Fatigue Resistance', score: 5.5, summary: 'You can handle back-to-back training days but your pace drops noticeably in the later portions of long runs. This indicates fatigue accumulation that would cost you time over the full race distance. You need more targeted late-run pace work to build resistance.', strengths: 'Your back-to-back workout days show you can handle consecutive training stimuli without complete breakdown. The long run the day after a tempo session demonstrates reasonable fatigue tolerance. You have a sensible hard-easy-hard pattern that builds some resistance.', gaps: 'Your pace drops off 8-12% in the final third of long runs, indicating fatigue accumulation that would cost you significant time over 21km. For a 2:10:00 target you need to maintain 6:10/km through the full distance. Add negative-split long runs where you accelerate the final 5km to train late-race fatigue resistance.' },
             ]
         };
     }
@@ -2397,7 +2397,25 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshAnalysisBtn.hidden = false;
 
         const dims = data.dimensions || [];
-        const html = dims.map((d, i) => `
+
+        // Overview page: quick summary only — no concrete data references.
+        // Cards are clickable and navigate to the full insight on the
+        // insights page, scrolling to the corresponding pillar card.
+        const overviewHtml = dims.map((d, i) => `
+            <div class="rgd-pillar-card rgd-pillar-card--summary" data-pillar-index="${i}">
+                <div class="rgd-pillar-header">
+                    <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                    <span class="rgd-pillar-name">${escapeHtml(d.name)}</span>
+                    <span class="rgd-pillar-score">${d.score}/10</span>
+                </div>
+                <p class="rgd-pillar-summary">${escapeHtml(d.summary || '')}</p>
+                <span class="rgd-pillar-view-details">View details →</span>
+            </div>
+        `).join('');
+
+        // Insights page: full breakdown with strengths and gaps, each
+        // referencing specific data from the runner's activities.
+        const insightsHtml = dims.map((d, i) => `
             <div class="rgd-pillar-card" data-pillar-index="${i}">
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
@@ -2414,8 +2432,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>
         `).join('');
-        // Fill every pillars-content container (overview + insights pages)
-        pillarsContents.forEach(el => el.innerHTML = html);
+
+        // Fill each pillars-content container with the appropriate HTML.
+        // The first container is on the overview page, the second on the
+        // insights page — determined by which page element contains them.
+        const overviewPage = document.getElementById('rgd-page-overview');
+        const insightsPage = document.getElementById('rgd-page-insights');
+        pillarsContents.forEach(el => {
+            if (overviewPage && overviewPage.contains(el)) {
+                el.innerHTML = overviewHtml;
+            } else if (insightsPage && insightsPage.contains(el)) {
+                el.innerHTML = insightsHtml;
+            } else {
+                // Fallback: use the full insights HTML for any unknown container
+                el.innerHTML = insightsHtml;
+            }
+        });
+
+        // Wire up click handlers on the overview summary cards — clicking
+        // a card navigates to the insights page and scrolls the matching
+        // pillar card into view with a brief highlight pulse
+        if (overviewPage) {
+            overviewPage.querySelectorAll('.rgd-pillar-card--summary').forEach(card => {
+                card.addEventListener('click', () => {
+                    const idx = card.getAttribute('data-pillar-index');
+                    // Navigate to the insights page via hash routing
+                    window.location.hash = 'insights';
+                    // Scroll the corresponding pillar into view after the
+                    // page is shown — short delay to allow the page to unhide
+                    setTimeout(() => {
+                        const pillar = insightsPage.querySelector(
+                            `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                        );
+                        if (pillar) {
+                            pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            pillar.classList.add('rgd-pillar-highlight');
+                            setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                        }
+                    }, 100);
+                });
+            });
+        }
     }
 
     // "Regenerate Insights" button — force a fresh AI call, bypassing the cache
