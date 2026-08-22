@@ -137,9 +137,24 @@ document.addEventListener('DOMContentLoaded', function () {
         closeLoginModal();
     }
 
-    // Login modal open/close — replaces the old full-screen login
-    function openLoginModal() { loginModal.hidden = false; }
-    function closeLoginModal() { loginModal.hidden = true; authError.hidden = true; }
+    // Login modal open/close — replaces the old full-screen login.
+    // Focus management: move focus to the email input when the modal opens
+    // so keyboard users can start typing immediately. Return focus to the
+    // triggering element (settings button or demo CTA) when it closes.
+    let loginModalTrigger = null;
+    function openLoginModal() {
+        loginModalTrigger = document.activeElement;
+        loginModal.hidden = false;
+        // Focus the email input after the modal is visible
+        const emailInput = $('#rgd-email');
+        if (emailInput) emailInput.focus();
+    }
+    function closeLoginModal() {
+        loginModal.hidden = true;
+        authError.hidden = true;
+        // Return focus to the element that opened the modal
+        if (loginModalTrigger) loginModalTrigger.focus();
+    }
 
     loginModalClose.addEventListener('click', closeLoginModal);
     // Close modal when clicking the overlay background
@@ -847,7 +862,10 @@ document.addEventListener('DOMContentLoaded', function () {
     const metricPopupContent = $('#rgd-metric-popup-content');
     const metricPopupClose = $('#rgd-metric-popup-close');
 
-    // Close popup on close button click, overlay click, or Escape key
+    // Close popup on close button click, overlay click, or Escape key.
+    // Focus management: move focus to the close button when the popup opens,
+    // and return focus to the metric tile that triggered it when it closes.
+    let metricPopupTrigger = null;
     metricPopupClose.addEventListener('click', closeMetricPopup);
     metricPopup.addEventListener('click', (e) => {
         if (e.target === metricPopup) closeMetricPopup();
@@ -858,6 +876,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function closeMetricPopup() {
         metricPopup.hidden = true;
+        // Return focus to the metric tile that opened the popup
+        if (metricPopupTrigger) metricPopupTrigger.focus();
     }
 
     function openMetricPopup(label, currentValue) {
@@ -924,7 +944,13 @@ document.addEventListener('DOMContentLoaded', function () {
             <p class="rgd-metric-popup-explanation">${meta.explanation}</p>
         `;
 
+        // Store the element that triggered this popup so we can return
+        // focus to it when the popup closes
+        metricPopupTrigger = document.activeElement;
         metricPopup.hidden = false;
+        // Move focus to the close button so keyboard users can dismiss
+        // the popup immediately without tabbing through the full content
+        metricPopupClose.focus();
     }
 
     // =========================================================================
@@ -1984,16 +2010,29 @@ document.addEventListener('DOMContentLoaded', function () {
             settingsLogoutBtn.textContent = 'Connect Garmin';
             settingsLogoutBtn.className = 'rgd-btn rgd-btn-primary';
         }
+        // Focus management: store the triggering element and move focus
+        // to the close button so keyboard users can dismiss the popup
+        settingsPopupTrigger = settingsBtn;
         settingsPopup.hidden = false;
+        settingsPopupClose.focus();
     }
 
-    function closeSettingsPopup() { settingsPopup.hidden = true; }
+    function closeSettingsPopup() {
+        settingsPopup.hidden = true;
+        // Return focus to the settings button that opened the popup
+        if (settingsPopupTrigger) settingsPopupTrigger.focus();
+    }
 
+    let settingsPopupTrigger = null;
     settingsBtn.addEventListener('click', openSettingsPopup);
     settingsPopupClose.addEventListener('click', closeSettingsPopup);
     // Close when clicking outside the popup
     settingsPopup.addEventListener('click', (e) => {
         if (e.target === settingsPopup) closeSettingsPopup();
+    });
+    // Close on Escape key — matches the login modal and metric popup behavior
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !settingsPopup.hidden) closeSettingsPopup();
     });
 
     // Settings popup action button — disconnect if logged in, connect if demo

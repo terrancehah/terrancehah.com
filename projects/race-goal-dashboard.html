@@ -67,9 +67,9 @@
 
     <main class="rgd-main">
         <!-- ========== LOGIN MODAL (popup, triggered from sidebar settings) ========== -->
-        <div class="rgd-modal-overlay" id="rgd-login-modal" hidden>
+        <div class="rgd-modal-overlay" id="rgd-login-modal" hidden role="dialog" aria-modal="true" aria-label="Connect your Garmin account">
             <div class="rgd-auth-card">
-                <button class="rgd-modal-close" id="rgd-login-modal-close" title="Close">
+                <button class="rgd-modal-close" id="rgd-login-modal-close" title="Close" aria-label="Close login dialog">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="rgd-auth-header">
@@ -554,11 +554,11 @@
         </div>
 
         <!-- ========== SETTINGS POPUP ========== -->
-        <div class="rgd-settings-popup" id="rgd-settings-popup" hidden>
+        <div class="rgd-settings-popup" id="rgd-settings-popup" hidden role="dialog" aria-modal="true" aria-label="Account settings">
             <div class="rgd-settings-popup-card">
                 <div class="rgd-settings-popup-header">
                     <h3 class="rgd-settings-popup-title">Account</h3>
-                    <button class="rgd-settings-popup-close" id="rgd-settings-popup-close" title="Close">
+                    <button class="rgd-settings-popup-close" id="rgd-settings-popup-close" title="Close" aria-label="Close settings dialog">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
@@ -590,9 +590,9 @@
         </div>
 
         <!-- Metric detail popup — shows gauge bar with zones and explanation -->
-        <div class="rgd-modal-overlay" id="rgd-metric-popup" hidden>
+        <div class="rgd-modal-overlay" id="rgd-metric-popup" hidden role="dialog" aria-modal="true" aria-label="Metric details">
             <div class="rgd-metric-popup-card">
-                <button class="rgd-modal-close" id="rgd-metric-popup-close" title="Close">
+                <button class="rgd-modal-close" id="rgd-metric-popup-close" title="Close" aria-label="Close metric details dialog">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <!-- Popup content populated dynamically by JS -->
