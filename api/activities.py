@@ -14,11 +14,20 @@ app = create_app("activities")
 
 
 @app.get("/")
-async def activities(token: str = "", limit: int = 10):
-    """Fetch recent activities from Garmin, filtered to running only."""
+async def activities(token: str = "", limit: int = 10, offset: int = 0):
+    """Fetch recent activities from Garmin, filtered to running only.
+
+    Supports pagination via the offset parameter. The Garmin API's
+    get_activities(start, limit) uses 0-based indexing, so offset maps
+    directly to the start parameter. We fetch more than requested to
+    account for non-running activities that get filtered out.
+    """
     client = _get_garmin_client(token)
+    # Over-fetch to compensate for non-running activities that will be
+    # filtered out. Fetch 3x the requested limit so we have a buffer.
+    fetch_limit = max(limit * 3, 30) if offset == 0 else limit * 3
     try:
-        activities = client.get_activities(0, limit)
+        activities = client.get_activities(offset, fetch_limit)
     except Exception as e:
         return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
 
@@ -45,4 +54,6 @@ async def activities(token: str = "", limit: int = 10):
             "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
             "elapsed_duration": round(a.get("elapsedDuration", 0) / 60, 1) if a.get("elapsedDuration") else None,
         })
+    # Trim to the requested limit after filtering
+    slim = slim[:limit]
     return JSONResponse(content={"activities": slim})

@@ -1524,10 +1524,19 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-radar-wrap canvas {
     max-width: 100%;
+    /* Fade in when the chart is created after the skeleton fades out.
+       The .rgd-radar-loaded class is added by JS after Chart.js renders. */
+    opacity: 0;
+    transition: opacity 0.5s ease-in;
+}
+
+.rgd-radar-wrap canvas.rgd-radar-loaded {
+    opacity: 1;
 }
 
 /* Radar skeleton — hexagon-based SVG placeholder that mimics the actual radar chart
-   structure: outer boundary, two inner grid levels, axis lines, and vertex dots */
+   structure: outer boundary, two inner grid levels, axis lines, and vertex dots.
+   Includes opacity transition for smooth fade-out when data arrives. */
 .rgd-radar-skeleton {
     position: absolute;
     inset: 0;
@@ -1535,7 +1544,12 @@ header.rgd-header-offset.rgd-header-collapsed {
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.4s ease-out;
 }
+
+/* Fade-out class applied by JS before setting hidden=true */
+.rgd-radar-skeleton.rgd-fade-out { opacity: 0; }
 
 .rgd-radar-skeleton[hidden] { display: none; }
 
@@ -1830,6 +1844,16 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* ---- Activities list ---- */
 .rgd-activities-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
+/* "Show more" button — inline with the section title, pushed to the right.
+   Sits inside the flex title row so margin-left: auto aligns it to the end. */
+.rgd-show-more-btn {
+    margin-left: auto;
+    padding: 0.3rem 0.75rem;
+    font-size: var(--rgd-text-label);
+    width: auto;
+    min-width: auto;
+}
+
 /* Month separator header — divides activities by month for easier scanning */
 .rgd-activity-month-header {
     display: flex;
@@ -1971,19 +1995,32 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-activity-meta {
     display: flex;
     align-items: center;
-    gap: clamp(0.5rem, 1.5vw, 1rem);
+    gap: clamp(1rem, 3vw, 3rem);
     flex-shrink: 0;
 }
 
+/* Each stat is a small column — value on top, label below */
 .rgd-activity-stat {
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-label);
-    color: var(--rgd-muted);
-    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    text-align: center;
     white-space: nowrap;
 }
 
-.rgd-activity-stat strong { color: var(--rgd-navy); font-weight: 600; }
+.rgd-activity-stat-value {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-navy);
+}
+
+.rgd-activity-stat-label {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
 
 .rgd-activity-chevron {
     width: clamp(1rem, 1.5vw, 1.125rem);
@@ -2376,7 +2413,24 @@ header.rgd-header-offset.rgd-header-collapsed {
     .rgd-metric-tile { padding: 0.6rem; }
     .rgd-metric-value { font-size: var(--rgd-text-heading); }
 
-    .rgd-activity-meta { display: none; }
+    /* On mobile, stack the metrics below the activity name/date row
+       instead of hiding them. The chevron is absolutely positioned so
+       it centers vertically across both lines, not aligned to either. */
+    .rgd-activity-header { flex-wrap: wrap; position: relative; padding-right: 1.5rem; }
+    .rgd-activity-chevron {
+        position: absolute;
+        top: 50%;
+        right: 1rem;
+        transform: translateY(-50%);
+    }
+    .rgd-activity-item.open .rgd-activity-chevron { transform: translateY(-50%) rotate(180deg); }
+    .rgd-activity-meta {
+        order: 1;
+        width: 100%;
+        justify-content: left;
+        padding-left: 0.5rem;
+        gap: 1.5rem;
+    }
 
     .rgd-activity-detail-grid {
         grid-template-columns: repeat(2, 1fr);

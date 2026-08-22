@@ -59,6 +59,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Store all activities for show-all toggle
     let allActivities = [];
 
+    // Pagination state for the activities page — the overview always
+    // shows the 5 latest, while the full page loads in batches.
+    // Charts (calendar, pace distribution, HR scatter) use the initial
+    // batch only and are never updated by pagination.
+    const ACTIVITIES_PAGE_SIZE = 20;
+    let activitiesOffset = 0;      // Garmin API offset for next fetch
+    let fullActivitiesLoaded = []; // accumulated activities on the full page
+    let isLoadingMore = false;     // prevents duplicate concurrent fetches
+
     // State
     let sessionToken = '';
     let displayName = '';
@@ -653,25 +662,31 @@ document.addEventListener('DOMContentLoaded', function () {
             // Use mock data — no API calls
             renderMetrics(getMockMetrics());
             const mockActs = generateMockActivities();
+            // Overview shows 5 latest; full page shows all mock activities
             renderActivities(mockActs);
-            // Weekly mileage chart expects {week_start, mileage_km, run_count}
-            // from the /weekly-mileage endpoint, not raw activities
+            // Charts use the full mock set — never affected by pagination
             renderMileageChart(getMockWeeklyMileage());
             renderCalendar(mockActs);
             renderPaceDistribution(mockActs);
-            // HR vs Pace scatter uses the same activities array
             renderHrPaceScatter(mockActs);
             // Show immediately — no skeletons in demo mode
             renderRadarChart(getMockRadarData());
             renderPillars(getMockPillars());
+            // Hide the "Load more" button in demo mode — all 20 mock
+            // activities are already shown
+            const loadMoreBtn = $('#rgd-load-more-activities');
+            if (loadMoreBtn) loadMoreBtn.hidden = true;
             return;
         }
 
         showOverlay('Loading your training data...');
         try {
+            // Fetch the first batch of activities for both the overview
+            // (5 latest) and the activities page (first 20). Charts use
+            // this same batch and are never updated by pagination.
             const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
                 apiCall('GET', 'metrics'),
-                apiCall('GET', 'activities?limit=30'),
+                apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
                 apiCall('GET', 'weekly-mileage?weeks=12'),
             ]);
             const metricsData = await metricsResp.json();
@@ -679,11 +694,21 @@ document.addEventListener('DOMContentLoaded', function () {
             const mileageData = await mileageResp.json();
             if (metricsResp.ok && metricsData.metrics) renderMetrics(metricsData.metrics);
             if (activitiesResp.ok && activitiesData.activities) {
-                renderActivities(activitiesData.activities);
-                renderCalendar(activitiesData.activities);
-                // Pace distribution histogram + HR vs Pace scatter
-                renderPaceDistribution(activitiesData.activities);
-                renderHrPaceScatter(activitiesData.activities);
+                const acts = activitiesData.activities;
+                // Store for the activities page pagination
+                fullActivitiesLoaded = acts;
+                activitiesOffset = acts.length; // advance offset by count returned
+                renderActivities(acts);
+                // Charts use the initial batch only — never updated by "Load more"
+                renderCalendar(acts);
+                renderPaceDistribution(acts);
+                renderHrPaceScatter(acts);
+                // Show "Load more" button if we got a full page (more may exist)
+                const loadMoreBtn = $('#rgd-load-more-activities');
+                if (loadMoreBtn) {
+                    loadMoreBtn.hidden = acts.length < ACTIVITIES_PAGE_SIZE;
+                    loadMoreBtn.textContent = 'Load more';
+                }
             }
             // Mileage chart uses dedicated weekly-mileage endpoint (not activities list)
             if (mileageResp.ok && mileageData.weeks) {
@@ -695,6 +720,50 @@ document.addEventListener('DOMContentLoaded', function () {
         // AI radar + insight text load together — AI scores are the single
         // source of truth for both the radar chart and the pillar analysis
         loadAISummary();
+    }
+
+    // Fetch the next batch of activities for the activities page.
+    // Appends to the existing list and advances the offset. Charts are
+    // never affected — this only updates the activities page list.
+    async function loadMoreActivities() {
+        if (isLoadingMore) return;
+        isLoadingMore = true;
+        const loadMoreBtn = $('#rgd-load-more-activities');
+        if (loadMoreBtn) {
+            loadMoreBtn.textContent = 'Loading…';
+            loadMoreBtn.disabled = true;
+        }
+        try {
+            const resp = await apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=${activitiesOffset}`);
+            const data = await resp.json();
+            if (resp.ok && data.activities) {
+                const newActs = data.activities;
+                fullActivitiesLoaded = fullActivitiesLoaded.concat(newActs);
+                activitiesOffset += newActs.length;
+                // Re-render the full activities list with all accumulated activities.
+                // The overview list (5 latest) is not affected since it uses
+                // a separate container and only shows the first 5.
+                if (activitiesFull) {
+                    activitiesFull.innerHTML = buildActivityListHtml(
+                        fullActivitiesLoaded.filter(isRunningActivity), true
+                    );
+                    attachActivityHeaderHandlers(activitiesFull);
+                }
+                // Hide the button if we got fewer than a full page (no more data)
+                if (loadMoreBtn) {
+                    loadMoreBtn.hidden = newActs.length < ACTIVITIES_PAGE_SIZE;
+                    loadMoreBtn.textContent = 'Load more';
+                    loadMoreBtn.disabled = false;
+                }
+            }
+        } catch (err) {
+            console.error('Load more activities error:', err);
+            if (loadMoreBtn) {
+                loadMoreBtn.textContent = 'Load more';
+                loadMoreBtn.disabled = false;
+            }
+        }
+        isLoadingMore = false;
     }
 
     // =========================================================================
@@ -1324,7 +1393,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Render a list of activities grouped by month with month separator headers.
     // showMonthTotal: when true (activities page), shows total km per month; hidden on overview
-    function buildActivityListHtml(activities, showMonthTotal = false) {
+    // showMonthHeader: when true, renders the month name header above each group;
+    //   false on the overview so the 5 activities appear as a flat list
+    function buildActivityListHtml(activities, showMonthTotal = false, showMonthHeader = true) {
         if (!activities.length) return '<p class="rgd-metric-label">No activities found.</p>';
 
         // Group activities by month (YYYY-MM key) preserving original order
@@ -1342,13 +1413,13 @@ document.addEventListener('DOMContentLoaded', function () {
             group.totalKm += a.distance || 0;
         });
 
-        // Build HTML with month headers between groups.
-        // Month totals only shown on the full activities page, not the overview.
+        // Build HTML with optional month headers between groups.
+        // Month headers + totals only shown on the full activities page.
         return groups.map(group => `
-            <div class="rgd-activity-month-header">
+            ${showMonthHeader ? `<div class="rgd-activity-month-header">
                 <span class="rgd-activity-month-name">${group.month} ${group.year}</span>
                 ${showMonthTotal ? `<span class="rgd-activity-month-total">${Math.round(group.totalKm)} km</span>` : ''}
-            </div>
+            </div>` : ''}
             ${group.activities.map(({ activity, originalIndex }) => buildActivityItem(activity, originalIndex)).join('')}
         `).join('');
     }
@@ -1366,8 +1437,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // may have changed since the last render (e.g. after onboarding)
         raceGoalPaceMs = raceGoal ? computeGoalPaceMs(raceGoal) : 0;
 
-        // Overview: 5 latest, grouped by month — no month totals
-        activitiesList.innerHTML = buildActivityListHtml(runningOnly.slice(0, 5), false);
+        // Overview: 5 latest as a flat list — no month headers or totals
+        activitiesList.innerHTML = buildActivityListHtml(runningOnly.slice(0, 5), false, false);
         // Full page: all activities, grouped by month — show month totals
         if (activitiesFull) activitiesFull.innerHTML = buildActivityListHtml(runningOnly, true);
 
@@ -1497,10 +1568,22 @@ document.addEventListener('DOMContentLoaded', function () {
                         <span class="rgd-run-tag ${runTag.className}">${runTag.label}</span>
                     </div>
                     <div class="rgd-activity-meta">
-                        <span class="rgd-activity-stat">${a.distance} <strong>km</strong></span>
-                        <span class="rgd-activity-stat"><strong>${pace}</strong>/km</span>
-                        <span class="rgd-activity-stat"><strong>${hr}</strong></span>
-                        <span class="rgd-activity-stat">${ascent} <strong>↑</strong></span>
+                        <div class="rgd-activity-stat">
+                            <span class="rgd-activity-stat-value">${a.distance}</span>
+                            <span class="rgd-activity-stat-label">km</span>
+                        </div>
+                        <div class="rgd-activity-stat">
+                            <span class="rgd-activity-stat-value">${pace}</span>
+                            <span class="rgd-activity-stat-label">/km pace</span>
+                        </div>
+                        <div class="rgd-activity-stat">
+                            <span class="rgd-activity-stat-value">${hr}</span>
+                            <span class="rgd-activity-stat-label">avg HR</span>
+                        </div>
+                        <div class="rgd-activity-stat">
+                            <span class="rgd-activity-stat-value">${ascent}</span>
+                            <span class="rgd-activity-stat-label">ascent</span>
+                        </div>
                     </div>
                     <svg class="rgd-activity-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
@@ -1862,6 +1945,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Create a Chart instance for each radar canvas (overview + readiness)
         const canvases = document.querySelectorAll('.rgd-radar-chart');
         canvases.forEach(canvas => {
+            // Reset the loaded class so the canvas starts at opacity 0,
+            // then add it after the chart is created to trigger the fade-in
+            canvas.classList.remove('rgd-radar-loaded');
             // Read theme-aware colors from CSS variables for chart text and tooltip
             const cssNavy = getComputedStyle(document.documentElement).getPropertyValue('--rgd-navy').trim() || '#1d3557';
             const cssMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
@@ -1897,6 +1983,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     // false: the chart fills the wrapper's flex-constrained height
                     // instead of expanding to maintain a square aspect ratio
                     maintainAspectRatio: false,
+                    // Animate the radar polygon from center (0) to actual values
+                    // when the chart is first created — creates a smooth grow-out
+                    // effect as the data fills in after the skeleton fades out
+                    animation: {
+                        duration: 1200,
+                        easing: 'easeOutQuart',
+                    },
                     scales: {
                         r: {
                             beginAtZero: true, max: 10, min: 0,
@@ -1961,6 +2054,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     },
                 }
             }));
+
+            // Trigger the canvas fade-in after Chart.js has rendered.
+            // requestAnimationFrame ensures the initial paint at opacity 0
+            // happens before we add the loaded class, so the transition fires.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    canvas.classList.add('rgd-radar-loaded');
+                });
+            });
         });
     }
 
@@ -2061,10 +2163,27 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Show/hide all radar skeleton overlays (overview + readiness page)
+    // Show/hide all radar skeleton overlays (overview + readiness page).
+    // When hiding, fades the skeleton out via CSS opacity transition before
+    // setting hidden=true — this creates a smooth crossfade with the chart
+    // canvas which fades in simultaneously.
     function showRadarSkeleton(show) {
         document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
-            el.hidden = !show;
+            if (show) {
+                // Showing: unhide immediately and fade in
+                el.hidden = false;
+                // Force reflow so the transition triggers from opacity 0
+                requestAnimationFrame(() => { el.classList.remove('rgd-fade-out'); });
+            } else {
+                // Hiding: fade out via CSS, then set hidden after transition ends
+                el.classList.add('rgd-fade-out');
+                const onFadeEnd = () => {
+                    el.hidden = true;
+                    el.classList.remove('rgd-fade-out');
+                    el.removeEventListener('transitionend', onFadeEnd);
+                };
+                el.addEventListener('transitionend', onFadeEnd);
+            }
         });
     }
 
@@ -2231,6 +2350,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const demoPageCtaBtn = $('#rgd-demo-cta-btn');
     if (demoBannerCta) demoBannerCta.addEventListener('click', openLoginModal);
     if (demoPageCtaBtn) demoPageCtaBtn.addEventListener('click', openLoginModal);
+
+    // "Show more" button on the overview page — navigates to the full
+    // activities page where pagination is available
+    const showMoreActivitiesBtn = $('#rgd-show-more-activities');
+    if (showMoreActivitiesBtn) {
+        showMoreActivitiesBtn.addEventListener('click', () => {
+            window.location.hash = 'activities';
+        });
+    }
+
+    // "Load more" button on the activities page — fetches the next batch
+    // of activities from the API and appends them to the list
+    const loadMoreActivitiesBtn = $('#rgd-load-more-activities');
+    if (loadMoreActivitiesBtn) {
+        loadMoreActivitiesBtn.addEventListener('click', loadMoreActivities);
+    }
 
     // Logout function — shared between settings and session expiry
     async function logout() {
