@@ -251,7 +251,8 @@
                         </div>
                         <nav class="rgd-sidebar-nav">
                             <a class="rgd-nav-item active" href="#overview">
-                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                                <!-- Home icon — represents the overview/home page -->
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                                 <span class="rgd-nav-label">Overview</span>
                             </a>
                             <a class="rgd-nav-item" href="#activities">
@@ -260,8 +261,8 @@
                                 <span class="rgd-nav-label">Activities</span>
                             </a>
                             <a class="rgd-nav-item" href="#readiness">
-                                <!-- Radar chart icon — represents the readiness radar -->
-                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polygon points="12 7 17 10 17 14 12 17 7 14 7 10 12 7"/></svg>
+                                <!-- Hexagon icon — represents the readiness radar -->
+                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 <span class="rgd-nav-label">Readiness</span>
                             </a>
                             <a class="rgd-nav-item" href="#insights">
@@ -304,15 +305,16 @@
                 <!-- Mobile Bottom Tab Bar -->
                 <nav class="rgd-tabbar" id="rgd-tabbar">
                     <a class="rgd-tab-item active" href="#overview">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        <!-- Home icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#activities">
                         <!-- Records/list icon -->
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#readiness">
-                        <!-- Radar chart icon -->
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/><polygon points="12 7 17 10 17 14 12 17 7 14 7 10 12 7"/></svg>
+                        <!-- Hexagon icon -->
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#insights">
                         <!-- Lightbulb icon -->
@@ -733,6 +735,33 @@
             </div>
         </div>
     </main>
+
+    <!-- Floating AI chat button — bottom-right of the interface, above the
+         mobile tab bar. Opens a chat popup for discussing workouts and
+         insights with the AI. Currently locked as "coming soon". -->
+    <button class="rgd-chat-fab" id="rgd-chat-fab" title="Chat with AI" aria-label="Open AI chat">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </button>
+
+    <!-- AI chat popup — chat interface for discussing workouts and insights.
+         Currently shows a "coming soon" locked state. -->
+    <div class="rgd-chat-popup" id="rgd-chat-popup" hidden role="dialog" aria-modal="true" aria-label="AI chat">
+        <div class="rgd-chat-popup-card">
+            <div class="rgd-chat-popup-header">
+                <h3 class="rgd-chat-popup-title">AI Coach</h3>
+                <button class="rgd-modal-close" id="rgd-chat-popup-close" title="Close" aria-label="Close chat">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="rgd-chat-popup-body">
+                <div class="rgd-chat-coming-soon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; margin-bottom: 1rem;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <p class="rgd-chat-coming-soon-title">Coming Soon</p>
+                    <p class="rgd-chat-coming-soon-text">Chat with your AI coach about your workouts, training insights, and race readiness. This feature is under development.</p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Deferred so it downloads in parallel without blocking render.
          Execution order is guaranteed: Chart.js (deferred in <head>)

@@ -2761,6 +2761,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Escape' && !editGoalPopup.hidden) closeEditGoalPopup();
     });
 
+    // =========================================================================
+    // AI chat floating button + popup — currently locked as "coming soon"
+    // =========================================================================
+
+    const chatFab = $('#rgd-chat-fab');
+    const chatPopup = $('#rgd-chat-popup');
+    const chatPopupClose = $('#rgd-chat-popup-close');
+    let chatFabTrigger = null;
+
+    function openChatPopup() {
+        chatFabTrigger = chatFab;
+        chatPopup.hidden = false;
+        chatPopupClose.focus();
+    }
+
+    function closeChatPopup() {
+        chatPopup.hidden = true;
+        if (chatFabTrigger) chatFabTrigger.focus();
+    }
+
+    chatFab.addEventListener('click', openChatPopup);
+    chatPopupClose.addEventListener('click', closeChatPopup);
+    // Close when clicking the overlay background
+    chatPopup.addEventListener('click', (e) => {
+        if (e.target === chatPopup) closeChatPopup();
+    });
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !chatPopup.hidden) closeChatPopup();
+    });
+
     // Settings popup action button — disconnect if logged in, connect if demo
     settingsLogoutBtn.addEventListener('click', () => {
         if (sessionToken && sessionToken !== 'demo') {
