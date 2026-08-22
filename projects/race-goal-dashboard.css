@@ -1108,7 +1108,11 @@ header.rgd-header-offset.rgd-header-collapsed {
     border-radius: var(--rgd-radius-sm);
     padding: 0.5rem 0.75rem;
     margin-bottom: clamp(1rem, 2vw, 1.5rem);
-
+    /* Stick to the top of the content area when the user scrolls past it,
+       so the demo mode reminder + Connect Garmin CTA are always visible */
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .rgd-demo-banner[hidden] { display: none; }
