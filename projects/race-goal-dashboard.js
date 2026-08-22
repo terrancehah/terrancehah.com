@@ -281,22 +281,31 @@ document.addEventListener('DOMContentLoaded', function () {
     function generateMockActivities() {
         const now = new Date();
         const activities = [];
+        // Training types cycle through 5 patterns aligned with the names and
+        // distances arrays below. Paces are in sec/km, calibrated for a 2:10:00
+        // half marathon goal (~6:10/km race pace). Most runs are easy/long
+        // pace with occasional tempo and interval sessions — a realistic
+        // weekly mix rather than everything at speedwork pace.
         const types = [
-            { type: 'running', icon: 'RUN', basePace: 320, baseHR: 148, cadence: 168 },
-            { type: 'running', icon: 'RUN', basePace: 310, baseHR: 152, cadence: 170 },
-            { type: 'trail_running', icon: 'TRL', basePace: 370, baseHR: 145, cadence: 162 },
-            { type: 'running', icon: 'RUN', basePace: 280, baseHR: 160, cadence: 172 },
-            { type: 'running', icon: 'RUN', basePace: 340, baseHR: 142, cadence: 166 },
+            { type: 'running', icon: 'RUN', basePace: 400, baseHR: 145, cadence: 168 },  // Easy 6:40/km
+            { type: 'running', icon: 'RUN', basePace: 390, baseHR: 149, cadence: 166 },  // Long 6:30/km
+            { type: 'running', icon: 'RUN', basePace: 350, baseHR: 158, cadence: 172 },  // Tempo 5:50/km
+            { type: 'running', icon: 'RUN', basePace: 300, baseHR: 166, cadence: 176 },  // Interval 5:00/km
+            { type: 'trail_running', icon: 'TRL', basePace: 430, baseHR: 138, cadence: 164 }, // Recovery 7:10/km
         ];
 
-        const distances = [5.2, 8.1, 10.0, 12.5, 6.3, 21.1, 7.0, 15.0, 4.8, 9.2,
-                          11.3, 5.0, 8.7, 16.2, 6.0, 10.5, 3.5, 14.0, 7.5, 20.0];
+        // Distances aligned to the type cycle: easy 6-9km, long 16-21km,
+        // tempo 9-11km, interval 5-7km, recovery 4-6km
+        const distances = [7.0, 18.0, 10.0, 6.0, 5.0,
+                          8.5, 21.1, 11.0, 7.0, 4.5,
+                          6.5, 16.0, 9.5, 6.5, 5.5,
+                          8.0, 20.0, 10.5, 5.5, 4.0];
+        // Names aligned to the type cycle (easy, long, tempo, interval, recovery)
         const names = [
-            'Easy Morning Run', 'Tempo Session', 'Trail Recovery', 'Interval 400s',
-            'Lunch Run', 'Long Run Sunday', 'Recovery Jog', 'Mid-Distance Steady',
-            'Quick 5K', 'Hill Repeats', 'Progressive Run', 'Park Loop Easy',
-            'Threshold 3x2km', 'Weekend Long Run', 'Shakeout Run', 'Fartlek Session',
-            'Pre-Race Easy', 'Marathon Pace Run', 'Evening Recovery', 'Long Slow Distance'
+            'Easy Morning Run', 'Weekend Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog',
+            'Lunch Run', 'Long Run Sunday', 'Threshold 3x2km', 'Hill Repeats', 'Trail Recovery',
+            'Park Loop Easy', 'Long Slow Distance', 'Progressive Tempo', 'Fartlek Session', 'Shakeout Run',
+            'Evening Easy', 'Marathon Pace Long', 'Mid-Distance Steady', 'Speed 800s', 'Pre-Race Easy'
         ];
 
         for (let i = 0; i < 20; i++) {
@@ -389,16 +398,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Mock pillars: dimensions format matching /race-goal/ai-radar endpoint
-    // Scores on 0-10 scale; each dimension has strengths and gaps sections
+    // Scores on 0-10 scale in 0.5 increments per the AI prompt's scoring rules.
+    // Mock data is calibrated to the demo race goal (Half Marathon, 2:10:00,
+    // ~6:10/km goal pace, 35km/week, VO2max 52) and references paces, HR,
+    // cadence, and distances from generateMockActivities().
     function getMockPillars() {
         return {
             dimensions: [
-                { name: 'Lactate Threshold', score: 6.8, strengths: 'Your recent tempo runs at 4:30/km show solid threshold development. The 2km repeat session last week demonstrates good lactate clearance at high effort. You are building the capacity to sustain race pace without accumulating fatigue.', gaps: 'You are missing dedicated threshold-pace intervals longer than 2km. For a 1:50 half marathon you need to sustain 5:13/km for 21km — your current threshold work is 1-2 minutes shorter than race-specific sets. Add one 3x3km at threshold pace session per week.' },
-                { name: 'Aerobic Endurance', score: 7.5, strengths: 'Your weekly long runs of 16-21km are building a strong aerobic base. Consistent volume at 35km/week with 80% of runs in the easy zone shows good endurance discipline. You are close to where you need to be for the half marathon distance.', gaps: 'Your longest run is 21km but you have not yet pushed beyond race distance. For a half marathon, one or two runs of 22-24km in the final 6 weeks would build the durability you need. Your weekly volume could also increase to 40-45km for peak readiness.' },
-                { name: 'Running Economy', score: 6.2, strengths: 'Your cadence is steady at 170-175 spm across most runs, which is in the efficient range. Pace consistency on easy days is good with low variability. You are maintaining form well at sub-threshold paces.', gaps: 'Your economy at race pace (5:13/km) has not been tested enough. You are missing strides and drills that improve efficiency at faster paces. Add 4-6x100m strides after easy runs to improve your neuromuscular coordination at race pace.' },
-                { name: 'Strength / Durability', score: 5.5, strengths: 'Your training load is consistent with no major gaps in frequency. Elevation gain on trail runs adds musculoskeletal variety. You are running 4-5 times per week which gives a decent base of durability.', gaps: 'You have no visible strength training or cross-training in your activity history. For a half marathon, weak hips and glutes are common injury risks. You are behind where you need to be — add 1-2 strength sessions per week focusing on single-leg work and core stability.' },
-                { name: 'VO₂max / Speed', score: 7.1, strengths: 'Your VO2max of 57 is strong for your age group and well above the threshold needed for a 1:50 half marathon. Interval sessions with 400m-800m repeats at 3:50-4:10/km pace show good max HR engagement. Your raw speed potential is well-developed.', gaps: 'Your interval sessions are infrequent — only 1-2 per month in the recent data. To maintain and improve VO2max for race day, you need weekly high-intensity work. You are close to where you need to be but could lose this fitness without consistent stimulus.' },
-                { name: 'Fatigue Resistance', score: 5.8, strengths: 'Your back-to-back workout days show you can handle consecutive training stimuli. The long run the day after a tempo session demonstrates reasonable fatigue tolerance. You have a good pattern of hard-easy-hard that builds resistance.', gaps: 'Your pace drops off 8-12% in the final third of long runs, indicating fatigue accumulation. For race day you need to maintain pace through 21km. You are moderately prepared but need more negative-split long runs where you accelerate the final 5km to train late-race fatigue resistance.' },
+                { name: 'Lactate Threshold', score: 6.0, strengths: 'Your recent tempo sessions at 5:10/km with HR around 152 bpm show you are developing lactate clearance at near-threshold effort. The 3x2km repeat session at 5:00/km pace demonstrates you can hold moderately hard efforts for short blocks. You have a foundation of quality work to build on.', gaps: 'For a 2:10:00 half marathon you need to sustain 6:10/km for 21km, but your threshold sessions are only 2km blocks — too short to confirm you can hold goal pace under fatigue. Your tempo runs at 5:10/km are faster than goal pace but last only 20-25 minutes. Add one 3x3km at 6:00/km session per week to build race-specific threshold endurance.' },
+                { name: 'Aerobic Endurance', score: 7.0, strengths: 'Your weekly volume of 35km with long runs reaching 20-21km is adequate for a half marathon goal. Most of your easy runs sit at 5:40-6:10/km with HR 142-148 bpm, showing good discipline in the aerobic zone. The consistent 4-5 runs per week pattern builds a solid cardiovascular base.', gaps: 'Your longest run is 21km which matches race distance, but you have not yet exceeded it. One or two runs of 22-24km in the final 6 weeks would build the extra durability needed for race day. Your weekly volume could also increase to 40-45km for peak readiness.' },
+                { name: 'Running Economy', score: 6.0, strengths: 'Your cadence is steady at 166-172 spm across most runs, which falls within the efficient range for your pace. Pace consistency on easy days is good with low variability between 5:40-6:10/km. You are maintaining reasonable form at sub-threshold intensities.', gaps: 'Your economy at goal race pace (6:10/km) has not been specifically tested — most of your runs are either faster tempo work or slower easy efforts. You are missing strides and drills that improve neuromuscular coordination at race pace. Add 4-6x100m strides after easy runs to sharpen efficiency at 6:10/km.' },
+                { name: 'Strength / Durability', score: 5.5, strengths: 'Your training load is consistent at 4-5 runs per week with no major gaps in frequency. Elevation gain on your trail runs (up to 120m per session) adds some musculoskeletal variety. You have a reasonable base of durability from regular training.', gaps: 'You have no visible strength training, cross-training, or dedicated hill sessions in your activity history. For a half marathon, weak hips and glutes are common injury risks that can derail training. Add 1-2 strength sessions per week focusing on single-leg work, calf raises, and core stability to improve structural resilience.' },
+                { name: 'VO₂max / Speed', score: 6.5, strengths: 'Your VO2max of 52 is reasonable for your age and provides a modest speed reserve above your 6:10/km goal pace. The 400m interval sessions at 4:40/km pace with HR reaching 160 bpm show you can access higher intensities. You have enough raw aerobic capacity to support a 2:10 half marathon.', gaps: 'Your interval sessions are infrequent — only 1-2 per month in the recent data, which is not enough to maintain VO2max. To preserve your speed reserve for race day, you need weekly high-intensity work. Without consistent stimulus you risk losing this fitness over the remaining training block.' },
+                { name: 'Fatigue Resistance', score: 5.5, strengths: 'Your back-to-back workout days show you can handle consecutive training stimuli without complete breakdown. The long run the day after a tempo session demonstrates reasonable fatigue tolerance. You have a sensible hard-easy-hard pattern that builds some resistance.', gaps: 'Your pace drops off 8-12% in the final third of long runs, indicating fatigue accumulation that would cost you significant time over 21km. For a 2:10:00 target you need to maintain 6:10/km through the full distance. Add negative-split long runs where you accelerate the final 5km to train late-race fatigue resistance.' },
             ]
         };
     }
