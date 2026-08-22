@@ -1184,6 +1184,19 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-navy);
     margin: 0;
     text-decoration: none;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+/* "Last updated" date label shown inline with the Training Vitals
+   section title, pushed to the far right of the row */
+.rgd-metrics-date {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    font-weight: 400;
+    color: var(--rgd-muted);
+    margin-left: auto;
 }
 
 .rgd-section-title--link {

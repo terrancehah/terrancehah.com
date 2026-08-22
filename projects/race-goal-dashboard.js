@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastRadarData = null; // stored for theme-change re-render
     let paceDistChart = null; // pace distribution histogram
     let hrPaceScatter = null; // HR vs Pace scatter plot
+    let lastHrvStatus = null; // Garmin HRV status string — used for color-coding
 
     // =========================================================================
     // API helpers
@@ -109,13 +110,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function showOverlay(text) {
         overlayText.textContent = text;
         overlay.hidden = false;
-        // Start rotating through messages every 2.5 seconds
+        // Start rotating through messages every 4 seconds
         let idx = 0;
         if (loadingMsgTimer) clearInterval(loadingMsgTimer);
         loadingMsgTimer = setInterval(() => {
             idx = (idx + 1) % LOADING_MESSAGES.length;
             overlayText.textContent = LOADING_MESSAGES[idx];
-        }, 2500);
+        }, 4000);
     }
 
     function hideOverlay() {
@@ -339,6 +340,10 @@ document.addEventListener('DOMContentLoaded', function () {
             weekly_distance: 38, weekly_duration: 3.2, weekly_runs: 5,
             total_activities: 187,
             device_name: 'Forerunner 265',
+            // Today's date in ISO format — demo mode always shows "today"
+            metrics_date: new Date().toISOString().slice(0, 10),
+            // Current timestamp — simulates the server fetch time
+            fetched_at: new Date().toISOString(),
         };
     }
 
@@ -705,17 +710,20 @@ document.addEventListener('DOMContentLoaded', function () {
         'Body Battery': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="10" x2="22" y2="14"/><rect x="5" y="10" width="8" height="4" fill="currentColor" stroke="none"/></svg>',
         'HRV': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 12 7 12 9 7 13 17 15 12 21 12"/></svg>',
         'Resting HR': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
-        // Lead weight icon — represents stress burden/pressure
-        'Stress': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14 8 L20 8 L15 12 L17 18 L12 14 L7 18 L9 12 L4 8 L10 8 Z"/></svg>',
+        // Dumbbell/weight icon — represents stress burden/pressure
+        'Stress': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 L17.5 17.5"/><rect x="1.5" y="9" width="4" height="6" rx="1"/><rect x="18.5" y="9" width="4" height="6" rx="1"/><rect x="5.5" y="10" width="3" height="4" rx="0.5"/><rect x="15.5" y="10" width="3" height="4" rx="0.5"/></svg>',
         'Recovery': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><path d="M9 2 L15 2"/></svg>',
         // Calendar icon — represents biological age relative to chronological age
         'Fitness Age': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>',
     };
 
-    // Metric metadata — min/max ranges, zone definitions, and explanations for the popup
-    // Used by the metric card click-to-popup feature
+    // Metric metadata — min/max ranges, zone definitions, and explanations for the popup.
+    // Zones are aligned with Garmin's official tier definitions where available.
+    // Used by the metric card click-to-popup feature and for color-coding values.
     const METRIC_META = {
         'VO₂max': {
+            // VO2max zones are age/gender-dependent — see getVo2maxZones() below.
+            // These fallback zones are used when age/gender are unavailable.
             min: 20, max: 80, unit: 'ml/kg/min',
             zones: [
                 { label: 'Poor', max: 35, color: '#e07070' },
@@ -723,39 +731,47 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'Good', max: 55, color: '#6ba3d0' },
                 { label: 'Excellent', max: 80, color: '#5fae74' },
             ],
-            explanation: 'VO₂max measures the maximum volume of oxygen your body can utilize during intense exercise. Higher values indicate better aerobic capacity. For marathon training, a VO₂max above 50 is generally considered good.',
+            explanation: 'VO₂max measures the maximum volume of oxygen your body can utilize during intense exercise. Higher values indicate better aerobic capacity. Garmin classifies VO₂max using age and gender-specific tables from The Cooper Institute.',
         },
         'Readiness': {
+            // Garmin official: Poor 1-24, Low 25-49, Moderate 50-74, High 75-94, Prime 95-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Low', max: 25, color: '#e07070' },
-                { label: 'Fair', max: 50, color: '#e0b840' },
-                { label: 'Good', max: 75, color: '#6ba3d0' },
-                { label: 'High', max: 100, color: '#5fae74' },
+                { label: 'Poor', max: 24, color: '#e07070' },
+                { label: 'Low', max: 49, color: '#e0b840' },
+                { label: 'Moderate', max: 74, color: '#6ba3d0' },
+                { label: 'High', max: 94, color: '#5fae74' },
+                { label: 'Prime', max: 100, color: '#9b6dd0' },
             ],
-            explanation: 'Training Readiness Score combines sleep, recovery, stress, and training load to indicate how prepared your body is for a workout. Higher scores mean you are more ready for intense training.',
+            explanation: 'Training Readiness Score combines sleep, recovery, stress, and training load to indicate how prepared your body is for a workout. Garmin uses 5 tiers: Poor (1-24), Low (25-49), Moderate (50-74), High (75-94), and Prime (95-100).',
         },
         'Sleep': {
+            // Garmin official: Poor 0-59, Fair 60-79, Good 80-89, Excellent 90-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Poor', max: 50, color: '#e07070' },
-                { label: 'Fair', max: 70, color: '#e0b840' },
-                { label: 'Good', max: 85, color: '#6ba3d0' },
+                { label: 'Poor', max: 59, color: '#e07070' },
+                { label: 'Fair', max: 79, color: '#e0b840' },
+                { label: 'Good', max: 89, color: '#6ba3d0' },
                 { label: 'Excellent', max: 100, color: '#5fae74' },
             ],
-            explanation: 'Sleep Score evaluates the quality and duration of your sleep based on movement, heart rate, and stress data. Scores above 70 indicate restorative sleep that supports recovery.',
+            explanation: 'Sleep Score evaluates the quality and duration of your sleep based on movement, heart rate, and stress data. Garmin classifies sleep as Poor (0-59), Fair (60-79), Good (80-89), or Excellent (90-100).',
         },
         'Body Battery': {
+            // Garmin official: Low 0-25, Medium 26-50, High 51-75, Very High 76-100
             min: 0, max: 100, unit: '%',
             zones: [
                 { label: 'Low', max: 25, color: '#e07070' },
-                { label: 'Fair', max: 50, color: '#e0b840' },
-                { label: 'Good', max: 75, color: '#6ba3d0' },
-                { label: 'High', max: 100, color: '#5fae74' },
+                { label: 'Medium', max: 50, color: '#e0b840' },
+                { label: 'High', max: 75, color: '#6ba3d0' },
+                { label: 'Very High', max: 100, color: '#5fae74' },
             ],
-            explanation: 'Body Battery estimates your available energy reserves throughout the day, draining with activity and stress, and recharging during sleep and rest. A high value means you are well-rested.',
+            explanation: 'Body Battery estimates your available energy reserves throughout the day, draining with activity and stress, and recharging during sleep and rest. Garmin classifies levels as Low (0-25), Medium (26-50), High (51-75), and Very High (76-100).',
         },
         'HRV': {
+            // HRV is highly individual — Garmin uses a personal baseline status
+            // (Balanced/Unbalanced/Low/Poor) rather than absolute ms ranges.
+            // The zones below are rough approximations for the popup gauge only.
+            // Color-coding on the card uses the Garmin status field, not these zones.
             min: 0, max: 100, unit: 'ms',
             zones: [
                 { label: 'Low', max: 20, color: '#e07070' },
@@ -763,7 +779,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'Good', max: 50, color: '#6ba3d0' },
                 { label: 'Excellent', max: 100, color: '#5fae74' },
             ],
-            explanation: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. Higher HRV typically indicates better cardiovascular fitness and recovery. A balanced HRV trend suggests your body is adapting well to training.',
+            // Garmin HRV status colors — used for card color-coding instead of zones
+            statusColors: {
+                'BALANCED': '#5fae74',
+                'UNBALANCED': '#e0b840',
+                'LOW': '#e07070',
+                'POOR': '#999999',
+            },
+            explanation: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. Garmin uses a personal baseline to classify HRV status as Balanced, Unbalanced, Low, or Poor rather than absolute ranges, since HRV varies widely by individual.',
         },
         'Resting HR': {
             min: 30, max: 90, unit: 'bpm',
@@ -776,14 +799,15 @@ document.addEventListener('DOMContentLoaded', function () {
             explanation: 'Resting Heart Rate is your heart rate when fully at rest. Lower values generally indicate better cardiovascular fitness. A sudden increase may signal insufficient recovery or illness.',
         },
         'Stress': {
+            // Garmin official: Rest 0-25, Low 26-50, Medium 51-75, High 76-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Low', max: 25, color: '#5fae74' },
-                { label: 'Medium', max: 50, color: '#6ba3d0' },
-                { label: 'High', max: 75, color: '#e0b840' },
-                { label: 'Very High', max: 100, color: '#e07070' },
+                { label: 'Rest', max: 25, color: '#5fae74' },
+                { label: 'Low', max: 50, color: '#6ba3d0' },
+                { label: 'Medium', max: 75, color: '#e0b840' },
+                { label: 'High', max: 100, color: '#e07070' },
             ],
-            explanation: 'Stress Level is derived from HRV, heart rate, and other physiological signals. Lower stress levels are better for recovery. Sustained high stress may indicate overtraining or external life stressors.',
+            explanation: 'Stress Level is derived from HRV, heart rate, and other physiological signals. Garmin classifies stress as Rest (0-25), Low (26-50), Medium (51-75), and High (76-100). Lower stress levels are better for recovery.',
         },
         'Recovery': {
             min: 0, max: 72, unit: 'hrs',
@@ -807,8 +831,112 @@ document.addEventListener('DOMContentLoaded', function () {
         },
     };
 
+    // VO₂max age/gender-specific zone lookup — uses Garmin's official tables
+    // from The Cooper Institute. The user's age and gender are collected
+    // during onboarding and stored in the raceGoal object.
+    // Returns an array of zones with label, max threshold, and color.
+    // If age or gender is unavailable, falls back to the generic zones in METRIC_META.
+    function getVo2maxZones() {
+        if (!raceGoal || !raceGoal.age || !raceGoal.gender) {
+            return METRIC_META['VO₂max'].zones;
+        }
+        const age = parseInt(raceGoal.age);
+        const gender = raceGoal.gender.toLowerCase();
+        // Garmin's official VO₂max tables — 5 tiers by age band and gender.
+        // Values are the minimum VO₂max for each tier (percentile-based).
+        // Source: Garmin fēnix 7 Owner's Manual / The Cooper Institute.
+        const tables = {
+            male: {
+                '20-29': { Superior: 55.4, Excellent: 51.1, Good: 45.4, Fair: 41.7 },
+                '30-39': { Superior: 54.0, Excellent: 48.3, Good: 44.0, Fair: 40.5 },
+                '40-49': { Superior: 52.5, Excellent: 46.4, Good: 42.4, Fair: 38.5 },
+                '50-59': { Superior: 48.9, Excellent: 43.4, Good: 39.2, Fair: 35.6 },
+                '60-69': { Superior: 45.7, Excellent: 39.5, Good: 35.5, Fair: 32.3 },
+                '70-79': { Superior: 42.1, Excellent: 36.7, Good: 32.3, Fair: 29.4 },
+            },
+            female: {
+                '20-29': { Superior: 49.6, Excellent: 43.9, Good: 39.5, Fair: 36.1 },
+                '30-39': { Superior: 47.4, Excellent: 42.4, Good: 37.8, Fair: 34.4 },
+                '40-49': { Superior: 45.3, Excellent: 39.7, Good: 36.3, Fair: 33.0 },
+                '50-59': { Superior: 41.1, Excellent: 36.7, Good: 33.0, Fair: 30.1 },
+                '60-69': { Superior: 37.8, Excellent: 33.0, Good: 30.0, Fair: 27.5 },
+                '70-79': { Superior: 36.7, Excellent: 30.9, Good: 28.1, Fair: 25.9 },
+            },
+        };
+        // Find the age band
+        let ageBand = null;
+        if (age >= 70) ageBand = '70-79';
+        else if (age >= 60) ageBand = '60-69';
+        else if (age >= 50) ageBand = '50-59';
+        else if (age >= 40) ageBand = '40-49';
+        else if (age >= 30) ageBand = '30-39';
+        else if (age >= 20) ageBand = '20-29';
+        else return METRIC_META['VO₂max'].zones; // Under 20 — use generic
+
+        const table = tables[gender] && tables[gender][ageBand];
+        if (!table) return METRIC_META['VO₂max'].zones;
+
+        // Build zones array — Poor < Fair < Good < Excellent < Superior
+        return [
+            { label: 'Poor', max: table.Fair, color: '#e07070' },
+            { label: 'Fair', max: table.Good, color: '#e0b840' },
+            { label: 'Good', max: table.Excellent, color: '#6ba3d0' },
+            { label: 'Excellent', max: table.Superior, color: '#5fae74' },
+            { label: 'Superior', max: 100, color: '#9b6dd0' },
+        ];
+    }
+
+    // Get the zone color for a metric value — used to color-code the
+    // metric value text on the card. Returns null if no zone matches
+    // or the value is '--'.
+    function getMetricZoneColor(label, value) {
+        if (value === '--' || value === null || value === undefined) return null;
+        const numValue = typeof value === 'number' ? value : parseFloat(value);
+        if (isNaN(numValue)) return null;
+
+        // HRV uses Garmin's status field instead of absolute zones
+        if (label === 'HRV' && lastHrvStatus) {
+            const statusColors = METRIC_META['HRV'].statusColors;
+            return statusColors[lastHrvStatus] || null;
+        }
+
+        // VO₂max uses age/gender-specific zones
+        const zones = label === 'VO₂max' ? getVo2maxZones() : (METRIC_META[label] ? METRIC_META[label].zones : null);
+        if (!zones) return null;
+
+        const zone = zones.find(z => numValue <= z.max);
+        return zone ? zone.color : null;
+    }
+
     function renderMetrics(m) {
-        // Removed Weekly and Runs/Week — not native Garmin-extracted metrics
+        // Store HRV status for color-coding — Garmin uses a personal baseline
+        // status (BALANCED/UNBALANCED/LOW/POOR) rather than absolute ms ranges
+        lastHrvStatus = m.hrv_status || null;
+
+        // Display "Last updated" inline with the section title, aligned right.
+        // Uses fetched_at (server timestamp) for the time, and metrics_date
+        // to decide whether to show "today" or the calendar date.
+        // Format: "Last updated: today, 3:45 PM" or "Last updated: Aug 15, 9:30 AM"
+        const metricsDateEl = $('#rgd-metrics-date');
+        if (metricsDateEl && m.metrics_date) {
+            const dataDate = new Date(m.metrics_date + 'T00:00:00');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const isToday = dataDate.getTime() === today.getTime();
+            // Use fetched_at for the time component; fall back to metrics_date if missing
+            const fetchedAt = m.fetched_at ? new Date(m.fetched_at) : dataDate;
+            const timeStr = fetchedAt.toLocaleTimeString('en-US', {
+                hour: 'numeric', minute: '2-digit'
+            });
+            const dateStr = isToday
+                ? 'today'
+                : dataDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            metricsDateEl.textContent = `Last updated: ${dateStr}, ${timeStr}`;
+            metricsDateEl.hidden = false;
+        }
+
+        // Build tile data — values are color-coded based on Garmin's official
+        // tier zones. HRV color-coding uses the Garmin status field.
         const tiles = [
             { label: 'VO₂max', value: m.vo2max || '--', unit: 'ml/kg/min' },
             { label: 'Readiness', value: m.training_readiness_score || '--', unit: m.training_readiness_level ? m.training_readiness_level.charAt(0) + m.training_readiness_level.slice(1).toLowerCase() : '' },
@@ -820,7 +948,11 @@ document.addEventListener('DOMContentLoaded', function () {
             { label: 'Recovery', value: m.recovery_time_hrs || '--', unit: 'hrs' },
             { label: 'Fitness Age', value: m.fitness_age || '--', unit: 'years' },
         ];
-        metricsGrid.innerHTML = tiles.map(t => `
+        metricsGrid.innerHTML = tiles.map(t => {
+            // Get the zone color for this metric value — null if no match
+            const color = getMetricZoneColor(t.label, t.value);
+            const valueStyle = color ? `style="color: ${color};"` : '';
+            return `
             <div class="rgd-metric-tile" data-metric-label="${t.label}"
                  role="button" tabindex="0"
                  aria-label="${t.label}: ${t.value}${t.unit ? ' ' + t.unit : ''}. Select for details.">
@@ -829,11 +961,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     <span class="rgd-metric-label">${t.label}</span>
                 </div>
                 <div class="rgd-metric-value-row">
-                    <span class="rgd-metric-value">${t.value}</span>
+                    <span class="rgd-metric-value" ${valueStyle}>${t.value}</span>
                     ${t.unit ? `<span class="rgd-metric-unit">${t.unit}</span>` : ''}
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
         // Attach click + keyboard handlers to each metric tile for the popup.
         // Keyboard: Enter and Space both trigger the same popup as a click.
@@ -884,6 +1016,36 @@ document.addEventListener('DOMContentLoaded', function () {
         const meta = METRIC_META[label];
         if (!meta) return;
 
+        // VO₂max uses age/gender-specific zones — override the static zones
+        // with the dynamic lookup so the gauge reflects the user's demographics
+        let zones = label === 'VO₂max' ? getVo2maxZones() : meta.zones;
+
+        // HRV uses Garmin's personal baseline status (Balanced/Unbalanced/Low/Poor)
+        // instead of absolute ms ranges. Replace the zones with status-based zones
+        // so the popup gauge matches the card color-coding. The active zone is
+        // determined by the hrv_status field, not the ms value.
+        let hrvActiveZone = null;
+        if (label === 'HRV' && lastHrvStatus) {
+            const statusKey = lastHrvStatus.toUpperCase();
+            const statusColors = meta.statusColors;
+            const statusLabels = {
+                'BALANCED': 'Balanced',
+                'UNBALANCED': 'Unbalanced',
+                'LOW': 'Low',
+                'POOR': 'Poor',
+            };
+            // Build 4 equal-width zones for the gauge, colored by Garmin status
+            zones = [
+                { label: 'Poor', max: 25, color: statusColors['POOR'] },
+                { label: 'Low', max: 50, color: statusColors['LOW'] },
+                { label: 'Unbalanced', max: 75, color: statusColors['UNBALANCED'] },
+                { label: 'Balanced', max: 100, color: statusColors['BALANCED'] },
+            ];
+            // Determine the active zone from the Garmin status field
+            const matchedLabel = statusLabels[statusKey];
+            hrvActiveZone = zones.find(z => z.label === matchedLabel) || null;
+        }
+
         // Calculate the position of the current value marker on the gauge (0-100%)
         const range = meta.max - meta.min;
         const valuePct = currentValue !== null
@@ -892,33 +1054,40 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Build the zone segments for the gauge bar
         // Each zone is a colored segment spanning from the previous zone's max to this zone's max
-        const zoneSegments = meta.zones.map((zone, i) => {
-            const prevMax = i === 0 ? meta.min : meta.zones[i - 1].max;
+        const zoneSegments = zones.map((zone, i) => {
+            const prevMax = i === 0 ? meta.min : zones[i - 1].max;
             const leftPct = ((prevMax - meta.min) / range) * 100;
             const widthPct = ((zone.max - prevMax) / range) * 100;
             return { ...zone, leftPct, widthPct };
         });
 
-        // Determine which zone the current value falls into
-        const activeZone = currentValue !== null
-            ? meta.zones.find(z => currentValue <= z.max) || meta.zones[meta.zones.length - 1]
-            : null;
+        // Determine which zone the current value falls into.
+        // HRV uses the Garmin status field instead of the numeric value.
+        const activeZone = hrvActiveZone || (currentValue !== null
+            ? zones.find(z => currentValue <= z.max) || zones[zones.length - 1]
+            : null);
 
         // Build the zone legend items
-        const zoneLegend = meta.zones.map(z => `
+        const zoneLegend = zones.map(z => `
             <div class="rgd-gauge-legend-item${activeZone && activeZone.label === z.label ? ' rgd-gauge-legend-item--active' : ''}">
                 <span class="rgd-gauge-legend-dot" style="background:${z.color}"></span>
                 <span class="rgd-gauge-legend-text">${z.label}</span>
             </div>
         `).join('');
 
-        // Build the gauge bar with zone segments and current value marker
+        // Build the gauge bar with zone segments and current value marker.
+        // For HRV, the marker is placed at the center of the active status zone
+        // since the zones represent statuses, not numeric ranges.
+        const markerPct = hrvActiveZone
+            ? zoneSegments.find(zs => zs.label === hrvActiveZone.label).leftPct +
+              zoneSegments.find(zs => zs.label === hrvActiveZone.label).widthPct / 2
+            : valuePct;
         const gaugeBar = `
             <div class="rgd-gauge-bar">
                 ${zoneSegments.map(zs => `
                     <div class="rgd-gauge-segment" style="left:${zs.leftPct}%; width:${zs.widthPct}%; background:${zs.color};"></div>
                 `).join('')}
-                ${valuePct !== null ? `<div class="rgd-gauge-marker" style="left:${valuePct}%;"></div>` : ''}
+                ${markerPct !== null ? `<div class="rgd-gauge-marker" style="left:${markerPct}%;"></div>` : ''}
             </div>
             <div class="rgd-gauge-scale">
                 <span class="rgd-gauge-scale-min">${meta.min}</span>
