@@ -61,33 +61,83 @@ async def ai_radar(token: str = ""):
     race_goal_text = ""
     if race_goal:
         race_goal_text = f"""
-RACE GOAL (this is the target the runner is training toward — evaluate all dimensions in context of this goal):
-- Race Type: {race_goal.get('purpose', 'N/A')}
-- Distance: {race_goal.get('distance', 'N/A')}
-- Time Target: {race_goal.get('time_target', 'N/A')}
-- Race Date: {race_goal.get('race_date', 'N/A')}
-- Experience Level: {race_goal.get('experience', 'N/A')}
-- Current Weekly Mileage: {race_goal.get('weekly_mileage', 'N/A')} {race_goal.get('mileage_unit', 'km')}
-"""
+            RACE GOAL (this is the target the runner is training toward — evaluate all dimensions in context of this goal):
+            - Race Type: {race_goal.get('purpose', 'N/A')}
+            - Distance: {race_goal.get('distance', 'N/A')}
+            - Time Target: {race_goal.get('time_target', 'N/A')}
+            - Race Date: {race_goal.get('race_date', 'N/A')}
+            - Current Weekly Mileage: {race_goal.get('weekly_mileage', 'N/A')} {race_goal.get('mileage_unit', 'km')}
+        """
 
-    prompt = f"""You are an expert running coach and sports scientist. Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (decimals allowed, e.g. 7.5). Address the runner directly as "you" throughout your analysis.
+    prompt = f"""You are an expert running coach and sports scientist. 
+    Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (decimals allowed in increment of 0.5, e.g. 7.5). 
+    Address the runner directly as "you" throughout your analysis.
+
+    SCORING PHILOSOPHY (strictly follow this):
+- Be conservative and evidence-based. Only award high scores when the workout data clearly supports them.
+- A score of 7.0 means the runner is roughly on track for the stated race goal with normal training progression.
+- 8.0–8.5 means they are ahead of schedule or showing strong specific fitness for the goal.
+- 9.0+ is rare and requires clear, repeated evidence of superior readiness.
+- Below 6.0 indicates a meaningful gap that needs addressing before race day.
+- Do not inflate scores out of politeness. Prefer under-rating when evidence is weak, missing, or inconsistent.
+- Always interpret the data relative to the specific race goal and time target provided above.
 
 {race_goal_text}
+
 RECENT ACTIVITIES (last 30):
 {json.dumps(activities_data, indent=2)}
 
-RATE THESE 6 DIMENSIONS (0–10):
-1. **Lactate Threshold** — ability to sustain high-intensity effort without accumulating fatigue. Consider recent tempo/threshold workouts, HR data, and pace consistency at high effort.
-2. **Aerobic Endurance** — cardiovascular base and ability to sustain long-duration efforts. Consider weekly volume, long-run frequency, and average HR on easy runs.
-3. **Running Economy** — efficiency of movement at a given pace. Consider cadence trends, pace variability, and training consistency.
-4. **Strength / Durability** — musculoskeletal resilience and injury resistance. Consider training load consistency, elevation work, and activity variety.
-5. **VO₂max / Speed** — maximal oxygen uptake and raw speed potential. Consider high-intensity work, interval sessions, max HR data, and pace peaks.
-6. **Fatigue Resistance** — ability to maintain performance under accumulated fatigue. Consider back-to-back workout patterns, recovery indicators, and late-workout pace maintenance.
+1. **Lactate Threshold** — Ability to sustain near-goal intensity without excessive fatigue accumulation.
+    Scoring anchors:
+    - 9–10: Multiple recent sessions clearly showing ability to hold goal race pace (or faster) for meaningful durations with controlled heart rate.
+    - 7–8: Solid tempo/threshold work near goal pace, or ability to hold goal pace for 20–40 minutes.
+    - 5–6: Some threshold work exists but is too short, too slow relative to goal, or shows significant HR drift.
+    - ≤4: Little to no quality work near goal intensity.
+
+2. **Aerobic Endurance** — Cardiovascular base and ability to sustain long-duration efforts at conversational effort.
+    Scoring anchors:
+    - 9–10: Strong weekly volume + consistent long runs that clearly support the race distance and time goal.
+    - 7–8: Adequate volume and long-run frequency for the goal, with mostly controlled easy effort.
+    - 5–6: Volume or long-run quality is only borderline for the goal distance/time.
+    - ≤4: Clearly insufficient aerobic volume or long-run stimulus for the target race.
+
+3. **Running Economy** — Movement efficiency at a given pace, especially near goal pace.
+    Scoring anchors:
+    - 9–10: Stable, efficient mechanics (cadence + pace consistency) at or near goal pace across multiple sessions.
+    - 7–8: Generally good efficiency on easy and moderate runs, with reasonable economy at goal intensity.
+    - 5–6: Noticeable variability in cadence or rising HR at paces close to goal.
+    - ≤4: Clear signs of poor efficiency or high energy cost at relevant paces.
+
+4. **Strength / Durability** — Musculoskeletal resilience and ability to handle training load without breakdown.
+    Scoring anchors:
+    - 9–10: Consistent training load, good elevation/hill work, and evidence of structural resilience.
+    - 7–8: Solid load consistency and some strength stimulus (hills, longer efforts).
+    - 5–6: Training is present but lacks variety, progression, or shows early signs of strain.
+    - ≤4: Inconsistent load, limited strength stimulus, or concerning fatigue patterns.
+
+5. **VO₂max / Speed** — Maximal aerobic capacity and speed reserve above goal pace.
+    Scoring anchors:
+    - 9–10: Clear, repeated high-intensity work showing meaningful speed reserve above goal pace.
+    - 7–8: Some quality interval or speed work that demonstrates useful speed reserve.
+    - 5–6: Limited true high-intensity stimulus; speed reserve is unclear or marginal.
+    - ≤4: Almost no dedicated speed/VO₂max development relevant to the goal.
+
+6. **Fatigue Resistance** — Ability to maintain performance quality under accumulated fatigue.
+    Scoring anchors:
+    - 9–10: Strong evidence of maintaining pace/effort on tired legs (back-to-back hard days, late-run stability).
+    - 7–8: Reasonable ability to absorb training and still perform on subsequent days.
+    - 5–6: Performance drops noticeably when fatigue accumulates.
+    - ≤4: Clear inability to handle consecutive quality sessions or late-race fatigue.
 
 For each dimension, provide:
-- "score": a number from 0–10 (decimals allowed)
-- "strengths": 2–3 sentences describing what your recent workout data shows as positive for this dimension — what you are doing well and how it contributes to your race goal. Be specific — reference actual paces, distances, HR values, or workout patterns from the data above.
-- "gaps": 2–3 sentences describing where you are falling short for this dimension — what is missing or needs improvement, and how far you are from where you need to be for the race goal and time target. Be specific with data references.
+- "score": number from 0–10 (0.5 increments allowed)
+- "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific paces, distances, heart rates, cadences, or workout patterns from the activities above.
+- "gaps": 2–3 sentences describing the shortfalls relative to the race goal. Again, reference specific data. Explain how far the current level is from what the goal requires.
+
+Important rules:
+- Be specific. Generic comments without numbers from the data are not acceptable.
+- Keep strengths and gaps focused only on that dimension.
+- Do not invent data that is not present in the activities list.
 
 Return ONLY valid JSON:
 {{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "strengths": "", "gaps": ""}}, ...]}}"""
