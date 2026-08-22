@@ -542,6 +542,10 @@ document.addEventListener('DOMContentLoaded', function () {
         updateAvatar();
         // Show demo banner only in demo mode
         demoBanner.hidden = !window.__demoMode;
+        // Show "Connect Garmin" footer CTA only in demo mode — hide it
+        // for real Garmin sessions so users don't see a redundant prompt
+        const demoCta = $('#rgd-demo-cta');
+        if (demoCta) demoCta.hidden = !window.__demoMode;
 
         // Load race goal from localStorage if not already set
         if (!raceGoal) {

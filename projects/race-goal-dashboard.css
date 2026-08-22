@@ -1315,7 +1315,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     background: var(--rgd-blue);
     border: none;
     border-radius: var(--rgd-radius-sm);
-    padding: 0.5rem 0.85rem;
+    padding: clamp(0.5rem, 2vw, 1.5rem);
     box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.25);
 }
 
@@ -1342,7 +1342,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-weight: 700;
     font-size: var(--rgd-text-subheading);
     color: var(--rgd-navy);
-    margin: 0 0 0.6rem;
+    margin: 0 0 0.4rem;
 }
 
 .rgd-readiness-card-link {
@@ -1351,7 +1351,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     transition: color 0.2s ease;
 }
 
-.rgd-readiness-card-link:hover { color: var(--rgd-blue); }
+.rgd-readiness-card-link:hover { color: var(--rgd-blue); text-decoration: underline; }
 
 .rgd-readiness-card-sub {
     font-family: 'Raleway', sans-serif;
@@ -1549,7 +1549,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-weight: 700;
     font-size: var(--rgd-text-subheading);
     color: var(--rgd-navy);
-    margin: 0 0 0.35rem;
+    margin: 0 0 0.4rem;
 }
 
 /* Subtitle / explanation text inside a chart card */
@@ -1652,7 +1652,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-pillars-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: clamp(0.5rem, 1vw, 0.75rem);
+    gap: clamp(1rem, 1vw, 0.75rem);
 }
 
 @media (max-width: 56rem) {
@@ -1831,6 +1831,18 @@ header.rgd-header-offset.rgd-header-collapsed {
     cursor: pointer;
     user-select: none;
     gap: 0.75rem;
+    transition: background 0.15s ease;
+}
+
+/* Hover signal on activity headers — subtle background tint indicates
+   the row is clickable and expands to show details */
+.rgd-activity-header:hover {
+    background: var(--rgd-light);
+}
+
+/* Activity name turns blue on hover to reinforce clickability */
+.rgd-activity-header:hover .rgd-activity-name {
+    color: var(--rgd-blue);
 }
 
 .rgd-activity-summary {
@@ -2213,7 +2225,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
     /* Add bottom padding so content isn't hidden behind the floating tab bar */
     .rgd-content {
-        padding: clamp(0.75rem, 2vw, 1rem);
+        padding: clamp(1.5rem, 2vw, 1.5rem);
         /* Extra bottom margin to comfortably clear the floating tab bar
            (tab bar: bottom 1.5rem + height 3.5rem = 5rem, plus 2rem breathing room) */
         padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0));
@@ -2222,9 +2234,12 @@ header.rgd-header-offset.rgd-header-collapsed {
     .rgd-nav-item { width: auto; white-space: nowrap; }
 
     /* ---- Mobile interactive signals ---- */
-    /* Tappable cards: subtle shadow to indicate they're interactive */
+    /* Tappable cards: subtle shadow + left accent border to indicate
+       they're interactive. On touch devices there's no hover, so a
+       persistent visual cue is needed to signal clickability. */
     .rgd-metric-tile {
         box-shadow: 0 0.0625rem 0.25rem rgba(29, 53, 87, 0.1);
+        border-color: var(--rgd-blue);
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
     }
@@ -2249,10 +2264,14 @@ header.rgd-header-offset.rgd-header-collapsed {
         background: var(--rgd-light);
     }
 
+    /* Chevron is the primary expandability indicator on mobile —
+       make it more visible than the desktop default so users know
+       the row is tappable and will expand to show details */
     .rgd-activity-chevron {
         width: 1.25rem;
         height: 1.25rem;
-        opacity: 0.5;
+        opacity: 0.7;
+        color: var(--rgd-blue);
         transition: transform 0.2s ease, opacity 0.2s ease;
     }
 
