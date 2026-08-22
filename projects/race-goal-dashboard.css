@@ -1066,8 +1066,11 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex: 1;
     padding: var(--rgd-content-padding);
     /* No internal scroll — let the entire page scroll naturally so the
-       header scrolls away instead of sticking at the top */
-    overflow-x: hidden;
+       header scrolls away instead of sticking at the top. Using overflow:clip
+       instead of overflow-x:hidden because the latter computes overflow-y to
+       auto, which creates a scroll context that breaks position:sticky on
+       child elements like the demo banner */
+    overflow: clip;
 }
 
 /* Content header — project title + intro (overview page only) */
@@ -1108,10 +1111,13 @@ header.rgd-header-offset.rgd-header-collapsed {
     border-radius: var(--rgd-radius-sm);
     padding: 0.5rem 0.75rem;
     margin-bottom: clamp(1rem, 2vw, 1.5rem);
+    /* margin-top: clamp(1rem, 2vw, 1.5rem); */
     /* Stick to the top of the content area when the user scrolls past it,
        so the demo mode reminder + Connect Garmin CTA are always visible */
     position: sticky;
-    top: 0;
+    /* Match the margin-top value so the sticky offset preserves the same
+       overhead gap when the banner sticks to the top during scrolling */
+    top: clamp(1rem, 2vw, 1.5rem);
     z-index: 100;
 }
 
@@ -1173,7 +1179,13 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-demo-cta-btn {
     padding: 0.6rem 1.5rem;
+    width: 100%;
+    max-width: 15rem;
+    /* Match the banner CTA's blue colour instead of the default navy primary */
+    background: var(--rgd-blue);
 }
+
+.rgd-demo-cta-btn:hover { background: #3a6b8a; }
 
 .rgd-page { display: flex; flex-direction: column; gap: clamp(1.25rem, 2.5vw, 2rem); }
 .rgd-page[hidden] { display: none; }
