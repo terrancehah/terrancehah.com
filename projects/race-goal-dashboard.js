@@ -806,7 +806,9 @@ document.addEventListener('DOMContentLoaded', function () {
             { label: 'Fitness Age', value: m.fitness_age || '--', unit: 'years' },
         ];
         metricsGrid.innerHTML = tiles.map(t => `
-            <div class="rgd-metric-tile" data-metric-label="${t.label}">
+            <div class="rgd-metric-tile" data-metric-label="${t.label}"
+                 role="button" tabindex="0"
+                 aria-label="${t.label}: ${t.value}${t.unit ? ' ' + t.unit : ''}. Select for details.">
                 <div class="rgd-metric-top">
                     <span class="rgd-metric-icon">${METRIC_ICONS[t.label] || ''}</span>
                     <span class="rgd-metric-label">${t.label}</span>
@@ -818,13 +820,21 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `).join('');
 
-        // Attach click handlers to each metric tile for the popup
+        // Attach click + keyboard handlers to each metric tile for the popup.
+        // Keyboard: Enter and Space both trigger the same popup as a click.
         metricsGrid.querySelectorAll('.rgd-metric-tile').forEach(tile => {
-            tile.addEventListener('click', () => {
+            const openTile = () => {
                 const label = tile.getAttribute('data-metric-label');
                 const valueEl = tile.querySelector('.rgd-metric-value');
                 const value = valueEl ? parseFloat(valueEl.textContent) : null;
                 openMetricPopup(label, isNaN(value) ? null : value);
+            };
+            tile.addEventListener('click', openTile);
+            tile.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openTile();
+                }
             });
         });
     }
@@ -1165,6 +1175,32 @@ document.addEventListener('DOMContentLoaded', function () {
         activitiesList.innerHTML = buildActivityListHtml(runningOnly.slice(0, 5), false);
         // Full page: all activities, grouped by month — show month totals
         if (activitiesFull) activitiesFull.innerHTML = buildActivityListHtml(runningOnly, true);
+
+        // Wire up expand/collapse handlers on all activity headers.
+        // Replaces the old inline onclick approach — now supports keyboard
+        // (Enter/Space) and updates aria-expanded for screen readers.
+        attachActivityHeaderHandlers(activitiesList);
+        if (activitiesFull) attachActivityHeaderHandlers(activitiesFull);
+    }
+
+    // Attach click + keyboard handlers to all activity headers within a container.
+    // Toggles the .open class on the parent .rgd-activity-item and updates
+    // aria-expanded so screen readers announce the expanded/collapsed state.
+    function attachActivityHeaderHandlers(container) {
+        container.querySelectorAll('.rgd-activity-header').forEach(header => {
+            const toggleActivity = () => {
+                const item = header.parentElement;
+                const isOpen = item.classList.toggle('open');
+                header.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            };
+            header.addEventListener('click', toggleActivity);
+            header.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleActivity();
+                }
+            });
+        });
     }
 
     // Running figure SVG used for activity icons (replaces text abbreviations)
@@ -1257,7 +1293,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         return `
             <div class="rgd-activity-item" data-index="${i}">
-                <div class="rgd-activity-header" onclick="this.parentElement.classList.toggle('open')">
+                <div class="rgd-activity-header" role="button" tabindex="0" aria-expanded="false"
+                     aria-label="${escapeHtml(a.name)} on ${date}, ${a.distance} km at ${pace} per km. Select to expand details.">
                     <div class="rgd-activity-summary">
                         <div class="rgd-activity-icon">${iconSvg}</div>
                         <span class="rgd-activity-name">${escapeHtml(a.name)}</span>

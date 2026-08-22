@@ -510,6 +510,26 @@
 
 .rgd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
+/* Global keyboard focus indicator — visible outline on all interactive
+   elements when navigated with Tab. Uses :focus-visible so the outline
+   only appears for keyboard users, not after mouse clicks. Applies to
+   buttons, nav items, tab items, sidebar toggle, theme toggle, links,
+   and any element with tabindex. */
+.rgd-btn:focus-visible,
+.rgd-nav-item:focus-visible,
+.rgd-tab-item:focus-visible,
+.rgd-sidebar-toggle:focus-visible,
+.rgd-theme-toggle:focus-visible,
+.rd-theme-toggle-mobile:focus-visible,
+.rgd-readiness-card-link:focus-visible,
+.rgd-demo-banner-cta:focus-visible,
+.rgd-settings-popup-close:focus-visible,
+.rgd-metric-popup-close:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: 0.125rem;
+    border-radius: var(--rgd-radius-sm);
+}
+
 /* Spinner */
 .rgd-btn-spinner {
     width: 1.125rem;
@@ -1220,6 +1240,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-metric-tile:hover { box-shadow: var(--rgd-shadow-md); border-color: var(--rgd-blue); }
 
+/* Keyboard focus indicator — visible outline when navigating with Tab.
+   Uses :focus-visible so the outline only appears for keyboard users,
+   not after mouse clicks (which would be visually noisy). */
+.rgd-metric-tile:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: 0.125rem;
+}
+
 .rgd-metric-top {
     display: flex;
     align-items: center;
@@ -1359,6 +1387,10 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
     margin: 0 0 0.75rem;
     line-height: 1.4;
+}
+
+.w-0-7 {
+    width: 70%;
 }
 
 /* ---- Dimension explainer: educational content under the radar ---- */
@@ -1845,6 +1877,13 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-blue);
 }
 
+/* Keyboard focus indicator for activity headers — visible outline
+   when navigating with Tab, matching the metric tile focus style */
+.rgd-activity-header:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: -0.125rem;
+}
+
 .rgd-activity-summary {
     display: flex;
     align-items: center;
@@ -2291,7 +2330,7 @@ header.rgd-header-offset.rgd-header-collapsed {
         box-shadow: 0 0.0625rem 0.25rem rgba(29, 53, 87, 0.06);
     }
 
-    /* Tap hint — shown only on touch devices to indicate radar labels are tappable */
+    /* Tap hint — shown on touch devices with enhanced styling */
     .rgd-tap-hint {
         display: inline;
         color: var(--rgd-blue);
@@ -2299,9 +2338,12 @@ header.rgd-header-offset.rgd-header-collapsed {
     }
 }
 
-/* Hide tap hints on desktop (devices with hover capability) */
-@media (hover: hover) and (pointer: fine) {
-    .rgd-tap-hint { display: none; }
+/* Tap hints are also visible on desktop — device-neutral "Select" wording
+   works for both mouse and touch. No need to hide on hover-capable devices. */
+.rgd-tap-hint {
+    display: inline;
+    color: var(--rgd-blue);
+    font-weight: 600;
 }
 
 /* Phone: single column, compact */
