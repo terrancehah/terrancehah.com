@@ -2413,19 +2413,151 @@ document.addEventListener('DOMContentLoaded', function () {
     // Reset goal
     // =========================================================================
 
-    $('#rgd-reset-goal-btn').addEventListener('click', () => {
-        raceGoal = null;
-        localStorage.removeItem('rgd_race_goal');
-        clearAICache(); // goal changed — cached insights are no longer valid
-        sidebarGoalEl.textContent = '';
-        // Return to onboarding
-        if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
-        radarCharts.forEach(c => c.destroy()); radarCharts = [];
-        if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
-        if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
-        onboardForm.reset();
-        showScreen(onboardScreen);
+    // =========================================================================
+    // Edit race goal popup — modal for changing the race goal after onboarding.
+    // Opens a popup pre-filled with current values instead of sending the user
+    // back to the onboarding screen. Submits to the same /api/onboarding endpoint.
+    // =========================================================================
+
+    const editGoalPopup = $('#rgd-edit-goal-popup');
+    const editGoalClose = $('#rgd-edit-goal-close');
+    const editGoalForm = $('#rgd-edit-goal-form');
+    const editGoalBtn = $('#rgd-edit-goal-btn');
+    let editGoalTrigger = null;
+
+    // Open the edit-goal popup — pre-fills the form with the current race goal
+    function openEditGoalPopup() {
+        editGoalTrigger = document.activeElement;
+        // Close the settings popup if it's open (mobile edit-goal flow)
+        if (settingsPopup && !settingsPopup.hidden) closeSettingsPopup();
+
+        // Pre-fill the form with current goal values
+        if (raceGoal) {
+            $('#rgd-edit-purpose').value = raceGoal.purpose || '';
+            // Parse time target "HH:MM:SS" into separate fields
+            const parts = (raceGoal.time_target || '00:00:00').split(':');
+            $('#rgd-edit-time-h').value = parts[0] || '0';
+            $('#rgd-edit-time-m').value = parts[1] || '00';
+            $('#rgd-edit-time-s').value = parts[2] || '00';
+            $('#rgd-edit-race-date').value = raceGoal.race_date || '';
+            $('#rgd-edit-mileage').value = raceGoal.weekly_mileage || '';
+            $('#rgd-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
+            $('#rgd-edit-gender').value = raceGoal.gender || '';
+            $('#rgd-edit-age').value = raceGoal.age || '';
+        }
+        editGoalPopup.hidden = false;
+        editGoalClose.focus();
+    }
+
+    function closeEditGoalPopup() {
+        editGoalPopup.hidden = true;
+        // Clear any error states
+        $$('.rgd-input.error').forEach(el => {
+            // Only clear errors within the edit-goal form
+            if (editGoalForm.contains(el)) el.classList.remove('error');
+        });
+        $$('.rgd-field-error').forEach(el => {
+            if (editGoalForm.contains(el)) el.hidden = true;
+        });
+        if (editGoalTrigger) editGoalTrigger.focus();
+    }
+
+    // Edit-goal form submission — validates, saves to API, reloads dashboard data
+    editGoalForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        // Clear previous error states within this form only
+        $$('.rgd-input.error').forEach(el => {
+            if (editGoalForm.contains(el)) el.classList.remove('error');
+        });
+        $$('.rgd-field-error').forEach(el => {
+            if (editGoalForm.contains(el)) el.hidden = true;
+        });
+
+        const h = $('#rgd-edit-time-h').value || '0';
+        const m = $('#rgd-edit-time-m').value || '00';
+        const s = $('#rgd-edit-time-s').value || '00';
+        const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+
+        const required = [
+            { id: 'rgd-edit-purpose', val: $('#rgd-edit-purpose').value },
+            { id: 'rgd-edit-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
+            { id: 'rgd-edit-race-date', val: $('#rgd-edit-race-date').value },
+            { id: 'rgd-edit-mileage', val: $('#rgd-edit-mileage').value },
+            { id: 'rgd-edit-gender', val: $('#rgd-edit-gender').value },
+            { id: 'rgd-edit-age', val: $('#rgd-edit-age').value },
+        ];
+
+        let hasError = false;
+        for (const f of required) {
+            if (!f.val) {
+                const el = document.getElementById(f.id);
+                if (el) el.classList.add('error');
+                const fg = el && el.closest('.rgd-field');
+                if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
+                if (f.id === 'rgd-edit-time-h') {
+                    ['rgd-edit-time-h','rgd-edit-time-m','rgd-edit-time-s'].forEach(id => {
+                        const inp = document.getElementById(id); if (inp) inp.classList.add('error');
+                    });
+                    const dpErr = document.querySelector('#rgd-edit-duration-picker').nextElementSibling;
+                    if (dpErr && dpErr.classList.contains('rgd-field-error')) dpErr.hidden = false;
+                }
+                hasError = true;
+            }
+        }
+        if (hasError) return;
+
+        setButtonLoading(editGoalBtn, true);
+        const body = {
+            purpose: $('#rgd-edit-purpose').value,
+            distance: $('#rgd-edit-purpose').value,
+            time_target: timeTarget,
+            race_date: $('#rgd-edit-race-date').value,
+            weekly_mileage: $('#rgd-edit-mileage').value,
+            mileage_unit: $('#rgd-edit-mileage-unit').value,
+            gender: $('#rgd-edit-gender').value,
+            age: $('#rgd-edit-age').value,
+        };
+        try {
+            // In demo mode, save locally without an API call
+            if (window.__demoMode) {
+                raceGoal = { ...body, saved_at: new Date().toISOString() };
+            } else {
+                const resp = await apiCall('POST', 'onboarding', body, true);
+                const data = await resp.json();
+                if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
+                raceGoal = data.goal;
+            }
+            localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            // Goal changed — cached AI insights are no longer valid
+            clearAICache();
+            // Update the sidebar goal display
+            sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
+            // Update the goal specifics panel
+            renderGoalSpecifics(raceGoal);
+            // Reload all data with the new goal (charts, radar, insights)
+            loadAllData();
+            closeEditGoalPopup();
+        } catch (err) { alert('Network error. Please try again.'); }
+        finally { setButtonLoading(editGoalBtn, false); }
     });
+
+    // Close handlers — close button, click outside, Escape key
+    editGoalClose.addEventListener('click', closeEditGoalPopup);
+    editGoalPopup.addEventListener('click', (e) => {
+        if (e.target === editGoalPopup) closeEditGoalPopup();
+    });
+
+    // Edit race goal — shared handler used by both the sidebar edit button
+    // (desktop) and the settings popup edit button (mobile). Opens the
+    // edit-goal popup instead of sending the user back to onboarding.
+    function editGoal() {
+        openEditGoalPopup();
+    }
+
+    $('#rgd-reset-goal-btn').addEventListener('click', editGoal);
+    // Settings popup edit-goal button — shown only on mobile
+    const settingsResetGoalBtn = $('#rgd-settings-reset-goal-btn');
+    if (settingsResetGoalBtn) settingsResetGoalBtn.addEventListener('click', editGoal);
 
     // =========================================================================
     // Settings button — opens the login modal for Garmin connection
@@ -2467,6 +2599,35 @@ document.addEventListener('DOMContentLoaded', function () {
             settingsLogoutBtn.textContent = 'Connect Garmin';
             settingsLogoutBtn.className = 'rgd-btn rgd-btn-primary';
         }
+
+        // Populate the mobile profile section — mirrors the sidebar's
+        // avatar, display name, race goal, and edit button. Only visible
+        // on mobile where the sidebar is hidden.
+        const settingsAvatar = $('#rgd-settings-avatar');
+        const settingsProfileName = $('#rgd-settings-profile-name');
+        const settingsProfileGoal = $('#rgd-settings-profile-goal');
+        if (settingsAvatar) {
+            // Copy the same avatar content as the sidebar
+            if (profileImageUrl) {
+                settingsAvatar.innerHTML = `<img src="${profileImageUrl}" alt="${displayName || 'Runner'}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><span class="rgd-avatar-initials" style="display:none">${getInitials(displayName)}</span>`;
+            } else {
+                const initials = getInitials(displayName);
+                if (initials && !window.__demoMode) {
+                    settingsAvatar.innerHTML = `<span class="rgd-avatar-initials">${initials}</span>`;
+                } else {
+                    settingsAvatar.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M8 22l3-8 2 2 3-2 2 8"/><path d="M9 12l-2-3"/><path d="M15 12l2-3"/></svg>`;
+                }
+            }
+        }
+        if (settingsProfileName) {
+            settingsProfileName.textContent = displayName || 'Demo Runner';
+        }
+        if (settingsProfileGoal && raceGoal) {
+            settingsProfileGoal.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
+        } else if (settingsProfileGoal) {
+            settingsProfileGoal.textContent = '';
+        }
+
         // Focus management: store the triggering element and move focus
         // to the close button so keyboard users can dismiss the popup
         settingsPopupTrigger = settingsBtn;
@@ -2490,6 +2651,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Close on Escape key — matches the login modal and metric popup behavior
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !settingsPopup.hidden) closeSettingsPopup();
+    });
+
+    // Edit-goal popup Escape key handler
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !editGoalPopup.hidden) closeEditGoalPopup();
     });
 
     // Settings popup action button — disconnect if logged in, connect if demo

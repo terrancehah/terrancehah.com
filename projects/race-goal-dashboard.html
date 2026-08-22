@@ -581,6 +581,25 @@
                     </button>
                 </div>
                 <div class="rgd-settings-popup-body">
+                    <!-- Profile section — only visible on mobile where the sidebar
+                         (which normally contains the profile) is hidden -->
+                    <div class="rgd-settings-profile" id="rgd-settings-profile" hidden>
+                        <div class="rgd-sidebar-avatar" id="rgd-settings-avatar">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="5" r="2.5"/>
+                                <path d="M8 22l3-8 2 2 3-2 2 8"/>
+                                <path d="M9 12l-2-3"/>
+                                <path d="M15 12l2-3"/>
+                            </svg>
+                        </div>
+                        <span class="rgd-settings-profile-name" id="rgd-settings-profile-name">--</span>
+                        <div class="rgd-settings-profile-goal-row">
+                            <span class="rgd-settings-profile-goal" id="rgd-settings-profile-goal"></span>
+                            <button class="rgd-reset-goal-icon" id="rgd-settings-reset-goal-btn" title="Edit race goal">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                        </div>
+                    </div>
                     <div class="rgd-settings-field">
                         <span class="rgd-settings-field-label">Name</span>
                         <span class="rgd-settings-field-value" id="rgd-settings-name">--</span>
@@ -604,6 +623,102 @@
                 <div class="rgd-settings-popup-footer">
                     <button class="rgd-btn rgd-btn-danger" id="rgd-settings-logout-btn">Disconnect Garmin</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Edit race goal popup — modal for changing the race goal after
+             onboarding. Pre-filled with current values. Separate from the
+             onboarding screen so it doesn't show "Step 2 of 3" branding. -->
+        <div class="rgd-modal-overlay" id="rgd-edit-goal-popup" hidden role="dialog" aria-modal="true" aria-label="Edit race goal">
+            <div class="rgd-edit-goal-card">
+                <div class="rgd-edit-goal-header">
+                    <h3 class="rgd-edit-goal-title">Edit Race Goal</h3>
+                    <button class="rgd-modal-close" id="rgd-edit-goal-close" title="Close" aria-label="Close edit goal dialog">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <form class="rgd-edit-goal-form" id="rgd-edit-goal-form" novalidate>
+                    <!-- Race Purpose -->
+                    <div class="rgd-field">
+                        <label for="rgd-edit-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>
+                        <select id="rgd-edit-purpose" class="rgd-input rgd-select" required>
+                            <option value="" disabled>Select race type</option>
+                            <option value="5K">5K</option>
+                            <option value="10K">10K</option>
+                            <option value="Half Marathon">Half Marathon</option>
+                            <option value="Marathon">Marathon</option>
+                            <option value="Ultra Marathon">Ultra Marathon</option>
+                            <option value="Triathlon">Triathlon</option>
+                        </select>
+                        <span class="rgd-field-error" hidden>Please select a race type.</span>
+                    </div>
+
+                    <!-- Time Target -->
+                    <div class="rgd-field">
+                        <label class="rgd-label">Time Target <span class="rgd-required">*</span></label>
+                        <div class="rgd-duration-picker" id="rgd-edit-duration-picker">
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-edit-time-h" class="rgd-input rgd-duration-input" placeholder="0" min="0" max="99" required>
+                                <span class="rgd-duration-label">hr</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-edit-time-m" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">min</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-edit-time-s" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">sec</span>
+                            </div>
+                        </div>
+                        <span class="rgd-field-error" hidden>Please set a target time.</span>
+                    </div>
+
+                    <!-- Race Date -->
+                    <div class="rgd-field">
+                        <label for="rgd-edit-race-date" class="rgd-label">Race Date <span class="rgd-required">*</span></label>
+                        <input type="date" id="rgd-edit-race-date" class="rgd-input" required>
+                        <span class="rgd-field-error" hidden>Please select a race date.</span>
+                    </div>
+
+                    <!-- Weekly Mileage + unit -->
+                    <div class="rgd-field">
+                        <label for="rgd-edit-mileage" class="rgd-label">Weekly Mileage <span class="rgd-required">*</span></label>
+                        <div class="rgd-mileage-row">
+                            <input type="number" id="rgd-edit-mileage" class="rgd-input rgd-mileage-input" placeholder="e.g. 40" min="1" max="300" required>
+                            <select id="rgd-edit-mileage-unit" class="rgd-input rgd-select rgd-unit-select">
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                            </select>
+                        </div>
+                        <span class="rgd-field-error" hidden>Please enter your weekly mileage.</span>
+                    </div>
+
+                    <!-- Gender + Age -->
+                    <div class="rgd-field-row">
+                        <div class="rgd-field">
+                            <label for="rgd-edit-gender" class="rgd-label">Gender <span class="rgd-required">*</span></label>
+                            <select id="rgd-edit-gender" class="rgd-input rgd-select" required>
+                                <option value="" disabled>Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <span class="rgd-field-error" hidden>Please select your gender.</span>
+                        </div>
+                        <div class="rgd-field">
+                            <label for="rgd-edit-age" class="rgd-label">Age <span class="rgd-required">*</span></label>
+                            <input type="number" id="rgd-edit-age" class="rgd-input" placeholder="e.g. 30" min="10" max="120" required>
+                            <span class="rgd-field-error" hidden>Please enter your age.</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-edit-goal-btn">
+                        <span class="rgd-btn-text">Save Changes</span>
+                        <span class="rgd-btn-spinner" hidden></span>
+                    </button>
+                </form>
             </div>
         </div>
 
