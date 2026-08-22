@@ -733,11 +733,13 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-theme-toggle-mobile:hover { color: var(--rgd-navy); }
 .rgd-theme-toggle-mobile:active { transform: scale(0.9); }
 
-/* Show sun icon in dark mode, moon icon in light mode */
-[data-theme="dark"] .rgd-theme-toggle-mobile-sun { display: block; }
-[data-theme="dark"] .rgd-theme-toggle-mobile-moon { display: none; }
-[data-theme="light"] .rgd-theme-toggle-mobile-sun { display: none; }
-[data-theme="light"] .rgd-theme-toggle-mobile-moon { display: block; }
+/* Show the current theme's icon: sun in light mode, moon in dark mode.
+   This matches the sidebar theme toggle behaviour — the button shows
+   what you're currently in, not what you'll switch to. */
+[data-theme="dark"] .rgd-theme-toggle-mobile-sun { display: none; }
+[data-theme="dark"] .rgd-theme-toggle-mobile-moon { display: block; }
+[data-theme="light"] .rgd-theme-toggle-mobile-sun { display: block; }
+[data-theme="light"] .rgd-theme-toggle-mobile-moon { display: none; }
 
 /* Dark mode styling for the toggle itself */
 [data-theme="dark"] .rgd-theme-toggle-mobile {
@@ -2639,7 +2641,10 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* ========== FLOATING AI CHAT BUTTON + POPUP ========== */
 /* Floating action button — bottom-right of the interface. On desktop it
    sits above the content with a fixed gap from the bottom edge. On mobile
-   it floats above the bottom tab bar with extra clearance. */
+   it floats above the bottom tab bar with extra clearance.
+   Color scheme uses theme-aware variables so it adapts to light/dark mode.
+   The popup expands from the button's position using a CSS transform
+   animation rather than appearing as a separate overlay. */
 
 .rgd-chat-fab {
     position: fixed;
@@ -2648,48 +2653,89 @@ header.rgd-header-offset.rgd-header-collapsed {
     width: 3rem;
     height: 3rem;
     border-radius: 40%;
-    background: var(--rgd-blue);
-    color: #fff;
-    border: none;
+    /* Match the theme toggle: surface background (white in light, dark in
+       dark mode) with muted icon color and border */
+    background: var(--rgd-surface);
+    color: var(--rgd-muted);
+    border: 0.0625rem solid var(--rgd-border);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0.25rem 0.75rem rgba(29, 53, 87, 0.25);
-    transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+    box-shadow: 0 0.25rem 0.75rem rgba(29, 53, 87, 0.15);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, opacity 0.2s ease;
     z-index: 200;
 }
 
 .rgd-chat-fab:hover {
-    background: #3a6b8a;
-    box-shadow: 0 0.375rem 1rem rgba(29, 53, 87, 0.3);
+    color: var(--rgd-navy);
+    box-shadow: 0 0.375rem 1rem rgba(29, 53, 87, 0.2);
 }
 
 .rgd-chat-fab:active { transform: scale(0.94); }
 
-/* Chat popup — modal overlay with a card containing the chat interface.
-   Currently shows a "coming soon" locked state. */
-.rgd-chat-popup {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 300;
+/* Dark mode — dark surface background with lighter icon color */
+[data-theme="dark"] .rgd-chat-fab {
+    background: rgba(22, 34, 52, 0.9);
+    border-color: rgba(42, 63, 86, 0.6);
+    color: #a8c5e8;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.4);
 }
 
-.rgd-chat-popup[hidden] { display: none; }
+[data-theme="dark"] .rgd-chat-fab:hover {
+    color: #c8ddf0;
+    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+/* Hide the FAB when the chat popup is open — the popup expands from
+   its position so the button is no longer needed */
+.rgd-chat-fab.rgd-chat-fab--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
+}
+
+/* Chat popup — fixed-position card anchored at the bottom-right, expanding
+   from the FAB's location. No full-screen overlay; instead the card sits
+   near the button with a slight gap, creating the visual effect of the
+   button growing into the chat interface. */
+.rgd-chat-popup {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.7rem;
+    z-index: 300;
+    /* Start collapsed at the FAB's size/position, then expand */
+    transform-origin: bottom right;
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+
+.rgd-chat-popup[hidden] { display: block; /* keep in DOM for transition */ }
+
+/* Open state — expand to full size */
+.rgd-chat-popup.rgd-chat-popup--open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
 
 .rgd-chat-popup-card {
     background: var(--rgd-surface);
     border: 0.0625rem solid var(--rgd-border);
-    border-radius: var(--rgd-radius);
+    /* border-radius: var(--rgd-radius); */
+    border-radius: 1.7rem;
     box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
-    width: min(100%, 24rem);
-    max-height: calc(100vh - 4rem);
+    width: min(100vw - 3rem, 24rem);
+    max-height: calc(100vh - 8rem);
     overflow-y: auto;
     position: relative;
+}
+
+/* Dark mode popup card */
+[data-theme="dark"] .rgd-chat-popup-card {
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.4), 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
 }
 
 .rgd-chat-popup-header {
@@ -2743,9 +2789,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 /* Mobile: raise the FAB above the bottom tab bar so it doesn't overlap.
    Tab bar sits at bottom 1.5rem with height 3.5rem, so the FAB needs
-   to clear that plus a comfortable gap. */
+   to clear that plus a comfortable gap. The popup also needs to sit
+   higher to clear the tab bar. */
 @media (max-width: 48rem) {
     .rgd-chat-fab {
         bottom: calc(5.5rem + env(safe-area-inset-bottom, 0));
+    }
+    .rgd-chat-popup {
+        bottom: 5.5rem;
+        right: 1.5rem;
     }
 }

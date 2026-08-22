@@ -2768,28 +2768,51 @@ document.addEventListener('DOMContentLoaded', function () {
     const chatFab = $('#rgd-chat-fab');
     const chatPopup = $('#rgd-chat-popup');
     const chatPopupClose = $('#rgd-chat-popup-close');
-    let chatFabTrigger = null;
+    let chatPopupOpen = false;
 
+    // Open the chat popup — hides the FAB and expands the popup from the
+    // button's position using CSS transform animation
     function openChatPopup() {
-        chatFabTrigger = chatFab;
-        chatPopup.hidden = false;
-        chatPopupClose.focus();
+        chatFab.classList.add('rgd-chat-fab--hidden');
+        chatPopup.classList.add('rgd-chat-popup--open');
+        chatPopupOpen = true;
+        // Focus the close button after the expand animation settles
+        setTimeout(() => chatPopupClose.focus(), 300);
     }
 
+    // Close the chat popup — collapses back toward the FAB, then shows
+    // the FAB again after the animation completes
     function closeChatPopup() {
-        chatPopup.hidden = true;
-        if (chatFabTrigger) chatFabTrigger.focus();
+        chatPopup.classList.remove('rgd-chat-popup--open');
+        chatPopupOpen = false;
+        // Show the FAB after the collapse animation finishes
+        setTimeout(() => {
+            chatFab.classList.remove('rgd-chat-fab--hidden');
+            chatFab.focus();
+        }, 200);
     }
 
-    chatFab.addEventListener('click', openChatPopup);
+    // Stop propagation on the FAB click so the document click-outside
+    // listener doesn't immediately close the popup that just opened
+    chatFab.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openChatPopup();
+    });
     chatPopupClose.addEventListener('click', closeChatPopup);
-    // Close when clicking the overlay background
-    chatPopup.addEventListener('click', (e) => {
-        if (e.target === chatPopup) closeChatPopup();
+    // Close when clicking outside the popup card — since the popup is not a
+    // full-screen overlay, we detect outside clicks via the document
+    document.addEventListener('click', (e) => {
+        if (!chatPopupOpen) return;
+        // If the click was inside the popup card, don't dismiss
+        if (chatPopup.contains(e.target)) return;
+        // If the click was on the FAB, don't dismiss — the FAB's own click
+        // handler will have already opened it
+        if (chatFab.contains(e.target)) return;
+        closeChatPopup();
     });
     // Close on Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !chatPopup.hidden) closeChatPopup();
+        if (e.key === 'Escape' && chatPopupOpen) closeChatPopup();
     });
 
     // Settings popup action button — disconnect if logged in, connect if demo
