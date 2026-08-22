@@ -1679,24 +1679,23 @@ document.addEventListener('DOMContentLoaded', function () {
         // Compute goal pace in decimal min/km
         const goalPaceMinPerKm = raceGoalPaceMs > 0 ? (1000 / raceGoalPaceMs) / 60 : 0;
 
-        // Dynamic 30-second pace buckets — 6 columns total, centered on the
-        // goal pace so it always falls in the 4th bucket (index 3, green).
+        // Dynamic 30-second pace buckets — 5 columns total, centered on the
+        // goal pace so it always falls in the 3rd bucket (index 2, green).
         // The goal bucket spans ±15 seconds around the goal pace (30 sec
-        // total), placing the target dead-center in the green bar. Three
+        // total), placing the target dead-center in the green bar. Two
         // faster buckets step down in 30-second increments below it, two
         // slower buckets step up above it. All calculations are done in
         // seconds for precision, then converted to decimal minutes.
         const goalPaceSec = goalPaceMinPerKm * 60; // seconds per km
         const bucketWidthSec = 30; // 30 seconds per bucket
-        const goalBucketIndex = 3; // 4th bucket — always green
+        const goalBucketIndex = 2; // 3rd bucket — always green
         // Goal bucket: ±15 seconds around the goal pace
         const goalBucketMinSec = goalPaceSec - 15;
         const goalBucketMaxSec = goalPaceSec + 15;
         // Convert seconds to decimal minutes for bucket ranges
         const secToMin = (s) => s / 60;
         const buckets = [
-            { label: `<${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec * 2))}`, min: 0, max: secToMin(goalBucketMinSec - bucketWidthSec * 2) },
-            { label: `${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec * 2))}–${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}`, min: secToMin(goalBucketMinSec - bucketWidthSec * 2), max: secToMin(goalBucketMinSec - bucketWidthSec) },
+            { label: `<${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}`, min: 0, max: secToMin(goalBucketMinSec - bucketWidthSec) },
             { label: `${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}–${formatPaceLabel(secToMin(goalBucketMinSec))}`, min: secToMin(goalBucketMinSec - bucketWidthSec), max: secToMin(goalBucketMinSec) },
             { label: `${formatPaceLabel(secToMin(goalBucketMinSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec))}`, min: secToMin(goalBucketMinSec), max: secToMin(goalBucketMaxSec) },
             { label: `${formatPaceLabel(secToMin(goalBucketMaxSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec + bucketWidthSec))}`, min: secToMin(goalBucketMaxSec), max: secToMin(goalBucketMaxSec + bucketWidthSec) },
@@ -1720,17 +1719,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const distances = bucketData.map(b => Math.round(b.distance * 10) / 10);
 
-        // Pace-based colour scheme — the goal pace bucket is always index 3
-        // (4th column) by construction, so the palette maps directly without
-        // any shifting. Faster buckets: red → orange → yellow. Goal: green.
-        // Slower: dark green → blue.
+        // Pace-based colour scheme — 5 buckets, goal pace always index 2
+        // (3rd column, green). Hot-to-cold gradient: red (too fast) → yellow
+        // (slightly fast) → green (goal) → teal (slightly slow) → blue (slow).
         const barColors = [
             'rgba(196, 75, 75, 0.8)',    // 1st — fastest, red
-            'rgba(212, 160, 23, 0.8)',   // 2nd — faster, orange
-            'rgba(204, 182, 42, 0.8)',   // 3rd — slightly faster, yellow
-            'rgba(63, 123, 79, 0.8)',    // 4th — goal pace, green
-            'rgba(47, 93, 59, 0.8)',     // 5th — slightly slower, dark green
-            'rgba(69, 123, 157, 0.8)',   // 6th — slowest, blue
+            'rgba(204, 182, 42, 0.8)',   // 2nd — slightly faster, yellow
+            'rgba(63, 123, 79, 0.8)',    // 3rd — goal pace, green
+            'rgba(38, 139, 139, 0.8)',   // 4th — slightly slower, teal
+            'rgba(69, 123, 157, 0.8)',   // 5th — slowest, blue
         ];
 
         const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
@@ -1920,6 +1917,26 @@ document.addEventListener('DOMContentLoaded', function () {
         'Lactate Threshold', 'Aerobic Endurance', 'Running Economy',
         'Strength / Durability', 'VO₂max / Speed', 'Fatigue Resistance'
     ];
+
+    // Split a dimension label into two lines at the natural break point.
+    // Used by the radar chart's pointLabels callback so labels take less
+    // horizontal space, allowing a larger radar polygon — especially on mobile.
+    // Returns an array of two strings for Chart.js multi-line rendering.
+    function splitRadarLabel(label) {
+        // Labels with a slash: break at the slash
+        if (label.includes(' / ')) {
+            const parts = label.split(' / ');
+            return [parts[0], parts.slice(1).join(' / ')];
+        }
+        // Labels with a space: break at the last space so the second line
+        // is shorter (e.g. "Lactate Threshold" → ["Lactate", "Threshold"])
+        const spaceIdx = label.lastIndexOf(' ');
+        if (spaceIdx > 0) {
+            return [label.slice(0, spaceIdx), label.slice(spaceIdx + 1)];
+        }
+        // No break point — return as single-line
+        return [label];
+    }
     const RADAR_COLORS = [
         'rgba(196, 75, 75, 0.7)', 'rgba(63, 123, 79, 0.7)',
         'rgba(212, 160, 23, 0.7)', 'rgba(93, 109, 176, 0.7)',
@@ -2157,7 +2174,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // On narrow screens (phone), use a smaller point label font to prevent clipping.
             // The canvas width determines whether we're in a compact layout.
             const isNarrow = canvas.clientWidth < 320;
-            const pointLabelFontSize = isNarrow ? 9 : 11;
+            const pointLabelFontSize = isNarrow ? 11 : 13;
 
             radarCharts.push(new Chart(canvas, {
                 type: 'radar',
@@ -2195,8 +2212,12 @@ document.addEventListener('DOMContentLoaded', function () {
                             pointLabels: {
                                 font: { size: pointLabelFontSize, family: 'Raleway', weight: '600' },
                                 color: cssNavy,
-                                // Make labels clickable via callback — we handle
-                                // clicks separately on the canvas element below
+                                // Center-align multi-line labels so each line
+                                // is centered at its position around the radar
+                                align: 'center',
+                                // Break labels into two lines to save horizontal
+                                // space and allow a larger radar polygon
+                                callback: (label) => splitRadarLabel(label),
                             },
                             // Darker grid/angle lines for better web visibility — theme-aware
                             grid: { color: `rgba(69, 123, 157, 0.25)` },
@@ -2235,10 +2256,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         for (let i = 0; i < dims.length; i++) {
                             const angle = -Math.PI / 2 + i * angleStep;
                             // Label position is just outside the chart at the same angle
-                            const labelX = centerX + Math.cos(angle) * (radius + 18);
-                            const labelY = centerY + Math.sin(angle) * (radius + 18);
+                            // — slightly further out since two-line labels are taller
+                            const labelX = centerX + Math.cos(angle) * (radius + 20);
+                            const labelY = centerY + Math.sin(angle) * (radius + 20);
                             const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
-                            if (dist < 35) {
+                            if (dist < 40) {
                                 // Directly show the HTML tooltip at the label position
                                 showRadarHtmlTooltip(chart, labelX, labelY, i);
                                 return;
