@@ -337,8 +337,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function getMockMetrics() {
         return {
-            vo2max: 57, vo2max_date: '2026-08-15',
-            fitness_age: 22,
+            vo2max: 52, vo2max_date: '2026-08-15',
+            fitness_age: 25,
             training_readiness_score: 72, training_readiness_level: 'MODERATE',
             recovery_time_hrs: 18,
             hrv_status: 'BALANCED', hrv_last_night_avg: 34, hrv_weekly_avg: 31,
@@ -410,9 +410,9 @@ document.addEventListener('DOMContentLoaded', function () {
         raceGoal = {
             purpose: 'Half Marathon',
             distance: 'Half Marathon',
-            time_target: '01:45:00',
+            time_target: '02:10:00',
             race_date: '2026-11-15',
-            weekly_mileage: '40',
+            weekly_mileage: '35',
             mileage_unit: 'km',
             gender: 'male',
             age: '30',
@@ -1913,6 +1913,179 @@ document.addEventListener('DOMContentLoaded', function () {
         loadAISummary();
     }
 
+    // Directly show the HTML tooltip at a given canvas-relative position.
+    // Used by the label-click handler since chart.tooltip.setActiveElements()
+    // doesn't reliably trigger the external tooltip handler when enabled:false.
+    // dimIndex is the radar dimension index to show in the tooltip.
+    function showRadarHtmlTooltip(chart, canvasX, canvasY, dimIndex) {
+        let tooltipEl = document.getElementById('rgd-radar-tooltip');
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.id = 'rgd-radar-tooltip';
+            tooltipEl.className = 'rgd-radar-tooltip';
+            document.body.appendChild(tooltipEl);
+        }
+
+        const dimName = RADAR_DIMENSIONS[dimIndex] || 'Unknown';
+        const score = radarValues10[dimIndex] !== undefined ? radarValues10[dimIndex] : '--';
+
+        tooltipEl.innerHTML = `
+            <a class="rgd-radar-tooltip-link" href="#" data-pillar-index="${dimIndex}">
+                ${escapeHtml(dimName)}
+            </a>
+            <span class="rgd-radar-tooltip-score">${score}/10</span>
+        `;
+
+        // Wire up the link click — same as in the external handler
+        const link = tooltipEl.querySelector('.rgd-radar-tooltip-link');
+        if (link) {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const idx = parseInt(link.getAttribute('data-pillar-index'));
+                const visiblePage = document.querySelector('.rgd-page:not([hidden])');
+                if (!visiblePage) return;
+                const pillar = visiblePage.querySelector(
+                    `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                );
+                if (pillar) {
+                    pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    pillar.classList.add('rgd-pillar-highlight');
+                    setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                }
+                tooltipEl.style.opacity = 0;
+            });
+        }
+
+        // Position relative to the canvas on the page
+        const canvasRect = chart.canvas.getBoundingClientRect();
+        const tooltipWidth = tooltipEl.offsetWidth;
+        const tooltipHeight = tooltipEl.offsetHeight;
+
+        let left = canvasRect.left + window.scrollX + canvasX - tooltipWidth / 2;
+        let top = canvasRect.top + window.scrollY + canvasY - tooltipHeight - 10;
+
+        if (left < 8) left = 8;
+        if (left + tooltipWidth > window.innerWidth - 8) {
+            left = window.innerWidth - tooltipWidth - 8;
+        }
+        if (top < window.scrollY + 8) {
+            top = canvasRect.top + window.scrollY + canvasY + 10;
+        }
+
+        tooltipEl.style.left = `${left}px`;
+        tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.opacity = 1;
+    }
+
+    // External HTML tooltip for the radar chart — renders a real DOM element
+    // instead of drawing on the canvas, so we can include a clickable link
+    // that jumps to the corresponding pillar in the insights section.
+    // The tooltip shows the dimension name as a link and the score below it.
+    // Flag: when true, the tooltip is "pinned" by the user's mouse hovering
+    // over it — prevents the external handler from hiding it when the mouse
+    // leaves the radar dot. Cleared when the mouse leaves the tooltip element.
+    let radarTooltipPinned = false;
+
+    function radarExternalTooltipHandler(context) {
+        const { chart, tooltip } = context;
+        // Tooltip element — shared across all radar canvases, created once
+        let tooltipEl = document.getElementById('rgd-radar-tooltip');
+
+        // Create the tooltip container on first use
+        if (!tooltipEl) {
+            tooltipEl = document.createElement('div');
+            tooltipEl.id = 'rgd-radar-tooltip';
+            tooltipEl.className = 'rgd-radar-tooltip';
+            document.body.appendChild(tooltipEl);
+
+            // Pin the tooltip when the mouse enters it — this prevents
+            // the external handler from hiding it when the mouse leaves
+            // the radar dot, giving the user time to click the link inside
+            tooltipEl.addEventListener('mouseenter', () => {
+                radarTooltipPinned = true;
+            });
+            tooltipEl.addEventListener('mouseleave', () => {
+                radarTooltipPinned = false;
+                tooltipEl.style.opacity = 0;
+            });
+        }
+
+        // Hide if no tooltip data or opacity is 0 — but not if the user
+        // is hovering over the tooltip itself (pinned state)
+        if (tooltip.opacity === 0) {
+            if (!radarTooltipPinned) {
+                tooltipEl.style.opacity = 0;
+            }
+            return;
+        }
+
+        // Build the tooltip content from the active tooltip data points
+        if (tooltip.body) {
+            const dp = tooltip.dataPoints[0];
+            const dimIndex = dp.dataIndex;
+            const dimName = RADAR_DIMENSIONS[dimIndex] || dp.label || 'Unknown';
+            const score = dp.raw;
+
+            tooltipEl.innerHTML = `
+                <a class="rgd-radar-tooltip-link" href="#insights" data-pillar-index="${dimIndex}">
+                    ${escapeHtml(dimName)}
+                </a>
+                <span class="rgd-radar-tooltip-score">${score}/10</span>
+            `;
+
+            // Wire up the link click — scroll to the corresponding pillar card
+            // on the overview page (where the radar is), not the insights page.
+            // Uses data-pillar-index attribute to find the right card within
+            // the currently visible page's pillars container.
+            const link = tooltipEl.querySelector('.rgd-radar-tooltip-link');
+            if (link) {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const idx = parseInt(link.getAttribute('data-pillar-index'));
+                    // Find the pillar card on the currently visible page —
+                    // query within the visible page's pillars container only
+                    const visiblePage = document.querySelector('.rgd-page:not([hidden])');
+                    if (!visiblePage) return;
+                    const pillar = visiblePage.querySelector(
+                        `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                    );
+                    if (pillar) {
+                        pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Briefly highlight the card so the user notices it
+                        pillar.classList.add('rgd-pillar-highlight');
+                        setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                    }
+                    // Hide the tooltip after clicking the link
+                    tooltipEl.style.opacity = 0;
+                });
+            }
+        }
+
+        // Position the tooltip relative to the canvas — account for the
+        // canvas's position on the page plus Chart.js's internal offset
+        const canvasRect = chart.canvas.getBoundingClientRect();
+        const tooltipWidth = tooltipEl.offsetWidth;
+        const tooltipHeight = tooltipEl.offsetHeight;
+
+        // Center horizontally on the tooltip position, place above the point
+        let left = canvasRect.left + window.scrollX + tooltip.caretX - tooltipWidth / 2;
+        let top = canvasRect.top + window.scrollY + tooltip.caretY - tooltipHeight - 10;
+
+        // Clamp within viewport — don't let it overflow off-screen
+        if (left < 8) left = 8;
+        if (left + tooltipWidth > window.innerWidth - 8) {
+            left = window.innerWidth - tooltipWidth - 8;
+        }
+        // If it would go above the viewport, flip it below the point
+        if (top < window.scrollY + 8) {
+            top = canvasRect.top + window.scrollY + tooltip.caretY + 10;
+        }
+
+        tooltipEl.style.left = `${left}px`;
+        tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.opacity = 1;
+    }
+
     function renderRadarChart(aiData) {
         // Store last radar data so charts can be re-rendered on theme change
         lastRadarData = aiData;
@@ -2009,23 +2182,23 @@ document.addEventListener('DOMContentLoaded', function () {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            // Theme-aware tooltip — surface bg with text color font
-                            backgroundColor: cssSurface,
-                            titleColor: cssText,
-                            bodyColor: cssText,
-                            borderColor: isDark ? '#2a3f56' : '#dce8f2',
-                            borderWidth: 1,
-                            titleFont: { family: 'Raleway', size: 12 },
-                            bodyFont: { family: 'Lato', size: 14 },
-                            callbacks: {
-                                label: (ctx) => `${ctx.raw}/10`,
-                            }
+                            // Use an external HTML tooltip so we can include a
+                            // clickable link to the corresponding insight pillar.
+                            // The built-in canvas tooltip can't render interactive HTML.
+                            enabled: false,
+                            external: radarExternalTooltipHandler,
+                            // Theme-aware colors passed to the external handler via
+                            // CSS variables on the tooltip element
                         }
                     },
-                    // Click handler: clicking a point label area shows the score
+                    // Click handler: clicking a point label area shows the tooltip.
+                    // Since the external HTML tooltip is used (enabled: false),
+                    // chart.tooltip.setActiveElements() doesn't trigger the
+                    // external handler reliably. Instead, we directly show the
+                    // HTML tooltip at the label's position.
                     onClick: (e, elements, chart) => {
-                        // If a point was clicked, the default tooltip handles it.
-                        // Otherwise check if a label area was clicked.
+                        // If a point (dot) was clicked, the external tooltip
+                        // handler fires via normal interaction — don't interfere.
                         if (elements.length > 0) return;
                         const dims = RADAR_DIMENSIONS;
                         const scales = chart.scales.r;
@@ -2042,12 +2215,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             const labelY = centerY + Math.sin(angle) * (radius + 18);
                             const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
                             if (dist < 35) {
-                                // Show a temporary tooltip at the label position
-                                chart.tooltip.setActiveElements([{
-                                    datasetIndex: 0,
-                                    index: i,
-                                }], { x: pos.x, y: pos.y });
-                                chart.update();
+                                // Directly show the HTML tooltip at the label position
+                                showRadarHtmlTooltip(chart, labelX, labelY, i);
                                 return;
                             }
                         }
@@ -2217,7 +2386,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const dims = data.dimensions || [];
         const html = dims.map((d, i) => `
-            <div class="rgd-pillar-card">
+            <div class="rgd-pillar-card" data-pillar-index="${i}">
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
                     <span class="rgd-pillar-name">${escapeHtml(d.name)}</span>
@@ -2366,6 +2535,21 @@ document.addEventListener('DOMContentLoaded', function () {
     if (loadMoreActivitiesBtn) {
         loadMoreActivitiesBtn.addEventListener('click', loadMoreActivities);
     }
+
+    // Dismiss the radar external HTML tooltip when clicking outside the
+    // radar canvas or the tooltip itself — matches the behavior the user
+    // expects from the previous canvas tooltip which stayed until clicking away
+    document.addEventListener('click', (e) => {
+        const tooltipEl = document.getElementById('rgd-radar-tooltip');
+        if (!tooltipEl || tooltipEl.style.opacity === '0') return;
+        // If the click was inside the tooltip (e.g. on the link), don't dismiss
+        if (tooltipEl.contains(e.target)) return;
+        // If the click was on a radar canvas, don't dismiss — the chart's
+        // own click handler will update the tooltip
+        if (e.target.classList && e.target.classList.contains('rgd-radar-chart')) return;
+        // Otherwise hide the tooltip
+        tooltipEl.style.opacity = 0;
+    });
 
     // Logout function — shared between settings and session expiry
     async function logout() {
