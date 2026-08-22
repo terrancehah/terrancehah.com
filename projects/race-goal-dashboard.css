@@ -2081,7 +2081,9 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(247, 250, 253, 0.85);
+    /* Use the theme-aware background color with 85% opacity so the overlay
+       blends with the page in both light and dark modes */
+    background: color-mix(in srgb, var(--rgd-bg) 85%, transparent);
     backdrop-filter: blur(0.25rem);
     display: flex;
     align-items: center;
