@@ -691,6 +691,17 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        // Transitioning from demo to real mode — destroy any radar chart
+        // instances left over from demo mock data so the user doesn't see
+        // stale mock scores while the real AI radar loads. Show the skeleton
+        // immediately so the radar enters a clear loading state.
+        radarCharts.forEach(c => c.destroy());
+        radarCharts = [];
+        lastRadarData = null;
+        showRadarSkeleton(true);
+        // Hide pillars content until real AI data arrives
+        pillarsContents.forEach(el => el.hidden = true);
+
         showOverlay('Loading your training data...');
         try {
             // Fetch the first batch of activities for both the overview
@@ -1534,9 +1545,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Classify a run using race-goal-based heuristics:
     // Warmup: distance < 2km
-    // Speedwork: pace faster than race goal pace
-    // LSD: distance > 12km (long slow distance)
+    // Tempo Long: distance > 12km AND pace meaningfully faster than goal pace
+    // LSD: distance > 12km at or easier than goal pace (long slow distance)
+    // Speedwork: pace meaningfully faster than goal pace (shorter runs)
     // Easy: everything else (base/recovery mileage)
+    //
+    // "Meaningfully faster" = at least 15 sec/km faster than the race goal
+    // pace. This prevents runs only 1-2 sec/km faster than target from being
+    // mislabeled as Speedwork — those are effectively at target pace and
+    // belong in the Easy/LSD bucket.
     function classifyRun(a) {
         if (!a.avg_pace || a.avg_pace <= 0) return { label: 'Run', className: 'rgd-run-tag--easy' };
         const dist = a.distance || 0;
@@ -1545,14 +1562,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dist < 2) {
             return { label: 'Warmup', className: 'rgd-run-tag--warmup' };
         }
-        // Speedwork: the run's average pace (m/s) is faster than the race goal pace
-        if (raceGoalPaceMs > 0 && a.avg_pace > raceGoalPaceMs) {
-            return { label: 'Speedwork', className: 'rgd-run-tag--speedwork' };
+
+        // Compute the Speedwork pace threshold in m/s.
+        // Garmin stores avg_pace in m/s (higher = faster). To require a run
+        // to be 15 sec/km faster than goal pace, convert goal pace to
+        // sec/km, subtract 15, then convert back to m/s.
+        let speedworkThresholdMs = 0;
+        if (raceGoalPaceMs > 0) {
+            const goalPaceSecPerKm = 1000 / raceGoalPaceMs;
+            const speedworkPaceSecPerKm = goalPaceSecPerKm - 15;
+            // Guard against division by zero if goal pace is extremely slow
+            if (speedworkPaceSecPerKm > 0) {
+                speedworkThresholdMs = 1000 / speedworkPaceSecPerKm;
+            }
         }
-        // LSD: distance exceeds 12km — long endurance run
+        const isMeaningfullyFaster = speedworkThresholdMs > 0 && a.avg_pace > speedworkThresholdMs;
+
+        // Long runs (> 12km) are split by pace:
+        //   - Tempo Long: long AND meaningfully faster than goal pace
+        //   - LSD: long at or easier than the speedwork threshold
         if (dist > 12) {
+            if (isMeaningfullyFaster) {
+                return { label: 'Tempo Long', className: 'rgd-run-tag--tempo-long' };
+            }
             return { label: 'LSD', className: 'rgd-run-tag--lsd' };
         }
+
+        // Speedwork: shorter runs that are meaningfully faster than goal pace
+        if (isMeaningfullyFaster) {
+            return { label: 'Speedwork', className: 'rgd-run-tag--speedwork' };
+        }
+
         // Everything else is easy/base mileage
         return { label: 'Easy', className: 'rgd-run-tag--easy' };
     }

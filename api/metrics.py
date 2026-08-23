@@ -77,8 +77,11 @@ async def metrics(token: str = ""):
                 if score is not None:
                     metrics["training_readiness_score"] = score
                     metrics["training_readiness_level"] = tr[0].get("level")
-                    recovery_sec = tr[0].get("recoveryTime", 0)
-                    metrics["recovery_time_hrs"] = round(recovery_sec / 3600, 1) if recovery_sec else None
+                    # Garmin's training readiness API returns recoveryTime
+                    # in MINUTES (not seconds), so divide by 60 to get hours.
+                    # Dividing by 3600 would under-report by 60x.
+                    recovery_min = tr[0].get("recoveryTime", 0)
+                    metrics["recovery_time_hrs"] = round(recovery_min / 60, 1) if recovery_min else None
                     break
     except Exception:
         pass

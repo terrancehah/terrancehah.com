@@ -87,7 +87,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    /* Sit above the sticky demo banner (z-index: 100) so the modal's
+       blur overlay covers the banner when the login dialog is open */
+    z-index: 200;
     padding: 1rem;
 }
 
@@ -2085,12 +2087,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.15); color: #5d6db0; }
 .rgd-run-tag--easy { background: rgba(56, 142, 142, 0.15); color: #388e8e; }
 .rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.15); color: #c44b4b; }
+.rgd-run-tag--tempo-long { background: rgba(212, 160, 23, 0.15); color: #b5832a; }
 .rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.15); color: #888; }
 
 /* Dark mode tag colors — slightly brighter for visibility */
 [data-theme="dark"] .rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.25); color: #8b9ad6; }
 [data-theme="dark"] .rgd-run-tag--easy { background: rgba(56, 142, 142, 0.25); color: #5dbfbf; }
 [data-theme="dark"] .rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.25); color: #e07070; }
+[data-theme="dark"] .rgd-run-tag--tempo-long { background: rgba(212, 160, 23, 0.25); color: #d9b24f; }
 [data-theme="dark"] .rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.25); color: #aaa; }
 
 .rgd-activity-meta {
