@@ -9,7 +9,10 @@ from openai import AsyncOpenAI
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, _get_garmin_client, create_app
+from lib._shared import (
+    _get_session, _get_garmin_client, create_app,
+    _get_cached_garmin_data, _fetch_physio_trends, _fetch_activities_for_ai,
+)
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/ai-radar so routes at "/" match)
@@ -25,9 +28,7 @@ async def ai_radar(token: str = ""):
     threshold, aerobic endurance, running economy, strength/durability, VO2max/speed,
     fatigue resistance), each with specific strengths and gaps referencing real data.
     """
-    # _get_garmin_client re-creates the Garmin client from stored credentials
-    # (raises 401 if the session is invalid or credentials are missing)
-    client = _get_garmin_client(token)
+    # Validate session and get race goal (no Garmin client needed yet)
     sess = _get_session(token)
     race_goal = sess.get("race_goal")
 
@@ -35,27 +36,24 @@ async def ai_radar(token: str = ""):
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
 
-    # Gather recent activities for AI context — send 30 for richer analysis
-    activities_data = []
-    try:
-        acts = client.get_activities(0, 30)
-        for a in acts:
-            activities_data.append({
-                "name": a.get("activityName", ""),
-                "type": a.get("activityType", {}).get("typeKey", ""),
-                "date": a.get("startTimeLocal", ""),
-                "distance_km": round(a.get("distance", 0) / 1000, 2),
-                "duration_min": round(a.get("duration", 0) / 60, 1),
-                "avg_hr": a.get("averageHR"),
-                "max_hr": a.get("maxHR"),
-                "calories": a.get("calories"),
-                "elevation_gain": round(a.get("elevationGain", 0), 1),
-                "avg_pace_ms": a.get("averageSpeed"),
-                "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
-                "training_effect": a.get("aerobicTrainingEffect"),
-            })
-    except Exception as e:
-        return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
+    # Try the Redis cache first — metrics.py populates this cache during the
+    # same page load, so in the common case we read from Redis and make zero
+    # Garmin API calls. On cache miss (first visit, expiry, local dev without
+    # Redis), we fall back to fetching directly from Garmin.
+    cached = _get_cached_garmin_data(token)
+
+    if cached:
+        activities_data = cached.get("activities", [])
+        physio = cached.get("physio", {})
+    else:
+        # Cache miss — create a Garmin client and fetch everything directly.
+        # This is the fallback path; the common path is the cache hit above.
+        client = _get_garmin_client(token)
+        try:
+            activities_data = _fetch_activities_for_ai(client, limit=30)
+        except Exception as e:
+            return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
+        physio = _fetch_physio_trends(client, days=60)
 
     # Build race goal context for the prompt if the user has set one
     race_goal_text = ""
@@ -69,18 +67,44 @@ async def ai_radar(token: str = ""):
             - Current Weekly Mileage: {race_goal.get('weekly_mileage', 'N/A')} {race_goal.get('mileage_unit', 'km')}
         """
 
+    # Build physiological data text for the prompt — only include sections
+    # that have actual data (non-null, non-empty) to keep the prompt lean
+    physio_parts = []
+
+    if physio.get("vo2max_trend"):
+        physio_parts.append(f"VO2MAX TREND (60-day history — shows aerobic capacity direction):\n{json.dumps(physio['vo2max_trend'], indent=2)}")
+
+    if physio.get("hrv_trend"):
+        physio_parts.append(f"HRV TREND (60-day history — nightly heart rate variability; declining trend signals accumulating fatigue):\n{json.dumps(physio['hrv_trend'], indent=2)}")
+
+    if physio.get("rhr_trend"):
+        physio_parts.append(f"RESTING HR TREND (60-day history — declining RHR = improving fitness; rising RHR = possible overtraining/illness):\n{json.dumps(physio['rhr_trend'], indent=2)}")
+
+    if physio.get("sleep_trend"):
+        physio_parts.append(f"SLEEP TREND (60-day history — sleep quality and duration impact recovery):\n{json.dumps(physio['sleep_trend'], indent=2)}")
+
+    if physio.get("lactate_threshold"):
+        physio_parts.append(f"LACTATE THRESHOLD (latest Garmin estimate — requires chest strap; null values mean not measured):\n{json.dumps(physio['lactate_threshold'], indent=2)}")
+
+    if physio.get("endurance_trend"):
+        physio_parts.append(f"ENDURANCE SCORE TREND (60-day history — Garmin's composite aerobic endurance estimate):\n{json.dumps(physio['endurance_trend'], indent=2)}")
+
+    physio_text = "\n\n".join(physio_parts) if physio_parts else "No physiological trend data available."
+
     prompt = f"""You are an expert running coach and sports scientist. 
 Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (decimals allowed in 0.5 increments, e.g. 7.5). 
 Address the runner directly as "you" throughout your analysis.
 
 SCORING PHILOSOPHY (strictly follow this):
-- Be conservative and evidence-based. Only award high scores when the workout data clearly supports them.
+- Be conservative and evidence-based. Only award high scores when the data (both activities AND physiological trends) clearly supports them.
 - A score of 7.0 means the runner is roughly on track for the stated race goal with normal training progression.
 - 8.0–8.5 means they are ahead of schedule or showing strong specific fitness for the goal.
 - 9.0+ is rare and requires clear, repeated evidence of superior readiness.
 - Below 6.0 indicates a meaningful gap that needs addressing before race day.
 - Do not inflate scores out of politeness. Prefer under-rating when evidence is weak, missing, or inconsistent.
 - Always interpret the data relative to the specific race goal and time target provided above.
+- Use physiological trend data (VO2max, HRV, RHR, sleep) to validate or question what the activity data suggests. If physiological trends contradict activity data, weigh the physiological data more heavily — the body's recovery signals don't lie.
+- Prioritise multi-day or weekly trends in HRV, RHR and sleep over single-day values. A single bad night of sleep or one low-HRV reading is noise; a week-long decline is a signal.
 
 TONE & FEEDBACK STYLE (important):
 - Be honest but constructive and supportive. You are a coach who wants the runner to succeed.
@@ -94,21 +118,27 @@ TONE & FEEDBACK STYLE (important):
 RECENT ACTIVITIES (last 30):
 {json.dumps(activities_data, indent=2)}
 
+PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and deepen your analysis):
+{physio_text}
+
 1. **Lactate Threshold** — Ability to sustain near-goal intensity without excessive fatigue accumulation.
    Scoring anchors:
    - 9–10: Multiple recent sessions clearly showing ability to hold goal race pace (or faster) for meaningful durations with controlled heart rate.
    - 7–8: Solid tempo/threshold work near goal pace, or ability to hold goal pace for 20–40 minutes.
    - 5–6: Some threshold work exists but is too short, too slow relative to goal, or shows significant HR drift.
    - ≤4: Little to no quality work near goal intensity.
+   - If lactate threshold data is present, use it as ground truth to anchor your assessment.
 
 2. **Aerobic Endurance** — Cardiovascular base and ability to sustain long-duration efforts at conversational effort.
    Scoring anchors:
-   - 9–10: Strong weekly volume + consistent long runs that clearly support the race distance and time goal.
-   - 7–8: Adequate volume and long-run frequency for the goal, with mostly controlled easy effort.
-   - 5–6: Volume or long-run quality is only borderline for the goal distance/time.
-   - ≤4: Clearly insufficient aerobic volume or long-run stimulus for the target race.
+   - 9–10: Strong weekly volume + consistent long runs + improving or stable VO2max trend that clearly supports the race distance and time goal.
+   - 7–8: Adequate volume and long-run frequency for the goal, with mostly controlled easy effort. VO2max trend is stable or improving.
+   - 5–6: Volume or long-run quality is only borderline for the goal distance/time. VO2max may be flat or declining.
+   - ≤4: Clearly insufficient aerobic volume or long-run stimulus for the target race, with weak or declining VO2max trend.
+   - Use the endurance score trend and VO2max trend to validate your assessment of aerobic development.
 
 3. **Running Economy** — Movement efficiency at a given pace, especially near goal pace.
+   Physiological data has limited value for this dimension — rely primarily on activity efficiency signals (cadence stability, HR-to-pace ratio, pace consistency).
    Scoring anchors:
    - 9–10: Stable, efficient mechanics (cadence + pace consistency) at or near goal pace across multiple sessions.
    - 7–8: Generally good efficiency on easy and moderate runs, with reasonable economy at goal intensity.
@@ -117,36 +147,40 @@ RECENT ACTIVITIES (last 30):
 
 4. **Strength / Durability** — Musculoskeletal resilience and ability to handle training load without breakdown.
    Scoring anchors:
-   - 9–10: Consistent training load, good elevation/hill work, and evidence of structural resilience.
-   - 7–8: Solid load consistency and some strength stimulus (hills, longer efforts).
-   - 5–6: Training is present but lacks variety, progression, or shows early signs of strain.
-   - ≤4: Inconsistent load, limited strength stimulus, or concerning fatigue patterns.
+   - 9–10: Consistent training load, good hill work, and strong recovery capacity in HRV/sleep trends.
+   - 7–8: Solid load consistency and some strength stimulus (hills, longer efforts). Recovery metrics are generally stable.
+   - 5–6: Training lacks variety or progression, or shows early strain in HRV/sleep data.
+   - ≤4: Inconsistent load, limited strength stimulus, or concerning fatigue patterns in physiological data.
 
 5. **VO₂max / Speed** — Maximal aerobic capacity and speed reserve above goal pace.
    Scoring anchors:
-   - 9–10: Clear, repeated high-intensity work showing meaningful speed reserve above goal pace.
-   - 7–8: Some quality interval or speed work that demonstrates useful speed reserve.
-   - 5–6: Limited true high-intensity stimulus; speed reserve is unclear or marginal.
-   - ≤4: Almost no dedicated speed/VO₂max development relevant to the goal.
+   - 9–10: Clear, repeated high-intensity work showing meaningful speed reserve above goal pace, supported by an improving VO2max trend.
+   - 7–8: Some quality interval or speed work that demonstrates useful speed reserve. VO2max trend is stable or slightly improving.
+   - 5–6: Limited true high-intensity stimulus; speed reserve is unclear or marginal. VO2max trend may be flat.
+   - ≤4: Almost no dedicated speed/VO₂max development relevant to the goal, with weak or declining VO2max.
+   - The VO2max trend is the primary physiological validator for this dimension — a declining VO2max should pull the score down even if workouts look decent.
 
 6. **Fatigue Resistance** — Ability to maintain performance quality under accumulated fatigue.
    Scoring anchors:
-   - 9–10: Strong evidence of maintaining pace/effort on tired legs (back-to-back hard days, late-run stability).
-   - 7–8: Reasonable ability to absorb training and still perform on subsequent days.
-   - 5–6: Performance drops noticeably when fatigue accumulates.
-   - ≤4: Clear inability to handle consecutive quality sessions or late-race fatigue.
+   - 9–10: Maintains pace/effort on tired legs (back-to-back hard days, late-run stability). HRV balanced/improving, RHR stable or declining, sleep consistently good.
+   - 7–8: Absorbs training and performs on subsequent days. Recovery metrics show normal variation without concerning trends.
+   - 5–6: Performance drops when fatigue accumulates. HRV declining, RHR rising, or sleep inconsistent.
+   - ≤4: Cannot handle consecutive quality sessions. Recovery metrics show strong negative trends.
+   - HRV, RHR, and sleep trends are the PRIMARY evidence sources here. Cross-reference recovery with workout quality on days following poor recovery.
 
 For each dimension, provide:
 - "score": number from 0–10 (0.5 increments allowed)
 - "summary": 2–3 sentences giving a high-level overview of your rating. Keep it general and qualitative (no specific paces, distances, or heart rates). Make the tone constructive. If the score is 7.0 or higher, the summary should feel reassuring and forward-looking.
-- "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific paces, distances, heart rates, cadences, or workout patterns from the activities above.
+- "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific data from the activities AND/OR physiological trends above (paces, distances, heart rates, cadences, VO2max values, HRV trends, RHR trends, sleep scores).
 - "gaps": 2–3 sentences describing the areas that can still be improved relative to the race goal. Reference specific data. Frame these as clear next opportunities rather than pure shortcomings.
 
 Important rules:
 - Be specific in strengths and gaps. Generic comments without numbers from the data are not acceptable.
 - Keep the summary general — no specific numbers.
 - Keep strengths and gaps focused only on that dimension.
-- Do not invent data that is not present in the activities list.
+- Do not invent data that is not present in the activities list or physiological data.
+- When physiological data contradicts activity data, explain the tension and explain why you weighted one more heavily.
+- If physiological data is sparse or missing for a dimension, note that in your assessment and rely more heavily on activity data.
 - Maintain a supportive coaching tone throughout.
 
 Return ONLY valid JSON:

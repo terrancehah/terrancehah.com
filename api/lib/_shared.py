@@ -268,3 +268,229 @@ def _get_garmin_client(token: str) -> Garmin:
             status_code=401,
             detail="Garmin re-authentication failed. Please log in again."
         )
+
+
+# --- Garmin data cache (Redis) ---
+#
+# To avoid hitting Garmin's rate limits when multiple serverless functions
+# (metrics.py, ai-radar.py) fire in the same page load, we cache the raw
+# Garmin API responses in Redis with a short TTL. metrics.py fetches and
+# caches; ai-radar.py reads from cache instead of calling Garmin directly.
+#
+# This is separate from the session store — session stores auth/user state
+# (long-lived, 12h TTL), while this cache stores transient API data
+# (short-lived, 5min TTL). Different keys, different lifecycles.
+
+GARMIN_CACHE_PREFIX = "race:garmin-cache:"
+GARMIN_CACHE_TTL = 300  # 5 minutes — long enough for a single page load
+
+
+def _cache_garmin_data(token: str, data: dict):
+    """Store fetched Garmin data in Redis so other endpoints can reuse it.
+
+    Used by metrics.py to cache activities + physiological trends so
+    ai-radar.py can read them without making its own Garmin API calls.
+    Falls back to in-memory dict for local dev without Redis.
+    """
+    if _redis:
+        _redis.set(
+            f"{GARMIN_CACHE_PREFIX}{token}",
+            json.dumps(data),
+            ex=GARMIN_CACHE_TTL,
+        )
+    else:
+        _local_sessions[f"{GARMIN_CACHE_PREFIX}{token}"] = data
+
+
+def _get_cached_garmin_data(token: str) -> dict | None:
+    """Read cached Garmin data from Redis. Returns None on miss.
+
+    Does NOT raise on cache miss — callers should fall back to fetching
+    directly from Garmin when this returns None.
+    """
+    if _redis:
+        raw = _redis.get(f"{GARMIN_CACHE_PREFIX}{token}")
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(f"{GARMIN_CACHE_PREFIX}{token}")
+
+
+def _fetch_physio_trends(client, days: int = 60) -> dict:
+    """Fetch 60-day physiological trend data from Garmin for AI analysis.
+
+    Fetches VO2max, HRV, resting HR, sleep, lactate threshold, and endurance
+    score. Each fetch is independently wrapped — one failure won't block the
+    others. Returns a dict with None for any metric that couldn't be fetched.
+
+    This is a shared helper used by both metrics.py (to populate the cache)
+    and ai-radar.py (as a fallback when the cache is empty).
+    """
+    from datetime import date, timedelta
+
+    today_str = date.today().isoformat()
+    start_str = (date.today() - timedelta(days=days)).isoformat()
+    physio = {}
+
+    # VO2max trend — shows whether aerobic capacity is rising, plateauing,
+    # or declining over the training block
+    try:
+        vo2_range = client.get_max_metrics_range(start_str, today_str)
+        vo2_trend = []
+        if isinstance(vo2_range, dict):
+            entries = (
+                vo2_range.get("maxMetrics")
+                or vo2_range.get("maxMetricList")
+                or vo2_range.get("values")
+                or []
+            )
+            if isinstance(entries, list):
+                for entry in entries:
+                    vo2_val = entry.get("generic", {}).get("vo2MaxValue")
+                    cal_date = entry.get("calendarDate", "")
+                    if vo2_val is not None:
+                        vo2_trend.append({"date": cal_date, "vo2max": vo2_val})
+        physio["vo2max_trend"] = vo2_trend if vo2_trend else None
+    except Exception:
+        physio["vo2max_trend"] = None
+
+    # HRV trend — nightly heart rate variability reveals recovery quality
+    try:
+        hrv_range = client.get_hrv_data_range(start_str, today_str)
+        hrv_trend = []
+        if isinstance(hrv_range, dict):
+            hrv_entries = (
+                hrv_range.get("hrvSummaryList")
+                or hrv_range.get("values")
+                or [hrv_range.get("hrvSummary")] if hrv_range.get("hrvSummary") else []
+            )
+            if isinstance(hrv_entries, list):
+                for entry in hrv_entries:
+                    if isinstance(entry, dict):
+                        nightly = entry.get("lastNightAvg")
+                        status = entry.get("status")
+                        cal_date = entry.get("calendarDate", "")
+                        if nightly is not None:
+                            hrv_trend.append({
+                                "date": cal_date,
+                                "last_night_avg": nightly,
+                                "status": status,
+                            })
+        physio["hrv_trend"] = hrv_trend if hrv_trend else None
+    except Exception:
+        physio["hrv_trend"] = None
+
+    # Resting HR trend — declining RHR = improving fitness; rising = overtraining
+    try:
+        rhr_daily = client.get_rhr_daily(start_str, today_str)
+        rhr_trend = []
+        if isinstance(rhr_daily, list):
+            for entry in rhr_daily:
+                rhr_val = (
+                    entry.get("restingHeartRate")
+                    or entry.get("value")
+                )
+                cal_date = entry.get("calendarDate", "")
+                if rhr_val is not None:
+                    rhr_trend.append({"date": cal_date, "resting_hr": rhr_val})
+        physio["rhr_trend"] = rhr_trend if rhr_trend else None
+    except Exception:
+        physio["rhr_trend"] = None
+
+    # Sleep trend — sleep quality and duration impact recovery
+    try:
+        sleep_daily = client.get_sleep_daily(start_str, today_str)
+        sleep_trend = []
+        if isinstance(sleep_daily, list):
+            for entry in sleep_daily:
+                cal_date = entry.get("calendarDate", "")
+                score = None
+                duration_sec = entry.get("sleepTimeSeconds") or entry.get("sleepDuration")
+                scores = entry.get("sleepScores", {})
+                if isinstance(scores, dict):
+                    overall = scores.get("overall", {})
+                    score = overall.get("value") if isinstance(overall, dict) else overall
+                if score is None:
+                    score = entry.get("sleepScore") or entry.get("overallSleepScore")
+                if cal_date and (score is not None or duration_sec is not None):
+                    sleep_trend.append({
+                        "date": cal_date,
+                        "sleep_score": score,
+                        "sleep_duration_hrs": round(duration_sec / 3600, 1) if duration_sec else None,
+                    })
+        physio["sleep_trend"] = sleep_trend if sleep_trend else None
+    except Exception:
+        physio["sleep_trend"] = None
+
+    # Lactate Threshold — Garmin estimate (requires chest strap; null for most)
+    try:
+        lt_data = client.get_lactate_threshold(latest=True)
+        lt_speed = None
+        lt_hr = None
+        if isinstance(lt_data, dict):
+            sah = lt_data.get("speed_and_heart_rate", {})
+            if isinstance(sah, dict):
+                lt_speed = sah.get("speed")
+                lt_hr = sah.get("heartRate")
+        physio["lactate_threshold"] = {
+            "speed_ms": lt_speed,
+            "heart_rate_bpm": lt_hr,
+        } if (lt_speed is not None or lt_hr is not None) else None
+    except Exception:
+        physio["lactate_threshold"] = None
+
+    # Endurance Score — Garmin's composite aerobic endurance estimate
+    try:
+        endurance = client.get_endurance_score(start_str, today_str)
+        endurance_trend = []
+        if isinstance(endurance, dict):
+            entries = (
+                endurance.get("enduranceScoreList")
+                or endurance.get("values")
+                or [endurance]
+            )
+            if isinstance(entries, list):
+                for entry in entries:
+                    es_val = (
+                        entry.get("enduranceScore")
+                        or entry.get("value")
+                        or entry.get("score")
+                    )
+                    cal_date = entry.get("calendarDate", "")
+                    if es_val is not None:
+                        endurance_trend.append({"date": cal_date, "endurance_score": es_val})
+        physio["endurance_trend"] = endurance_trend if endurance_trend else None
+    except Exception:
+        physio["endurance_trend"] = None
+
+    return physio
+
+
+def _fetch_activities_for_ai(client, limit: int = 30) -> list[dict]:
+    """Fetch recent activities in the format ai-radar.py needs for its prompt.
+
+    Returns a list of dicts with the same keys ai-radar.py uses:
+    name, type, date, distance_km, duration_min, avg_hr, max_hr, calories,
+    elevation_gain, avg_pace_ms, avg_cadence, training_effect.
+    """
+    activities_data = []
+    acts = client.get_activities(0, limit)
+    for a in acts:
+        activities_data.append({
+            "name": a.get("activityName", ""),
+            "type": a.get("activityType", {}).get("typeKey", ""),
+            "date": a.get("startTimeLocal", ""),
+            "distance_km": round(a.get("distance", 0) / 1000, 2),
+            "duration_min": round(a.get("duration", 0) / 60, 1),
+            "avg_hr": a.get("averageHR"),
+            "max_hr": a.get("maxHR"),
+            "calories": a.get("calories"),
+            "elevation_gain": round(a.get("elevationGain", 0), 1),
+            "avg_pace_ms": a.get("averageSpeed"),
+            "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
+            "training_effect": a.get("aerobicTrainingEffect"),
+        })
+    return activities_data

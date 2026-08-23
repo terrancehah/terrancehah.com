@@ -8,7 +8,10 @@ import math
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_garmin_client, _get_session, create_app
+from lib._shared import (
+    _get_garmin_client, _get_session, create_app,
+    _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
+)
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/metrics so routes at "/" match)
@@ -205,6 +208,22 @@ async def metrics(token: str = ""):
         metrics["weekly_distance"] = round(sum(a.get("distance", 0) for a in weekly_acts) / 1000, 1)
         metrics["weekly_duration"] = round(sum(a.get("duration", 0) for a in weekly_acts) / 3600, 1)
     except Exception:
+        pass
+
+    # Fetch and cache physiological trends + activities for ai-radar.py.
+    # This runs inside the same Garmin session as the metrics above, so we
+    # avoid triggering additional rate-limit counters when ai-radar.py fires
+    # later in the same page load — it reads from Redis instead of Garmin.
+    try:
+        physio = _fetch_physio_trends(client, days=60)
+        ai_activities = _fetch_activities_for_ai(client, limit=30)
+        _cache_garmin_data(token, {
+            "activities": ai_activities,
+            "physio": physio,
+        })
+    except Exception:
+        # Cache population is best-effort — if it fails, ai-radar.py will
+        # fall back to fetching directly from Garmin
         pass
 
     # Record the server timestamp when the data was fetched — tells the
