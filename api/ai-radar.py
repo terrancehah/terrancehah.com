@@ -92,13 +92,13 @@ async def ai_radar(token: str = ""):
     physio_text = "\n\n".join(physio_parts) if physio_parts else "No physiological trend data available."
 
     prompt = f"""You are an expert running coach and sports scientist. 
-Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (decimals allowed in 0.5 increments, e.g. 7.5). 
+Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (no decimals allowed). 
 Address the runner directly as "you" throughout your analysis.
 
 SCORING PHILOSOPHY (strictly follow this):
 - Be conservative and evidence-based. Only award high scores when the data (both activities AND physiological trends) clearly supports them.
 - A score of 7.0 means the runner is roughly on track for the stated race goal with normal training progression.
-- 8.0–8.5 means they are ahead of schedule or showing strong specific fitness for the goal.
+- 8.0 means they are ahead of schedule or showing strong specific fitness for the goal.
 - 9.0+ is rare and requires clear, repeated evidence of superior readiness.
 - Below 6.0 indicates a meaningful gap that needs addressing before race day.
 - Do not inflate scores out of politeness. Prefer under-rating when evidence is weak, missing, or inconsistent.
@@ -175,7 +175,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - HRV, RHR, and sleep trends are the PRIMARY evidence sources here. Cross-reference recovery with workout quality on days following poor recovery.
 
 For each dimension, provide:
-- "score": number from 0–10 (0.5 increments allowed)
+- "score": integer from 0–10 (no decimals)
 - "summary": 2–3 sentences giving a high-level overview of your rating. Keep it general and qualitative (no specific paces, distances, or heart rates). Make the tone constructive. If the score is 7.0 or higher, the summary should feel reassuring and forward-looking.
 - "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific data from the activities AND/OR physiological trends above (paces, distances, heart rates, cadences, VO2max values, HRV trends, RHR trends, sleep scores).
 - "gaps": 2–3 sentences describing the areas that can still be improved relative to the race goal. Reference specific data. Frame these as clear next opportunities rather than pure shortcomings.
@@ -213,6 +213,11 @@ Return ONLY valid JSON:
             reasoning_effort="medium"
         )
         result = json.loads(response.choices[0].message.content)
+        # Enforce integer scores (0–10) — the prompt asks for no decimals, but
+        # round defensively in case the model returns 0.5 increments anyway.
+        for dim in result.get("dimensions", []):
+            if isinstance(dim.get("score"), (int, float)):
+                dim["score"] = max(0, min(10, round(dim["score"])))
         return JSONResponse(content=result)
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
