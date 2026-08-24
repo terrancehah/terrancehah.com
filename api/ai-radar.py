@@ -122,6 +122,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
 {physio_text}
 
 1. **Lactate Threshold** — Ability to sustain near-goal intensity without excessive fatigue accumulation.
+   Primary evidence: continuous or near-continuous work at/near goal pace, HR control at that intensity, and the duration of threshold efforts. Prioritise sessions where the runner held a sustained pace — not intervals with rest breaks.
    Scoring anchors:
    - 9–10: Multiple recent sessions clearly showing ability to hold goal race pace (or faster) for meaningful durations with controlled heart rate.
    - 7–8: Solid tempo/threshold work near goal pace, or ability to hold goal pace for 20–40 minutes.
@@ -130,6 +131,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - If lactate threshold data is present, use it as ground truth to anchor your assessment.
 
 2. **Aerobic Endurance** — Cardiovascular base and ability to sustain long-duration efforts at conversational effort.
+   Primary evidence: long run quality at controlled effort, weekly volume, and how easy the easy runs actually are (pace + HR on easy days). Focus on the longest runs and the weekly mileage pattern — not speed sessions.
    Scoring anchors:
    - 9–10: Strong weekly volume + consistent long runs + improving or stable VO2max trend that clearly supports the race distance and time goal.
    - 7–8: Adequate volume and long-run frequency for the goal, with mostly controlled easy effort. VO2max trend is stable or improving.
@@ -138,6 +140,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - Use the endurance score trend and VO2max trend to validate your assessment of aerobic development.
 
 3. **Running Economy** — Movement efficiency at a given pace, especially near goal pace.
+   Primary evidence: cadence stability across runs, HR cost at a given pace (HR-to-pace ratio), and consistency of mechanics — especially near goal pace or on tired legs. Compare the HR required to hold a similar pace across different sessions to detect efficiency changes.
    Physiological data has limited value for this dimension — rely primarily on activity efficiency signals (cadence stability, HR-to-pace ratio, pace consistency).
    Scoring anchors:
    - 9–10: Stable, efficient mechanics (cadence + pace consistency) at or near goal pace across multiple sessions.
@@ -146,6 +149,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - ≤4: Clear signs of poor efficiency or high energy cost at relevant paces.
 
 4. **Strength / Durability** — Musculoskeletal resilience and ability to handle training load without breakdown.
+   Primary evidence: elevation gain, back-to-back loading (hard session followed by another session), ability to absorb hard sessions without breaking down, and recovery signals (HRV/RHR/sleep) in the days after high load. Look for hill work and consecutive training days — not single flat easy runs.
    Scoring anchors:
    - 9–10: Consistent training load, good hill work, and strong recovery capacity in HRV/sleep trends.
    - 7–8: Solid load consistency and some strength stimulus (hills, longer efforts). Recovery metrics are generally stable.
@@ -153,6 +157,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - ≤4: Inconsistent load, limited strength stimulus, or concerning fatigue patterns in physiological data.
 
 5. **VO₂max / Speed** — Maximal aerobic capacity and speed reserve above goal pace.
+   Primary evidence: clear speed reserve (how much faster than goal pace the runner can run), quality of high-intensity work (intervals, repeats), and repeatability of fast efforts within a session. Focus on the fastest sessions and the gap between those paces and goal pace — not endurance volume.
    Scoring anchors:
    - 9–10: Clear, repeated high-intensity work showing meaningful speed reserve above goal pace, supported by an improving VO2max trend.
    - 7–8: Some quality interval or speed work that demonstrates useful speed reserve. VO2max trend is stable or slightly improving.
@@ -161,6 +166,7 @@ PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and d
    - The VO2max trend is the primary physiological validator for this dimension — a declining VO2max should pull the score down even if workouts look decent.
 
 6. **Fatigue Resistance** — Ability to maintain performance quality under accumulated fatigue.
+   Primary evidence: performance on consecutive days (back-to-back sessions), late-run pace maintenance (does pace hold in the final third of long runs?), and how well the runner bounces back — cross-reference HRV/RHR/sleep trends with next-day performance. Look for patterns across multiple days, not single workouts.
    Scoring anchors:
    - 9–10: Maintains pace/effort on tired legs (back-to-back hard days, late-run stability). HRV balanced/improving, RHR stable or declining, sleep consistently good.
    - 7–8: Absorbs training and performs on subsequent days. Recovery metrics show normal variation without concerning trends.
@@ -182,6 +188,12 @@ Important rules:
 - When physiological data contradicts activity data, explain the tension and explain why you weighted one more heavily.
 - If physiological data is sparse or missing for a dimension, note that in your assessment and rely more heavily on activity data.
 - Maintain a supportive coaching tone throughout.
+
+EVIDENCE SELECTION (critical — follow strictly):
+- Each dimension has a "Primary evidence" line above. When choosing which sessions and data points to cite in strengths/gaps, prioritise evidence that matches that dimension's primary focus.
+- Minimise repeating the same workout across dimensions. If a session is the best evidence for dimension A, try your best not to also use it as the lead evidence for dimension B — find a different session or physiological trend instead. Some overlap is unavoidable, but the same run should not anchor more than two or three dimensions.
+- Before citing a session, ask: "Is this the most relevant proof for THIS dimension, or am I just picking the most impressive/recent run?" If another session is more dimension-specific, use that instead.
+- Spread your evidence across the available activities. With 30 activities provided, there should be enough variety to give each dimension its own supporting sessions rather than defaulting to the same 2–3 runs for everything.
 
 Return ONLY valid JSON:
 {{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...]}}"""
