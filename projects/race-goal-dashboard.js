@@ -1215,6 +1215,45 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
+    // Scoring guide modal — explains the 0-10 AI score scale. Same open/close
+    // behaviour as the metric popup: close button, overlay click, or Escape.
+    // =========================================================================
+
+    const scoreModal = $('#rgd-score-modal');
+    const scoreModalClose = $('#rgd-score-modal-close');
+    let scoreModalTrigger = null;
+
+    function openScoreModal() {
+        if (!scoreModal) return;
+        scoreModalTrigger = document.activeElement;
+        scoreModal.hidden = false;
+        // Move focus to the close button so keyboard users can dismiss
+        // the modal immediately without tabbing through the full content
+        scoreModalClose.focus();
+    }
+
+    function closeScoreModal() {
+        if (!scoreModal) return;
+        scoreModal.hidden = true;
+        // Return focus to the info button that opened the modal
+        if (scoreModalTrigger) scoreModalTrigger.focus();
+    }
+
+    scoreModalClose.addEventListener('click', closeScoreModal);
+    // Close modal when clicking the overlay background
+    scoreModal.addEventListener('click', (e) => {
+        if (e.target === scoreModal) closeScoreModal();
+    });
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !scoreModal.hidden) closeScoreModal();
+    });
+    // Wire up every info button (overview section + insights page) to the modal
+    document.querySelectorAll('.rgd-score-info-btn').forEach(btn => {
+        btn.addEventListener('click', openScoreModal);
+    });
+
+    // =========================================================================
     // Mileage column chart
     // =========================================================================
 

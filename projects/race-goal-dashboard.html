@@ -444,7 +444,12 @@
                             <div class="rgd-activities-list" id="rgd-activities-list"></div>
                         </section>
                         <section class="rgd-section">
-                            <a class="rgd-section-title rgd-section-title--link" href="#insights">Pre Race Insights</a>
+                            <h2 class="rgd-section-title">Pre Race Insights
+                                <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
+                                <button class="rgd-score-info-btn" type="button" aria-label="How AI scores work" title="How AI scores work">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </button>
+                            </h2>
                             <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
                             <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
                             <div class="rgd-summary-error" hidden></div>
@@ -549,7 +554,12 @@
                     <!-- ========== PAGE: Insights (formerly Analysis) ========== -->
                     <div class="rgd-page" id="rgd-page-insights" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Pre Race Insights</h2>
+                            <h2 class="rgd-section-title">Pre Race Insights
+                                <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
+                                <button class="rgd-score-info-btn" type="button" aria-label="How AI scores work" title="How AI scores work">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </button>
+                            </h2>
                             <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
                             <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
                             <div class="rgd-summary-error" hidden></div>
@@ -732,6 +742,41 @@
                 </button>
                 <!-- Popup content populated dynamically by JS -->
                 <div class="rgd-metric-popup-content" id="rgd-metric-popup-content"></div>
+            </div>
+        </div>
+
+        <!-- Scoring guide modal — explains the 0-10 AI score scale used by
+             the Pre Race Insights dimensions. Static content, opened via the
+             info buttons next to the insight titles. -->
+        <div class="rgd-modal-overlay" id="rgd-score-modal" hidden role="dialog" aria-modal="true" aria-label="How AI scores work">
+            <div class="rgd-metric-popup-card rgd-score-modal-card">
+                <button class="rgd-modal-close" id="rgd-score-modal-close" title="Close" aria-label="Close scoring guide dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="rgd-metric-popup-header">
+                    <span class="rgd-metric-popup-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    </span>
+                    <h3 class="rgd-metric-popup-title">How AI scores work</h3>
+                </div>
+                <p class="rgd-metric-popup-explanation">
+                    Each of the six performance dimensions is rated from 0–10 (whole numbers only).
+                    Scores are conservative and evidence-based — the AI only awards high scores when
+                    your activity and physiological data clearly support them, and it prefers to
+                    under-rate when evidence is weak, missing, or inconsistent.
+                </p>
+                <div class="rgd-score-tier-list">
+                    <div class="rgd-score-tier"><span class="rgd-score-tier-range">9–10</span><span class="rgd-score-tier-desc">Rare — requires repeated, clear evidence of superior readiness.</span></div>
+                    <div class="rgd-score-tier"><span class="rgd-score-tier-range">8</span><span class="rgd-score-tier-desc">Ahead of schedule — strong, goal-specific fitness.</span></div>
+                    <div class="rgd-score-tier"><span class="rgd-score-tier-range">7</span><span class="rgd-score-tier-desc">On track — roughly on schedule with normal training progression.</span></div>
+                    <div class="rgd-score-tier"><span class="rgd-score-tier-range">6</span><span class="rgd-score-tier-desc">Slightly behind — a gap is starting to show.</span></div>
+                    <div class="rgd-score-tier"><span class="rgd-score-tier-range">0–5</span><span class="rgd-score-tier-desc">Meaningful gap — needs addressing before race day.</span></div>
+                </div>
+                <p class="rgd-metric-popup-explanation">
+                    Physiological trends (HRV, resting heart rate, sleep) are weighed heavily —
+                    if they contradict the activity data, the AI trusts the body's recovery signals.
+                    A score of 7 or above means your summary should read as reassuring and forward-looking.
+                </p>
             </div>
         </div>
     </main>

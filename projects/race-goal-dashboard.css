@@ -281,6 +281,39 @@
     margin: 0;
 }
 
+/* ========== SCORING GUIDE MODAL ========== */
+/* Tier list inside the scoring guide — each row pairs a bold score
+   range with a plain-language description of what that score means */
+.rgd-score-modal-card { width: min(100%, 32rem); }
+
+.rgd-score-tier-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 1.25rem 0;
+    padding: 0;
+    list-style: none;
+}
+
+.rgd-score-tier {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    line-height: 1.4;
+}
+
+.rgd-score-tier-range {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-blue);
+    flex-shrink: 0;
+    min-width: 2.75rem;
+}
+
 /* ========== AUTH / ONBOARDING CARDS ========== */
 .rgd-auth-card,
 .rgd-onboard-card {
@@ -1219,35 +1252,42 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin-left: auto;
 }
 
-.rgd-section-title--link {
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    width: fit-content;
-    transition: color 0.15s ease;
-}
-
-.rgd-section-title--link:hover { color: var(--rgd-blue); }
-
-.rgd-section-title--link::after {
-    content: '→';
-    font-size: 0.85em;
-    opacity: 0;
-    transition: opacity 0.15s ease, transform 0.15s ease;
-    transform: translateX(-0.25rem);
-}
-
-.rgd-section-title--link:hover::after {
-    opacity: 0.6;
-    transform: translateX(0);
-}
-
 .rgd-section-sub {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-body);
     color: var(--rgd-muted);
     margin: -0.5rem 0 0;
+}
+
+/* Info button next to section titles — opens the scoring guide modal.
+   Small circular outline button with an info icon, aligned to the
+   title's baseline so it reads as part of the heading row. */
+.rgd-score-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    padding: 0;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: 50%;
+    background: var(--rgd-surface);
+    color: var(--rgd-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    align-self: center;
+}
+
+.rgd-score-info-btn:hover {
+    color: var(--rgd-blue);
+    border-color: var(--rgd-blue);
+    background: var(--rgd-light);
+}
+
+.rgd-score-info-btn:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: 0.125rem;
 }
 
 /* ---- Metrics tiles ---- */
