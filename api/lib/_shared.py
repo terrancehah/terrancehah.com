@@ -340,19 +340,31 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     try:
         vo2_range = client.get_max_metrics_range(start_str, today_str)
         vo2_trend = []
-        if isinstance(vo2_range, dict):
+        # The daily max-metrix endpoint returns a plain LIST of entries (one
+        # per date), each shaped {"generic": {"vo2MaxValue": ..., "calendarDate": ...}}.
+        # Some API revisions return a wrapped dict {"maxMetrics": [...]} or a
+        # single unwrapped entry instead — handle all three shapes so the
+        # trend is never silently empty (this mirrors metrics.py's parsing).
+        if isinstance(vo2_range, list):
+            entries = vo2_range
+        elif isinstance(vo2_range, dict):
             entries = (
                 vo2_range.get("maxMetrics")
                 or vo2_range.get("maxMetricList")
                 or vo2_range.get("values")
                 or []
             )
-            if isinstance(entries, list):
-                for entry in entries:
-                    vo2_val = entry.get("generic", {}).get("vo2MaxValue")
-                    cal_date = entry.get("calendarDate", "")
-                    if vo2_val is not None:
-                        vo2_trend.append({"date": cal_date, "vo2max": vo2_val})
+            # Unwrapped single entry: {"generic": {"vo2MaxValue": ...}}
+            if not entries and vo2_range.get("generic", {}).get("vo2MaxValue") is not None:
+                entries = [vo2_range]
+        else:
+            entries = []
+        for entry in entries:
+            vo2_val = entry.get("generic", {}).get("vo2MaxValue")
+            # Date may live at the top level or nested inside "generic"
+            cal_date = entry.get("calendarDate") or entry.get("generic", {}).get("calendarDate", "")
+            if vo2_val is not None:
+                vo2_trend.append({"date": cal_date, "vo2max": vo2_val})
         physio["vo2max_trend"] = vo2_trend if vo2_trend else None
     except Exception:
         physio["vo2max_trend"] = None
@@ -361,24 +373,31 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     try:
         hrv_range = client.get_hrv_data_range(start_str, today_str)
         hrv_trend = []
-        if isinstance(hrv_range, dict):
+        # Range endpoint typically returns {"hrvSummaryList": [...]} — also
+        # accept a plain list or a single "hrvSummary" dict as fallbacks so
+        # shape differences across API revisions never silently drop the trend.
+        if isinstance(hrv_range, list):
+            hrv_entries = hrv_range
+        elif isinstance(hrv_range, dict):
             hrv_entries = (
                 hrv_range.get("hrvSummaryList")
                 or hrv_range.get("values")
-                or [hrv_range.get("hrvSummary")] if hrv_range.get("hrvSummary") else []
+                or ([hrv_range["hrvSummary"]] if hrv_range.get("hrvSummary") else [])
             )
-            if isinstance(hrv_entries, list):
-                for entry in hrv_entries:
-                    if isinstance(entry, dict):
-                        nightly = entry.get("lastNightAvg")
-                        status = entry.get("status")
-                        cal_date = entry.get("calendarDate", "")
-                        if nightly is not None:
-                            hrv_trend.append({
-                                "date": cal_date,
-                                "last_night_avg": nightly,
-                                "status": status,
-                            })
+        else:
+            hrv_entries = []
+        if isinstance(hrv_entries, list):
+            for entry in hrv_entries:
+                if isinstance(entry, dict):
+                    nightly = entry.get("lastNightAvg")
+                    status = entry.get("status")
+                    cal_date = entry.get("calendarDate", "")
+                    if nightly is not None:
+                        hrv_trend.append({
+                            "date": cal_date,
+                            "last_night_avg": nightly,
+                            "status": status,
+                        })
         physio["hrv_trend"] = hrv_trend if hrv_trend else None
     except Exception:
         physio["hrv_trend"] = None
@@ -446,22 +465,28 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     try:
         endurance = client.get_endurance_score(start_str, today_str)
         endurance_trend = []
-        if isinstance(endurance, dict):
+        # Stats endpoint returns a dict wrapping the entry list — also accept
+        # a plain list response for API shape differences across revisions.
+        if isinstance(endurance, list):
+            entries = endurance
+        elif isinstance(endurance, dict):
             entries = (
                 endurance.get("enduranceScoreList")
                 or endurance.get("values")
                 or [endurance]
             )
-            if isinstance(entries, list):
-                for entry in entries:
-                    es_val = (
-                        entry.get("enduranceScore")
-                        or entry.get("value")
-                        or entry.get("score")
-                    )
-                    cal_date = entry.get("calendarDate", "")
-                    if es_val is not None:
-                        endurance_trend.append({"date": cal_date, "endurance_score": es_val})
+        else:
+            entries = []
+        if isinstance(entries, list):
+            for entry in entries:
+                es_val = (
+                    entry.get("enduranceScore")
+                    or entry.get("value")
+                    or entry.get("score")
+                )
+                cal_date = entry.get("calendarDate", "")
+                if es_val is not None:
+                    endurance_trend.append({"date": cal_date, "endurance_score": es_val})
         physio["endurance_trend"] = endurance_trend if endurance_trend else None
     except Exception:
         physio["endurance_trend"] = None
