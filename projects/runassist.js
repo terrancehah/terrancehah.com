@@ -703,6 +703,10 @@ document.addEventListener('DOMContentLoaded', function () {
         pillarsContents.forEach(el => el.hidden = true);
 
         showOverlay('Loading your training data...');
+        // Mileage data is rendered AFTER the overlay hides so the bar
+        // grow-from-zero animation is visible to the user (creating the
+        // chart under the overlay would play the animation invisibly).
+        let mileageWeeks = null;
         try {
             // Fetch the first batch of activities for both the overview
             // (5 latest) and the activities page (first 20). Charts use
@@ -735,10 +739,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             // Mileage chart uses dedicated weekly-mileage endpoint (not activities list)
             if (mileageResp.ok && mileageData.weeks) {
-                renderMileageChart(mileageData.weeks);
+                mileageWeeks = mileageData.weeks;
             }
         } catch (err) { console.error('Load error:', err); }
         hideOverlay();
+
+        // Render the mileage chart now that the overlay is gone — its bars
+        // grow from the x-axis to their final height as a visible entrance
+        if (mileageWeeks) renderMileageChart(mileageWeeks);
 
         // AI radar + insight text load together — AI scores are the single
         // source of truth for both the radar chart and the pillar analysis
@@ -1316,6 +1324,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
+        // Flag so the stagger only plays on the initial render, not on
+        // chart.update() calls (e.g. theme-driven data swaps)
+        let mileageDelayed = false;
         mileageChart = new Chart(canvas, {
             type: 'bar',
             data: {
@@ -1333,6 +1344,21 @@ document.addEventListener('DOMContentLoaded', function () {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                // Entrance animation: bars grow from zero at the x-axis and
+                // rise one after another (left → right) in a staggered wave.
+                // Chart.js animates bar height from the scale base (0) by
+                // default; the per-bar delay creates the cascade effect.
+                animation: {
+                    duration: 700,
+                    easing: 'easeOutQuart',
+                    delay: (ctx) => {
+                        if (ctx.type === 'data' && ctx.mode === 'default' && !mileageDelayed) {
+                            return ctx.dataIndex * 45;
+                        }
+                        return 0;
+                    },
+                    onComplete: () => { mileageDelayed = true; },
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {

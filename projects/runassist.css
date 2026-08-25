@@ -1635,9 +1635,10 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-radar-wrap canvas {
     max-width: 100%;
     /* Fade in when the chart is created after the skeleton fades out.
-       The .rgd-radar-loaded class is added by JS after Chart.js renders. */
+       Short fade so the radar's grow-from-center animation is the dominant
+       motion rather than being hidden behind a slow opacity crossfade. */
     opacity: 0;
-    transition: opacity 0.5s ease-in;
+    transition: opacity 0.3s ease-out;
 }
 
 .rgd-radar-wrap canvas.rgd-radar-loaded {
@@ -1673,12 +1674,28 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 /* Animated shimmer over the data fill area — pulses to indicate loading */
 @keyframes rgd-radar-pulse {
-    0%, 100% { opacity: 0.06; }
-    50% { opacity: 0.15; }
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.28; }
 }
 
 .rgd-radar-skeleton-fill {
-    animation: rgd-radar-pulse 2s ease-in-out infinite;
+    animation: rgd-radar-pulse 1.6s ease-in-out infinite;
+}
+
+/* "Analyzing…" label under the radar skeleton — makes the placeholder state
+   unmistakable instead of looking like a faint copy of the final chart */
+.rgd-radar-skeleton-label {
+    position: absolute;
+    bottom: 0.5rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    opacity: 0.75;
+    pointer-events: none;
+    letter-spacing: 0.02em;
 }
 
 /* Full-page radar (readiness page) — significantly taller for better readability */
