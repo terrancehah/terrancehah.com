@@ -23,7 +23,15 @@ async def metrics(token: str = ""):
     """Fetch aggregated performance metrics — Bodily patterns for Garmin data."""
     client = _get_garmin_client(token)
     today = date.today().isoformat()
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    # How far back each metric scans for its latest available value (newest
+    # first). Garmin often has no data for today yet (e.g. before the watch
+    # syncs) or for rest days, so we search recent history rather than only
+    # today/yesterday — each metric shows the newest value it can find.
+    LOOKBACK_DAYS = 7
+    recent_dates = [
+        (date.today() - timedelta(days=i)).isoformat()
+        for i in range(LOOKBACK_DAYS)
+    ]
 
     metrics = {
         "vo2max": None, "vo2max_date": None, "fitness_age": None,
@@ -39,11 +47,15 @@ async def metrics(token: str = ""):
         "metrics_date": None,
     }
 
-    # VO2max — 30-day fallback
+    # VO2max — scans the lookback window (newest → oldest), shows the latest value found
     try:
-        for days_back in range(0, 30):
-            qdate = (date.today() - timedelta(days=days_back)).isoformat()
-            mm = client.get_max_metrics(qdate)
+        for qdate in recent_dates:
+            # Isolate each date: Garmin may error on dates with no data, and
+            # one bad date must not abort the scan of older dates
+            try:
+                mm = client.get_max_metrics(qdate)
+            except Exception:
+                continue
             vo2_val = None
             if isinstance(mm, list) and mm:
                 vo2_val = mm[0].get("generic", {}).get("vo2MaxValue")
@@ -56,10 +68,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Fitness Age — floored to nearest 0.5
+    # Fitness Age — floored to nearest 0.5; scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            age_data = client.get_fitnessage_data(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                age_data = client.get_fitnessage_data(qdate)
+            except Exception:
+                continue
             if isinstance(age_data, dict):
                 fitness_age = age_data.get("fitnessAge")
                 if fitness_age is not None:
@@ -68,10 +84,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Training readiness
+    # Training readiness — scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            tr = client.get_training_readiness(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                tr = client.get_training_readiness(qdate)
+            except Exception:
+                continue
             if isinstance(tr, list) and tr:
                 score = tr[0].get("score")
                 if score is not None:
@@ -86,10 +106,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # HRV
+    # HRV — scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            hrv = client.get_hrv_data(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                hrv = client.get_hrv_data(qdate)
+            except Exception:
+                continue
             if isinstance(hrv, dict) and "hrvSummary" in hrv:
                 s = hrv["hrvSummary"]
                 avg = s.get("lastNightAvg") or s.get("weeklyAvg")
@@ -101,10 +125,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Body Battery
+    # Body Battery — scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            bb = client.get_body_battery(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                bb = client.get_body_battery(qdate)
+            except Exception:
+                continue
             if isinstance(bb, list) and bb:
                 values = bb[0].get("bodyBatteryValuesArray", [])
                 for pair in reversed(values):
@@ -116,10 +144,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Sleep Score
+    # Sleep Score — scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            sleep = client.get_sleep_data(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                sleep = client.get_sleep_data(qdate)
+            except Exception:
+                continue
             if isinstance(sleep, dict):
                 overall = sleep.get("sleepScores", {}).get("overall")
                 if isinstance(overall, dict):
@@ -136,10 +168,14 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Stress Level
+    # Stress Level — scans lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            stress = client.get_all_day_stress(qdate)
+        for qdate in recent_dates:
+            # Isolate each date so an error on one date doesn't skip older dates
+            try:
+                stress = client.get_all_day_stress(qdate)
+            except Exception:
+                continue
             if isinstance(stress, dict):
                 avg = stress.get("avgStressLevel")
                 if avg is not None and avg > 0:
@@ -148,11 +184,15 @@ async def metrics(token: str = ""):
     except Exception:
         pass
 
-    # Resting HR — fallback to yesterday if today's data isn't available yet
-    # (common early in the morning before the watch syncs)
+    # Resting HR — scans the lookback window (newest first)
     try:
-        for qdate in [today, yesterday]:
-            summary = client.get_user_summary(qdate)
+        for qdate in recent_dates:
+            # Isolate each date: get_user_summary raises when a date has no
+            # data, so without this, one error would skip the older dates
+            try:
+                summary = client.get_user_summary(qdate)
+            except Exception:
+                continue
             rhr = summary.get("restingHeartRate")
             if rhr is not None:
                 metrics["resting_hr"] = rhr
@@ -165,15 +205,14 @@ async def metrics(token: str = ""):
     metrics["device_name"] = sess.get("device_name", "")
 
     # Determine metrics_date — the most recent date that data was
-    # successfully fetched from. Most metrics try today then yesterday,
-    # so we check which date produced data. VO2max already has its own
-    # date field (vo2max_date) since it can be up to 30 days old.
-    # We use the most recent date across all metrics that found data.
+    # successfully fetched from. Each metric scans the lookback window
+    # (newest first), so the label is metric-wise: it reflects that SOME
+    # metric found data today, even if individual values came from older
+    # dates within the window. VO2max has its own date field (vo2max_date).
     if metrics["vo2max_date"]:
         metrics["metrics_date"] = metrics["vo2max_date"]
-    # For all other metrics, they were fetched from today or yesterday.
-    # If any metric has a value, we know at least one date worked.
-    # Check if today's data was available (any non-VO2max metric has a value)
+    # For all other metrics, they were fetched from within the lookback
+    # window. If any metric has a value, we know at least one date worked.
     has_any_metric = any([
         metrics["fitness_age"], metrics["training_readiness_score"],
         metrics["hrv_last_night_avg"], metrics["body_battery"],
@@ -181,12 +220,8 @@ async def metrics(token: str = ""):
         metrics["resting_hr"],
     ])
     if has_any_metric:
-        # We can't know for certain which date each metric came from
-        # without tracking per-metric, but since they all try today first,
-        # if any succeeded from today, metrics_date is today.
-        # If they all fell back to yesterday, metrics_date is yesterday.
         # Simplest approach: use today if any metric has data, since the
-        # fallback loop tries today first and breaks on success.
+        # fallback loop scans newest first and breaks on success.
         metrics["metrics_date"] = today
     elif metrics["metrics_date"] is None:
         # No metrics found at all — leave as None

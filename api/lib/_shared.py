@@ -40,7 +40,7 @@ class _StripPrefixMiddleware:
 
     In Vercel file-based mode, the full request path is passed to each
     function's ASGI app. For direct routes this is /api/<function_name>; for
-    rewritten routes (e.g. /projects/race-goal-dashboard/api/<function_name>)
+    rewritten routes (e.g. /projects/runassist/api/<function_name>)
     Vercel passes the ORIGINAL pre-rewrite path. Both need to be stripped
     down to "/" so routes defined at @app.get("/") or @app.post("/") match.
 

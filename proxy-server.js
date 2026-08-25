@@ -55,9 +55,9 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Route /projects/race-goal-dashboard/api/* to FastAPI /race-goal/* endpoints.
-  if (req.url.startsWith('/projects/race-goal-dashboard/api/')) {
-    const apiPath = req.url.replace('/projects/race-goal-dashboard/api/', '/race-goal/');
+  // Route /projects/runassist/api/* to FastAPI /race-goal/* endpoints.
+  if (req.url.startsWith('/projects/runassist/api/')) {
+    const apiPath = req.url.replace('/projects/runassist/api/', '/race-goal/');
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${apiPath}`);
     req.url = apiPath;
     proxy.web(req, res, {
@@ -112,5 +112,5 @@ server.listen(PORT, () => {
   console.log(`   API proxied from:          http://localhost:${API_PORT}`);
   console.log(`\n   Persona generator:         http://localhost:${PORT}/projects/persona`);
   console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser`);
-  console.log(`   Race Goal Dashboard:      http://localhost:${PORT}/projects/race-goal-dashboard\n`);
+  console.log(`   RunAssist:                http://localhost:${PORT}/projects/runassist\n`);
 });

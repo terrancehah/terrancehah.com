@@ -1,4 +1,4 @@
-// Race Goal Dashboard — full rewrite.
+// RunAssist — full rewrite.
 // Single-page dashboard: metric tiles, column chart, calendar,
 // activity history, AI radar, AI summary. Collapsible sidebar.
 
@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // Config
     // =========================================================================
-    const API_BASE = '/projects/race-goal-dashboard/api';
+    const API_BASE = '/projects/runassist/api';
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);

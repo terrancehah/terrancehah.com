@@ -12,7 +12,7 @@
             "destination": "/api/analyse"
         },
         {
-            "source": "/projects/race-goal-dashboard/api/(.*)",
+            "source": "/projects/runassist/api/(.*)",
             "destination": "/api/$1"
         }
     ]
