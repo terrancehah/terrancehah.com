@@ -491,6 +491,71 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     except Exception:
         physio["endurance_trend"] = None
 
+    # Heart Rate Profile — the runner's personalized zones + max/resting/
+    # threshold HR from Garmin. This is the anchor the AI needs to interpret
+    # heart-rate readings: a given bpm is only "high" or "low" relative to
+    # the individual's zones, never by population averages.
+    try:
+        zones_data = client.get_heart_rate_zones()
+        # Response is a list of per-sport profiles — prefer RUNNING, fall
+        # back to the first available profile (or a single dict if present)
+        if isinstance(zones_data, list) and zones_data:
+            profile = next(
+                (p for p in zones_data if isinstance(p, dict) and str(p.get("sport", "")).upper() == "RUNNING"),
+                None,
+            )
+            if profile is None:
+                profile = next((p for p in zones_data if isinstance(p, dict)), None)
+        elif isinstance(zones_data, dict):
+            profile = zones_data
+        else:
+            profile = None
+
+        hr_profile = None
+        if isinstance(profile, dict):
+            # Zone boundaries — Garmin's key names vary by API revision
+            zone_rows = (
+                profile.get("hrZones")
+                or profile.get("zones")
+                or profile.get("heartRateZones")
+                or []
+            )
+            zones = []
+            if isinstance(zone_rows, list):
+                for z in zone_rows:
+                    if not isinstance(z, dict):
+                        continue
+                    znum = z.get("zone")
+                    zmin = z.get("min")
+                    zmax = z.get("max")
+                    # Some revisions nest the bounds under "heartRateZone"
+                    nested = z.get("heartRateZone")
+                    if (zmin is None or zmax is None) and isinstance(nested, dict):
+                        zmin = zmin if zmin is not None else nested.get("min")
+                        zmax = zmax if zmax is not None else nested.get("max")
+                    if znum is not None and zmin is not None and zmax is not None:
+                        zones.append({"zone": znum, "min": zmin, "max": zmax})
+            zones.sort(key=lambda z: z["zone"])
+            hr_profile = {
+                "max_hr": profile.get("maxHeartRate"),
+                "resting_hr": profile.get("restingHeartRate"),
+                "threshold_hr": (
+                    profile.get("thresholdHeartRate")
+                    or profile.get("lactateThresholdHeartRate")
+                ),
+                "zones": zones,
+            }
+        # Only keep the profile if it carries at least one usable anchor
+        physio["heart_rate_profile"] = hr_profile if (
+            hr_profile and (
+                hr_profile.get("max_hr") is not None
+                or hr_profile.get("threshold_hr") is not None
+                or hr_profile.get("zones")
+            )
+        ) else None
+    except Exception:
+        physio["heart_rate_profile"] = None
+
     return physio
 
 

@@ -89,6 +89,46 @@ async def ai_radar(token: str = ""):
     if physio.get("endurance_trend"):
         physio_parts.append(f"ENDURANCE SCORE TREND (60-day history — Garmin's composite aerobic endurance estimate):\n{json.dumps(physio['endurance_trend'], indent=2)}")
 
+    # Heart-rate context — the AI must judge whether a bpm is high/low for
+    # THIS runner, never by population averages. Prefer Garmin's personalized
+    # zones; fall back to the highest max HR observed across recent activities.
+    hr_context_parts = []
+    hr_profile = physio.get("heart_rate_profile")
+    if hr_profile:
+        profile_bits = []
+        if hr_profile.get("max_hr") is not None:
+            profile_bits.append(f"Max HR: {hr_profile['max_hr']} bpm")
+        if hr_profile.get("resting_hr") is not None:
+            profile_bits.append(f"Resting HR: {hr_profile['resting_hr']} bpm")
+        if hr_profile.get("threshold_hr") is not None:
+            profile_bits.append(f"Threshold HR: {hr_profile['threshold_hr']} bpm")
+        zones = hr_profile.get("zones") or []
+        if zones:
+            profile_bits.append("Zones: " + ", ".join(
+                f"Z{z['zone']} {z['min']}-{z['max']} bpm" for z in zones
+            ))
+        if profile_bits:
+            hr_context_parts.append(
+                "HEART RATE PROFILE (personalized — judge whether a bpm is high/low FOR THIS RUNNER using these values):\n"
+                + "\n".join(f"- {b}" for b in profile_bits)
+            )
+    if not hr_context_parts:
+        # Fallback anchor: highest max HR seen in the recent activities list
+        hr_values = [
+            a.get("max_hr") for a in activities_data
+            if isinstance(a.get("max_hr"), (int, float))
+        ]
+        if hr_values:
+            observed_max_hr = max(hr_values)
+            hr_context_parts.append(
+                "HEART RATE PROFILE (observed):\n"
+                f"- Highest observed max HR across recent activities: {observed_max_hr} bpm "
+                "(no personalized Garmin zones available — treat this as a rough ceiling "
+                "and interpret heart rates cautiously)"
+            )
+    if hr_context_parts:
+        physio_parts.append("\n\n".join(hr_context_parts))
+
     physio_text = "\n\n".join(physio_parts) if physio_parts else "No physiological trend data available."
 
     prompt = f"""You are an expert running coach and sports scientist. 
@@ -105,6 +145,7 @@ SCORING PHILOSOPHY (strictly follow this):
 - Always interpret the data relative to the specific race goal and time target provided above.
 - Use physiological trend data (VO2max, HRV, RHR, sleep) to validate or question what the activity data suggests. If physiological trends contradict activity data, weigh the physiological data more heavily — the body's recovery signals don't lie.
 - Prioritise multi-day or weekly trends in HRV, RHR and sleep over single-day values. A single bad night of sleep or one low-HRV reading is noise; a week-long decline is a signal.
+- Heart-rate interpretation must be personal, never absolute. Do not call a bpm "high", "low", "elevated", or "controlled" based on population averages — everyone's max HR differs, so the same bpm can be easy for one runner and hard for another. Always interpret heart rates relative to the HEART RATE PROFILE provided (compare to max HR as a percentage and to the zones). For example, say "165 bpm is roughly 85% of your max (194), firmly in your threshold zone" instead of "165 bpm is high". If no profile or observed max HR is available, hedge explicitly (e.g. "moderately elevated for most runners") and avoid strong claims about heart-rate effort.
 
 TONE & FEEDBACK STYLE (important):
 - Be honest but constructive and supportive. You are a coach who wants the runner to succeed.
