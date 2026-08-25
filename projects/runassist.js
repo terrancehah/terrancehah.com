@@ -1623,13 +1623,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // Speedwork: shorter runs with speedwork signals
     // Easy: everything else (base/recovery mileage)
     //
-    // "Speedwork signals" are OR-combined so rest-dragged interval averages
-    // still register as speedwork (a single slow average would hide them):
-    //  - pace ≥ 10s/km faster than goal pace (continuous tempo)
-    //  - max_pace/avg_pace ratio ≥ 1.15 (fast reps vs rest laps)
-    //  - max_hr − avg_hr ≥ 30 bpm (interval HR swings)
-    //  - anaerobic_training_effect ≥ 1.5 (Garmin's anaerobic score)
-    //  - name keywords (assist only)
+    // "Speedwork signals" (mirrors backend _is_speedwork_candidate):
+    //  - pace ≥ 10s/km faster than goal pace — decides alone (primary)
+    //  - anaerobic_training_effect ≥ 1.5 — decides alone (strong)
+    //  - max_pace/avg_pace ratio ≥ 1.15 AND max_hr − avg_hr ≥ 30 bpm —
+    //    the interval-rep signature; the pair must BOTH fire. Neither alone
+    //    decides: a fast finishing lap or downhill drift is common in easy runs.
+    //  - name keywords — last resort
     function classifyRun(a) {
         if (!a.avg_pace || a.avg_pace <= 0) return { label: 'Run', className: 'rgd-run-tag--easy' };
         const dist = a.distance || 0;
@@ -1658,12 +1658,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const anaerobic = a.anaerobic_training_effect || 0;
         const name = (a.name || '').toLowerCase();
 
-        // OR-combined speedwork signals (mirrors _is_speedwork_candidate)
+        // Speedwork signals (mirrors backend _is_speedwork_candidate):
+        // pace alone, anaerobic alone, OR ratio AND spread together.
+        // Neither ratio nor HR spread decides alone — a fast finishing lap
+        // or downhill drift is common in easy runs, so they only count when
+        // both fire in the same session (the interval-rep signature).
+        const ratio = (avgPace > 0 && maxPace > 0) ? maxPace / avgPace : 0;
         const isSpeedwork =
             (speedworkThresholdMs > 0 && avgPace > speedworkThresholdMs) ||
-            (avgPace > 0 && maxPace > 0 && maxPace / avgPace >= 1.15) ||
-            hrSpread >= 30 ||
             anaerobic >= 1.5 ||
+            (ratio >= 1.15 && hrSpread >= 30) ||
             ['tempo', 'interval', 'fartlek', 'threshold', 'speed', 'repeat', '800', '400', '200']
                 .some(kw => name.includes(kw));
 

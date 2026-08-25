@@ -741,14 +741,14 @@ LAP_DETAIL_CAP = 10
 def _is_speedwork_candidate(a: dict, goal_pace_ms: float) -> bool:
     """Detect likely tempo/interval sessions from summary fields only.
 
-    Average pace alone is unreliable — interval sessions with rest laps get
-    their average dragged down and look like easy runs. So we OR together
-    complementary signals that survive rest-lap dilution:
-      - avg pace meaningfully faster than goal pace (continuous tempo)
-      - maxSpeed/avgSpeed ratio spike (fast reps vs rest)
-      - maxHR - avgHR spread (interval HR swings)
-      - Garmin's anaerobicTrainingEffect (anaerobic work)
-      - name keywords (assist only)
+    Decision hierarchy (shared with the frontend tag — same goal, same rule):
+      - pace signal alone: avg pace >= 10s/km faster than goal (primary)
+      - anaerobic signal alone: Garmin's anaerobic training effect >= 1.5
+      - ratio AND spread together: max/avg speed ratio >= 1.15 AND
+        maxHR - avgHR >= 30 — the interval-rep signature. Neither decides
+        alone: max HR spikes and pace drift (fast finishing lap, downhill)
+        are common in easy runs, so they only count when both fire together.
+      - name keyword: last resort.
     """
     avg_speed = a.get("averageSpeed") or 0
     max_speed = a.get("maxSpeed") or 0
@@ -757,32 +757,26 @@ def _is_speedwork_candidate(a: dict, goal_pace_ms: float) -> bool:
     anaerobic = a.get("anaerobicTrainingEffect") or 0
     name = (a.get("activityName") or "").lower()
 
-    # Signal 1: pace ≥ 10s/km faster than goal pace (m/s threshold).
-    # Deliberately looser than the frontend's 15s tag threshold — this is a
-    # candidate selector for fetching lap details, where slight over-inclusion
-    # is harmless (the AI interprets the laps); under-inclusion would miss
-    # real tempo work whose average sits just above goal pace.
+    # Primary: pace >= 10s/km faster than goal pace (m/s threshold)
     if goal_pace_ms > 0 and avg_speed > 0:
         goal_sec_per_km = 1000 / goal_pace_ms
         speedwork_sec_per_km = goal_sec_per_km - 10
-        if speedwork_sec_per_km > 0:
-            threshold_ms = 1000 / speedwork_sec_per_km
-            if avg_speed > threshold_ms:
-                return True
+        if speedwork_sec_per_km > 0 and avg_speed > 1000 / speedwork_sec_per_km:
+            return True
 
-    # Signal 2: max/avg speed ratio — intervals spike max speed vs rest-dragged avg
-    if avg_speed > 0 and max_speed > 0 and (max_speed / avg_speed) >= 1.15:
-        return True
-
-    # Signal 3: HR spread — interval sessions swing HR hard
-    if avg_hr > 0 and max_hr > 0 and (max_hr - avg_hr) >= 30:
-        return True
-
-    # Signal 4: Garmin's own anaerobic training effect score
+    # Strong standalone: Garmin's anaerobic training effect
     if anaerobic >= 1.5:
         return True
 
-    # Signal 5: name keywords (assist — user-set names are unreliable alone)
+    # Weak pair — must BOTH fire (interval-rep signature: pace spikes AND
+    # HR swings in the same session). A fast last km or a hilly drift trips
+    # only one of them and stays classified as easy.
+    ratio = (max_speed / avg_speed) if (avg_speed > 0 and max_speed > 0) else 0
+    spread = (max_hr - avg_hr) if (avg_hr > 0 and max_hr > 0) else 0
+    if ratio >= 1.15 and spread >= 30:
+        return True
+
+    # Last resort: name keywords (user-set names can be unreliable alone)
     if any(kw in name for kw in ("tempo", "interval", "fartlek", "threshold",
                                  "speed", "repeat", "800", "400", "200")):
         return True
