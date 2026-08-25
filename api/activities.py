@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_garmin_client, create_app
+from lib._shared import _get_garmin_client, _get_cached_garmin_data, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/activities so routes at "/" match)
@@ -22,6 +22,14 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0):
     directly to the start parameter. We fetch more than requested to
     account for non-running activities that get filtered out.
     """
+    # Serve the first page from the Redis bundle populated by /metrics —
+    # zero logins / Garmin calls on the common path. Pagination (offset > 0)
+    # always goes to Garmin since the cache only holds the first batch.
+    if offset == 0:
+        cached = _get_cached_garmin_data(token)
+        if cached and cached.get("ui_activities"):
+            return JSONResponse(content={"activities": cached["ui_activities"]})
+
     client = _get_garmin_client(token)
     # Over-fetch to compensate for non-running activities that will be
     # filtered out. Fetch 3x the requested limit so we have a buffer.

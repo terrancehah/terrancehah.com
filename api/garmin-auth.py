@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from datetime import datetime
 import uuid
 import re
+import logging
 from garminconnect import (
     Garmin,
     GarminConnectConnectionError,
@@ -60,16 +61,30 @@ async def garmin_auth(body: GarminAuthRequest):
             "detail": str(e)
         })
 
-    # Create a session — store credentials for lazy re-authentication.
-    # The Garmin client object is NOT stored (can't be serialized for Redis);
-    # it is re-created from email+password by _get_garmin_client when needed.
+    # Create a session — store OAuth tokens (NOT the password) for lazy
+    # re-authentication. The Garmin client object is not serializable, but its
+    # token state is: serialized via client.dumps() and restored via
+    # login(tokenstore=...) without ever sending the password again. The
+    # library auto-refreshes the DI token, so sessions stay alive long-term and
+    # we avoid credential logins that trip Garmin's login-attempt rate limit.
+    tokens_json = None
+    try:
+        tokens_json = client.client.dumps()
+    except Exception:
+        # Token serialization is a simple json.dumps of three fields — if it
+        # ever fails, log and proceed without credentials so the user must
+        # re-login rather than us storing the plaintext password.
+        logging.getLogger("garmin-auth").exception("Failed to serialize Garmin tokens")
+
     token = str(uuid.uuid4())
-    _save_session(token, {
+    session_data = {
         "email": body.email,
-        "password": body.password,
         "race_goal": None,
         "created_at": datetime.now().isoformat(),
-    })
+    }
+    if tokens_json:
+        session_data["tokens"] = tokens_json
+    _save_session(token, session_data)
 
     # Fetch display name — fallback to email username if Garmin doesn't provide one
     display_name = getattr(client, "display_name", None) or body.email.split("@")[0]

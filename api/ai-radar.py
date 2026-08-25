@@ -12,6 +12,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_session, _get_garmin_client, create_app,
     _get_cached_garmin_data, _fetch_physio_trends, _fetch_activities_for_ai,
+    _compute_goal_pace_ms,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -50,7 +51,9 @@ async def ai_radar(token: str = ""):
         # This is the fallback path; the common path is the cache hit above.
         client = _get_garmin_client(token)
         try:
-            activities_data = _fetch_activities_for_ai(client, limit=30)
+            # Pass goal pace so speedwork sessions get lap details attached
+            goal_pace_ms = _compute_goal_pace_ms(race_goal)
+            activities_data = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
         except Exception as e:
             return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
         physio = _fetch_physio_trends(client, days=60)
@@ -160,6 +163,8 @@ RECENT ACTIVITIES (last 30):
 {json.dumps(activities_data, indent=2)}
 
 NOTE ON PACES: "avg_pace_ms" is metres per second. Convert it to runner-friendly pace before quoting: seconds per km = 1000 / avg_pace_ms, formatted as MM:SS/km (e.g. 3.20 m/s = 5:13/km). Never quote m/s values.
+
+NOTE ON LAPS: Some speedwork sessions include a "laps" array (per-lap duration_s, distance_m, avg_pace_ms, avg_hr, max_hr) plus work_lap_count / rest_lap_count and work_avg_pace_ms / rest_avg_pace_ms. Work laps are those at or faster than goal pace (the actual reps); rest laps are the recovery between them. When analysing these sessions, use the work-lap pace as the true effort and treat rest laps as recovery — do NOT let the blended average pace hide that a session was interval/tempo work, and do not call it an easy run because its overall average looks slow.
 
 PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and deepen your analysis):
 {physio_text}

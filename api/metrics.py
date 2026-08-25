@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_garmin_client, _get_session, create_app,
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
+    _compute_goal_pace_ms, _slim_activity, _compute_weekly_mileage,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -250,14 +251,27 @@ async def metrics(token: str = ""):
 
     # Fetch and cache physiological trends + activities for ai-radar.py.
     # This runs inside the same Garmin session as the metrics above, so we
-    # avoid triggering additional rate-limit counters when ai-radar.py fires
-    # later in the same page load — it reads from Redis instead of Garmin.
+    # avoid triggering additional rate-limit counters when ai-radar.py,
+    # /activities, or /weekly-mileage fire later in the same page load —
+    # they read from Redis instead of making their own Garmin calls.
+    # The bundle now also caches the UI activity list and weekly mileage so
+    # those endpoints serve from cache (0 extra logins / Garmin calls).
     try:
         physio = _fetch_physio_trends(client, days=60)
-        ai_activities = _fetch_activities_for_ai(client, limit=30)
+        goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
+        # Fetch the AI activities (with lap details for speedwork sessions)
+        ai_activities = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
+        # Slim UI list + weekly mileage, reused by /activities and /weekly-mileage
+        ui_activities = [
+            _slim_activity(a)
+            for a in client.get_activities(0, 30)
+        ]
+        weekly_mileage = _compute_weekly_mileage(client, weeks=12)
         _cache_garmin_data(token, {
             "activities": ai_activities,
             "physio": physio,
+            "ui_activities": ui_activities,
+            "weekly_mileage": weekly_mileage,
         })
     except Exception:
         # Cache population is best-effort — if it fails, ai-radar.py will

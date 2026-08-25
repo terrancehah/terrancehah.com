@@ -7,7 +7,7 @@ from datetime import datetime, date, timedelta
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_garmin_client, create_app
+from lib._shared import _get_garmin_client, _get_cached_garmin_data, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/weekly-mileage so routes at "/" match)
@@ -17,6 +17,12 @@ app = create_app("weekly-mileage")
 @app.get("/")
 async def weekly_mileage(token: str = "", weeks: int = 12):
     """Fetch running activities for the last N weeks and group by week."""
+    # Serve from the Redis bundle populated by /metrics when available —
+    # zero logins / Garmin calls on the common dashboard-load path.
+    cached = _get_cached_garmin_data(token)
+    if cached and cached.get("weekly_mileage"):
+        return JSONResponse(content={"weeks": cached["weekly_mileage"]})
+
     client = _get_garmin_client(token)
 
     today = date.today()

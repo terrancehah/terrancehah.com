@@ -241,28 +241,49 @@ def _session_exists(token: str) -> bool:
 
 
 def _get_garmin_client(token: str) -> Garmin:
-    """Re-create an authenticated Garmin client from stored credentials.
+    """Re-create an authenticated Garmin client from stored session state.
 
     The Garmin client object cannot be serialized, so it is NOT stored in
-    Redis. Each call re-creates the client by logging in with the email
-    and password stored in the session. This is the correct serverless
-    pattern — stateless functions with external state storage.
+    Redis. Sessions store the serialized OAuth token bundle (di_token +
+    di_refresh_token) instead of the password; the client is re-created from
+    tokens via login(tokenstore=...), which never sends the password and
+    auto-refreshes the DI token. This avoids credential logins that trip
+    Garmin's login-attempt rate limit.
 
-    Raises HTTPException(401) if credentials are missing or login fails.
+    Legacy sessions created before token storage still carry a password and
+    fall back to credential login for backward compatibility.
+
+    Raises HTTPException(401) if session state is missing or login fails.
     """
     sess = _get_session(token)
     email = sess.get("email", "")
-    password = sess.get("password", "")
-    if not email or not password:
+    tokens_json = sess.get("tokens")
+    password = sess.get("password", "")  # legacy sessions only
+
+    if not email:
         raise HTTPException(
             status_code=401,
             detail="Garmin session not found. Please log in again."
         )
 
     try:
-        client = Garmin(email, password)
-        client.login()
-        return client
+        if tokens_json:
+            # Token-based re-auth — no password involved. If the tokens are
+            # rejected/expired, login() raises and the user re-logs in.
+            client = Garmin(email)
+            client.login(tokenstore=tokens_json)
+            return client
+        if password:
+            # Legacy session (created before OAuth token storage)
+            client = Garmin(email, password)
+            client.login()
+            return client
+        raise HTTPException(
+            status_code=401,
+            detail="Garmin session has no credentials. Please log in again."
+        )
+    except HTTPException:
+        raise
     except Exception:
         raise HTTPException(
             status_code=401,
@@ -282,7 +303,11 @@ def _get_garmin_client(token: str) -> Garmin:
 # (short-lived, 5min TTL). Different keys, different lifecycles.
 
 GARMIN_CACHE_PREFIX = "race:garmin-cache:"
-GARMIN_CACHE_TTL = 300  # 5 minutes — long enough for a single page load
+# 1 hour — the cache is re-populated on every /metrics dashboard load, so this
+# TTL is a safety net that lets ai-radar, /activities and /weekly-mileage reuse
+# the fetched bundle instead of calling Garmin again within the hour. Garmin
+# data changes on watch sync, not in real time, so an hour of reuse is safe.
+GARMIN_CACHE_TTL = 3600  # 1 hour
 
 
 def _cache_garmin_data(token: str, data: dict):
@@ -590,17 +615,253 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     return physio
 
 
-def _fetch_activities_for_ai(client, limit: int = 30) -> list[dict]:
+def _compute_goal_pace_ms(goal: dict | None) -> float:
+    """Compute the race goal pace in m/s from a race_goal dict.
+
+    Mirrors the frontend's computeGoalPaceMs: distance from the race purpose
+    (or explicit distance), time target parsed as H:MM:SS or MM:SS.
+    Returns 0 when the goal is missing or unparseable.
+    """
+    if not goal or not goal.get("time_target"):
+        return 0
+    distance_map = {
+        "5K": 5, "10K": 10, "Half Marathon": 21.1,
+        "Marathon": 42.2, "Ultra Marathon": 50, "Triathlon": 40,
+    }
+    dist_km = distance_map.get(goal.get("purpose")) or _parse_float(goal.get("distance")) or 0
+    if not dist_km:
+        return 0
+    # Parse H:MM:SS or MM:SS
+    total_sec = 0
+    try:
+        vals = [int(x) for x in str(goal["time_target"]).split(":")]
+        if len(vals) == 3:
+            total_sec = vals[0] * 3600 + vals[1] * 60 + vals[2]
+        elif len(vals) == 2:
+            total_sec = vals[0] * 60 + vals[1]
+    except (ValueError, TypeError):
+        return 0
+    if total_sec <= 0:
+        return 0
+    return (dist_km * 1000) / total_sec
+
+
+def _parse_float(val) -> float | None:
+    """Safely parse a value to float, returning None on failure."""
+    try:
+        if val is None or val == "":
+            return None
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _slim_activity(a: dict) -> dict:
+    """Convert a raw Garmin activity summary into the frontend's slim format.
+
+    Mirrors the shape /activities returns so the UI list can be served
+    straight from the Redis cache.
+    """
+    return {
+        "id": a.get("activityId"),
+        "name": a.get("activityName", "Unnamed"),
+        "type": a.get("activityType", {}).get("typeKey", "unknown"),
+        "start_time": a.get("startTimeLocal"),
+        "distance": round(a.get("distance", 0) / 1000, 2),
+        "duration": round(a.get("duration", 0) / 60, 1),
+        "avg_pace": a.get("averageSpeed", 0),
+        "avg_hr": a.get("averageHR"),
+        "max_hr": a.get("maxHR"),
+        "calories": a.get("calories"),
+        "elevation_gain": round(a.get("elevationGain", 0), 1),
+        "training_effect": a.get("aerobicTrainingEffect"),
+        "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
+        "elapsed_duration": round(a.get("elapsedDuration", 0) / 60, 1) if a.get("elapsedDuration") else None,
+    }
+
+
+def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
+    """Group recent running activities by week (Monday-start), matching the
+    /weekly-mileage endpoint's response format. Uses get_activities_by_date
+    so it can run inside the /metrics session for caching.
+    """
+    from datetime import date, timedelta, datetime as _dt
+
+    today = date.today()
+    start_date = today - timedelta(days=today.weekday() + (weeks - 1) * 7)
+    start_str = start_date.isoformat()
+    end_str = today.isoformat()
+
+    try:
+        activities = client.get_activities_by_date(start_str, end_str, activitytype="running")
+    except Exception:
+        return []
+
+    week_buckets = {}
+    for i in range(weeks):
+        week_start = start_date + timedelta(days=i * 7)
+        week_buckets[week_start.isoformat()] = {
+            "week_start": week_start.isoformat(),
+            "mileage_km": 0.0,
+            "run_count": 0,
+        }
+
+    for a in activities:
+        start_time = a.get("startTimeLocal") or a.get("startTimeGMT") or ""
+        try:
+            act_dt = _dt.strptime(start_time[:19], "%Y-%m-%d %H:%M:%S")
+        except (ValueError, IndexError):
+            continue
+        act_monday = act_dt - timedelta(days=act_dt.weekday())
+        key = act_monday.date().isoformat()
+        if key in week_buckets:
+            week_buckets[key]["mileage_km"] += a.get("distance", 0) / 1000
+            week_buckets[key]["run_count"] += 1
+
+    result = []
+    for key in sorted(week_buckets.keys()):
+        bucket = week_buckets[key]
+        result.append({
+            "week_start": bucket["week_start"],
+            "mileage_km": round(bucket["mileage_km"], 1),
+            "run_count": bucket["run_count"],
+        })
+    return result
+
+
+# How many speedwork sessions we fetch lap details for (keeps Garmin request
+# count low — details are per-activity API calls)
+LAP_DETAIL_CAP = 10
+
+
+def _is_speedwork_candidate(a: dict, goal_pace_ms: float) -> bool:
+    """Detect likely tempo/interval sessions from summary fields only.
+
+    Average pace alone is unreliable — interval sessions with rest laps get
+    their average dragged down and look like easy runs. So we OR together
+    complementary signals that survive rest-lap dilution:
+      - avg pace meaningfully faster than goal pace (continuous tempo)
+      - maxSpeed/avgSpeed ratio spike (fast reps vs rest)
+      - maxHR - avgHR spread (interval HR swings)
+      - Garmin's anaerobicTrainingEffect (anaerobic work)
+      - name keywords (assist only)
+    """
+    avg_speed = a.get("averageSpeed") or 0
+    max_speed = a.get("maxSpeed") or 0
+    avg_hr = a.get("averageHR") or 0
+    max_hr = a.get("maxHR") or 0
+    anaerobic = a.get("anaerobicTrainingEffect") or 0
+    name = (a.get("activityName") or "").lower()
+
+    # Signal 1: pace ≥ 10s/km faster than goal pace (m/s threshold).
+    # Deliberately looser than the frontend's 15s tag threshold — this is a
+    # candidate selector for fetching lap details, where slight over-inclusion
+    # is harmless (the AI interprets the laps); under-inclusion would miss
+    # real tempo work whose average sits just above goal pace.
+    if goal_pace_ms > 0 and avg_speed > 0:
+        goal_sec_per_km = 1000 / goal_pace_ms
+        speedwork_sec_per_km = goal_sec_per_km - 10
+        if speedwork_sec_per_km > 0:
+            threshold_ms = 1000 / speedwork_sec_per_km
+            if avg_speed > threshold_ms:
+                return True
+
+    # Signal 2: max/avg speed ratio — intervals spike max speed vs rest-dragged avg
+    if avg_speed > 0 and max_speed > 0 and (max_speed / avg_speed) >= 1.15:
+        return True
+
+    # Signal 3: HR spread — interval sessions swing HR hard
+    if avg_hr > 0 and max_hr > 0 and (max_hr - avg_hr) >= 30:
+        return True
+
+    # Signal 4: Garmin's own anaerobic training effect score
+    if anaerobic >= 1.5:
+        return True
+
+    # Signal 5: name keywords (assist — user-set names are unreliable alone)
+    if any(kw in name for kw in ("tempo", "interval", "fartlek", "threshold",
+                                 "speed", "repeat", "800", "400", "200")):
+        return True
+
+    return False
+
+
+def _fetch_lap_summaries(client, activity_id, goal_pace_ms: float = 0) -> dict | None:
+    """Fetch compact lap-level data for one activity via split_summaries.
+
+    Returns {"laps": [...], "work_lap_count", "rest_lap_count",
+    "work_avg_pace_ms", "rest_avg_pace_ms"} where work laps are those at or
+    faster than goal pace (the actual reps) and rest laps are the recovery
+    between them. This surfaces the true session structure that blended
+    averages hide.
+    """
+    try:
+        data = client.get_activity_split_summaries(str(activity_id))
+    except Exception:
+        return None
+
+    # Defensive: accept {"splitSummaries": [...]} or a bare list
+    if isinstance(data, dict):
+        splits = data.get("splitSummaries") or data.get("splits") or []
+    elif isinstance(data, list):
+        splits = data
+    else:
+        splits = []
+
+    laps = []
+    work_paces, rest_paces = [], []
+    for s in splits:
+        if not isinstance(s, dict):
+            continue
+        lap_speed = s.get("averageSpeed") or s.get("speed")
+        if lap_speed is None or lap_speed <= 0:
+            continue
+        lap = {
+            "duration_s": s.get("duration") or s.get("durationSec") or 0,
+            "distance_m": s.get("distance") or 0,
+            "avg_pace_ms": round(lap_speed, 2),
+            "avg_hr": s.get("averageHr") or s.get("averageHR"),
+            "max_hr": s.get("maxHr") or s.get("maxHR"),
+        }
+        laps.append(lap)
+        # Work lap = at/faster than goal pace; rest = slower (recovery)
+        if goal_pace_ms > 0 and lap_speed >= goal_pace_ms:
+            work_paces.append(lap_speed)
+        else:
+            rest_paces.append(lap_speed)
+
+    if not laps:
+        return None
+
+    def _avg(vals):
+        return round(sum(vals) / len(vals), 2) if vals else None
+
+    return {
+        "laps": laps,
+        "work_lap_count": len(work_paces),
+        "rest_lap_count": len(rest_paces),
+        "work_avg_pace_ms": _avg(work_paces),
+        "rest_avg_pace_ms": _avg(rest_paces),
+    }
+
+
+def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -> list[dict]:
     """Fetch recent activities in the format ai-radar.py needs for its prompt.
 
     Returns a list of dicts with the same keys ai-radar.py uses:
     name, type, date, distance_km, duration_min, avg_hr, max_hr, calories,
     elevation_gain, avg_pace_ms, avg_cadence, training_effect.
+
+    When goal_pace_ms is provided, sessions flagged as speedwork (tempo/
+    interval) get lap-level details attached (capped at LAP_DETAIL_CAP) so the
+    AI can see work/rest structure instead of rest-diluted averages.
     """
     activities_data = []
     acts = client.get_activities(0, limit)
+    # Track how many lap fetches we've done to respect the cap
+    lap_fetches = 0
     for a in acts:
-        activities_data.append({
+        entry = {
             "name": a.get("activityName", ""),
             "type": a.get("activityType", {}).get("typeKey", ""),
             "date": a.get("startTimeLocal", ""),
@@ -613,5 +874,18 @@ def _fetch_activities_for_ai(client, limit: int = 30) -> list[dict]:
             "avg_pace_ms": a.get("averageSpeed"),
             "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
             "training_effect": a.get("aerobicTrainingEffect"),
-        })
+        }
+        # Attach lap details only for speedwork candidates, up to the cap —
+        # each lap fetch is one extra Garmin API call, so keep the count low
+        if (
+            goal_pace_ms > 0
+            and lap_fetches < LAP_DETAIL_CAP
+            and _is_speedwork_candidate(a, goal_pace_ms)
+            and a.get("activityId")
+        ):
+            laps = _fetch_lap_summaries(client, a["activityId"], goal_pace_ms)
+            if laps:
+                entry["laps"] = laps
+                lap_fetches += 1
+        activities_data.append(entry)
     return activities_data
