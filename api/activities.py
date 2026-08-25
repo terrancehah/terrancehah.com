@@ -6,7 +6,10 @@ from fastapi.responses import JSONResponse
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_garmin_client, _get_cached_garmin_data, _slim_activity, create_app
+from lib._shared import (
+    _get_garmin_client, _get_session, _get_cached_garmin_data,
+    _slim_activity, _compute_goal_pace_ms, create_app,
+)
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/activities so routes at "/" match)
@@ -40,15 +43,17 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0):
         return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
 
     # Filter to running activities only — exclude hiking, cycling, walking, etc.
-    # Uses the shared _slim_activity so the UI shape (including the classifier
-    # fields max_pace / anaerobic_training_effect) matches the cached bundle.
+    # Uses the shared _slim_activity so the UI shape (including the run_tag
+    # from the single classifier) matches the cached bundle.
     running_types = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
+    sess = _get_session(token)
+    goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
     slim = []
     for a in activities:
         type_key = a.get("activityType", {}).get("typeKey", "unknown")
         if type_key.lower() not in running_types:
             continue
-        slim.append(_slim_activity(a))
+        slim.append(_slim_activity(a, goal_pace_ms))
     # Trim to the requested limit after filtering
     slim = slim[:limit]
     return JSONResponse(content={"activities": slim})

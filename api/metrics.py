@@ -261,9 +261,11 @@ async def metrics(token: str = ""):
         goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
         # Fetch the AI activities (with lap details for speedwork sessions)
         ai_activities = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
-        # Slim UI list + weekly mileage, reused by /activities and /weekly-mileage
+        # Slim UI list + weekly mileage, reused by /activities and /weekly-mileage.
+        # Goal pace is passed so each activity carries its run_tag (computed by
+        # the same single classifier the AI lap-selection uses).
         ui_activities = [
-            _slim_activity(a)
+            _slim_activity(a, goal_pace_ms)
             for a in client.get_activities(0, 30)
         ]
         weekly_mileage = _compute_weekly_mileage(client, weeks=12)

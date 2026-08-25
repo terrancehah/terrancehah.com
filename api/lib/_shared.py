@@ -656,15 +656,15 @@ def _parse_float(val) -> float | None:
         return None
 
 
-def _slim_activity(a: dict) -> dict:
+def _slim_activity(a: dict, goal_pace_ms: float = 0) -> dict:
     """Convert a raw Garmin activity summary into the frontend's slim format.
 
     This is the single definition of the UI activity shape — /activities and
-    the cached ui_activities bundle both use it, so the classifier fields stay
-    in sync. max_pace and anaerobic_training_effect feed the frontend's
-    multi-signal speedwork tag (mirroring _is_speedwork_candidate).
+    the cached ui_activities bundle both use it. The run_tag is computed here
+    by the single classifier (same one the AI lap-selection uses), so the UI
+    tag and the AI selection can never disagree.
     """
-    return {
+    slim = {
         "id": a.get("activityId"),
         "name": a.get("activityName", "Unnamed"),
         "type": a.get("activityType", {}).get("typeKey", "unknown"),
@@ -682,6 +682,27 @@ def _slim_activity(a: dict) -> dict:
         "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
         "elapsed_duration": round(a.get("elapsedDuration", 0) / 60, 1) if a.get("elapsedDuration") else None,
     }
+    slim["run_tag"] = _classify_run(a, goal_pace_ms)
+    return slim
+
+
+def _classify_run(a: dict, goal_pace_ms: float) -> str:
+    """Full run classification — the SINGLE classifier for the UI tag and the
+    AI lap-selection. Returns one of: Run / Warmup / Tempo Long / LSD /
+    Speedwork / Easy.
+    """
+    avg_speed = a.get("averageSpeed") or 0
+    dist_km = (a.get("distance") or 0) / 1000
+    if avg_speed <= 0:
+        return "Run"
+    # Warmup: runs shorter than 2km
+    if dist_km < 2:
+        return "Warmup"
+    speedwork = _is_speedwork_candidate(a, goal_pace_ms)
+    # Long runs are split by speedwork character
+    if dist_km > 12:
+        return "Tempo Long" if speedwork else "LSD"
+    return "Speedwork" if speedwork else "Easy"
 
 
 def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
@@ -873,12 +894,13 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
             "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
             "training_effect": a.get("aerobicTrainingEffect"),
         }
-        # Attach lap details only for speedwork candidates, up to the cap —
-        # each lap fetch is one extra Garmin API call, so keep the count low
+        # Attach lap details only for speedwork-tagged sessions (same single
+        # classifier as the UI tag), up to the cap — each lap fetch is one
+        # extra Garmin API call, so keep the count low
         if (
             goal_pace_ms > 0
             and lap_fetches < LAP_DETAIL_CAP
-            and _is_speedwork_candidate(a, goal_pace_ms)
+            and _classify_run(a, goal_pace_ms) in ("Speedwork", "Tempo Long")
             and a.get("activityId")
         ):
             laps = _fetch_lap_summaries(client, a["activityId"], goal_pace_ms)
