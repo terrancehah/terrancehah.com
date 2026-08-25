@@ -513,36 +513,67 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
 
         hr_profile = None
         if isinstance(profile, dict):
-            # Zone boundaries — Garmin's key names vary by API revision
-            zone_rows = (
-                profile.get("hrZones")
-                or profile.get("zones")
-                or profile.get("heartRateZones")
-                or []
+            # Garmin's current heartRateZones shape uses "XxxUsed" fields plus
+            # flat zone floors, e.g. {"maxHeartRateUsed": 194,
+            # "restingHeartRateUsed": 48, "lactateThresholdHeartRateUsed": 172,
+            # "zone1Floor": 120, ..., "zone5Floor": 179}. Older revisions used
+            # maxHeartRate/restingHeartRate/... with a zones list — parse both
+            # so the profile is never silently dropped.
+            max_hr = (
+                profile.get("maxHeartRateUsed")
+                or profile.get("maxHeartRate")
             )
+            resting_hr = (
+                profile.get("restingHeartRateUsed")
+                or profile.get("restingHeartRate")
+            )
+            threshold_hr = (
+                profile.get("lactateThresholdHeartRateUsed")
+                or profile.get("thresholdHeartRate")
+                or profile.get("lactateThresholdHeartRate")
+            )
+
+            # Build zones from the flat floor fields (current shape): each
+            # zoneNFloor is the lower bound of zone N; zone 5's upper bound is
+            # the max HR, so Z1 = [zone1Floor, zone2Floor), ..., Z5 = [zone5Floor, max].
             zones = []
-            if isinstance(zone_rows, list):
-                for z in zone_rows:
-                    if not isinstance(z, dict):
-                        continue
-                    znum = z.get("zone")
-                    zmin = z.get("min")
-                    zmax = z.get("max")
-                    # Some revisions nest the bounds under "heartRateZone"
-                    nested = z.get("heartRateZone")
-                    if (zmin is None or zmax is None) and isinstance(nested, dict):
-                        zmin = zmin if zmin is not None else nested.get("min")
-                        zmax = zmax if zmax is not None else nested.get("max")
-                    if znum is not None and zmin is not None and zmax is not None:
-                        zones.append({"zone": znum, "min": zmin, "max": zmax})
+            floors = [
+                profile.get(f"zone{i}Floor") for i in range(1, 6)
+            ]
+            if all(isinstance(f, (int, float)) for f in floors):
+                for i in range(5):
+                    zmin = floors[i]
+                    zmax = floors[i + 1] if i < 4 else max_hr
+                    if zmax is not None and zmax > zmin:
+                        zones.append({"zone": i + 1, "min": zmin, "max": zmax})
+            else:
+                # List shape (older revisions): [{"zone": n, "min": .., "max": ..}]
+                zone_rows = (
+                    profile.get("hrZones")
+                    or profile.get("zones")
+                    or profile.get("heartRateZones")
+                    or []
+                )
+                if isinstance(zone_rows, list):
+                    for z in zone_rows:
+                        if not isinstance(z, dict):
+                            continue
+                        znum = z.get("zone")
+                        zmin = z.get("min")
+                        zmax = z.get("max")
+                        # Some revisions nest the bounds under "heartRateZone"
+                        nested = z.get("heartRateZone")
+                        if (zmin is None or zmax is None) and isinstance(nested, dict):
+                            zmin = zmin if zmin is not None else nested.get("min")
+                            zmax = zmax if zmax is not None else nested.get("max")
+                        if znum is not None and zmin is not None and zmax is not None:
+                            zones.append({"zone": znum, "min": zmin, "max": zmax})
             zones.sort(key=lambda z: z["zone"])
+
             hr_profile = {
-                "max_hr": profile.get("maxHeartRate"),
-                "resting_hr": profile.get("restingHeartRate"),
-                "threshold_hr": (
-                    profile.get("thresholdHeartRate")
-                    or profile.get("lactateThresholdHeartRate")
-                ),
+                "max_hr": max_hr,
+                "resting_hr": resting_hr,
+                "threshold_hr": threshold_hr,
                 "zones": zones,
             }
         # Only keep the profile if it carries at least one usable anchor

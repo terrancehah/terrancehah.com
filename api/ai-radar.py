@@ -159,6 +159,8 @@ TONE & FEEDBACK STYLE (important):
 RECENT ACTIVITIES (last 30):
 {json.dumps(activities_data, indent=2)}
 
+NOTE ON PACES: "avg_pace_ms" is metres per second. Convert it to runner-friendly pace before quoting: seconds per km = 1000 / avg_pace_ms, formatted as MM:SS/km (e.g. 3.20 m/s = 5:13/km). Never quote m/s values.
+
 PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and deepen your analysis):
 {physio_text}
 
@@ -229,10 +231,12 @@ Important rules:
 - When physiological data contradicts activity data, explain the tension and explain why you weighted one more heavily.
 - If physiological data is sparse or missing for a dimension, note that in your assessment and rely more heavily on activity data.
 - Maintain a supportive coaching tone throughout.
+- NEVER express pace in metres per second (m/s) or any non-runner unit — runners read pace as minutes:seconds per kilometre. Always convert before quoting (e.g. "5:13/km", never "3.20 m/s"), or state it relative to goal pace (e.g. "about 10 seconds per km slower than your goal pace"). If you cite a pace, always state it in min/km format.
+- When comparing a run's pace to the goal pace, actually verify the comparison mathematically before claiming "faster than" or "slower than" — a run at 3.10 m/s is NOT faster than a 3.20 m/s goal.
 
 EVIDENCE SELECTION (critical — follow strictly):
 - Each dimension has a "Primary evidence" line above. When choosing which sessions and data points to cite in strengths/gaps, prioritise evidence that matches that dimension's primary focus.
-- Minimise repeating the same workout across dimensions. If a session is the best evidence for dimension A, try your best not to also use it as the lead evidence for dimension B — find a different session or physiological trend instead. Some overlap is unavoidable, but the same run should not anchor more than two or three dimensions.
+- Minimise repeating the same workout across dimensions. If a session is the best evidence for dimension A, do not also use it as the lead evidence for dimension B — find a different session or physiological trend instead. Some overlap is unavoidable, but the same run must NOT anchor more than two dimensions. If a run is already cited in two dimensions, pick a different session for any further dimension.
 - Before citing a session, ask: "Is this the most relevant proof for THIS dimension, or am I just picking the most impressive/recent run?" If another session is more dimension-specific, use that instead.
 - Spread your evidence across the available activities. With 30 activities provided, there should be enough variety to give each dimension its own supporting sessions rather than defaulting to the same 2–3 runs for everything.
 
