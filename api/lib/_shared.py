@@ -659,8 +659,10 @@ def _parse_float(val) -> float | None:
 def _slim_activity(a: dict) -> dict:
     """Convert a raw Garmin activity summary into the frontend's slim format.
 
-    Mirrors the shape /activities returns so the UI list can be served
-    straight from the Redis cache.
+    This is the single definition of the UI activity shape — /activities and
+    the cached ui_activities bundle both use it, so the classifier fields stay
+    in sync. max_pace and anaerobic_training_effect feed the frontend's
+    multi-signal speedwork tag (mirroring _is_speedwork_candidate).
     """
     return {
         "id": a.get("activityId"),
@@ -670,11 +672,13 @@ def _slim_activity(a: dict) -> dict:
         "distance": round(a.get("distance", 0) / 1000, 2),
         "duration": round(a.get("duration", 0) / 60, 1),
         "avg_pace": a.get("averageSpeed", 0),
+        "max_pace": a.get("maxSpeed"),
         "avg_hr": a.get("averageHR"),
         "max_hr": a.get("maxHR"),
         "calories": a.get("calories"),
         "elevation_gain": round(a.get("elevationGain", 0), 1),
         "training_effect": a.get("aerobicTrainingEffect"),
+        "anaerobic_training_effect": a.get("anaerobicTrainingEffect"),
         "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
         "elapsed_duration": round(a.get("elapsedDuration", 0) / 60, 1) if a.get("elapsedDuration") else None,
     }

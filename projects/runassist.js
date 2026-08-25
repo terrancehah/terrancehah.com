@@ -287,11 +287,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // pace with occasional tempo and interval sessions — a realistic
         // weekly mix rather than everything at speedwork pace.
         const types = [
-            { type: 'running', icon: 'RUN', basePace: 400, baseHR: 145, cadence: 168 },  // Easy 6:40/km
-            { type: 'running', icon: 'RUN', basePace: 390, baseHR: 149, cadence: 166 },  // Long 6:30/km
-            { type: 'running', icon: 'RUN', basePace: 350, baseHR: 158, cadence: 172 },  // Tempo 5:50/km
-            { type: 'running', icon: 'RUN', basePace: 300, baseHR: 166, cadence: 176 },  // Interval 5:00/km
-            { type: 'trail_running', icon: 'TRL', basePace: 430, baseHR: 138, cadence: 164 }, // Recovery 7:10/km
+            // maxPaceRatio + anaerobic feed the multi-signal speedwork tag so
+            // demo mode exercises the same classifier fields as real data
+            { type: 'running', icon: 'RUN', basePace: 400, baseHR: 145, cadence: 168, maxPaceRatio: 1.08, anaerobic: 0.5 },  // Easy 6:40/km
+            { type: 'running', icon: 'RUN', basePace: 390, baseHR: 149, cadence: 166, maxPaceRatio: 1.1, anaerobic: 0.6 },  // Long 6:30/km
+            { type: 'running', icon: 'RUN', basePace: 350, baseHR: 158, cadence: 172, maxPaceRatio: 1.12, anaerobic: 1.6 },  // Tempo 5:50/km
+            { type: 'running', icon: 'RUN', basePace: 300, baseHR: 166, cadence: 176, maxPaceRatio: 1.3, anaerobic: 2.5 },  // Interval 5:00/km
+            { type: 'trail_running', icon: 'TRL', basePace: 430, baseHR: 138, cadence: 164, maxPaceRatio: 1.1, anaerobic: 0.4 }, // Recovery 7:10/km
         ];
 
         // Distances aligned to the type cycle: easy 6-9km, long 16-21km,
@@ -332,11 +334,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 distance: parseFloat(dist.toFixed(2)),        // km
                 duration: parseFloat(durMin.toFixed(1)),       // minutes
                 avg_pace: parseFloat(paceMs.toFixed(2)),       // m/s
+                max_pace: parseFloat((paceMs * t.maxPaceRatio).toFixed(2)), // m/s — for speed ratio signal
                 avg_hr: hr,
                 max_hr: maxHr,
                 calories: Math.round(durMin * (7 + Math.random() * 3)),
                 elevation_gain: parseFloat(elev.toFixed(1)),
                 training_effect: parseFloat((2 + Math.random() * 2.5).toFixed(1)),
+                anaerobic_training_effect: t.anaerobic, // feeds the anaerobic signal
                 avg_cadence: cad,
                 elapsed_duration: parseFloat((durMin + Math.random() * 8).toFixed(1)), // minutes
             });
@@ -1608,17 +1612,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return !nonRunning.some(t => type.includes(t));
     }
 
-    // Classify a run using race-goal-based heuristics:
+    // Classify a run using race-goal-based heuristics (unified multi-signal
+    // logic — mirrors the backend _is_speedwork_candidate so the UI tag and
+    // the AI lap-selection use the SAME definition of speedwork).
+    //
+    // Categories:
     // Warmup: distance < 2km
-    // Tempo Long: distance > 12km AND pace meaningfully faster than goal pace
-    // LSD: distance > 12km at or easier than goal pace (long slow distance)
-    // Speedwork: pace meaningfully faster than goal pace (shorter runs)
+    // Tempo Long: distance > 12km AND speedwork signals
+    // LSD: distance > 12km without speedwork signals
+    // Speedwork: shorter runs with speedwork signals
     // Easy: everything else (base/recovery mileage)
     //
-    // "Meaningfully faster" = at least 15 sec/km faster than the race goal
-    // pace. This prevents runs only 1-2 sec/km faster than target from being
-    // mislabeled as Speedwork — those are effectively at target pace and
-    // belong in the Easy/LSD bucket.
+    // "Speedwork signals" are OR-combined so rest-dragged interval averages
+    // still register as speedwork (a single slow average would hide them):
+    //  - pace ≥ 10s/km faster than goal pace (continuous tempo)
+    //  - max_pace/avg_pace ratio ≥ 1.15 (fast reps vs rest laps)
+    //  - max_hr − avg_hr ≥ 30 bpm (interval HR swings)
+    //  - anaerobic_training_effect ≥ 1.5 (Garmin's anaerobic score)
+    //  - name keywords (assist only)
     function classifyRun(a) {
         if (!a.avg_pace || a.avg_pace <= 0) return { label: 'Run', className: 'rgd-run-tag--easy' };
         const dist = a.distance || 0;
@@ -1628,33 +1639,46 @@ document.addEventListener('DOMContentLoaded', function () {
             return { label: 'Warmup', className: 'rgd-run-tag--warmup' };
         }
 
-        // Compute the Speedwork pace threshold in m/s.
-        // Garmin stores avg_pace in m/s (higher = faster). To require a run
-        // to be 15 sec/km faster than goal pace, convert goal pace to
-        // sec/km, subtract 15, then convert back to m/s.
+        // Speedwork pace threshold in m/s — 10s/km faster than goal pace.
+        // Garmin stores pace in m/s (higher = faster); convert goal pace to
+        // sec/km, subtract 10, then convert back to m/s.
         let speedworkThresholdMs = 0;
         if (raceGoalPaceMs > 0) {
             const goalPaceSecPerKm = 1000 / raceGoalPaceMs;
-            const speedworkPaceSecPerKm = goalPaceSecPerKm - 15;
+            const speedworkPaceSecPerKm = goalPaceSecPerKm - 10;
             // Guard against division by zero if goal pace is extremely slow
             if (speedworkPaceSecPerKm > 0) {
                 speedworkThresholdMs = 1000 / speedworkPaceSecPerKm;
             }
         }
-        const isMeaningfullyFaster = speedworkThresholdMs > 0 && a.avg_pace > speedworkThresholdMs;
 
-        // Long runs (> 12km) are split by pace:
-        //   - Tempo Long: long AND meaningfully faster than goal pace
-        //   - LSD: long at or easier than the speedwork threshold
+        const avgPace = a.avg_pace;
+        const maxPace = a.max_pace || 0;
+        const hrSpread = (a.max_hr || 0) - (a.avg_hr || 0);
+        const anaerobic = a.anaerobic_training_effect || 0;
+        const name = (a.name || '').toLowerCase();
+
+        // OR-combined speedwork signals (mirrors _is_speedwork_candidate)
+        const isSpeedwork =
+            (speedworkThresholdMs > 0 && avgPace > speedworkThresholdMs) ||
+            (avgPace > 0 && maxPace > 0 && maxPace / avgPace >= 1.15) ||
+            hrSpread >= 30 ||
+            anaerobic >= 1.5 ||
+            ['tempo', 'interval', 'fartlek', 'threshold', 'speed', 'repeat', '800', '400', '200']
+                .some(kw => name.includes(kw));
+
+        // Long runs (> 12km) are split by speedwork character:
+        //   - Tempo Long: long AND speedwork signals
+        //   - LSD: long without speedwork signals
         if (dist > 12) {
-            if (isMeaningfullyFaster) {
+            if (isSpeedwork) {
                 return { label: 'Tempo Long', className: 'rgd-run-tag--tempo-long' };
             }
             return { label: 'LSD', className: 'rgd-run-tag--lsd' };
         }
 
-        // Speedwork: shorter runs that are meaningfully faster than goal pace
-        if (isMeaningfullyFaster) {
+        // Speedwork: shorter runs with speedwork signals
+        if (isSpeedwork) {
             return { label: 'Speedwork', className: 'rgd-run-tag--speedwork' };
         }
 
