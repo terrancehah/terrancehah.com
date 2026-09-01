@@ -1288,7 +1288,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: 0;
     text-decoration: none;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5rem;
 }
 
@@ -3282,7 +3282,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-row {
     display: flex;
     gap: 0.75rem;
-    align-items: flex-start;
+    align-items: stretch;
     padding: 0.5rem 0;
     border-bottom: 0.0625rem dashed var(--rgd-border);
 }
@@ -3296,7 +3296,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 0.2rem;
+    justify-content: center;
 }
 
 .rgd-cal-date-dow {
@@ -3314,12 +3314,16 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-size: var(--rgd-text-heading);
     color: var(--rgd-navy);
     line-height: 1.1;
+    display: inline-block;
+    /* min-width: 1.4rem; */
+    text-align: center;
 }
 
 .rgd-cal-date-month {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
     color: var(--rgd-muted);
+    padding-top: 0.1rem;
 }
 
 .rgd-cal-cards {
@@ -3341,7 +3345,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding: 0.4rem 0.6rem;
 }
 
-.rgd-cal-activity--past .rgd-run-tag { filter: saturate(0.45); opacity: 0.65; }
+.rgd-cal-activity--past .rgd-run-tag { filter: saturate(0.65); opacity: 0.85; }
 .rgd-cal-activity--past .rgd-cal-activity-meta { color: var(--rgd-muted); }
 
 .rgd-cal-activity-meta {
@@ -3516,8 +3520,9 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-activity-title {
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: var(--rgd-text-caption);
+    font-size: var(--rgd-text-label);
     color: var(--rgd-text);
+    padding-left: 0.5rem;
 }
 
 .rgd-cal-activity-row {
@@ -3566,6 +3571,187 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Date value — day number and month share one line */
 .rgd-cal-date-value {
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.25rem;
 }
+
+/* ========== WORKOUT DETAIL SHEET ========== */
+/* A bottom sheet that slides up when a suggested workout is tapped, showing
+   the workout details, coaching insight, and step breakdown. */
+
+.rgd-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(29, 53, 87, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 250;
+}
+
+.rgd-sheet-overlay[hidden] { display: none; }
+
+.rgd-workout-sheet {
+    background: var(--rgd-surface);
+    border-top-left-radius: 1.25rem;
+    border-top-right-radius: 1.25rem;
+    box-shadow: 0 -0.5rem 2rem rgba(29, 53, 87, 0.18);
+    width: min(100%, 40rem);
+    max-height: 85dvh;
+    overflow-y: auto;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.rgd-workout-sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.rgd-sheet-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-right: 2.5rem;
+}
+
+.rgd-sheet-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-heading);
+    color: var(--rgd-navy);
+    margin: 0;
+    /* flex: 1; */
+    /* width: min-content; */
+}
+
+.rgd-sheet-pace {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-subheading);
+    color: var(--rgd-blue);
+    white-space: nowrap;
+}
+
+.rgd-sheet-pace-unit {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 400;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    margin-left: 0.15rem;
+}
+
+.rgd-sheet-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    padding-bottom: 0.4rem;
+    border-bottom: 0.0625rem solid var(--rgd-border);
+}
+
+.rgd-sheet-meta-item strong {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    color: var(--rgd-navy);
+}
+
+.rgd-sheet-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.rgd-sheet-section-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rgd-sheet-insight {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    line-height: 1.55;
+    color: var(--rgd-text);
+    background: var(--rgd-light);
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.7rem 0.9rem;
+    margin: 0;
+}
+
+.rgd-sheet-steps {
+    display: flex;
+    flex-direction: column;
+}
+
+.rgd-sheet-step {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-text);
+    padding: 0.45rem 0;
+    border-bottom: 0.0625rem dashed var(--rgd-border);
+}
+
+.rgd-sheet-step:last-child { border-bottom: none; }
+
+.rgd-sheet-step-num {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-blue);
+    background: var(--rgd-light);
+    border-radius: 50%;
+}
+
+.rgd-sheet-step-type {
+    font-weight: 600;
+    color: var(--rgd-navy);
+}
+
+.rgd-sheet-step-detail {
+    margin-left: auto;
+    color: var(--rgd-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.rgd-sheet-step--sub {
+    padding-left: 2rem;
+}
+
+.rgd-sheet-step--sub .rgd-sheet-step-type {
+    color: var(--rgd-muted);
+    font-weight: 500;
+}
+
+.rgd-sheet-step--repeat {
+    color: var(--rgd-blue);
+    font-weight: 700;
+}
+
+.rgd-sheet-step--repeat .rgd-sheet-step-type,
+.rgd-sheet-step--repeat .rgd-sheet-step-detail {
+    color: var(--rgd-blue);
+}
+
+/* Clickable suggested workout card */
+.rgd-cal-workout[data-action="view"] { cursor: pointer; }
+.rgd-cal-workout[data-action="view"]:hover { border-color: var(--rgd-blue); }

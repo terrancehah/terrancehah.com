@@ -3021,6 +3021,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const prefDistanceEl = $('#rgd-pref-distance');
     const schedulePlanBtn = $('#rgd-schedule-plan');
     const scheduleStatusEl = $('#rgd-coach-schedule-status');
+    const workoutSheet = $('#rgd-workout-sheet');
+    const workoutSheetClose = $('#rgd-workout-sheet-close');
+    const workoutSheetBody = $('#rgd-workout-sheet-body');
 
     const COACH_CACHE_KEY = 'rgd_coach_plan_cache';
     const COACH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
@@ -3169,15 +3172,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function makeMockWorkout(type, zones) {
         const defs = {
-            'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.' },
-            'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.' },
-            'Long Run': { title: 'Long 16km', distance_km: 16, duration_min: 105, intensity: 'moderate', description: 'Endurance builder.' },
-            'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.' },
-            'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.' },
-            'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.' },
+            'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.', insight: 'Build aerobic base and aid recovery without adding fatigue. Sip water as needed and keep it conversational; hold RPE 3-4 so you can talk comfortably throughout.' },
+            'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.', insight: 'Flush the legs and keep moving between harder days. Stay hydrated, keep the effort very light, and hold RPE 2-3 with a short, bouncy stride.' },
+            'Long Run': { title: 'Long 16km', distance_km: 16, duration_min: 105, intensity: 'moderate', description: 'Endurance builder.', insight: 'Extend aerobic endurance so race distance feels manageable. Drink every 15-20 min and consider a gel past 90 min; keep RPE 4-5 early and save energy for the final third.' },
+            'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.', insight: 'Train to hold goal pace under fatigue. Hydrate beforehand and take a breather only if form breaks; hold a "comfortably hard" RPE 7.' },
+            'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.', insight: 'Raise your speed reserve above goal pace. Walk or jog the recoveries and sip water between sets; run each rep at RPE 8-9 with a relaxed upper body.' },
+            'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.', insight: 'Sharpen your ability to sustain faster paces in blocks. Use full recovery and hydrate during rest; keep RPE 8 and a consistent rhythm across all reps.' },
         };
         const d = defs[type] || defs['Easy'];
-        return { type, title: d.title, description: d.description, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: zones[type] || null };
+        const pace = zones[type] || '6:30';
+        return { type, title: d.title, description: d.description, insight: d.insight, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: pace, steps: makeMockSteps(type, pace) };
+    }
+
+    function makeMockSteps(type, pace) {
+        if (type === 'Intervals' || type === 'Speedwork') {
+            return [
+                { type: 'Warm up', detail: '10 min', level: 0 },
+                { type: 'Repeat', detail: '6×', level: 0 },
+                { type: 'Run', detail: '2 min', level: 1 },
+                { type: 'Recover', detail: '2 min', level: 1 },
+                { type: 'Cool down', detail: '5 min', level: 0 },
+            ];
+        }
+        if (type === 'Tempo') {
+            return [
+                { type: 'Warm up', detail: '10 min', level: 0 },
+                { type: 'Run', detail: '8 km', level: 0 },
+                { type: 'Cool down', detail: '5 min', level: 0 },
+            ];
+        }
+        if (type === 'Long Run') {
+            return [{ type: 'Run', detail: '16 km', level: 0 }];
+        }
+        return [{ type: 'Run', detail: '6 km', level: 0 }];
     }
 
     async function generateCoachPlan(prefs, force) {
@@ -3239,14 +3266,19 @@ document.addEventListener('DOMContentLoaded', function () {
         planDays.forEach(d => { planByDate[d.date] = d; });
 
         // Vertical agenda grouped into weeks (Monday start): today-13 back to
-        // its Monday, through the Sunday of the upcoming week.
+        // its Monday, through the Sunday of the upcoming week (which is always
+        // strictly after today — matching the backend's next-Monday anchor).
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const start = new Date(today);
         start.setDate(start.getDate() - 13);
         start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
-        const end = new Date(start);
-        end.setDate(start.getDate() + 21 - 1); // 3 weeks (Mon-Sun)
+
+        const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
+        const nextMonday = new Date(today);
+        nextMonday.setDate(today.getDate() + daysUntilMonday);
+        const end = new Date(nextMonday);
+        end.setDate(nextMonday.getDate() + 6); // Sunday of the upcoming week
 
         const weeks = [];
         const cursor = new Date(start);
@@ -3360,7 +3392,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         return `
-            <div class="rgd-cal-workout ${scheduled ? 'rgd-cal-workout--scheduled' : ''}">
+            <div class="rgd-cal-workout ${scheduled ? 'rgd-cal-workout--scheduled' : ''}" data-action="view" data-date="${d.date}">
                 <div class="rgd-cal-workout-title">${escapeHtml(w.title || w.type)}</div>
                 <div class="rgd-cal-workout-row">
                     <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
@@ -3404,6 +3436,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateKey = btn.getAttribute('data-date');
         const action = btn.getAttribute('data-action');
 
+        if (action === 'view') {
+            openWorkoutSheet(dateKey);
+            return;
+        }
         if (action === 'edit') {
             coachEditingDate = dateKey;
             renderCoachCalendar(coachPlanData);
@@ -3427,6 +3463,65 @@ document.addEventListener('DOMContentLoaded', function () {
             day.workout = { type: 'Easy', title: 'Easy Run', description: 'Easy aerobic run.', distance_km: 5, duration_min: 35, intensity: 'easy', target_pace_min_per_km: zones['Easy'] || '6:30' };
         }
         renderCoachCalendar(coachPlanData);
+    });
+
+    // Workout detail sheet — slides up from the bottom when a suggested
+    // workout is tapped.
+    function openWorkoutSheet(dateKey) {
+        const day = coachPlanData && coachPlanData.plan ? coachPlanData.plan.days.find(x => x.date === dateKey) : null;
+        if (!day || !day.workout) return;
+        const w = day.workout;
+        const pace = w.target_pace_min_per_km || '--';
+        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'rgd-run-tag--easy';
+        const sheetDate = parseDate(dateKey + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        // Build a numbered procedure: top-level steps get a step number, steps
+        // inside a repeat group are indented beneath the "Repeat N×" marker.
+        const steps = w.steps || [];
+        let stepNum = 0;
+        const stepsHtml = steps.map(s => {
+            if (s.level === 1) {
+                return `<div class="rgd-sheet-step rgd-sheet-step--sub"><span class="rgd-sheet-step-type">↳ ${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span></div>`;
+            }
+            stepNum += 1;
+            const isRepeat = s.type === 'Repeat';
+            return `<div class="rgd-sheet-step ${isRepeat ? 'rgd-sheet-step--repeat' : ''}"><span class="rgd-sheet-step-num">${stepNum}</span><span class="rgd-sheet-step-type">${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span></div>`;
+        }).join('');
+
+        const insightHtml = w.insight ? `
+            <div class="rgd-sheet-section">
+                <span class="rgd-sheet-section-title">Coach insight</span>
+                <p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>
+            </div>` : '';
+
+        workoutSheetBody.innerHTML = `
+            <div class="rgd-sheet-header">
+                <h3 class="rgd-sheet-title">${escapeHtml(w.title || w.type)}</h3>
+                <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+            </div>
+            <div class="rgd-sheet-meta">
+                ${w.distance_km ? `<span class="rgd-sheet-meta-item"><strong>${w.distance_km}</strong> km</span>` : ''}
+                ${w.duration_min ? `<span class="rgd-sheet-meta-item"><strong>${w.duration_min}</strong> min</span>` : ''}
+                <span class="rgd-sheet-meta-item"><strong>${pace}</strong>/km</span>
+                <span class="rgd-sheet-meta-item">${sheetDate}</span>
+            </div>
+            ${insightHtml}
+            ${stepsHtml ? `<div class="rgd-sheet-section"><span class="rgd-sheet-section-title">Workout breakdown</span><div class="rgd-sheet-steps">${stepsHtml}</div></div>` : ''}
+        `;
+        workoutSheet.hidden = false;
+        workoutSheetClose.focus();
+    }
+
+    function closeWorkoutSheet() {
+        workoutSheet.hidden = true;
+    }
+
+    workoutSheetClose.addEventListener('click', closeWorkoutSheet);
+    workoutSheet.addEventListener('click', (e) => {
+        if (e.target === workoutSheet) closeWorkoutSheet();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !workoutSheet.hidden) closeWorkoutSheet();
     });
 
     // The 3-position distance slider maps to a direction, not a raw number
@@ -3485,12 +3580,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         schedulePlanBtn.disabled = true;
         scheduleStatusEl.hidden = false;
-        scheduleStatusEl.textContent = 'Scheduling workouts to Garmin…';
+        scheduleStatusEl.textContent = 'Sending workouts to Garmin…';
 
         // Demo mode: simulate success without touching Garmin
         if (window.__demoMode) {
             days.forEach(d => coachScheduledDates.add(d.date));
-            scheduleStatusEl.textContent = `Scheduled ${days.length} workouts (demo — nothing written to Garmin).`;
+            scheduleStatusEl.textContent = `Sent ${days.length} workouts (demo — nothing written to Garmin).`;
             schedulePlanBtn.disabled = false;
             schedulePlanBtn.hidden = true;
             renderCoachCalendar(coachPlanData);
@@ -3507,8 +3602,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const scheduledCount = (data.scheduled || []).length;
                 const errorCount = (data.errors || []).length;
                 scheduleStatusEl.textContent = errorCount
-                    ? `Scheduled ${scheduledCount} workouts; ${errorCount} failed.`
-                    : `Scheduled ${scheduledCount} workouts to Garmin.`;
+                    ? `Sent ${scheduledCount} workouts; ${errorCount} failed.`
+                    : `Sent ${scheduledCount} workouts to Garmin.`;
                 if (!errorCount) schedulePlanBtn.hidden = true;
                 renderCoachCalendar(coachPlanData);
             }

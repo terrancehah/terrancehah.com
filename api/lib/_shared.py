@@ -1110,3 +1110,51 @@ def _compute_pace_zones(goal_pace_ms: float, history: list[dict]) -> dict:
         else:
             zones[wtype] = None
     return zones
+
+
+def _flatten_workout_steps(workout_dict: dict) -> list[dict]:
+    """Flatten a native Garmin workout into readable steps for the UI.
+
+    Garmin's native workout model is workoutSegments -> workoutSteps, where each
+    step carries a stepType (warmup/interval/recovery/cooldown/repeat), an
+    endCondition (time/distance), and a target. This walks that structure and
+    returns a flat list of {type, detail, level} rows the detail sheet can
+    render as a numbered procedure. Steps inside a repeat group get level 1 so
+    the UI can indent them beneath the "Repeat N×" marker.
+    """
+    out = []
+    for segment in workout_dict.get("workoutSegments") or []:
+        for step in segment.get("workoutSteps") or []:
+            _append_workout_step(step, out, 0)
+    return out
+
+
+def _append_workout_step(step: dict, out: list, level: int):
+    step_type = (step.get("stepType") or {}).get("stepTypeKey", "")
+    # Repeat groups carry nested workoutSteps and a number of iterations
+    if step_type == "repeat":
+        iterations = step.get("numberOfIterations", 1)
+        out.append({"type": "Repeat", "detail": f"{iterations}×", "level": level})
+        for child in step.get("workoutSteps") or []:
+            _append_workout_step(child, out, level + 1)
+        return
+
+    cond = (step.get("endCondition") or {}).get("conditionTypeKey", "")
+    value = step.get("endConditionValue")
+    if cond == "distance":
+        detail = f"{value / 1000:g} km"
+    elif cond == "time":
+        secs = int(value or 0)
+        detail = f"{secs // 60} min" if secs >= 60 else f"{secs} s"
+    else:
+        detail = ""
+    kind_map = {
+        "warmup": "Warm up",
+        "cooldown": "Cool down",
+        "interval": "Run",
+        "recovery": "Recover",
+        "rest": "Rest",
+        "main": "Run",
+        "other": "Run",
+    }
+    out.append({"type": kind_map.get(step_type, step_type.title()), "detail": detail, "level": level})

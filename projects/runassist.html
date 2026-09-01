@@ -537,7 +537,7 @@
 
                             <div class="rgd-coach-calendar" id="rgd-coach-calendar"></div>
 
-                            <button class="rgd-btn rgd-btn-primary rgd-schedule-btn" id="rgd-schedule-plan" hidden>Schedule Week to Garmin</button>
+                            <button class="rgd-btn rgd-btn-primary rgd-schedule-btn" id="rgd-schedule-plan" hidden>Send Workouts to Garmin</button>
                             <div class="rgd-coach-schedule-status" id="rgd-coach-schedule-status" hidden></div>
                             <div class="rgd-coach-error" id="rgd-coach-error" hidden></div>
                         </section>
@@ -853,9 +853,9 @@
                         <span class="rgd-plan-pref-label">Weekly distance</span>
                         <input type="range" id="rgd-pref-distance" class="rgd-distance-slider" min="0" max="2" step="1" value="1">
                         <div class="rgd-distance-slider-labels">
-                            <span>Less mileage</span>
-                            <span>Same mileage</span>
-                            <span>More mileage</span>
+                            <span>Relaxed</span>
+                            <span>Optimum</span>
+                            <span>Progressive</span>
                         </div>
                     </div>
                     <div class="rgd-plan-prefs-actions">
@@ -863,6 +863,16 @@
                         <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-plan-prefs-save">Save & Generate</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Workout detail sheet — slides up from the bottom when a suggested workout is tapped -->
+        <div class="rgd-sheet-overlay" id="rgd-workout-sheet" hidden>
+            <div class="rgd-workout-sheet">
+                <button class="rgd-modal-close" id="rgd-workout-sheet-close" title="Close" aria-label="Close workout details">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="rgd-workout-sheet-body" id="rgd-workout-sheet-body"></div>
             </div>
         </div>
     </main>

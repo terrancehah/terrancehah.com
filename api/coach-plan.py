@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_session, _get_garmin_client, create_app,
     _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
-    _compute_pace_zones,
+    _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -152,7 +152,9 @@ PLAN REQUIREMENTS:
   and "workout": null.
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
   Speedwork), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
-  "duration_min" (number or null), and "intensity" (easy, moderate, or hard). Do NOT set
+  "duration_min" (number or null), "insight" (a short paragraph covering the purpose of the run,
+  hydration/recovery-between-efforts tips where relevant, and what to notice during the run such as
+  target RPE or the sensation to hold), and "intensity" (easy, moderate, or hard). Do NOT set
   "target_pace_min_per_km" — it is assigned automatically from the target pace zones below.
 - Space the workout days sensibly across the week: avoid back-to-back hard sessions, and put the
   long run and speedwork on separate days.
@@ -209,13 +211,52 @@ Return ONLY valid JSON:
                 d["is_rest"] = True
                 excess -= 1
 
+    # Backfill: if the AI returned fewer workouts than requested, fill empty
+    # days with a sensible default mix so the user always gets a full plan.
+    default_mix = ["Easy", "Long Run", "Speedwork", "Tempo", "Recovery", "Easy"]
+    default_specs = {
+        "Easy": {"title": "Easy Run", "description": "Relaxed aerobic run.", "distance_km": 6, "duration_min": 40, "intensity": "easy"},
+        "Recovery": {"title": "Recovery Run", "description": "Very easy shakeout run.", "distance_km": 5, "duration_min": 35, "intensity": "easy"},
+        "Long Run": {"title": "Long Run", "description": "Steady endurance builder.", "distance_km": 15, "duration_min": 100, "intensity": "moderate"},
+        "Tempo": {"title": "Tempo Run", "description": "Sustained threshold effort.", "distance_km": 8, "duration_min": 50, "intensity": "moderate"},
+        "Speedwork": {"title": "Speedwork", "description": "Short, fast repeats.", "distance_km": 6, "duration_min": 45, "intensity": "hard"},
+    }
+    needed = days_per_week - len(workout_days)
+    if needed > 0:
+        for d in plan["days"]:
+            if needed <= 0:
+                break
+            if not d.get("workout"):
+                wtype = default_mix[len(workout_days) % len(default_mix)]
+                spec = default_specs.get(wtype, default_specs["Easy"])
+                d["workout"] = {
+                    "type": wtype,
+                    "title": spec["title"],
+                    "description": spec["description"],
+                    "distance_km": spec["distance_km"],
+                    "duration_min": spec["duration_min"],
+                    "intensity": spec["intensity"],
+                }
+                d["is_rest"] = False
+                workout_days.append(d)
+                needed -= 1
+
     # Override each workout's pace with the deterministic zone for its type —
-    # pace is derived, never user- or AI-editable.
+    # pace is derived, never user- or AI-editable. Also attach the coaching
+    # insight and the native Garmin step breakdown for the detail sheet.
     for day in plan["days"]:
         w = day.get("workout")
         if isinstance(w, dict):
             wtype = w.get("type") or "Easy"
             w["target_pace_min_per_km"] = pace_zones.get(wtype)
+            if not w.get("insight"):
+                w["insight"] = w.get("description") or ""
+            # Native Garmin steps — the exact steps that will be sent to the
+            # watch, flattened into readable {type, detail} rows.
+            try:
+                w["steps"] = _flatten_workout_steps(_build_running_workout(w).to_dict())
+            except Exception:
+                w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
 
     plan["pace_zones"] = pace_zones
     plan["preferences"] = {
