@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Store radar values for click-to-tooltip interaction (populated in renderRadarChart)
     let radarValues10 = []; // scores on 1-10 scale
     let radarLabels = [];   // dimension names, set when chart renders
-    // Pillars content appears on both overview and insights pages — use class
+    // Pillars content appears on both overview and readiness pages — use class
     // selectors so both instances stay in sync (no skeleton placeholders anymore)
     const pillarsContents = $$('.rgd-pillars-content');
     const summaryErrors = $$('.rgd-summary-error');
@@ -1261,9 +1261,46 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !scoreModal.hidden) closeScoreModal();
     });
-    // Wire up every info button (overview section + insights page) to the modal
+    // Wire up every scoring info button (overview section + readiness page) to the modal
     document.querySelectorAll('.rgd-score-info-btn').forEach(btn => {
         btn.addEventListener('click', openScoreModal);
+    });
+
+    // Dimensions explainer modal — explains the six radar dimensions.
+    // Mirrors the scoring guide modal's open/close behaviour so both info
+    // modals respond to the close button, overlay click, and Escape key.
+    const dimensionModal = $('#rgd-dimension-modal');
+    const dimensionModalClose = $('#rgd-dimension-modal-close');
+    let dimensionModalTrigger = null;
+
+    function openDimensionModal() {
+        if (!dimensionModal) return;
+        dimensionModalTrigger = document.activeElement;
+        dimensionModal.hidden = false;
+        // Move focus to the close button so keyboard users can dismiss
+        // the modal immediately without tabbing through the full content
+        dimensionModalClose.focus();
+    }
+
+    function closeDimensionModal() {
+        if (!dimensionModal) return;
+        dimensionModal.hidden = true;
+        // Return focus to the info button that opened the modal
+        if (dimensionModalTrigger) dimensionModalTrigger.focus();
+    }
+
+    dimensionModalClose.addEventListener('click', closeDimensionModal);
+    // Close modal when clicking the overlay background
+    dimensionModal.addEventListener('click', (e) => {
+        if (e.target === dimensionModal) closeDimensionModal();
+    });
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !dimensionModal.hidden) closeDimensionModal();
+    });
+    // Wire up every dimensions info button to the modal
+    document.querySelectorAll('.rgd-dimension-info-btn').forEach(btn => {
+        btn.addEventListener('click', openDimensionModal);
     });
 
     // =========================================================================
@@ -2092,7 +2129,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // External HTML tooltip for the radar chart — renders a real DOM element
     // instead of drawing on the canvas, so we can include a clickable link
-    // that jumps to the corresponding pillar in the insights section.
+    // that jumps to the corresponding pillar in the readiness section.
     // The tooltip shows the dimension name as a link and the score below it.
     // Flag: when true, the tooltip is "pinned" by the user's mouse hovering
     // over it — prevents the external handler from hiding it when the mouse
@@ -2140,16 +2177,15 @@ document.addEventListener('DOMContentLoaded', function () {
             const score = dp.raw;
 
             tooltipEl.innerHTML = `
-                <a class="rgd-radar-tooltip-link" href="#insights" data-pillar-index="${dimIndex}">
+                <a class="rgd-radar-tooltip-link" href="#readiness" data-pillar-index="${dimIndex}">
                     ${escapeHtml(dimName)}
                 </a>
                 <span class="rgd-radar-tooltip-score">${score}/10</span>
             `;
 
             // Wire up the link click — scroll to the corresponding pillar card
-            // on the overview page (where the radar is), not the insights page.
-            // Uses data-pillar-index attribute to find the right card within
-            // the currently visible page's pillars container.
+            // within the currently visible page's pillars container.
+            // Uses data-pillar-index attribute to find the right card.
             const link = tooltipEl.querySelector('.rgd-radar-tooltip-link');
             if (link) {
                 link.addEventListener('click', (e) => {
@@ -2499,7 +2535,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderPillars(data) {
-        // Show content on all instances (overview + insights pages)
+        // Show content on all instances (overview + readiness pages)
         pillarsContents.forEach(el => el.hidden = false);
         summaryErrors.forEach(el => el.hidden = true);
         refreshAnalysisBtn.hidden = false;
@@ -2508,7 +2544,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Overview page: quick summary only — no concrete data references.
         // Cards are clickable and navigate to the full insight on the
-        // insights page, scrolling to the corresponding pillar card.
+        // readiness page, scrolling to the corresponding pillar card.
         const overviewHtml = dims.map((d, i) => `
             <div class="rgd-pillar-card rgd-pillar-card--summary" data-pillar-index="${i}">
                 <div class="rgd-pillar-header">
@@ -2521,7 +2557,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `).join('');
 
-        // Insights page: full breakdown with strengths and gaps, each
+        // Readiness page: full breakdown with strengths and gaps, each
         // referencing specific data from the runner's activities.
         const insightsHtml = dims.map((d, i) => `
             <div class="rgd-pillar-card" data-pillar-index="${i}">
@@ -2543,13 +2579,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Fill each pillars-content container with the appropriate HTML.
         // The first container is on the overview page, the second on the
-        // insights page — determined by which page element contains them.
+        // readiness page — determined by which page element contains them.
         const overviewPage = document.getElementById('rgd-page-overview');
-        const insightsPage = document.getElementById('rgd-page-insights');
+        const readinessPage = document.getElementById('rgd-page-readiness');
         pillarsContents.forEach(el => {
             if (overviewPage && overviewPage.contains(el)) {
                 el.innerHTML = overviewHtml;
-            } else if (insightsPage && insightsPage.contains(el)) {
+            } else if (readinessPage && readinessPage.contains(el)) {
                 el.innerHTML = insightsHtml;
             } else {
                 // Fallback: use the full insights HTML for any unknown container
@@ -2558,18 +2594,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Wire up click handlers on the overview summary cards — clicking
-        // a card navigates to the insights page and scrolls the matching
+        // a card navigates to the readiness page and scrolls the matching
         // pillar card into view with a brief highlight pulse
         if (overviewPage) {
             overviewPage.querySelectorAll('.rgd-pillar-card--summary').forEach(card => {
                 card.addEventListener('click', () => {
                     const idx = card.getAttribute('data-pillar-index');
-                    // Navigate to the insights page via hash routing
-                    window.location.hash = 'insights';
+                    // Navigate to the readiness page via hash routing
+                    window.location.hash = 'readiness';
                     // Scroll the corresponding pillar into view after the
                     // page is shown — short delay to allow the page to unhide
                     setTimeout(() => {
-                        const pillar = insightsPage.querySelector(
+                        const pillar = readinessPage.querySelector(
                             `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
                         );
                         if (pillar) {

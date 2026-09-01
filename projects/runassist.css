@@ -1312,7 +1312,8 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Info button next to section titles — opens the scoring guide modal.
    Small circular outline button with an info icon, aligned to the
    title's baseline so it reads as part of the heading row. */
-.rgd-score-info-btn {
+.rgd-score-info-btn,
+.rgd-dimension-info-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1329,15 +1330,32 @@ header.rgd-header-offset.rgd-header-collapsed {
     align-self: center;
 }
 
-.rgd-score-info-btn:hover {
+.rgd-score-info-btn:hover,
+.rgd-dimension-info-btn:hover {
     color: var(--rgd-blue);
     border-color: var(--rgd-blue);
     background: var(--rgd-light);
 }
 
-.rgd-score-info-btn:focus-visible {
+.rgd-score-info-btn:focus-visible,
+.rgd-dimension-info-btn:focus-visible {
     outline: 0.125rem solid var(--rgd-blue);
     outline-offset: 0.125rem;
+}
+
+/* Dimensions explainer modal — single-column list reusing the radar
+   dimension colors. Mirrors the scoring guide modal shell so both info
+   modals look and behave the same. */
+.rgd-dimension-modal-card {
+    width: min(100%, 30rem);
+    max-height: 85dvh;
+    overflow-y: auto;
+}
+
+.rgd-dimension-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
 }
 
 /* ---- Metrics tiles ---- */

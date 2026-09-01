@@ -265,11 +265,6 @@
                                 <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 <span class="rgd-nav-label">Readiness</span>
                             </a>
-                            <a class="rgd-nav-item" href="#insights">
-                                <!-- Lightbulb icon — represents AI insights -->
-                                <svg class="rgd-nav-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
-                                <span class="rgd-nav-label">Insights</span>
-                            </a>
                         </nav>
                         <!-- Theme toggle (light/dark) — above settings button -->
                         <button class="rgd-sidebar-theme-toggle" id="rgd-theme-toggle" title="Switch theme">
@@ -315,10 +310,6 @@
                     <a class="rgd-tab-item" href="#readiness">
                         <!-- Hexagon icon -->
                         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-                    </a>
-                    <a class="rgd-tab-item" href="#insights">
-                        <!-- Lightbulb icon -->
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
                     </a>
                     <button class="rgd-tab-item" id="rgd-tab-settings" title="Settings">
                         <!-- Cog / gear icon -->
@@ -470,7 +461,12 @@
                     <!-- ========== PAGE: Readiness ========== -->
                     <div class="rgd-page" id="rgd-page-readiness" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Race Readiness</h2>
+                            <h2 class="rgd-section-title">Race Readiness
+                                <!-- Info button — opens the modal explaining what each of the six dimensions means -->
+                                <button class="rgd-dimension-info-btn" type="button" aria-label="What the six dimensions mean" title="What the six dimensions mean">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                                </button>
+                            </h2>
                             <p class="rgd-section-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. Each score shows how close you are to where you need to be on race day. <span class="rgd-tap-hint">Select a label for details.</span></p>
                             <div class="rgd-readiness-card">
                                 <div class="rgd-radar-wrap rgd-radar-wrap--full">
@@ -503,61 +499,8 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Contextual explanation: educates the user on how each
-                                 dimension influences race performance -->
-                            <div class="rgd-dimension-explainer">
-                                <h3 class="rgd-dimension-explainer-title">Understanding Your Six Dimensions</h3>
-                                <div class="rgd-dimension-explainer-grid">
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(196, 75, 75, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">Lactate Threshold</span>
-                                            <p class="rgd-dimension-explainer-desc">The pace at which lactate accumulates faster than your body can clear it. A higher threshold means you can sustain faster speeds for longer before fatigue sets in — critical for maintaining race pace in the middle third of your race.</p>
-                                        </div>
-                                    </div>
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(63, 123, 79, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">Aerobic Endurance</span>
-                                            <p class="rgd-dimension-explainer-desc">Your cardiovascular foundation — how efficiently your heart and lungs deliver oxygen to working muscles over sustained effort. This is the base that lets you complete the full race distance without fading.</p>
-                                        </div>
-                                    </div>
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(212, 160, 23, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">Running Economy</span>
-                                            <p class="rgd-dimension-explainer-desc">How much energy you expend at a given pace. Better economy means you use less oxygen to maintain the same speed, effectively giving you more fuel in the tank for the closing kilometers.</p>
-                                        </div>
-                                    </div>
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(93, 109, 176, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">Strength / Durability</span>
-                                            <p class="rgd-dimension-explainer-desc">Musculoskeletal resilience — how well your muscles, tendons, and joints handle the repetitive impact of running. Stronger durability means lower injury risk and better late-race form when fatigue sets in.</p>
-                                        </div>
-                                    </div>
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(69, 123, 157, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">VO₂max / Speed</span>
-                                            <p class="rgd-dimension-explainer-desc">Your maximum oxygen uptake and raw speed ceiling. A higher VO₂max gives you more headroom above race pace, making goal pace feel easier and allowing you to surge when needed.</p>
-                                        </div>
-                                    </div>
-                                    <div class="rgd-dimension-explainer-item">
-                                        <span class="rgd-dimension-explainer-dot" style="background: rgba(56, 142, 142, 0.7)"></span>
-                                        <div>
-                                            <span class="rgd-dimension-explainer-name">Fatigue Resistance</span>
-                                            <p class="rgd-dimension-explainer-desc">Your ability to maintain performance as fatigue accumulates over the race. This determines whether you can hold your target pace through the final kilometers or whether you slow down in the closing stages.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
-                    <!-- ========== PAGE: Insights (formerly Analysis) ========== -->
-                    <div class="rgd-page" id="rgd-page-insights" hidden>
-                        <section class="rgd-section">
+                            <!-- Pre Race Insights — the six full pillar cards (strengths/gaps)
+                                 live below the radar on this page -->
                             <h2 class="rgd-section-title">Pre Race Insights
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
                                 <button class="rgd-score-info-btn" type="button" aria-label="How AI scores work" title="How AI scores work">
@@ -570,6 +513,7 @@
                             <button class="rgd-btn rgd-btn-secondary rgd-refresh-btn" id="rgd-refresh-analysis" hidden>Regenerate Insights</button>
                         </section>
                     </div>
+
                     <!-- Demo CTA — shown at the bottom of every page in demo mode -->
                     <div class="rgd-demo-cta" id="rgd-demo-cta" hidden>
                         <p class="rgd-demo-cta-text">Ready to see your real training data and AI-powered insights? Connect Garmin to get started.</p>
@@ -781,6 +725,67 @@
                     if they contradict the activity data, the AI trusts the body's recovery signals.
                     A score of 7 or above means your summary should read as reassuring and forward-looking.
                 </p>
+            </div>
+        </div>
+
+        <!-- Dimensions explainer modal — explains what each of the six
+             radar dimensions measures and how it influences race performance.
+             Opened via the info button next to the Race Readiness title. -->
+        <div class="rgd-modal-overlay" id="rgd-dimension-modal" hidden role="dialog" aria-modal="true" aria-label="Understanding your six dimensions">
+            <div class="rgd-metric-popup-card rgd-dimension-modal-card">
+                <button class="rgd-modal-close" id="rgd-dimension-modal-close" title="Close" aria-label="Close dimensions explanation dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="rgd-metric-popup-header">
+                    <span class="rgd-metric-popup-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    </span>
+                    <h3 class="rgd-metric-popup-title">Understanding Your Six Dimensions</h3>
+                </div>
+                <div class="rgd-dimension-list">
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(196, 75, 75, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">Lactate Threshold</span>
+                            <p class="rgd-dimension-explainer-desc">The pace at which lactate accumulates faster than your body can clear it. A higher threshold means you can sustain faster speeds for longer before fatigue sets in — critical for maintaining race pace in the middle third of your race.</p>
+                        </div>
+                    </div>
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(63, 123, 79, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">Aerobic Endurance</span>
+                            <p class="rgd-dimension-explainer-desc">Your cardiovascular foundation — how efficiently your heart and lungs deliver oxygen to working muscles over sustained effort. This is the base that lets you complete the full race distance without fading.</p>
+                        </div>
+                    </div>
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(212, 160, 23, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">Running Economy</span>
+                            <p class="rgd-dimension-explainer-desc">How much energy you expend at a given pace. Better economy means you use less oxygen to maintain the same speed, effectively giving you more fuel in the tank for the closing kilometers.</p>
+                        </div>
+                    </div>
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(93, 109, 176, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">Strength / Durability</span>
+                            <p class="rgd-dimension-explainer-desc">Musculoskeletal resilience — how well your muscles, tendons, and joints handle the repetitive impact of running. Stronger durability means lower injury risk and better late-race form when fatigue sets in.</p>
+                        </div>
+                    </div>
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(69, 123, 157, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">VO₂max / Speed</span>
+                            <p class="rgd-dimension-explainer-desc">Your maximum oxygen uptake and raw speed ceiling. A higher VO₂max gives you more headroom above race pace, making goal pace feel easier and allowing you to surge when needed.</p>
+                        </div>
+                    </div>
+                    <div class="rgd-dimension-explainer-item">
+                        <span class="rgd-dimension-explainer-dot" style="background: rgba(56, 142, 142, 0.7)"></span>
+                        <div>
+                            <span class="rgd-dimension-explainer-name">Fatigue Resistance</span>
+                            <p class="rgd-dimension-explainer-desc">Your ability to maintain performance as fatigue accumulates over the race. This determines whether you can hold your target pace through the final kilometers or whether you slow down in the closing stages.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
