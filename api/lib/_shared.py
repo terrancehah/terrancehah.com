@@ -909,3 +909,204 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
                 lap_fetches += 1
         activities_data.append(entry)
     return activities_data
+
+
+# --- Coach plan helpers ---
+
+# Running activity types accepted by the coach plan feature (same set as
+# activities.py — keeps the "last 2 weeks" history consistent with the
+# Activities page).
+RUNNING_TYPES = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
+
+
+def _fetch_recent_activities_with_laps(client, days: int = 14, goal_pace_ms: float = 0) -> list[dict]:
+    """Fetch the last `days` of running activities with lap detail for every run.
+
+    Reuses _fetch_lap_summaries — the same per-activity lap fetcher ai-radar
+    already uses — but applies it to ALL runs inside a date-bounded window
+    (not just speedwork, and without ai-radar's 10-session cap). This powers
+    the coach plan page's "Last 2 Weeks" history (expandable lap detail) and
+    gives GPT full lap structure for plan generation.
+    """
+    from datetime import date, timedelta
+
+    today = date.today()
+    start_str = (today - timedelta(days=days - 1)).isoformat()
+    end_str = today.isoformat()
+    try:
+        activities = client.get_activities_by_date(start_str, end_str, activitytype="running")
+    except Exception:
+        return []
+
+    result = []
+    for a in activities:
+        type_key = (a.get("activityType") or {}).get("typeKey", "unknown")
+        if type_key.lower() not in RUNNING_TYPES:
+            continue
+        # Reuse the shared slim shape (same UI fields + single run classifier)
+        entry = _slim_activity(a, goal_pace_ms)
+        entry["laps"] = (
+            _fetch_lap_summaries(client, a["activityId"], goal_pace_ms)
+            if a.get("activityId")
+            else None
+        )
+        result.append(entry)
+
+    # Newest first so the timeline reads most-recent at the top
+    result.sort(key=lambda x: x.get("start_time") or "", reverse=True)
+    return result
+
+
+def _build_running_workout(workout: dict):
+    """Build a Garmin running workout from a coach-plan workout spec.
+
+    The spec carries: type, title, description, distance_km, duration_min,
+    target_pace_min_per_km, intensity. Maps the common session types into a
+    structured RunningWorkout (warmup/main/cooldown, with a repeat group for
+    interval work). Returns a RunningWorkout instance ready for
+    client.upload_running_workout(). Steps use distance/time end conditions;
+    pace targets are carried in the description for v1 (pace-zone targets can
+    be layered in later once the Garmin target shape is confirmed).
+    """
+    from garminconnect.workout import (
+        RunningWorkout,
+        WorkoutSegment,
+        create_warmup_step,
+        create_interval_step,
+        create_distance_interval_step,
+        create_recovery_step,
+        create_cooldown_step,
+        create_repeat_group,
+    )
+
+    wtype = (workout.get("type") or "Easy").strip().lower()
+    title = workout.get("title") or "Run"
+    description = workout.get("description") or ""
+    # Pace targets are carried in the workout description so they appear on the
+    # watch alongside the structured distance/time steps (pace-zone steps can
+    # be layered in once the Garmin target shape is confirmed).
+    target_pace = workout.get("target_pace_min_per_km")
+    if target_pace:
+        description = f"{description} Target pace: {target_pace}/km." if description else f"Target pace: {target_pace}/km."
+    distance_km = _parse_float(workout.get("distance_km"))
+    duration_min = _parse_float(workout.get("duration_min"))
+
+    # Helper: distance-based main step (meters) or time-based fallback
+    def main_step(order):
+        if distance_km:
+            return create_distance_interval_step(distance_km * 1000.0, order)
+        return create_interval_step((duration_min or 30.0) * 60.0, order)
+
+    if wtype in ("tempo", "threshold"):
+        # 10' easy + a sustained main block + 5' easy
+        steps = [
+            create_warmup_step(600.0, 1),
+            main_step(2),
+            create_cooldown_step(300.0, 3),
+        ]
+    elif wtype in ("intervals", "speedwork", "speed", "interval", "fartlek"):
+        # 10' easy + 6 x (2' hard / 2' recovery) + 5' easy
+        repeat = create_repeat_group(
+            6,
+            [create_interval_step(120.0, 1), create_recovery_step(120.0, 2)],
+            2,
+        )
+        steps = [
+            create_warmup_step(600.0, 1),
+            repeat,
+            create_cooldown_step(300.0, 3),
+        ]
+    else:
+        # Easy / long run / recovery / default: single distance/time step
+        steps = [main_step(1)]
+
+    if duration_min:
+        est_secs = int(duration_min * 60)
+    elif distance_km:
+        est_secs = int(distance_km * 360)  # ~6:00/km average
+    else:
+        est_secs = 1800
+
+    segment = WorkoutSegment(
+        segmentOrder=1,
+        sportType={"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
+        workoutSteps=steps,
+    )
+    return RunningWorkout(
+        workoutName=title,
+        estimatedDurationInSecs=est_secs,
+        workoutSegments=[segment],
+        description=description,
+    )
+
+
+def _median(vals: list) -> float | None:
+    """Return the median of a numeric list, or None when empty."""
+    if not vals:
+        return None
+    s = sorted(vals)
+    n = len(s)
+    mid = n // 2
+    return s[mid] if n % 2 else (s[mid - 1] + s[mid]) / 2
+
+
+def _format_pace_min_km(sec_per_km) -> str | None:
+    """Format seconds-per-km as "M:SS", or None for an invalid value."""
+    if sec_per_km is None or sec_per_km <= 0:
+        return None
+    mins = int(sec_per_km // 60)
+    secs = int(round(sec_per_km % 60))
+    if secs >= 60:
+        mins += 1
+        secs -= 60
+    return f"{mins}:{secs:02d}"
+
+
+def _compute_pace_zones(goal_pace_ms: float, history: list[dict]) -> dict:
+    """Derive per-workout-type target paces from recent fitness + race goal.
+
+    Follows Runna's "train at current fitness, not a rigid goal time" principle:
+    recent easy/fast paces are the primary anchor, and the race-goal pace plus
+    fixed offsets is only a fallback when recent data is sparse. Returns
+    {workout_type: "M:SS"} so the frontend can show (and re-derive) pace without
+    letting the user edit it directly.
+    """
+    goal_sec = 1000 / goal_pace_ms if (goal_pace_ms and goal_pace_ms > 0) else None
+
+    easy_secs, fast_secs = [], []
+    for a in history:
+        pace_ms = a.get("avg_pace") or 0
+        if not pace_ms or pace_ms <= 0:
+            continue
+        tag = a.get("run_tag") or ""
+        sec = 1000 / pace_ms
+        if tag in ("Easy", "Recovery", "Warmup", "LSD"):
+            easy_secs.append(sec)
+        elif tag in ("Speedwork", "Tempo Long"):
+            fast_secs.append(sec)
+
+    easy_sec = _median(easy_secs)
+    fast_sec = _median(fast_secs)
+
+    # Offsets from goal race pace (positive = slower), used only as fallback
+    offsets = {
+        "Recovery": 75,
+        "Easy": 50,
+        "Long Run": 35,
+        "Tempo": 5,
+        "Intervals": -30,
+        "Speedwork": -35,
+    }
+    zones = {}
+    for wtype, off in offsets.items():
+        if wtype == "Recovery" and easy_sec:
+            zones[wtype] = _format_pace_min_km(easy_sec + 15)
+        elif wtype in ("Easy", "Recovery", "Long Run") and easy_sec:
+            zones[wtype] = _format_pace_min_km(easy_sec)
+        elif wtype in ("Tempo", "Intervals", "Speedwork") and fast_sec:
+            zones[wtype] = _format_pace_min_km(fast_sec)
+        elif goal_sec:
+            zones[wtype] = _format_pace_min_km(goal_sec + off)
+        else:
+            zones[wtype] = None
+    return zones

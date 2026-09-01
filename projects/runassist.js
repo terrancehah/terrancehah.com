@@ -606,6 +606,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         loadAllData();
+        // If the user landed directly on the Plan page, kick off its load too
+        if (getPageFromHash() === 'plan') generateCoachPlan(coachPrefs, false);
     }
 
     // Render the Race Goal Specifics panel with key metrics + countdown
@@ -3002,6 +3004,525 @@ document.addEventListener('DOMContentLoaded', function () {
         // Return to demo mode instead of login screen
         startDemoMode();
     }
+
+    // =========================================================================
+    // Coach Plan — study the last 2 weeks, propose + customise + schedule a week
+    // =========================================================================
+
+    const coachCalendarEl = $('#rgd-coach-calendar');
+    const coachErrorEl = $('#rgd-coach-error');
+    const planEditBtn = $('#rgd-plan-edit-btn');
+    const planPrefsModal = $('#rgd-plan-prefs-modal');
+    const planPrefsModalClose = $('#rgd-plan-prefs-close');
+    const planPrefsCancelBtn = $('#rgd-plan-prefs-cancel');
+    const planPrefsForm = $('#rgd-plan-prefs-form');
+    const prefDaysEl = $('#rgd-pref-days');
+    const prefIntensityEl = $('#rgd-pref-intensity');
+    const prefDistanceEl = $('#rgd-pref-distance');
+    const schedulePlanBtn = $('#rgd-schedule-plan');
+    const scheduleStatusEl = $('#rgd-coach-schedule-status');
+
+    const COACH_CACHE_KEY = 'rgd_coach_plan_cache';
+    const COACH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+    let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }
+    let coachLoaded = false;    // whether the plan has been fetched this session
+    let coachEditingDate = null; // the day currently in edit mode (or null)
+    const coachScheduledDates = new Set(); // dates already pushed to Garmin
+
+    const WORKOUT_TYPES = ['Easy', 'Recovery', 'Long Run', 'Tempo', 'Intervals', 'Speedwork'];
+
+    // Suggested workouts reuse the run-tag colour scheme, but saturated
+    const WORKOUT_TAG_CLASS = {
+        'Easy': 'rgd-run-tag--easy',
+        'Recovery': 'rgd-run-tag--easy',
+        'Long Run': 'rgd-run-tag--lsd',
+        'Tempo': 'rgd-run-tag--tempo-long',
+        'Intervals': 'rgd-run-tag--speedwork',
+        'Speedwork': 'rgd-run-tag--speedwork',
+    };
+
+    // Plan-level preferences — persisted so they stay the same until changed
+    const COACH_PREFS_KEY = 'rgd_coach_prefs';
+    function readCoachPrefs() {
+        try {
+            const raw = localStorage.getItem(COACH_PREFS_KEY);
+            if (!raw) return { days_per_week: 3, intensity: 'moderate', distance_adj: 'keep' };
+            const p = JSON.parse(raw);
+            return {
+                days_per_week: p.days_per_week || 3,
+                intensity: p.intensity || 'moderate',
+                distance_adj: p.distance_adj || 'keep',
+            };
+        } catch (e) {
+            return { days_per_week: 3, intensity: 'moderate', distance_adj: 'keep' };
+        }
+    }
+    function writeCoachPrefs(prefs) {
+        try {
+            localStorage.setItem(COACH_PREFS_KEY, JSON.stringify(prefs));
+        } catch (e) {
+            // localStorage unavailable — silently skip
+        }
+    }
+    let coachPrefs = readCoachPrefs();
+
+    // Cache key is scoped by session + goal + day so a stale plan never bleeds
+    // across users or across week boundaries.
+    function getCoachCacheKey() {
+        const goalFingerprint = raceGoal ? `${raceGoal.purpose || ''}|${raceGoal.time_target || ''}|${raceGoal.race_date || ''}` : 'no-goal';
+        const today = new Date().toISOString().slice(0, 10);
+        return `${sessionToken || 'demo'}::${goalFingerprint}::${today}`;
+    }
+
+    function readCoachCache() {
+        try {
+            const raw = localStorage.getItem(COACH_CACHE_KEY);
+            if (!raw) return null;
+            const entry = JSON.parse(raw);
+            if (entry.key !== getCoachCacheKey()) return null;
+            if (Date.now() - entry.timestamp > COACH_CACHE_TTL_MS) return null;
+            return entry.data;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeCoachCache(data) {
+        try {
+            localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({
+                key: getCoachCacheKey(),
+                timestamp: Date.now(),
+                data: data,
+            }));
+        } catch (e) {
+            // localStorage full or unavailable — silently skip caching
+        }
+    }
+
+    function clearCoachCache() {
+        localStorage.removeItem(COACH_CACHE_KEY);
+    }
+
+    // Mock 2-week history for demo mode — ~10 recent runs as compact cards
+    function getMockCoachHistory() {
+        const now = new Date();
+        const names = ['Easy Morning', 'Weekend Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog'];
+        const tags = ['Easy', 'LSD', 'Speedwork', 'Speedwork', 'Easy'];
+        const secPerKm = [400, 420, 350, 330, 450]; // slower -> faster -> recovery
+        const distances = [6, 18, 10, 8, 5];
+        const results = [];
+        for (let i = 0; i < 10; i++) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - (i + 1));
+            const idx = i % names.length;
+            const p = secPerKm[idx];
+            const dist = distances[idx];
+            results.push({
+                id: 30000000 + i,
+                name: names[idx],
+                type: 'running',
+                start_time: `${localDateKey(d)} 08:00:00`,
+                distance: dist,
+                duration: Math.round((dist * p / 60) * 10) / 10,
+                avg_pace: parseFloat((1000 / p).toFixed(2)),
+                max_pace: parseFloat((1000 / (p - 20)).toFixed(2)),
+                avg_hr: 145,
+                max_hr: 165,
+                calories: 400 + i * 15,
+                elevation_gain: 20 + (i % 4) * 10,
+                training_effect: 2.5,
+                anaerobic_training_effect: idx === 2 || idx === 3 ? 2.2 : 0.8,
+                avg_cadence: 166,
+                run_tag: tags[idx],
+                elapsed_duration: null,
+            });
+        }
+        return results;
+    }
+
+    // Mock 7-day plan for demo mode — honours the same days_per_week preference
+    function getMockCoachPlan(prefs) {
+        const p = prefs || {};
+        const daysPerWeek = p.days_per_week || 3;
+        const today = new Date();
+        const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + daysUntilMonday);
+        const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        const paceZones = { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' };
+        // A sensible weekly order: easy → long → speedwork → tempo → recovery
+        const typeOrder = ['Easy', 'Long Run', 'Speedwork', 'Tempo', 'Recovery', 'Easy'];
+        const days = [];
+        let workoutIdx = 0;
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const workout = workoutIdx < daysPerWeek
+                ? makeMockWorkout(typeOrder[workoutIdx % typeOrder.length], paceZones)
+                : null;
+            if (workout) workoutIdx++;
+            days.push({ date: localDateKey(d), day_of_week: dow[i], is_rest: !workout, workout });
+        }
+        return { week_start: localDateKey(monday), pace_zones: paceZones, days };
+    }
+
+    function makeMockWorkout(type, zones) {
+        const defs = {
+            'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.' },
+            'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.' },
+            'Long Run': { title: 'Long 16km', distance_km: 16, duration_min: 105, intensity: 'moderate', description: 'Endurance builder.' },
+            'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.' },
+            'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.' },
+            'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.' },
+        };
+        const d = defs[type] || defs['Easy'];
+        return { type, title: d.title, description: d.description, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: zones[type] || null };
+    }
+
+    async function generateCoachPlan(prefs, force) {
+        // Auto-load is guarded; an explicit Save & Generate always regenerates.
+        if (coachLoaded && !force) return;
+        if (prefs) {
+            coachPrefs = {
+                days_per_week: Number(prefs.days_per_week) || 3,
+                intensity: prefs.intensity || 'moderate',
+                distance_adj: prefs.distance_adj || 'keep',
+            };
+        }
+
+        coachErrorEl.hidden = true;
+        scheduleStatusEl.hidden = true;
+        coachCalendarEl.innerHTML = '<div class="rgd-coach-loading">Building your plan…</div>';
+        schedulePlanBtn.hidden = true;
+
+        // Demo mode uses local mocks — no API calls
+        if (window.__demoMode) {
+            coachPlanData = { history: getMockCoachHistory(), plan: getMockCoachPlan(coachPrefs) };
+            renderCoachCalendar(coachPlanData);
+            coachLoaded = true;
+            return;
+        }
+
+        try {
+            const resp = await apiCall('POST', 'coach-plan', coachPrefs);
+            const data = await resp.json();
+            if (!resp.ok) {
+                coachErrorEl.textContent = data.error || 'Failed to generate plan.';
+                coachErrorEl.hidden = false;
+                coachCalendarEl.innerHTML = '';
+                return;
+            }
+            coachPlanData = data;
+            renderCoachCalendar(coachPlanData);
+            coachLoaded = true;
+        } catch (err) {
+            coachErrorEl.textContent = 'Network error.';
+            coachErrorEl.hidden = false;
+        }
+    }
+
+    function renderCoachCalendar(data) {
+        if (!coachCalendarEl) return;
+        const history = data.history || [];
+        const plan = data.plan || {};
+        const planDays = plan.days || [];
+
+        // Index history and plan by local date
+        const historyByDate = {};
+        history.forEach(r => {
+            const key = r.start_time ? localDateKey(parseDate(r.start_time)) : null;
+            if (!key) return;
+            (historyByDate[key] = historyByDate[key] || []).push(r);
+        });
+        const planByDate = {};
+        planDays.forEach(d => { planByDate[d.date] = d; });
+
+        // Vertical agenda grouped into weeks (Monday start): today-13 back to
+        // its Monday, through the Sunday of the upcoming week.
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(today);
+        start.setDate(start.getDate() - 13);
+        start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
+        const end = new Date(start);
+        end.setDate(start.getDate() + 21 - 1); // 3 weeks (Mon-Sun)
+
+        const weeks = [];
+        const cursor = new Date(start);
+        while (cursor <= end) {
+            const week = [];
+            for (let i = 0; i < 7; i++) {
+                const key = localDateKey(cursor);
+                week.push({ date: key, history: historyByDate[key] || [], plan: planByDate[key] || null });
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            weeks.push(week);
+        }
+
+        coachCalendarEl.innerHTML = weeks.map(week => `
+            <div class="rgd-cal-week-block">
+                ${week.map(day => renderDayRow(day)).join('')}
+            </div>
+        `).join('');
+        schedulePlanBtn.hidden = false;
+    }
+
+    function renderDayRow(day) {
+        // Date label derived from the string directly to avoid timezone shifts
+        const parts = day.date.split('-').map(Number);
+        const dayNum = parts[2];
+        const dow = new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString('en-US', { weekday: 'short' });
+        const monthShort = new Date(parts[0], parts[1] - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+        const todayKey = localDateKey(new Date());
+        const isPast = day.date < todayKey;
+        const isToday = day.date === todayKey;
+
+        const cards = day.history.map(r => renderHistoryCard(r));
+        if (day.plan) cards.push(renderPlanCard(day.plan));
+
+        return `
+            <div class="rgd-cal-row ${isToday ? 'rgd-cal-row--today' : ''} ${isPast ? 'rgd-cal-row--past' : ''}">
+                <div class="rgd-cal-date">
+                    <span class="rgd-cal-date-dow">${dow}</span>
+                    <span class="rgd-cal-date-value">
+                        <span class="rgd-cal-date-num">${dayNum}</span>
+                        <span class="rgd-cal-date-month">${monthShort}</span>
+                    </span>
+                </div>
+                <div class="rgd-cal-cards">${cards.join('')}</div>
+            </div>
+        `;
+    }
+
+    function renderHistoryCard(r) {
+        const pace = formatPace(r.avg_pace);
+        const tagClass = RUN_TAG_CLASS[r.run_tag] || 'rgd-run-tag--easy';
+        return `
+            <div class="rgd-cal-activity rgd-cal-activity--past">
+                <div class="rgd-cal-activity-title">${escapeHtml(r.name || 'Run')}</div>
+                <div class="rgd-cal-activity-row">
+                    <span class="rgd-run-tag ${tagClass}">${escapeHtml(r.run_tag || 'Easy')}</span>
+                    <span class="rgd-cal-activity-meta">${r.distance} km · ${pace}/km</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderPlanCard(d) {
+        const scheduled = coachScheduledDates.has(d.date);
+        const editing = coachEditingDate === d.date;
+
+        if (d.is_rest || !d.workout) {
+            return `
+                <div class="rgd-cal-workout rgd-cal-workout--rest">
+                    <span class="rgd-cal-rest-label">Rest</span>
+                    <button class="rgd-cal-edit-btn" type="button" data-action="add-workout" data-date="${d.date}">+ Workout</button>
+                </div>
+            `;
+        }
+
+        const w = d.workout;
+        const pace = w.target_pace_min_per_km || '--';
+        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'rgd-run-tag--easy';
+
+        if (editing) {
+            return `
+                <div class="rgd-cal-workout rgd-cal-workout--editing">
+                    <div class="rgd-cal-workout-top">
+                        <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                        ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
+                    </div>
+                    <div class="rgd-plan-controls">
+                        <label class="rgd-plan-control">
+                            <span class="rgd-plan-control-label">Type</span>
+                            <select data-field="type" data-date="${d.date}">
+                                ${WORKOUT_TYPES.map(t => `<option ${t === w.type ? 'selected' : ''}>${t}</option>`).join('')}
+                            </select>
+                        </label>
+                        <label class="rgd-plan-control">
+                            <span class="rgd-plan-control-label">Distance (km)</span>
+                            <input type="number" data-field="distance_km" data-date="${d.date}" value="${w.distance_km ?? ''}" min="0" step="0.5">
+                        </label>
+                        <label class="rgd-plan-control">
+                            <span class="rgd-plan-control-label">Duration (min)</span>
+                            <input type="number" data-field="duration_min" data-date="${d.date}" value="${w.duration_min ?? ''}" min="0" step="5">
+                        </label>
+                    </div>
+                    <p class="rgd-cal-workout-pace">Target pace: ${pace}/km</p>
+                    <p class="rgd-cal-workout-desc">${escapeHtml(w.description || '')}</p>
+                    <div class="rgd-cal-workout-actions">
+                        <button class="rgd-cal-save-btn" type="button" data-action="save" data-date="${d.date}">Done</button>
+                        <button class="rgd-cal-rest-toggle" type="button" data-action="mark-rest" data-date="${d.date}">Rest day</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="rgd-cal-workout ${scheduled ? 'rgd-cal-workout--scheduled' : ''}">
+                <div class="rgd-cal-workout-title">${escapeHtml(w.title || w.type)}</div>
+                <div class="rgd-cal-workout-row">
+                    <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                    <span class="rgd-cal-workout-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
+                    ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
+                    <button class="rgd-cal-edit-btn" type="button" data-action="edit" data-date="${d.date}">Edit</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function updatePlanDay(dateKey, field, value) {
+        if (!coachPlanData || !coachPlanData.plan) return;
+        const day = coachPlanData.plan.days.find(x => x.date === dateKey);
+        if (!day || !day.workout) return;
+        if (field === 'date') {
+            day.date = value;
+        } else if (field === 'distance_km' || field === 'duration_min') {
+            day.workout[field] = value === '' || value === null ? null : Number(value);
+        } else if (field === 'type') {
+            day.workout.type = value;
+            // Pace is derived from the workout type — recompute from pace_zones
+            const zones = coachPlanData.plan.pace_zones || {};
+            if (zones[value]) day.workout.target_pace_min_per_km = zones[value];
+        } else {
+            day.workout[field] = value;
+        }
+        renderCoachCalendar(coachPlanData);
+    }
+
+    // Event delegation — edits re-render the whole calendar, keyed by date
+    coachCalendarEl.addEventListener('change', (e) => {
+        const input = e.target.closest('[data-field]');
+        if (!input) return;
+        updatePlanDay(input.getAttribute('data-date'), input.getAttribute('data-field'), input.value);
+    });
+
+    coachCalendarEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn || !coachPlanData || !coachPlanData.plan) return;
+        const dateKey = btn.getAttribute('data-date');
+        const action = btn.getAttribute('data-action');
+
+        if (action === 'edit') {
+            coachEditingDate = dateKey;
+            renderCoachCalendar(coachPlanData);
+            return;
+        }
+        if (action === 'save') {
+            coachEditingDate = null;
+            renderCoachCalendar(coachPlanData);
+            return;
+        }
+
+        const day = coachPlanData.plan.days.find(x => x.date === dateKey);
+        if (!day) return;
+        if (action === 'mark-rest') {
+            day.is_rest = true;
+            day.workout = null;
+            coachEditingDate = null;
+        } else if (action === 'add-workout') {
+            const zones = coachPlanData.plan.pace_zones || {};
+            day.is_rest = false;
+            day.workout = { type: 'Easy', title: 'Easy Run', description: 'Easy aerobic run.', distance_km: 5, duration_min: 35, intensity: 'easy', target_pace_min_per_km: zones['Easy'] || '6:30' };
+        }
+        renderCoachCalendar(coachPlanData);
+    });
+
+    // The 3-position distance slider maps to a direction, not a raw number
+    const DISTANCE_ADJ = ['reduce', 'keep', 'increase'];
+
+    function openPlanPrefsModal() {
+        // Pre-fill the form from the persisted preferences
+        prefDaysEl.value = String(coachPrefs.days_per_week || 3);
+        prefIntensityEl.value = coachPrefs.intensity || 'moderate';
+        const sliderIdx = DISTANCE_ADJ.indexOf(coachPrefs.distance_adj);
+        prefDistanceEl.value = String(sliderIdx >= 0 ? sliderIdx : 1);
+        planPrefsModal.hidden = false;
+        planPrefsModalClose.focus();
+    }
+
+    function closePlanPrefsModal() {
+        planPrefsModal.hidden = true;
+    }
+
+    planEditBtn.addEventListener('click', openPlanPrefsModal);
+    planPrefsModalClose.addEventListener('click', closePlanPrefsModal);
+    planPrefsCancelBtn.addEventListener('click', closePlanPrefsModal);
+    planPrefsModal.addEventListener('click', (e) => {
+        if (e.target === planPrefsModal) closePlanPrefsModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !planPrefsModal.hidden) closePlanPrefsModal();
+    });
+
+    planPrefsForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const prefs = {
+            days_per_week: Number(prefDaysEl.value) || 3,
+            intensity: prefIntensityEl.value || 'moderate',
+            distance_adj: DISTANCE_ADJ[Number(prefDistanceEl.value)] || 'keep',
+        };
+        coachPrefs = prefs;
+        writeCoachPrefs(prefs);
+        closePlanPrefsModal();
+        generateCoachPlan(prefs, true);
+    });
+
+    schedulePlanBtn.addEventListener('click', schedulePlan);
+
+    async function schedulePlan() {
+        if (!coachPlanData || !coachPlanData.plan) return;
+        const days = coachPlanData.plan.days
+            .filter(d => !d.is_rest && d.workout && !coachScheduledDates.has(d.date))
+            .map(d => ({ date: d.date, workout: d.workout }));
+
+        if (!days.length) {
+            scheduleStatusEl.textContent = 'No unscheduled workouts to send.';
+            scheduleStatusEl.hidden = false;
+            return;
+        }
+
+        schedulePlanBtn.disabled = true;
+        scheduleStatusEl.hidden = false;
+        scheduleStatusEl.textContent = 'Scheduling workouts to Garmin…';
+
+        // Demo mode: simulate success without touching Garmin
+        if (window.__demoMode) {
+            days.forEach(d => coachScheduledDates.add(d.date));
+            scheduleStatusEl.textContent = `Scheduled ${days.length} workouts (demo — nothing written to Garmin).`;
+            schedulePlanBtn.disabled = false;
+            schedulePlanBtn.hidden = true;
+            renderCoachCalendar(coachPlanData);
+            return;
+        }
+
+        try {
+            const resp = await apiCall('POST', 'schedule-plan', { days });
+            const data = await resp.json();
+            if (!resp.ok) {
+                scheduleStatusEl.textContent = data.error || 'Failed to schedule workouts.';
+            } else {
+                (data.scheduled || []).forEach(s => coachScheduledDates.add(s.date));
+                const scheduledCount = (data.scheduled || []).length;
+                const errorCount = (data.errors || []).length;
+                scheduleStatusEl.textContent = errorCount
+                    ? `Scheduled ${scheduledCount} workouts; ${errorCount} failed.`
+                    : `Scheduled ${scheduledCount} workouts to Garmin.`;
+                if (!errorCount) schedulePlanBtn.hidden = true;
+                renderCoachCalendar(coachPlanData);
+            }
+        } catch (err) {
+            scheduleStatusEl.textContent = 'Network error.';
+        } finally {
+            schedulePlanBtn.disabled = false;
+        }
+    }
+
+    // Load the plan when the Plan page is navigated to
+    window.addEventListener('hashchange', () => {
+        if (getPageFromHash() === 'plan') generateCoachPlan(coachPrefs, false);
+    });
 
     // =========================================================================
     // Restore session or default to demo mode

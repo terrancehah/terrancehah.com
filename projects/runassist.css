@@ -2931,3 +2931,641 @@ header.rgd-header-offset.rgd-header-collapsed {
         right: 1.5rem;
     }
 }
+
+/* ========== COACH PLAN PAGE ========== */
+/* Two stacked blocks: the past-2-weeks history, then the editable
+   upcoming-week plan. Reuses the card/title visual language of the rest
+   of the dashboard. */
+
+.rgd-plan-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rgd-plan-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.rgd-plan-header-row .rgd-refresh-btn {
+    width: auto;
+    padding: 0.4rem 0.9rem;
+    font-size: var(--rgd-text-label);
+}
+
+.rgd-coach-loading,
+.rgd-coach-empty {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    padding: 1rem;
+    background: var(--rgd-surface);
+    border: 0.0625rem dashed var(--rgd-border);
+    border-radius: var(--rgd-radius);
+}
+
+/* ---- Last 2 weeks history ---- */
+.rgd-coach-history {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.rgd-history-day {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.rgd-history-day-header {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.rgd-history-run {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.6rem 0.75rem;
+}
+
+.rgd-history-run-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.rgd-history-run-type {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-blue);
+    background: var(--rgd-light);
+    padding: 0.15rem 0.5rem;
+    border-radius: 62.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rgd-history-run-name {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+}
+
+.rgd-history-run-meta {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
+
+.rgd-history-run-toggle {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-blue);
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--rgd-radius-sm);
+    transition: background var(--rgd-transition);
+}
+
+.rgd-history-run-toggle:hover { background: var(--rgd-light); }
+
+.rgd-history-laps {
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.rgd-lap-row {
+    display: grid;
+    grid-template-columns: 2rem 1fr 1fr 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    padding: 0.2rem 0;
+    border-bottom: 0.0625rem dashed var(--rgd-border);
+}
+
+.rgd-lap-row:last-child { border-bottom: none; }
+.rgd-lap-idx { font-weight: 700; color: var(--rgd-navy); }
+.rgd-lap-pace { color: var(--rgd-text); }
+
+/* ---- Upcoming week plan ---- */
+.rgd-coach-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.rgd-plan-day {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.rgd-plan-day--rest {
+    border-style: dashed;
+    background: var(--rgd-bg);
+}
+
+.rgd-plan-day--scheduled {
+    border-color: var(--rgd-accent-green);
+}
+
+.rgd-plan-day-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rgd-plan-day-dow {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-subheading);
+    color: var(--rgd-navy);
+}
+
+.rgd-plan-day-date {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
+
+.rgd-plan-rest-label,
+.rgd-plan-scheduled-badge {
+    margin-left: auto;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 0.15rem 0.5rem;
+    border-radius: 62.5rem;
+}
+
+.rgd-plan-rest-label { color: var(--rgd-muted); background: var(--rgd-light); }
+.rgd-plan-scheduled-badge { color: #fff; background: var(--rgd-accent-green); }
+
+.rgd-plan-day-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.rgd-plan-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.5rem;
+}
+
+.rgd-plan-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.rgd-plan-control-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rgd-plan-control input,
+.rgd-plan-control select {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    padding: 0.45rem 0.55rem;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    background: var(--rgd-bg);
+    color: var(--rgd-text);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.rgd-plan-control input:focus,
+.rgd-plan-control select:focus {
+    border-color: var(--rgd-blue);
+    box-shadow: 0 0 0 0.1875rem rgba(69, 123, 157, 0.15);
+}
+
+.rgd-plan-day-desc {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    line-height: 1.5;
+    color: var(--rgd-muted);
+    margin: 0;
+}
+
+.rgd-plan-add-workout,
+.rgd-plan-rest-toggle {
+    align-self: flex-start;
+    background: none;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-blue);
+    padding: 0.35rem 0.75rem;
+    transition: background var(--rgd-transition), border-color var(--rgd-transition);
+}
+
+.rgd-plan-add-workout:hover,
+.rgd-plan-rest-toggle:hover {
+    background: var(--rgd-light);
+    border-color: var(--rgd-blue);
+}
+
+.rgd-plan-rest-toggle { color: var(--rgd-muted); }
+.rgd-plan-rest-toggle:hover { color: var(--rgd-accent-red); border-color: var(--rgd-accent-red); }
+
+.rgd-schedule-btn {
+    margin-top: 0.5rem;
+    width: auto;
+    align-self: flex-start;
+    padding: 0.7rem 1.5rem;
+}
+
+.rgd-coach-schedule-status,
+.rgd-coach-error {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    line-height: 1.5;
+    padding: 0.6rem 0.85rem;
+    border-radius: var(--rgd-radius-sm);
+}
+
+.rgd-coach-schedule-status {
+    color: var(--rgd-accent-green);
+    background: rgba(63, 123, 79, 0.08);
+    border-left: 0.1875rem solid var(--rgd-accent-green);
+}
+
+.rgd-coach-error {
+    color: var(--rgd-accent-red);
+    background: rgba(196, 75, 75, 0.06);
+    border-left: 0.1875rem solid var(--rgd-accent-red);
+}
+
+/* ========== COACH CALENDAR ========== */
+/* A vertical agenda: date labels on the left, activity/workout cards on the
+   right. Past activities are faded; suggested workouts are saturated. */
+
+.rgd-plan-prefs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    padding: 0.85rem 1rem;
+}
+
+.rgd-plan-pref-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 8rem;
+}
+
+.rgd-plan-pref-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rgd-plan-pref-field .rgd-input { width: 100%; }
+
+.rgd-generate-btn {
+    width: auto;
+    padding: 0.6rem 1.5rem;
+    font-size: var(--rgd-text-body);
+}
+
+.rgd-coach-calendar {
+    display: flex;
+    flex-direction: column;
+    /* gap: 0.5rem; */
+}
+
+.rgd-cal-row {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.5rem 0;
+    border-bottom: 0.0625rem dashed var(--rgd-border);
+}
+
+.rgd-cal-row:last-child { border-bottom: none; }
+.rgd-cal-row--today { background: var(--rgd-light); border-radius: var(--rgd-radius-sm); }
+
+.rgd-cal-date {
+    flex-shrink: 0;
+    width: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.2rem;
+}
+
+.rgd-cal-date-dow {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rgd-cal-date-num {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-heading);
+    color: var(--rgd-navy);
+    line-height: 1.1;
+}
+
+.rgd-cal-date-month {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+}
+
+.rgd-cal-cards {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+/* Past activity card — faded tag + muted background */
+.rgd-cal-activity {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--rgd-bg);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.4rem 0.6rem;
+}
+
+.rgd-cal-activity--past .rgd-run-tag { filter: saturate(0.45); opacity: 0.65; }
+.rgd-cal-activity--past .rgd-cal-activity-meta { color: var(--rgd-muted); }
+
+.rgd-cal-activity-meta {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    white-space: nowrap;
+}
+
+/* Suggested workout card — saturated; read-only is a single row */
+.rgd-cal-workout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--rgd-light);
+    border: 0.0625rem solid var(--rgd-sky);
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.45rem 0.6rem;
+    flex-wrap: wrap;
+}
+
+.rgd-cal-workout--scheduled { border-color: var(--rgd-accent-green); }
+.rgd-cal-workout--rest { background: var(--rgd-bg); border-style: dashed; }
+.rgd-cal-workout--editing {
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--rgd-surface);
+    border-color: var(--rgd-blue);
+}
+
+.rgd-workout-type {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-caption);
+    color: #fff;
+    background: var(--rgd-blue);
+    padding: 0.12rem 0.5rem;
+    border-radius: 62.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.rgd-cal-workout-meta {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-navy);
+    white-space: nowrap;
+}
+
+.rgd-cal-rest-label {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--rgd-muted);
+}
+
+.rgd-cal-workout-desc {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    line-height: 1.45;
+    color: var(--rgd-muted);
+    margin: 0;
+}
+
+.rgd-cal-workout-pace {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    margin: 0;
+}
+
+.rgd-cal-workout-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+}
+
+.rgd-cal-edit-btn,
+.rgd-cal-save-btn,
+.rgd-cal-rest-toggle {
+    background: none;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    padding: 0.3rem 0.65rem;
+    transition: background var(--rgd-transition), border-color var(--rgd-transition), color var(--rgd-transition);
+    white-space: nowrap;
+}
+
+.rgd-cal-edit-btn { color: var(--rgd-blue); margin-left: auto; }
+.rgd-cal-edit-btn:hover { background: var(--rgd-sky); border-color: var(--rgd-blue); }
+
+.rgd-cal-save-btn { color: var(--rgd-navy); background: var(--rgd-sky); }
+.rgd-cal-save-btn:hover { border-color: var(--rgd-blue); }
+
+.rgd-cal-rest-toggle { color: var(--rgd-muted); }
+.rgd-cal-rest-toggle:hover { color: var(--rgd-accent-red); border-color: var(--rgd-accent-red); }
+
+/* Mobile: keep the date-left agenda but tighten spacing */
+@media (max-width: 48rem) {
+    .rgd-cal-date { width: 3rem; }
+    .rgd-cal-date-num { font-size: var(--rgd-text-subheading); }
+}
+
+/* ========== PLAN PREFERENCES MODAL + CARD TWEAKS ========== */
+
+.rgd-plan-edit-btn {
+    margin-left: auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: none;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-blue);
+    padding: 0.3rem 0.7rem;
+    transition: background var(--rgd-transition), border-color var(--rgd-transition);
+}
+
+.rgd-plan-edit-btn:hover { background: var(--rgd-light); border-color: var(--rgd-blue); }
+
+.rgd-plan-prefs-card { width: min(100%, 24rem); }
+
+.rgd-plan-prefs-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.rgd-distance-slider {
+    width: 100%;
+    accent-color: var(--rgd-blue);
+}
+
+.rgd-distance-slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+}
+
+.rgd-plan-prefs-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.rgd-plan-prefs-actions .rgd-btn {
+    width: auto;
+    padding: 0.6rem 1.25rem;
+}
+
+/* Activity/workout cards: two lines — title/name on top, tag + meta below */
+.rgd-cal-activity {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.rgd-cal-activity-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-text);
+}
+
+.rgd-cal-activity-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rgd-cal-workout {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.rgd-cal-workout--rest {
+    flex-direction: row;
+    align-items: center;
+}
+
+.rgd-cal-workout-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-navy);
+}
+
+.rgd-cal-workout-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* Week separation — a bolder line between Mon-Sun blocks */
+.rgd-cal-week-block {
+    border-bottom: 0.125rem solid var(--rgd-border);
+    /* margin-bottom: 0.9rem; */
+    padding-bottom: 0.25rem;
+}
+
+.rgd-cal-week-block:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Date value — day number and month share one line */
+.rgd-cal-date-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
