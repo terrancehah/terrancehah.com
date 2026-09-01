@@ -3314,7 +3314,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (day.plan) cards.push(renderPlanCard(day.plan));
 
         return `
-            <div class="rgd-cal-row ${isToday ? 'rgd-cal-row--today' : ''} ${isPast ? 'rgd-cal-row--past' : ''}">
+            <div class="rgd-cal-row ${isToday ? 'rgd-cal-row--today' : ''} ${isPast ? 'rgd-cal-row--past' : ''}" data-date="${day.date}">
                 <div class="rgd-cal-date">
                     <span class="rgd-cal-date-dow">${dow}</span>
                     <span class="rgd-cal-date-value">
@@ -3331,11 +3331,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const pace = formatPace(r.avg_pace);
         const tagClass = RUN_TAG_CLASS[r.run_tag] || 'rgd-run-tag--easy';
         return `
-            <div class="rgd-cal-activity rgd-cal-activity--past">
-                <div class="rgd-cal-activity-title">${escapeHtml(r.name || 'Run')}</div>
-                <div class="rgd-cal-activity-row">
+            <div class="rgd-cal-card rgd-cal-card--past">
+                <div class="rgd-cal-card-title-row">
+                    <span class="rgd-cal-card-title">${escapeHtml(r.name || 'Run')}</span>
                     <span class="rgd-run-tag ${tagClass}">${escapeHtml(r.run_tag || 'Easy')}</span>
-                    <span class="rgd-cal-activity-meta">${r.distance} km · ${pace}/km</span>
+                </div>
+                <div class="rgd-cal-card-row">
+                    <span class="rgd-cal-card-meta">${r.distance} km · ${pace}/km</span>
                 </div>
             </div>
         `;
@@ -3347,9 +3349,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (d.is_rest || !d.workout) {
             return `
-                <div class="rgd-cal-workout rgd-cal-workout--rest">
+                <div class="rgd-cal-card rgd-cal-card--rest">
                     <span class="rgd-cal-rest-label">Rest</span>
-                    <button class="rgd-cal-edit-btn" type="button" data-action="add-workout" data-date="${d.date}">+ Workout</button>
                 </div>
             `;
         }
@@ -3360,8 +3361,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (editing) {
             return `
-                <div class="rgd-cal-workout rgd-cal-workout--editing">
-                    <div class="rgd-cal-workout-top">
+                <div class="rgd-cal-card rgd-cal-card--editing">
+                    <div class="rgd-cal-card-top">
                         <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
                         ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
                     </div>
@@ -3381,9 +3382,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             <input type="number" data-field="duration_min" data-date="${d.date}" value="${w.duration_min ?? ''}" min="0" step="5">
                         </label>
                     </div>
-                    <p class="rgd-cal-workout-pace">Target pace: ${pace}/km</p>
-                    <p class="rgd-cal-workout-desc">${escapeHtml(w.description || '')}</p>
-                    <div class="rgd-cal-workout-actions">
+                    <p class="rgd-cal-card-pace">Target pace: ${pace}/km</p>
+                    <p class="rgd-cal-card-desc">${escapeHtml(w.description || '')}</p>
+                    <div class="rgd-cal-card-actions">
                         <button class="rgd-cal-save-btn" type="button" data-action="save" data-date="${d.date}">Done</button>
                         <button class="rgd-cal-rest-toggle" type="button" data-action="mark-rest" data-date="${d.date}">Rest day</button>
                     </div>
@@ -3392,13 +3393,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         return `
-            <div class="rgd-cal-workout ${scheduled ? 'rgd-cal-workout--scheduled' : ''}" data-action="view" data-date="${d.date}">
-                <div class="rgd-cal-workout-title">${escapeHtml(w.title || w.type)}</div>
-                <div class="rgd-cal-workout-row">
-                    <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
-                    <span class="rgd-cal-workout-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
-                    ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
-                    <button class="rgd-cal-edit-btn" type="button" data-action="edit" data-date="${d.date}">Edit</button>
+            <div class="rgd-cal-card rgd-cal-card--suggested ${scheduled ? 'rgd-cal-card--scheduled' : ''}" draggable="true" data-action="view" data-date="${d.date}">
+                <span class="rgd-drag-handle" title="Drag to rearrange" aria-hidden="true">
+                    <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
+                </span>
+                <div class="rgd-cal-card-body">
+                    <div class="rgd-cal-card-title-row">
+                        <span class="rgd-cal-card-title">${escapeHtml(w.title || w.type)}</span>
+                        <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                    </div>
+                    <div class="rgd-cal-card-row">
+                        <span class="rgd-cal-card-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
+                        ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
+                    </div>
                 </div>
             </div>
         `;
@@ -3430,7 +3437,67 @@ document.addEventListener('DOMContentLoaded', function () {
         updatePlanDay(input.getAttribute('data-date'), input.getAttribute('data-field'), input.value);
     });
 
+    // Drag-and-drop: rearrange suggested workouts across the upcoming week.
+    let dragDate = null;
+    let coachLastDragEnd = 0;
+
+    coachCalendarEl.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('.rgd-cal-card[draggable="true"]');
+        if (!card) return;
+        dragDate = card.getAttribute('data-date');
+        card.classList.add('rgd-cal-card--dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', dragDate); } catch (err) {}
+    });
+
+    coachCalendarEl.addEventListener('dragend', (e) => {
+        const card = e.target.closest('.rgd-cal-card');
+        if (card) card.classList.remove('rgd-cal-card--dragging');
+        coachLastDragEnd = Date.now();
+        dragDate = null;
+    });
+
+    coachCalendarEl.addEventListener('dragover', (e) => {
+        const row = e.target.closest('.rgd-cal-row');
+        if (!row || !dragDate) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        row.classList.add('rgd-cal-row--drop-target');
+    });
+
+    coachCalendarEl.addEventListener('dragleave', (e) => {
+        const row = e.target.closest('.rgd-cal-row');
+        if (row) row.classList.remove('rgd-cal-row--drop-target');
+    });
+
+    coachCalendarEl.addEventListener('drop', (e) => {
+        const row = e.target.closest('.rgd-cal-row');
+        if (!row) return;
+        row.classList.remove('rgd-cal-row--drop-target');
+        const targetDate = row.getAttribute('data-date');
+        const sourceDate = dragDate || e.dataTransfer.getData('text/plain');
+        if (sourceDate && targetDate) moveWorkout(sourceDate, targetDate);
+        dragDate = null;
+    });
+
+    function moveWorkout(sourceDate, targetDate) {
+        if (!coachPlanData || !coachPlanData.plan || sourceDate === targetDate) return;
+        const days = coachPlanData.plan.days;
+        const sourceDay = days.find(x => x.date === sourceDate);
+        const targetDay = days.find(x => x.date === targetDate);
+        if (!sourceDay || !targetDay || !sourceDay.workout) return;
+        // Swap the workout and rest state between the two days
+        const workout = sourceDay.workout;
+        const isRest = sourceDay.is_rest;
+        sourceDay.workout = targetDay.workout;
+        sourceDay.is_rest = targetDay.is_rest;
+        targetDay.workout = workout;
+        targetDay.is_rest = isRest;
+        renderCoachCalendar(coachPlanData);
+    }
+
     coachCalendarEl.addEventListener('click', (e) => {
+        if (Date.now() - coachLastDragEnd < 250) return; // suppress click after a drag
         const btn = e.target.closest('[data-action]');
         if (!btn || !coachPlanData || !coachPlanData.plan) return;
         const dateKey = btn.getAttribute('data-date');
@@ -3509,11 +3576,19 @@ document.addEventListener('DOMContentLoaded', function () {
             ${stepsHtml ? `<div class="rgd-sheet-section"><span class="rgd-sheet-section-title">Workout breakdown</span><div class="rgd-sheet-steps">${stepsHtml}</div></div>` : ''}
         `;
         workoutSheet.hidden = false;
+        // Force reflow so the initial transform applies before the slide-up
+        void workoutSheet.offsetHeight;
+        workoutSheet.classList.add('rgd-sheet-overlay--open');
         workoutSheetClose.focus();
     }
 
     function closeWorkoutSheet() {
-        workoutSheet.hidden = true;
+        workoutSheet.classList.remove('rgd-sheet-overlay--open');
+        // Wait for the slide-down animation before hiding
+        workoutSheet.addEventListener('transitionend', function handler() {
+            workoutSheet.removeEventListener('transitionend', handler);
+            workoutSheet.hidden = true;
+        });
     }
 
     workoutSheetClose.addEventListener('click', closeWorkoutSheet);

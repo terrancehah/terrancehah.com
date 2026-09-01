@@ -3334,46 +3334,109 @@ header.rgd-header-offset.rgd-header-collapsed {
     min-width: 0;
 }
 
-/* Past activity card — faded tag + muted background */
-.rgd-cal-activity {
+/* ========== SHARED CALENDAR CARD ========== */
+/* Past activities and suggested workouts share the same two-line layout:
+   title + tag on the first row, meta details on the second. Visual
+   differentiation is applied per variant below. */
+.rgd-cal-card {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: var(--rgd-bg);
-    border: 0.0625rem solid var(--rgd-border);
     border-radius: var(--rgd-radius-sm);
-    padding: 0.4rem 0.6rem;
+    padding: 0.45rem 0.6rem;
+    position: relative;
 }
 
-.rgd-cal-activity--past .rgd-run-tag { filter: saturate(0.65); opacity: 0.85; }
-.rgd-cal-activity--past .rgd-cal-activity-meta { color: var(--rgd-muted); }
+/* Past activity variant — muted background, faded border, desaturated tag */
+.rgd-cal-card--past {
+    background: var(--rgd-bg);
+    border: 0.0625rem solid var(--rgd-border);
+}
+.rgd-cal-card--past .rgd-run-tag { filter: saturate(0.65); opacity: 0.85; }
+.rgd-cal-card--past .rgd-cal-card-title { color: var(--rgd-text); }
+.rgd-cal-card--past .rgd-cal-card-meta { color: var(--rgd-muted); }
 
-.rgd-cal-activity-meta {
+/* Suggested workout variant — saturated background, sky border, full-color tag */
+.rgd-cal-card--suggested {
+    background: var(--rgd-light);
+    border: 0.0625rem solid var(--rgd-sky);
+}
+.rgd-cal-card--suggested .rgd-cal-card-title { color: var(--rgd-navy); }
+.rgd-cal-card--suggested .rgd-cal-card-meta { color: var(--rgd-navy); }
+
+.rgd-cal-card--scheduled { border-color: var(--rgd-accent-green); }
+.rgd-cal-card--rest { background: var(--rgd-bg); border: 0.0625rem dashed var(--rgd-border); }
+.rgd-cal-card[draggable="true"] { cursor: grab; }
+.rgd-cal-card--dragging { opacity: 0.4; cursor: grabbing; }
+
+/* Editing variant — expanded form (hidden in UI but code preserved) */
+.rgd-cal-card--editing {
+    flex-direction: column;
+    align-items: stretch;
+    background: var(--rgd-surface);
+    border-color: var(--rgd-blue);
+}
+
+/* Card body wraps the two-line content, leaving room for the drag handle */
+.rgd-cal-card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding-right: 1.25rem;
+    gap: 0.5rem;
+}
+
+/* First row: title on the left, tag on the right */
+.rgd-cal-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rgd-cal-card-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+}
+
+/* Second row: meta details */
+.rgd-cal-card-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.rgd-cal-card-meta {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
     color: var(--rgd-muted);
     white-space: nowrap;
 }
 
-/* Suggested workout card — saturated; read-only is a single row */
-.rgd-cal-workout {
-    display: flex;
+/* Drag handle absolutely positioned at the right edge of the card */
+.rgd-drag-handle {
+    position: absolute;
+    top: 50%;
+    right: 0.4rem;
+    transform: translateY(-50%);
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    background: var(--rgd-light);
-    border: 0.0625rem solid var(--rgd-sky);
-    border-radius: var(--rgd-radius-sm);
-    padding: 0.45rem 0.6rem;
-    flex-wrap: wrap;
+    color: var(--rgd-muted);
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
 }
+.rgd-cal-card:hover .rgd-drag-handle { opacity: 1; }
+.rgd-drag-handle svg { display: block; }
 
-.rgd-cal-workout--scheduled { border-color: var(--rgd-accent-green); }
-.rgd-cal-workout--rest { background: var(--rgd-bg); border-style: dashed; }
-.rgd-cal-workout--editing {
-    flex-direction: column;
-    align-items: stretch;
-    background: var(--rgd-surface);
-    border-color: var(--rgd-blue);
+/* Drop-target highlight when dragging over a day row */
+.rgd-cal-row--drop-target {
+    background: var(--rgd-sky);
+    border-radius: var(--rgd-radius-sm);
+    outline: 0.125rem dashed var(--rgd-blue);
+    outline-offset: -0.125rem;
 }
 
 .rgd-workout-type {
@@ -3388,7 +3451,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     letter-spacing: 0.03em;
 }
 
-.rgd-cal-workout-meta {
+.rgd-cal-card-meta--suggested {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
     color: var(--rgd-navy);
@@ -3404,7 +3467,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
 }
 
-.rgd-cal-workout-desc {
+.rgd-cal-card-desc {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
     line-height: 1.45;
@@ -3412,7 +3475,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: 0;
 }
 
-.rgd-cal-workout-pace {
+.rgd-cal-card-pace {
     font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--rgd-text-label);
@@ -3420,7 +3483,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: 0;
 }
 
-.rgd-cal-workout-actions {
+.rgd-cal-card-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
@@ -3512,47 +3575,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 /* Activity/workout cards: two lines — title/name on top, tag + meta below */
-.rgd-cal-activity {
+.rgd-cal-card {
     flex-direction: column;
     align-items: stretch;
 }
 
-.rgd-cal-activity-title {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
-    font-size: var(--rgd-text-label);
-    color: var(--rgd-text);
-    padding-left: 0.5rem;
-}
-
-.rgd-cal-activity-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.rgd-cal-workout {
-    flex-direction: column;
-    align-items: stretch;
-}
-
-.rgd-cal-workout--rest {
+.rgd-cal-card--rest {
     flex-direction: row;
     align-items: center;
-}
-
-.rgd-cal-workout-title {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
-    font-size: var(--rgd-text-caption);
-    color: var(--rgd-navy);
-}
-
-.rgd-cal-workout-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
 }
 
 /* Week separation — a bolder line between Mon-Sun blocks */
@@ -3582,16 +3612,24 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-sheet-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(29, 53, 87, 0.4);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(29, 53, 87, 0);
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
     display: flex;
     align-items: flex-end;
     justify-content: center;
     z-index: 250;
+    transition: background 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease;
 }
 
 .rgd-sheet-overlay[hidden] { display: none; }
+
+/* Open state — fade in the overlay and slide up the sheet */
+.rgd-sheet-overlay--open {
+    background: rgba(29, 53, 87, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
 
 .rgd-workout-sheet {
     background: var(--rgd-surface);
@@ -3603,6 +3641,13 @@ header.rgd-header-offset.rgd-header-collapsed {
     overflow-y: auto;
     padding: 1.5rem;
     position: relative;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Slide up when the overlay is open */
+.rgd-sheet-overlay--open .rgd-workout-sheet {
+    transform: translateY(0);
 }
 
 .rgd-workout-sheet-body {
@@ -3753,5 +3798,5 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 /* Clickable suggested workout card */
-.rgd-cal-workout[data-action="view"] { cursor: pointer; }
-.rgd-cal-workout[data-action="view"]:hover { border-color: var(--rgd-blue); }
+.rgd-cal-card[data-action="view"] { cursor: pointer; }
+.rgd-cal-card[data-action="view"]:hover { border-color: var(--rgd-blue); }
