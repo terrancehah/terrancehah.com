@@ -1841,41 +1841,6 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Constrain the mileage chart so bars don't over-stretch on wide tablet screens */
 #rgd-mileage-chart { max-width: 100%; }
 
-/* Demo-mode chart loading — shimmer placeholder shown over each chart while
-   its values are "fetching" (simulated delay in demo mode). Positioned by JS
-   over the chart area; the sweep gradient animates to suggest activity. */
-.rgd-chart-loading {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--rgd-light);
-    border-radius: var(--rgd-radius-sm);
-    overflow: hidden;
-    z-index: 5;
-}
-
-.rgd-chart-loading::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(100deg, transparent 30%, rgba(69, 123, 157, 0.14) 50%, transparent 70%);
-    background-size: 200% 100%;
-    animation: rgd-chart-loading-shimmer 1.4s linear infinite;
-}
-
-.rgd-chart-loading-label {
-    position: relative;
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-label);
-    color: var(--rgd-muted);
-}
-
-@keyframes rgd-chart-loading-shimmer {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
-}
-
 .rgd-chart-card--calendar {
     display: flex;
     flex-direction: column;

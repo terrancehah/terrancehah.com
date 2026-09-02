@@ -695,12 +695,14 @@ document.addEventListener('DOMContentLoaded', function () {
             setDemoChartsLoading(true);
             showPillarsSkeleton();
             setTimeout(() => {
+                // Destroy loading charts first so the canvases are free
+                // for the real chart instances to render on
+                setDemoChartsLoading(false);
                 renderMileageChart(getMockWeeklyMileage());
                 renderPaceDistribution(mockActs);
                 renderHrPaceScatter(mockActs);
                 renderRadarChart(getMockRadarData());
                 renderPillars(getMockPillars());
-                setDemoChartsLoading(false);
             }, DEMO_CHART_LOADING_MS);
             return;
         }
@@ -2667,51 +2669,239 @@ document.addEventListener('DOMContentLoaded', function () {
     // Simulated fetch duration for demo mode — charts show a loading state
     // for this long before their mock values render
     const DEMO_CHART_LOADING_MS = 3000;
-    // Overlay elements created by setDemoChartsLoading, removed on hide
-    let demoChartLoadingEls = [];
+    // Loading chart instances — created with randomised data, morphed in
+    // place, then destroyed and replaced with real data after the delay
+    let loadingCharts = [];
+    let chartMorphRaf = null;
+    // Morph state per chart: { chart, type, current[], targets[], holds[] }
+    let chartMorphStates = [];
+    const CHART_MORPH_EASE = 0.12;
+    const CHART_MORPH_HOLD_MIN = 60;
+    const CHART_MORPH_HOLD_MAX = 120;
 
-    // Demo-mode chart loading: shows the radar skeleton (morphing data shape)
-    // plus a shimmer overlay over every other chart (mileage, pace
-    // distribution, HR vs pace). Positioned over each canvas so the card
-    // titles stay visible. Removes the overlays when values are ready.
+    // Demo-mode chart loading: creates actual Chart.js instances with
+    // randomised data that morphs in place (same easing + hold pattern as
+    // the radar skeleton), then destroys them and renders the real charts
+    // when the 3s simulated fetch completes.
     function setDemoChartsLoading(show) {
         // Radar uses its existing SVG skeleton
         showRadarSkeleton(show);
 
         if (!show) {
-            demoChartLoadingEls.forEach(el => el.remove());
-            demoChartLoadingEls = [];
+            stopChartMorph();
+            loadingCharts.forEach(c => c.destroy());
+            loadingCharts = [];
             return;
         }
 
-        // Non-radar charts that load with mock data
-        const canvases = [
-            '#rgd-mileage-chart',
-            '#rgd-pace-distribution-chart',
-            '#rgd-hr-pace-scatter',
-        ].map(sel => document.querySelector(sel)).filter(Boolean);
+        // Read theme-aware colors shared by all loading charts
+        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
 
-        canvases.forEach(canvas => {
-            // For canvases inside a fixed-height wrap (mileage), cover the
-            // whole wrap; otherwise cover just the canvas box. The host must
-            // be positioned (chart wrap/card are position:relative).
-            const wrap = canvas.closest('.rgd-chart-wrap');
-            const host = wrap || canvas.offsetParent || canvas.parentElement;
-            if (!host) return;
-            const overlay = document.createElement('div');
-            overlay.className = 'rgd-chart-loading';
-            overlay.innerHTML = '<span class="rgd-chart-loading-label">Loading chart…</span>';
-            if (wrap) {
-                overlay.style.inset = '0';
-            } else {
-                overlay.style.top = `${canvas.offsetTop}px`;
-                overlay.style.left = `${canvas.offsetLeft}px`;
-                overlay.style.width = `${canvas.offsetWidth}px`;
-                overlay.style.height = `${canvas.offsetHeight}px`;
+        // --- Mileage chart: 12 randomised bars ---
+        const mileageCanvas = document.getElementById('rgd-mileage-chart');
+        if (mileageCanvas) {
+            if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
+            const mileageLabels = Array.from({ length: 12 }, (_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() - (11 - i) * 7);
+                return d.toLocaleDateString('en-US', { month: 'short' });
+            });
+            // Deduplicate month labels like the real chart does
+            const seen = new Set();
+            for (let i = 0; i < mileageLabels.length; i++) {
+                if (seen.has(mileageLabels[i])) mileageLabels[i] = '';
+                else seen.add(mileageLabels[i]);
             }
-            host.appendChild(overlay);
-            demoChartLoadingEls.push(overlay);
-        });
+            const mileageData = Array.from({ length: 12 }, () => Math.random() * 40 + 5);
+            const mChart = new Chart(mileageCanvas, {
+                type: 'bar',
+                data: {
+                    labels: mileageLabels,
+                    datasets: [{
+                        data: mileageData,
+                        backgroundColor: 'rgba(69, 123, 157, 0.35)',
+                        borderColor: 'rgba(69, 123, 157, 0.5)',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: { ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted } },
+                        y: { beginAtZero: true, max: 50, ticks: { display: false }, grid: { color: chartGridColor } }
+                    }
+                }
+            });
+            loadingCharts.push(mChart);
+            chartMorphStates.push({
+                chart: mChart, type: 'bar',
+                current: mileageData.slice(),
+                targets: Array.from({ length: 12 }, () => Math.random() * 40 + 5),
+                holds: Array(12).fill(0),
+                min: 5, max: 45,
+            });
+        }
+
+        // --- Pace distribution chart: 5 randomised bars ---
+        const paceCanvas = document.getElementById('rgd-pace-distribution-chart');
+        if (paceCanvas) {
+            if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
+            const paceLabels = ['', '', '', '', ''];
+            const paceData = Array.from({ length: 5 }, () => Math.random() * 30 + 2);
+            const barColors = [
+                'rgba(196, 75, 75, 0.35)', 'rgba(204, 182, 42, 0.35)',
+                'rgba(63, 123, 79, 0.35)', 'rgba(38, 139, 139, 0.35)',
+                'rgba(69, 123, 157, 0.35)',
+            ];
+            const pChart = new Chart(paceCanvas, {
+                type: 'bar',
+                data: {
+                    labels: paceLabels,
+                    datasets: [{
+                        data: paceData,
+                        backgroundColor: barColors,
+                        borderColor: barColors.map(c => c.replace('0.35', '0.5')),
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: { ticks: { display: false }, grid: { display: false } },
+                        y: { beginAtZero: true, max: 40, ticks: { display: false }, grid: { color: chartGridColor } }
+                    }
+                }
+            });
+            loadingCharts.push(pChart);
+            chartMorphStates.push({
+                chart: pChart, type: 'bar',
+                current: paceData.slice(),
+                targets: Array.from({ length: 5 }, () => Math.random() * 30 + 2),
+                holds: Array(5).fill(0),
+                min: 2, max: 35,
+            });
+        }
+
+        // --- HR vs pace scatter: 15 randomised dots ---
+        const hrCanvas = document.getElementById('rgd-hr-pace-scatter');
+        if (hrCanvas) {
+            if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
+            const scatterData = Array.from({ length: 15 }, () => ({
+                x: Math.random() * 3 + 4,
+                y: Math.random() * 60 + 100,
+            }));
+            const dotColors = Array.from({ length: 15 }, () => 'rgba(61, 122, 175, 0.25)');
+            const hChart = new Chart(hrCanvas, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        data: scatterData,
+                        pointBackgroundColor: dotColors,
+                        pointBorderColor: dotColors,
+                        pointRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: {
+                            title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                            ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                            grid: { color: chartGridColor },
+                            reverse: true,
+                            min: 4, max: 7,
+                        },
+                        y: {
+                            title: { display: true, text: 'Avg Heart Rate (bpm)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
+                            ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                            grid: { color: chartGridColor },
+                            min: 100, max: 180,
+                        }
+                    }
+                }
+            });
+            loadingCharts.push(hChart);
+            chartMorphStates.push({
+                chart: hChart, type: 'scatter',
+                current: scatterData.map(p => ({ x: p.x, y: p.y })),
+                targets: scatterData.map(() => ({ x: Math.random() * 3 + 4, y: Math.random() * 60 + 100 })),
+                holds: Array(15).fill(0),
+                xMin: 4, xMax: 7, yMin: 100, yMax: 180,
+            });
+        }
+
+        startChartMorph();
+    }
+
+    // Morph loop — eases each chart's data values toward random targets,
+    // holds for 1-2s, then picks new targets. Same pattern as the radar morph.
+    function startChartMorph() {
+        if (chartMorphRaf !== null) return;
+        const tick = () => {
+            chartMorphStates.forEach(state => {
+                let changed = false;
+                for (let i = 0; i < state.current.length; i++) {
+                    if (state.holds[i] > 0) {
+                        state.holds[i]--;
+                        if (state.holds[i] === 0) {
+                            if (state.type === 'bar') {
+                                state.targets[i] = state.min + Math.random() * (state.max - state.min);
+                            } else {
+                                state.targets[i] = {
+                                    x: state.xMin + Math.random() * (state.xMax - state.xMin),
+                                    y: state.yMin + Math.random() * (state.yMax - state.yMin),
+                                };
+                            }
+                        }
+                    } else {
+                        if (state.type === 'bar') {
+                            const diff = state.targets[i] - state.current[i];
+                            state.current[i] += diff * CHART_MORPH_EASE;
+                            if (Math.abs(diff) < 0.5) {
+                                state.holds[i] = CHART_MORPH_HOLD_MIN + Math.floor(Math.random() * (CHART_MORPH_HOLD_MAX - CHART_MORPH_HOLD_MIN));
+                            }
+                        } else {
+                            const dx = state.targets[i].x - state.current[i].x;
+                            const dy = state.targets[i].y - state.current[i].y;
+                            state.current[i].x += dx * CHART_MORPH_EASE;
+                            state.current[i].y += dy * CHART_MORPH_EASE;
+                            if (Math.abs(dx) < 0.05 && Math.abs(dy) < 0.5) {
+                                state.holds[i] = CHART_MORPH_HOLD_MIN + Math.floor(Math.random() * (CHART_MORPH_HOLD_MAX - CHART_MORPH_HOLD_MIN));
+                            }
+                        }
+                        changed = true;
+                    }
+                }
+                if (changed) {
+                    // Update chart data in place — 'none' skips Chart.js animation
+                    // so the morph loop controls all motion via requestAnimationFrame
+                    state.chart.data.datasets[0].data = state.current.map(c =>
+                        state.type === 'bar' ? c : { x: c.x, y: c.y }
+                    );
+                    state.chart.update('none');
+                }
+            });
+            chartMorphRaf = requestAnimationFrame(tick);
+        };
+        tick();
+    }
+
+    function stopChartMorph() {
+        if (chartMorphRaf !== null) cancelAnimationFrame(chartMorphRaf);
+        chartMorphRaf = null;
+        chartMorphStates = [];
     }
 
     // Skeleton placeholder cards shown while AI is generating insights
