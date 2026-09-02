@@ -18,6 +18,7 @@ app = create_app("onboarding")
 @app.post("/")
 async def onboarding(
     token: str = Form(""),
+    race_name: str = Form(""),
     purpose: str = Form(""),
     distance: str = Form(""),
     time_target: str = Form(""),
@@ -32,12 +33,13 @@ async def onboarding(
 
     Accepts form data (multipart/form-data) from the dashboard onboarding form.
     The race goal is stored in the session (Redis in production, in-memory
-    locally) with a sliding 12-hour TTL. All fields except token are optional
+    locally) with a sliding 7-day TTL. All fields except token are optional
     with empty defaults.
     """
     # Validate the session exists (raises 401 if not)
     _get_session(token)
     goal = {
+        "race_name": race_name,
         "purpose": purpose,
         "distance": distance,
         "time_target": time_target,

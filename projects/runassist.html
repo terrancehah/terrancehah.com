@@ -126,6 +126,12 @@
                     </p>
                 </div>
                 <form class="rgd-onboard-form" id="rgd-onboard-form" novalidate>
+                    <!-- Race Name — optional, shown in the goal specifics panel -->
+                    <div class="rgd-field">
+                        <label for="rgd-race-name" class="rgd-label">Race Name <span class="rgd-optional">(optional)</span></label>
+                        <input type="text" id="rgd-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
+                    </div>
+
                     <!-- Race Purpose -->
                     <div class="rgd-field">
                         <label for="rgd-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>
@@ -349,24 +355,16 @@
                             <h1 class="rgd-project-title">RunAssist</h1>
                             <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights.  <span class="rgd-tap-hint">Select a card for details.</span></p>
                         </div>
+
+                        <!-- Training vitals section -->
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Training Vitals
                                 <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
                             </h2>
                             <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
                         </section>
-                        <section class="rgd-section">
-                            <div class="rgd-charts-row">
-                                <div class="rgd-chart-card">
-                                    <h3 class="rgd-card-title">Weekly Mileage</h3>
-                                    <div class="rgd-chart-wrap"><canvas id="rgd-mileage-chart"></canvas></div>
-                                </div>
-                                <div class="rgd-chart-card rgd-chart-card--calendar">
-                                    <h3 class="rgd-card-title" id="rgd-calendar-title">Calendar</h3>
-                                    <div class="rgd-calendar" id="rgd-calendar"></div>
-                                </div>
-                            </div>
-                        </section>
+
+                        <!-- Race Goal Specifics and Readiness section -->
                         <section class="rgd-section">
                             <div class="rgd-readiness-row">
                                 <!-- Race Goal Specifics — left column on laptop, top on mobile -->
@@ -427,6 +425,21 @@
                                 </div>
                             </div>
                         </section>
+
+                        <!-- Weekly mileage and calendar section -->
+                        <section class="rgd-section">
+                            <div class="rgd-charts-row">
+                                <div class="rgd-chart-card">
+                                    <h3 class="rgd-card-title">Weekly Mileage</h3>
+                                    <div class="rgd-chart-wrap"><canvas id="rgd-mileage-chart"></canvas></div>
+                                </div>
+                                <div class="rgd-chart-card rgd-chart-card--calendar">
+                                    <h3 class="rgd-card-title" id="rgd-calendar-title">Calendar</h3>
+                                    <div class="rgd-calendar" id="rgd-calendar"></div>
+                                </div>
+                            </div>
+                        </section>
+
                         <!-- Pace Distribution + HR vs Pace: 50/50 side by side on large screens -->
                         <div class="rgd-charts-row">
                             <div class="rgd-chart-card rgd-chart-card--equal">
@@ -631,6 +644,12 @@
                     </button>
                 </div>
                 <form class="rgd-edit-goal-form" id="rgd-edit-goal-form" novalidate>
+                    <!-- Race Name — optional, shown in the goal specifics panel -->
+                    <div class="rgd-field">
+                        <label for="rgd-edit-race-name" class="rgd-label">Race Name <span class="rgd-optional">(optional)</span></label>
+                        <input type="text" id="rgd-edit-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
+                    </div>
+
                     <!-- Race Purpose -->
                     <div class="rgd-field">
                         <label for="rgd-edit-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>

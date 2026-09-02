@@ -438,6 +438,7 @@
 }
 
 .rgd-required { color: var(--rgd-accent-red); font-weight: 400; }
+.rgd-optional { color: var(--rgd-muted); font-weight: 400; font-size: var(--rgd-text-caption); }
 
 /* Duration picker */
 .rgd-duration-picker {
@@ -1604,6 +1605,11 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+}
+
+/* Full-width stat — spans both grid columns for a 1-2-2 row layout */
+.rgd-goal-stat--full {
+    grid-column: 1 / -1;
 }
 
 .rgd-goal-stat-label {

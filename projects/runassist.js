@@ -425,10 +425,11 @@ document.addEventListener('DOMContentLoaded', function () {
         sessionToken = 'demo';
         displayName = 'Demo Runner';
         raceGoal = {
+            race_name: 'Kuala Lumpur Standard Chartered Half Marathon',
             purpose: 'Half Marathon',
             distance: 'Half Marathon',
             time_target: '02:10:00',
-            race_date: '2026-11-15',
+            race_date: '2026-10-03',
             weekly_mileage: '35',
             mileage_unit: 'km',
             gender: 'male',
@@ -528,6 +529,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setButtonLoading(onboardBtn, true);
         const body = {
+            race_name: $('#rgd-race-name').value,
             purpose: $('#rgd-purpose').value,
             distance: $('#rgd-purpose').value,
             time_target: timeTarget,
@@ -650,7 +652,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Build stat tiles — value and unit render inline on the same line
         // Weekly target removed per design decision; countdown is rendered separately as a highlight
+        // Race name is shown first (if set) as a full-width row, then the
+        // remaining stats fill the 2-column grid: 1-2-2 layout
         const stats = [
+            ...(goal.race_name ? [{ label: 'Race Name', value: goal.race_name, unit: '', fullWidth: true }] : []),
             { label: 'Race Type', value: goal.purpose || '--', unit: '' },
             { label: 'Race Date', value: goal.race_date ? new Date(goal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--', unit: '' },
             { label: 'Target Time', value: goal.time_target || '--', unit: '' },
@@ -658,7 +663,7 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
 
         grid.innerHTML = stats.map(s => `
-            <div class="rgd-goal-stat">
+            <div class="rgd-goal-stat${s.fullWidth ? ' rgd-goal-stat--full' : ''}">
                 <span class="rgd-goal-stat-label">${s.label}</span>
                 <div class="rgd-goal-stat-value-row">
                     <span class="rgd-goal-stat-value">${s.value}</span>
@@ -3037,6 +3042,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Pre-fill the form with current goal values
         if (raceGoal) {
+            $('#rgd-edit-race-name').value = raceGoal.race_name || '';
             $('#rgd-edit-purpose').value = raceGoal.purpose || '';
             // Parse time target "HH:MM:SS" into separate fields
             const parts = (raceGoal.time_target || '00:00:00').split(':');
@@ -3112,6 +3118,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setButtonLoading(editGoalBtn, true);
         const body = {
+            race_name: $('#rgd-edit-race-name').value,
             purpose: $('#rgd-edit-purpose').value,
             distance: $('#rgd-edit-purpose').value,
             time_target: timeTarget,
