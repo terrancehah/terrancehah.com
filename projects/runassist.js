@@ -678,23 +678,30 @@ document.addEventListener('DOMContentLoaded', function () {
         const isDemo = window.__demoMode;
 
         if (isDemo) {
-            // Use mock data — no API calls
+            // Use mock data — no API calls. Metrics/activity list/calendar
+            // render immediately; the charts + AI pillars show a loading
+            // state for DEMO_CHART_LOADING_MS to simulate the real fetch
+            // before their values appear.
             renderMetrics(getMockMetrics());
             const mockActs = generateMockActivities();
             // Overview shows 5 latest; full page shows all mock activities
             renderActivities(mockActs);
-            // Charts use the full mock set — never affected by pagination
-            renderMileageChart(getMockWeeklyMileage());
             renderCalendar(mockActs);
-            renderPaceDistribution(mockActs);
-            renderHrPaceScatter(mockActs);
-            // Show immediately — no skeletons in demo mode
-            renderRadarChart(getMockRadarData());
-            renderPillars(getMockPillars());
             // Hide the "Load more" button in demo mode — all 20 mock
             // activities are already shown
             const loadMoreBtn = $('#rgd-load-more-activities');
             if (loadMoreBtn) loadMoreBtn.hidden = true;
+            // Charts + pillars load after a simulated 3s delay in demo mode
+            setDemoChartsLoading(true);
+            showPillarsSkeleton();
+            setTimeout(() => {
+                renderMileageChart(getMockWeeklyMileage());
+                renderPaceDistribution(mockActs);
+                renderHrPaceScatter(mockActs);
+                renderRadarChart(getMockRadarData());
+                renderPillars(getMockPillars());
+                setDemoChartsLoading(false);
+            }, DEMO_CHART_LOADING_MS);
             return;
         }
 
@@ -710,6 +717,15 @@ document.addEventListener('DOMContentLoaded', function () {
         pillarsContents.forEach(el => el.hidden = true);
 
         showOverlay('Loading your training data...');
+
+        // Stale-while-revalidate: render cached metrics + mileage instantly
+        // so the dashboard appears without waiting for the API round-trip.
+        // The fresh fetch below will re-render if the data has changed.
+        const cachedMetrics = readSWRCache(METRICS_CACHE_KEY);
+        if (cachedMetrics.data) renderMetrics(cachedMetrics.data);
+        const cachedMileage = readSWRCache(MILEAGE_CACHE_KEY);
+        if (cachedMileage.data) renderMileageChart(cachedMileage.data);
+
         // Mileage data is rendered AFTER the overlay hides so the bar
         // grow-from-zero animation is visible to the user (creating the
         // chart under the overlay would play the animation invisibly).
@@ -726,7 +742,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const metricsData = await metricsResp.json();
             const activitiesData = await activitiesResp.json();
             const mileageData = await mileageResp.json();
-            if (metricsResp.ok && metricsData.metrics) renderMetrics(metricsData.metrics);
+            if (metricsResp.ok && metricsData.metrics) {
+                renderMetrics(metricsData.metrics);
+                writeSWRCache(METRICS_CACHE_KEY, metricsData.metrics);
+            }
             if (activitiesResp.ok && activitiesData.activities) {
                 const acts = activitiesData.activities;
                 // Store for the activities page pagination
@@ -747,13 +766,16 @@ document.addEventListener('DOMContentLoaded', function () {
             // Mileage chart uses dedicated weekly-mileage endpoint (not activities list)
             if (mileageResp.ok && mileageData.weeks) {
                 mileageWeeks = mileageData.weeks;
+                writeSWRCache(MILEAGE_CACHE_KEY, mileageData.weeks);
             }
         } catch (err) { console.error('Load error:', err); }
         hideOverlay();
 
         // Render the mileage chart now that the overlay is gone — its bars
-        // grow from the x-axis to their final height as a visible entrance
-        if (mileageWeeks) renderMileageChart(mileageWeeks);
+        // grow from the x-axis to their final height as a visible entrance.
+        // Skip if already rendered from cache (stale-while-revalidate) to
+        // avoid replaying the entrance animation when fresh data matches.
+        if (mileageWeeks && !cachedMileage.data) renderMileageChart(mileageWeeks);
 
         // AI radar + insight text load together — AI scores are the single
         // source of truth for both the radar chart and the pillar analysis
@@ -2394,12 +2416,63 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
+    // Stale-while-revalidate cache for metrics + weekly mileage
+    // Renders cached data instantly on page load, then fetches fresh data
+    // from the API in the background and re-renders if it changed. Cache
+    // is scoped by session token so different users never cross-pollute.
+    // =========================================================================
+
+    const METRICS_CACHE_KEY = 'rgd_metrics_cache';
+    const MILEAGE_CACHE_KEY = 'rgd_mileage_cache';
+    // 1-hour TTL — Garmin data changes on watch sync, not in real time, so
+    // an hour of reuse is safe. After TTL, the cache is still shown (stale)
+    // while a fresh fetch is triggered (revalidate).
+    const SWR_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+    // Read a stale-while-revalidate cache entry. Returns { data, isStale }
+    // — data is the cached payload (or null), isStale is true if the TTL
+    // has elapsed (caller should fetch fresh data in the background).
+    function readSWRCache(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return { data: null, isStale: true };
+            const entry = JSON.parse(raw);
+            // Invalidate cache if the session token changed
+            const scopeKey = sessionToken || 'demo';
+            if (entry.scope !== scopeKey) return { data: null, isStale: true };
+            const isStale = Date.now() - entry.timestamp > SWR_TTL_MS;
+            return { data: entry.data, isStale };
+        } catch (e) {
+            return { data: null, isStale: true };
+        }
+    }
+
+    // Write a stale-while-revalidate cache entry, scoped by session token.
+    function writeSWRCache(key, data) {
+        try {
+            localStorage.setItem(key, JSON.stringify({
+                scope: sessionToken || 'demo',
+                timestamp: Date.now(),
+                data: data,
+            }));
+        } catch (e) {
+            // localStorage full or unavailable — silently skip
+        }
+    }
+
+    // Clear all SWR caches (called on logout)
+    function clearSWRCaches() {
+        localStorage.removeItem(METRICS_CACHE_KEY);
+        localStorage.removeItem(MILEAGE_CACHE_KEY);
+    }
+
+    // =========================================================================
     // 6-Pillar AI Summary — uses /race-goal/ai-radar with localStorage cache
-    // Cache keyed by session token + race goal hash, 6-hour TTL
+    // Cache keyed by session token + race goal hash, 24-hour TTL
     // =========================================================================
 
     const AI_CACHE_KEY = 'rgd_ai_radar_cache';
-    const AI_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+    const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     // Build a deterministic cache key from the session token and race goal
     function getAICacheKey() {
@@ -2495,6 +2568,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // setting hidden=true — this creates a smooth crossfade with the chart
     // canvas which fades in simultaneously.
     function showRadarSkeleton(show) {
+        if (show) startRadarMorph(); else stopRadarMorph();
         document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
             if (show) {
                 // Showing: unhide immediately and fade in
@@ -2514,9 +2588,134 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Radar loading morph — while the skeleton is visible, the data polygon
+    // keeps morphing between random shapes (vertices eased toward random
+    // radii), suggesting values are still being computed. The hexagon grid
+    // stays static; only the data shape + its vertex dots move.
+    let radarMorphRaf = null;
+    // Per-skeleton state: [polygon element, dot elements, current radii, target radii]
+    let radarMorphStates = [];
+    // Vertex angles (radians) for the 6 dimensions, starting at top (12 o'clock)
+    const RADAR_MORPH_ANGLES = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, (5 * Math.PI) / 6, (7 * Math.PI) / 6];
+    const RADAR_MORPH_CENTER = 100;      // hexagon centre in the 200x200 viewBox
+    const RADAR_MORPH_MIN_R = 24;        // min vertex radius (stays inside the grid)
+    const RADAR_MORPH_MAX_R = 76;        // max vertex radius (stays inside the grid)
+    const RADAR_MORPH_EASE = 0.12;       // per-frame ease toward the target radius
+    // Hold frames (1-2s at 60fps) a vertex stays at its target radius before
+    // morphing again — sets the interval between shape changes
+    const RADAR_MORPH_HOLD_MIN = 60;
+    const RADAR_MORPH_HOLD_MAX = 120;
+
+    function startRadarMorph() {
+        if (radarMorphRaf !== null) return; // already running
+        radarMorphStates = [];
+        document.querySelectorAll('.rgd-radar-skeleton').forEach(skel => {
+            const poly = skel.querySelector('.rgd-radar-morph');
+            const dots = Array.from(skel.querySelectorAll('.rgd-radar-morph-dot'));
+            if (!poly) return;
+            const radii = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
+            const targets = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
+            // Frames remaining before each vertex may morph again — starts at 0
+            // so vertices move on load, then desync via random holds
+            const holds = Array(6).fill(0);
+            radarMorphStates.push({ poly, dots, radii, targets, holds });
+        });
+        if (!radarMorphStates.length) return;
+
+        const tick = () => {
+            radarMorphStates.forEach(state => {
+                for (let i = 0; i < state.radii.length; i++) {
+                    const diff = state.targets[i] - state.radii[i];
+                    if (state.holds[i] > 0) {
+                        // Holding at the current target — no movement
+                        state.holds[i]--;
+                        if (state.holds[i] === 0) {
+                            state.targets[i] = RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R);
+                        }
+                    } else {
+                        // Moving toward the target
+                        state.radii[i] += diff * RADAR_MORPH_EASE;
+                        if (Math.abs(diff) < 0.6) {
+                            // Reached the target — hold before the next morph
+                            state.holds[i] = RADAR_MORPH_HOLD_MIN + Math.floor(Math.random() * (RADAR_MORPH_HOLD_MAX - RADAR_MORPH_HOLD_MIN));
+                        }
+                    }
+                }
+                // Rebuild the polygon points and move the vertex dots with it
+                const pts = state.radii.map((r, i) => {
+                    const x = RADAR_MORPH_CENTER + r * Math.cos(RADAR_MORPH_ANGLES[i]);
+                    const y = RADAR_MORPH_CENTER + r * Math.sin(RADAR_MORPH_ANGLES[i]);
+                    if (state.dots[i]) {
+                        state.dots[i].setAttribute('cx', x.toFixed(1));
+                        state.dots[i].setAttribute('cy', y.toFixed(1));
+                    }
+                    return `${x.toFixed(1)},${y.toFixed(1)}`;
+                }).join(' ');
+                state.poly.setAttribute('points', pts);
+            });
+            radarMorphRaf = requestAnimationFrame(tick);
+        };
+        tick();
+    }
+
+    function stopRadarMorph() {
+        if (radarMorphRaf !== null) cancelAnimationFrame(radarMorphRaf);
+        radarMorphRaf = null;
+        radarMorphStates = [];
+    }
+
+    // Simulated fetch duration for demo mode — charts show a loading state
+    // for this long before their mock values render
+    const DEMO_CHART_LOADING_MS = 3000;
+    // Overlay elements created by setDemoChartsLoading, removed on hide
+    let demoChartLoadingEls = [];
+
+    // Demo-mode chart loading: shows the radar skeleton (morphing data shape)
+    // plus a shimmer overlay over every other chart (mileage, pace
+    // distribution, HR vs pace). Positioned over each canvas so the card
+    // titles stay visible. Removes the overlays when values are ready.
+    function setDemoChartsLoading(show) {
+        // Radar uses its existing SVG skeleton
+        showRadarSkeleton(show);
+
+        if (!show) {
+            demoChartLoadingEls.forEach(el => el.remove());
+            demoChartLoadingEls = [];
+            return;
+        }
+
+        // Non-radar charts that load with mock data
+        const canvases = [
+            '#rgd-mileage-chart',
+            '#rgd-pace-distribution-chart',
+            '#rgd-hr-pace-scatter',
+        ].map(sel => document.querySelector(sel)).filter(Boolean);
+
+        canvases.forEach(canvas => {
+            // For canvases inside a fixed-height wrap (mileage), cover the
+            // whole wrap; otherwise cover just the canvas box. The host must
+            // be positioned (chart wrap/card are position:relative).
+            const wrap = canvas.closest('.rgd-chart-wrap');
+            const host = wrap || canvas.offsetParent || canvas.parentElement;
+            if (!host) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'rgd-chart-loading';
+            overlay.innerHTML = '<span class="rgd-chart-loading-label">Loading chart…</span>';
+            if (wrap) {
+                overlay.style.inset = '0';
+            } else {
+                overlay.style.top = `${canvas.offsetTop}px`;
+                overlay.style.left = `${canvas.offsetLeft}px`;
+                overlay.style.width = `${canvas.offsetWidth}px`;
+                overlay.style.height = `${canvas.offsetHeight}px`;
+            }
+            host.appendChild(overlay);
+            demoChartLoadingEls.push(overlay);
+        });
+    }
+
     // Skeleton placeholder cards shown while AI is generating insights
-    function showPillarsSkeleton() {
-        const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
+    function showPillarsSkeleton() {        const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
             <div class="rgd-pillar-card rgd-pillar-card--skeleton">
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
@@ -3000,6 +3199,8 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem('rgd_display_name');
         localStorage.removeItem('rgd_profile_image_url');
         clearAICache(); // clear cached AI insights when logging out
+        clearCoachCache(); // clear cached coach plan when logging out
+        clearSWRCaches(); // clear cached metrics + mileage when logging out
         loginForm.reset(); onboardForm.reset();
         // Return to demo mode instead of login screen
         startDemoMode();
@@ -3026,7 +3227,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const workoutSheetBody = $('#rgd-workout-sheet-body');
 
     const COACH_CACHE_KEY = 'rgd_coach_plan_cache';
-    const COACH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
+    const COACH_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }
     let coachLoaded = false;    // whether the plan has been fetched this session
@@ -3584,11 +3785,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function closeWorkoutSheet() {
         workoutSheet.classList.remove('rgd-sheet-overlay--open');
-        // Wait for the slide-down animation before hiding
-        workoutSheet.addEventListener('transitionend', function handler() {
-            workoutSheet.removeEventListener('transitionend', handler);
+        // Wait for the exit animation before hiding — listen on the sheet
+        // element since both the slide-down (mobile) and scale-out (desktop)
+        // transitions happen there via transform
+        const sheet = workoutSheet.querySelector('.rgd-workout-sheet');
+        const onEnd = () => {
             workoutSheet.hidden = true;
-        });
+            sheet.removeEventListener('transitionend', onEnd);
+        };
+        sheet.addEventListener('transitionend', onEnd);
+        // Safety fallback: if transitionend never fires (e.g. prefers-reduced-motion),
+        // hide after a timeout matching the longest transition
+        setTimeout(() => { workoutSheet.hidden = true; }, 400);
     }
 
     workoutSheetClose.addEventListener('click', closeWorkoutSheet);
@@ -3745,6 +3953,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 localStorage.removeItem('rgd_session_token');
                 localStorage.removeItem('rgd_display_name');
                 localStorage.removeItem('rgd_profile_image_url');
+                clearSWRCaches();
+                clearAICache();
+                clearCoachCache();
                 startDemoMode();
             }
         }).catch(() => {

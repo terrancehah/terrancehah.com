@@ -156,7 +156,7 @@ _local_sessions: Dict[str, dict] = {}
 
 # Redis key prefix and session TTL (sliding expiration)
 SESSION_PREFIX = "race:session:"
-SESSION_TTL = 3600 * 12  # 12 hours — refreshed on each successful access
+SESSION_TTL = 3600 * 24 * 7  # 7 days — refreshed on each successful access
 
 
 def _save_session(token: str, data: dict, ttl: int = SESSION_TTL):
@@ -179,7 +179,7 @@ def _get_session(token: str) -> dict:
 
     Raises HTTPException(401) if the token doesn't exist or has expired.
     Refreshes the TTL on each successful access (sliding expiration) so
-    active sessions stay alive while inactive ones expire after 12 hours.
+    active sessions stay alive while inactive ones expire after 7 days.
     """
     if _redis:
         raw = _redis.get(f"{SESSION_PREFIX}{token}")

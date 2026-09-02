@@ -394,30 +394,31 @@
                                             <svg class="rgd-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                                                 <!-- Outer hexagon (radar boundary) -->
                                                 <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
-                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.6"/>
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.7"/>
                                                 <!-- Middle grid line -->
                                                 <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.35"/>
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.45"/>
                                                 <!-- Inner grid line -->
                                                 <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.2"/>
+                                                    fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.3"/>
                                                 <!-- Axis lines from center to each vertex -->
-                                                <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                                <!-- Shimmer fill over the data area -->
-                                                <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                    fill="rgba(69,123,157,0.08)" class="rgd-radar-skeleton-fill"/>
-                                                <!-- Vertex dots (6) matching the 6 dimensions -->
-                                                <circle cx="100" cy="20" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                                <circle cx="170" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                                <circle cx="170" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                                <circle cx="100" cy="180" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                                <circle cx="30" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                                <circle cx="30" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                                <!-- Morphing data shape — JS randomises the vertices while loading,
+                                                     then the real chart fades in with the actual values -->
+                                                <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
+                                                    fill="rgba(61,122,175,0.16)" class="rgd-radar-skeleton-fill rgd-radar-morph"/>
+                                                <!-- Vertex dots (6) — follow the morphing shape during loading -->
+                                                <circle cx="100" cy="20" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                                <circle cx="170" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                                <circle cx="170" cy="140" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                                <circle cx="100" cy="180" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                                <circle cx="30" cy="140" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                                <circle cx="30" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
                                             </svg>
                                             <!-- Loading hint — makes the placeholder state unmistakable -->
                                             <div class="rgd-radar-skeleton-label">Analyzing your readiness…</div>
@@ -483,25 +484,28 @@
                                     <div class="rgd-radar-skeleton" hidden>
                                         <svg class="rgd-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                                             <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
-                                                fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.6"/>
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1.5" opacity="0.7"/>
                                             <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.35"/>
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.45"/>
                                             <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.2"/>
-                                            <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.3"/>
-                                            <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                fill="rgba(69,123,157,0.08)" class="rgd-radar-skeleton-fill"/>
-                                            <circle cx="100" cy="20" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                            <circle cx="170" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                            <circle cx="170" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                            <circle cx="100" cy="180" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                            <circle cx="30" cy="140" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
-                                            <circle cx="30" cy="60" r="2.5" fill="var(--rgd-muted)" opacity="0.35"/>
+                                                fill="none" stroke="var(--rgd-border)" stroke-width="1" opacity="0.3"/>
+                                            <line x1="100" y1="100" x2="100" y2="20" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <line x1="100" y1="100" x2="170" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <line x1="100" y1="100" x2="170" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <line x1="100" y1="100" x2="100" y2="180" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <line x1="100" y1="100" x2="30" y2="140" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <line x1="100" y1="100" x2="30" y2="60" stroke="var(--rgd-border)" stroke-width="0.5" opacity="0.4"/>
+                                            <!-- Morphing data shape — JS randomises the vertices while loading,
+                                                 then the real chart fades in with the actual values -->
+                                            <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
+                                                fill="rgba(61,122,175,0.16)" class="rgd-radar-skeleton-fill rgd-radar-morph"/>
+                                            <!-- Vertex dots (6) — follow the morphing shape during loading -->
+                                            <circle cx="100" cy="20" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                            <circle cx="170" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                            <circle cx="170" cy="140" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                            <circle cx="100" cy="180" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                            <circle cx="30" cy="140" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
+                                            <circle cx="30" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
                                         </svg>
                                         <!-- Loading hint — makes the placeholder state unmistakable -->
                                         <div class="rgd-radar-skeleton-label">Analyzing your readiness…</div>
@@ -866,7 +870,7 @@
             </div>
         </div>
 
-        <!-- Workout detail sheet — slides up from the bottom when a suggested workout is tapped -->
+        <!-- Workout detail — bottom sheet on mobile/tablet, centered modal on desktop -->
         <div class="rgd-sheet-overlay" id="rgd-workout-sheet" hidden>
             <div class="rgd-workout-sheet">
                 <button class="rgd-modal-close" id="rgd-workout-sheet-close" title="Close" aria-label="Close workout details">
