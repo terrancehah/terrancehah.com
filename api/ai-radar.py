@@ -134,119 +134,106 @@ async def ai_radar(token: str = ""):
 
     physio_text = "\n\n".join(physio_parts) if physio_parts else "No physiological trend data available."
 
-    prompt = f"""You are an expert running coach and sports scientist. 
-Evaluate this runner's recent training data and rate their readiness across 6 performance dimensions on a scale of 0–10 (no decimals allowed). 
-Address the runner directly as "you" throughout your analysis.
+    prompt = f"""You are a running coach. Rate this runner's readiness for their race goal across 6 dimensions on a 0–10 integer scale. Address the runner as "you".
 
-SCORING PHILOSOPHY (strictly follow this):
-- Be conservative and evidence-based. Only award high scores when the data (both activities AND physiological trends) clearly supports them.
-- A score of 7.0 means the runner is roughly on track for the stated race goal with normal training progression.
-- 8.0 means they are ahead of schedule or showing strong specific fitness for the goal.
-- 9.0+ is rare and requires clear, repeated evidence of superior readiness.
-- Below 6.0 indicates a meaningful gap that needs addressing before race day.
-- Do not inflate scores out of politeness. Prefer under-rating when evidence is weak, missing, or inconsistent.
-- Always interpret the data relative to the specific race goal and time target provided above.
-- Use physiological trend data (VO2max, HRV, RHR, sleep) to validate or question what the activity data suggests. If physiological trends contradict activity data, weigh the physiological data more heavily — the body's recovery signals don't lie.
-- Prioritise multi-day or weekly trends in HRV, RHR and sleep over single-day values. A single bad night of sleep or one low-HRV reading is noise; a week-long decline is a signal.
-- Heart-rate interpretation must be personal, never absolute. Do not call a bpm "high", "low", "elevated", or "controlled" based on population averages — everyone's max HR differs, so the same bpm can be easy for one runner and hard for another. Always interpret heart rates relative to the HEART RATE PROFILE provided (compare to max HR as a percentage and to the zones). For example, say "165 bpm is roughly 85% of your max (194), firmly in your threshold zone" instead of "165 bpm is high". If no profile or observed max HR is available, hedge explicitly (e.g. "moderately elevated for most runners") and avoid strong claims about heart-rate effort.
-
-TONE & FEEDBACK STYLE (important):
-- Be honest but constructive and supportive. You are a coach who wants the runner to succeed.
-- When the score is 7.0 or above, the overall tone should feel encouraging and affirming.
-- When writing "gaps", frame them as clear opportunities for improvement rather than pure shortcomings. Focus on what can be developed next and why it will help the race goal.
-- Avoid overly critical or discouraging language. Even when pointing out limitations, keep the tone forward-looking.
-- Strengths should feel genuinely positive and specific.
+SCORING
+- Conservative and evidence-based. Do not inflate scores.
+- 7 = on track for this goal with normal training.
+- 8 = ahead of schedule or clearly strong for the goal.
+- 9–10 = rare; needs repeated, clear evidence.
+- 6 = usable but a real limiter remains.
+- 5 or below = this area needs focused work before race day.
+- Judge everything against the race goal and time target.
+- Use physiological trends (VO2max, HRV, RHR, sleep) to confirm or challenge the workouts. If they disagree, trust the body-signal trend more than one good session.
+- Use weekly trends, not one-off days. One bad sleep or one low HRV reading is noise.
+- Interpret heart rate only against the HEART RATE PROFILE (percent of max and zones). Never call a bpm high or low in the abstract. For your own reasoning you may use % of max and zone. In the written output, pick only one form: "comfortably hard", "easy zone", or a single bpm.
 
 {race_goal_text}
 
 RECENT ACTIVITIES (last 30):
 {json.dumps(activities_data, indent=2)}
 
-NOTE ON PACES: "avg_pace_ms" is metres per second. Convert it to runner-friendly pace before quoting: seconds per km = 1000 / avg_pace_ms, formatted as MM:SS/km (e.g. 3.20 m/s = 5:13/km). Never quote m/s values.
+PACE: avg_pace_ms is metres per second. Convert before writing: sec/km = 1000 / avg_pace_ms, then MM:SS/km. Never write m/s. Check the maths before saying faster or slower than goal pace.
 
-NOTE ON LAPS: Some speedwork sessions include a "laps" array (per-lap duration_s, distance_m, avg_pace_ms, avg_hr, max_hr) plus work_lap_count / rest_lap_count and work_avg_pace_ms / rest_avg_pace_ms. Work laps are those at or faster than goal pace (the actual reps); rest laps are the recovery between them. When analysing these sessions, use the work-lap pace as the true effort and treat rest laps as recovery — do NOT let the blended average pace hide that a session was interval/tempo work, and do not call it an easy run because its overall average looks slow.
+LAPS: If a session has laps, work_avg_pace_ms / rest_avg_pace_ms, use work-lap pace as the real effort. Do not treat a session as easy just because the blended average looks slow.
 
-PHYSIOLOGICAL DATA (60-day history — use these trends to cross-reference and deepen your analysis):
+PHYSIOLOGICAL DATA (60-day trends):
 {physio_text}
 
-1. **Lactate Threshold** — Ability to sustain near-goal intensity without excessive fatigue accumulation.
-   Primary evidence: continuous or near-continuous work at/near goal pace, HR control at that intensity, and the duration of threshold efforts. Prioritise sessions where the runner held a sustained pace — not intervals with rest breaks.
-   Scoring anchors:
-   - 9–10: Multiple recent sessions clearly showing ability to hold goal race pace (or faster) for meaningful durations with controlled heart rate.
-   - 7–8: Solid tempo/threshold work near goal pace, or ability to hold goal pace for 20–40 minutes.
-   - 5–6: Some threshold work exists but is too short, too slow relative to goal, or shows significant HR drift.
-   - ≤4: Little to no quality work near goal intensity.
-   - If lactate threshold data is present, use it as ground truth to anchor your assessment.
+DIMENSIONS
+For each dimension, use only its primary evidence as the lead proof. Do not let the same run anchor more than two dimensions.
 
-2. **Aerobic Endurance** — Cardiovascular base and ability to sustain long-duration efforts at conversational effort.
-   Primary evidence: long run quality at controlled effort, weekly volume, and how easy the easy runs actually are (pace + HR on easy days). Focus on the longest runs and the weekly mileage pattern — not speed sessions.
-   Scoring anchors:
-   - 9–10: Strong weekly volume + consistent long runs + improving or stable VO2max trend that clearly supports the race distance and time goal.
-   - 7–8: Adequate volume and long-run frequency for the goal, with mostly controlled easy effort. VO2max trend is stable or improving.
-   - 5–6: Volume or long-run quality is only borderline for the goal distance/time. VO2max may be flat or declining.
-   - ≤4: Clearly insufficient aerobic volume or long-run stimulus for the target race, with weak or declining VO2max trend.
-   - Use the endurance score trend and VO2max trend to validate your assessment of aerobic development.
+1. Lactate Threshold — holding near-race effort without fading.
+    Primary evidence: continuous or near-continuous running at/near goal pace, how long it lasted, and whether the effort stayed controlled. Ignore interval sessions with rest breaks here.
+    9–10: several recent blocks at goal pace (or faster) for a meaningful stretch, effort staying controlled.
+    7–8: solid tempo work near goal pace, or 20–40 min at goal pace.
+    5–6: some threshold work, but too short, too slow, or the effort drifts.
+    ≤4: almost no work near goal intensity.
+    If a lactate-threshold measurement exists, use it to anchor the score. If it does not, do not mention that absence.
 
-3. **Running Economy** — Movement efficiency at a given pace, especially near goal pace.
-   Primary evidence: cadence stability across runs, HR cost at a given pace (HR-to-pace ratio), and consistency of mechanics — especially near goal pace or on tired legs. Compare the HR required to hold a similar pace across different sessions to detect efficiency changes.
-   Physiological data has limited value for this dimension — rely primarily on activity efficiency signals (cadence stability, HR-to-pace ratio, pace consistency).
-   Scoring anchors:
-   - 9–10: Stable, efficient mechanics (cadence + pace consistency) at or near goal pace across multiple sessions.
-   - 7–8: Generally good efficiency on easy and moderate runs, with reasonable economy at goal intensity.
-   - 5–6: Noticeable variability in cadence or rising HR at paces close to goal.
-   - ≤4: Clear signs of poor efficiency or high energy cost at relevant paces.
+2. Aerobic Endurance — easy long-running base.
+    Primary evidence: long runs, weekly mileage, and whether easy days were actually easy. Do not use speed sessions here.
+    9–10: strong volume, consistent long runs, and a stable or rising VO2max that supports the race.
+    7–8: adequate volume and long-run frequency; most easy running is controlled; VO2max stable or rising.
+    5–6: volume or long-run quality only borderline for the goal.
+    ≤4: not enough aerobic work for this race.
 
-4. **Strength / Durability** — Musculoskeletal resilience and ability to handle training load without breakdown.
-   Primary evidence: elevation gain, back-to-back loading (hard session followed by another session), ability to absorb hard sessions without breaking down, and recovery signals (HRV/RHR/sleep) in the days after high load. Look for hill work and consecutive training days — not single flat easy runs.
-   Scoring anchors:
-   - 9–10: Consistent training load, good hill work, and strong recovery capacity in HRV/sleep trends.
-   - 7–8: Solid load consistency and some strength stimulus (hills, longer efforts). Recovery metrics are generally stable.
-   - 5–6: Training lacks variety or progression, or shows early strain in HRV/sleep data.
-   - ≤4: Inconsistent load, limited strength stimulus, or concerning fatigue patterns in physiological data.
+3. Running Economy — how expensive a pace feels.
+    Primary evidence: cadence stability and heart-rate cost at a similar pace, especially near goal pace or when tired. Physiological trends help little here.
+    9–10: stable, efficient form at or near goal pace across several runs.
+    7–8: generally economical on easy/moderate runs, reasonable at goal pace.
+    5–6: cadence jumps around, or the same pace costs much more heart rate.
+    ≤4: clearly expensive or messy at relevant paces.
 
-5. **VO₂max / Speed** — Maximal aerobic capacity and speed reserve above goal pace.
-   Primary evidence: clear speed reserve (how much faster than goal pace the runner can run), quality of high-intensity work (intervals, repeats), and repeatability of fast efforts within a session. Focus on the fastest sessions and the gap between those paces and goal pace — not endurance volume.
-   Scoring anchors:
-   - 9–10: Clear, repeated high-intensity work showing meaningful speed reserve above goal pace, supported by an improving VO2max trend.
-   - 7–8: Some quality interval or speed work that demonstrates useful speed reserve. VO2max trend is stable or slightly improving.
-   - 5–6: Limited true high-intensity stimulus; speed reserve is unclear or marginal. VO2max trend may be flat.
-   - ≤4: Almost no dedicated speed/VO₂max development relevant to the goal, with weak or declining VO2max.
-   - The VO2max trend is the primary physiological validator for this dimension — a declining VO2max should pull the score down even if workouts look decent.
+4. Strength / Durability — legs and body handling load.
+    Primary evidence: hills/elevation, strength or hike sessions, and whether training continued after hard days without a break in the log. Use RHR/HRV/sleep after hard load only if present.
+    9–10: consistent load, useful hill/strength work, recovery looking solid.
+    7–8: regular load plus some hills or longer efforts; recovery mostly stable.
+    5–6: little variety, or recovery starting to look strained.
+    ≤4: inconsistent load or clear breakdown patterns.
 
-6. **Fatigue Resistance** — Ability to maintain performance quality under accumulated fatigue.
-   Primary evidence: performance on consecutive days (back-to-back sessions), late-run pace maintenance (does pace hold in the final third of long runs?), and how well the runner bounces back — cross-reference HRV/RHR/sleep trends with next-day performance. Look for patterns across multiple days, not single workouts.
-   Scoring anchors:
-   - 9–10: Maintains pace/effort on tired legs (back-to-back hard days, late-run stability). HRV balanced/improving, RHR stable or declining, sleep consistently good.
-   - 7–8: Absorbs training and performs on subsequent days. Recovery metrics show normal variation without concerning trends.
-   - 5–6: Performance drops when fatigue accumulates. HRV declining, RHR rising, or sleep inconsistent.
-   - ≤4: Cannot handle consecutive quality sessions. Recovery metrics show strong negative trends.
-   - HRV, RHR, and sleep trends are the PRIMARY evidence sources here. Cross-reference recovery with workout quality on days following poor recovery.
+5. VO2max / Speed — speed reserve above race pace.
+    Primary evidence: how much faster than goal pace the runner can run, and whether those fast reps were repeated in-session. Use VO2max trend as the physiological check.
+    9–10: repeated fast work well quicker than goal pace, with VO2max rising.
+    7–8: some real interval/speed work and a useful gap above goal pace; VO2max stable or slightly up.
+    5–6: little true speed work, or the reserve is unclear.
+    ≤4: almost no speed development; weak or falling VO2max pulls this down.
 
-For each dimension, provide:
-- "score": integer from 0–10 (no decimals)
-- "summary": 2–3 sentences giving a high-level overview of your rating. Keep it general and qualitative (no specific paces, distances, or heart rates). Make the tone constructive. If the score is 7.0 or higher, the summary should feel reassuring and forward-looking.
-- "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific data from the activities AND/OR physiological trends above (paces, distances, heart rates, cadences, VO2max values, HRV trends, RHR trends, sleep scores).
-- "gaps": 2–3 sentences describing the areas that can still be improved relative to the race goal. Reference specific data. Frame these as clear next opportunities rather than pure shortcomings.
+6. Fatigue Resistance — quality when already tired.
+    Primary evidence: back-to-back days, next-day session quality, and late-run splits if they exist. Use RHR/HRV/sleep trends if present; if they are missing, score from session sequencing only and do not mention the missing fields.
+    9–10: holds pace on tired legs; recovery trends look good.
+    7–8: can train the next day and still perform; recovery varies normally.
+    5–6: quality drops when sessions stack; recovery trend is mixed or rising strain.
+    ≤4: cannot handle consecutive quality days.
 
-Important rules:
-- Be specific in strengths and gaps. Generic comments without numbers from the data are not acceptable.
-- Keep the summary general — no specific numbers.
-- Keep strengths and gaps focused only on that dimension.
-- Do not invent data that is not present in the activities list or physiological data.
-- When physiological data contradicts activity data, explain the tension and explain why you weighted one more heavily.
-- If physiological data is sparse or missing for a dimension, note that in your assessment and rely more heavily on activity data.
-- Maintain a supportive coaching tone throughout.
-- NEVER express pace in metres per second (m/s) or any non-runner unit — runners read pace as minutes:seconds per kilometre. Always convert before quoting (e.g. "5:13/km", never "3.20 m/s"), or state it relative to goal pace (e.g. "about 10 seconds per km slower than your goal pace"). If you cite a pace, always state it in min/km format.
-- When comparing a run's pace to the goal pace, actually verify the comparison mathematically before claiming "faster than" or "slower than" — a run at 3.10 m/s is NOT faster than a 3.20 m/s goal.
-
-EVIDENCE SELECTION (critical — follow strictly):
-- Each dimension has a "Primary evidence" line above. When choosing which sessions and data points to cite in strengths/gaps, prioritise evidence that matches that dimension's primary focus.
-- Minimise repeating the same workout across dimensions. If a session is the best evidence for dimension A, do not also use it as the lead evidence for dimension B — find a different session or physiological trend instead. Some overlap is unavoidable, but the same run must NOT anchor more than two dimensions. If a run is already cited in two dimensions, pick a different session for any further dimension.
-- Before citing a session, ask: "Is this the most relevant proof for THIS dimension, or am I just picking the most impressive/recent run?" If another session is more dimension-specific, use that instead.
-- Spread your evidence across the available activities. With 30 activities provided, there should be enough variety to give each dimension its own supporting sessions rather than defaulting to the same 2–3 runs for everything.
-
+OUTPUT
 Return ONLY valid JSON:
-{{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...]}}"""
+{{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...]}}
+
+Each dimension:
+- score: integer 0–10
+- summary: 2-3 sentences, no numbers. What this score means for the race. If score >= 7, sound reassuring.
+- strengths: 2-3 sentences. Sentence 1 = what this means for the race, in plain words. Sentence 2 = one proof (one date + one number, or one comparison).
+- gaps: 2-3 sentences. Sentence 1 = the single most useful thing to improve, in plain words. Sentence 2 = one proof and a concrete next session.
+
+WRITING
+- Write like a good running coach texting a club runner, not like a sports scientist writing a report.
+- Make the tone constructive. If the score is 7.0 or higher, the summary should feel reassuring and forward-looking.
+- Meaning first, proof second. Max two numbers per sentence; one is better.
+- First sentence of strengths and gaps must make sense with zero jargon.
+- Use runner words: easy / conversational, comfortably hard / race effort, a gear faster than race pace, bounced back the next day.
+- If you mention a zone, write "Zone 2 (easy)" not "Z2".
+- Never write m/s. Always MM:SS/km or "X seconds per km quicker/slower than goal pace".
+- Do not cite missing data as a weakness. No "HRV was not provided", "lactate threshold estimate unavailable", "sleep data missing".
+- Do not use jargons like ground truth, physiological validation, training effect 4.5, profile value, blended session data, accumulated load.
+- Strengths answer: what does this mean for the race goal?
+- Gaps answer: what should they do next, and why?
+- Do not invent data.
+- Keep each dimension to its own evidence. Spread citations across the 30 activities. Before citing a run, ask whether it is the best proof for THIS dimension.
+
+HEART RATE IN THE TEXT
+Pick one only: "easy", "comfortably hard", "about 80% of your max", or "164 bpm". Never stack datas or specific like bpm + % + zone + date + pace in one sentence.
+"""
 
     try:
         ai_client = AsyncOpenAI(api_key=api_key)
