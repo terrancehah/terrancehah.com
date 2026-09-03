@@ -1112,7 +1112,7 @@ def _compute_pace_zones(goal_pace_ms: float, history: list[dict]) -> dict:
     return zones
 
 
-def _flatten_workout_steps(workout_dict: dict) -> list[dict]:
+def _flatten_workout_steps(workout_dict: dict, pace_zones: dict | None = None, workout_type: str = "") -> list[dict]:
     """Flatten a native Garmin workout into readable steps for the UI.
 
     Garmin's native workout model is workoutSegments -> workoutSteps, where each
@@ -1121,22 +1121,29 @@ def _flatten_workout_steps(workout_dict: dict) -> list[dict]:
     returns a flat list of {type, detail, level} rows the detail sheet can
     render as a numbered procedure. Steps inside a repeat group get level 1 so
     the UI can indent them beneath the "Repeat N×" marker.
+
+    Pace zones (optional) are used to append a target pace to each step's
+    detail string, so the runner knows how fast each segment should be:
+    - Warm up / Cool down → Easy pace
+    - Run (main) → the workout type's target pace
+    - Recover → Recovery pace
+    - Rest → no pace (complete rest)
     """
     out = []
     for segment in workout_dict.get("workoutSegments") or []:
         for step in segment.get("workoutSteps") or []:
-            _append_workout_step(step, out, 0)
+            _append_workout_step(step, out, 0, pace_zones, workout_type)
     return out
 
 
-def _append_workout_step(step: dict, out: list, level: int):
+def _append_workout_step(step: dict, out: list, level: int, pace_zones: dict | None = None, workout_type: str = ""):
     step_type = (step.get("stepType") or {}).get("stepTypeKey", "")
     # Repeat groups carry nested workoutSteps and a number of iterations
     if step_type == "repeat":
         iterations = step.get("numberOfIterations", 1)
-        out.append({"type": "Repeat", "detail": f"{iterations}×", "level": level})
+        out.append({"type": "Repeat", "detail": f"{iterations}×", "level": level, "pace": None})
         for child in step.get("workoutSteps") or []:
-            _append_workout_step(child, out, level + 1)
+            _append_workout_step(child, out, level + 1, pace_zones, workout_type)
         return
 
     cond = (step.get("endCondition") or {}).get("conditionTypeKey", "")
@@ -1157,4 +1164,20 @@ def _append_workout_step(step: dict, out: list, level: int):
         "main": "Run",
         "other": "Run",
     }
-    out.append({"type": kind_map.get(step_type, step_type.title()), "detail": detail, "level": level})
+    kind = kind_map.get(step_type, step_type.title())
+
+    # Determine the target pace for this step based on its type:
+    # - Warm up / Cool down → Easy pace (always easy effort)
+    # - Run (main interval) → the workout type's target pace
+    # - Recover → Recovery pace
+    # - Rest → no pace (complete rest)
+    step_pace = None
+    if pace_zones and kind != "Rest":
+        if kind in ("Warm up", "Cool down"):
+            step_pace = pace_zones.get("Easy")
+        elif kind == "Recover":
+            step_pace = pace_zones.get("Recovery")
+        else:
+            step_pace = pace_zones.get(workout_type) or pace_zones.get("Easy")
+
+    out.append({"type": kind, "detail": detail, "level": level, "pace": step_pace})

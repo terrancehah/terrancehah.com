@@ -387,9 +387,14 @@ Return ONLY valid JSON:
             if not w.get("insight"):
                 w["insight"] = w.get("description") or ""
             # Native Garmin steps — the exact steps that will be sent to the
-            # watch, flattened into readable {type, detail} rows.
+            # watch, flattened into readable {type, detail} rows. Pace zones
+            # are passed so each step's detail includes a target pace.
             try:
-                w["steps"] = _flatten_workout_steps(_build_running_workout(w).to_dict())
+                w["steps"] = _flatten_workout_steps(
+                    _build_running_workout(w).to_dict(),
+                    pace_zones=pace_zones,
+                    workout_type=wtype,
+                )
             except Exception:
                 w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
 

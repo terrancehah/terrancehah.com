@@ -3786,30 +3786,43 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         const d = defs[type] || defs['Easy'];
         const pace = zones[type] || '6:30';
-        return { type, title: d.title, description: d.description, insight: d.insight, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: pace, steps: makeMockSteps(type, pace) };
+        return { type, title: d.title, description: d.description, insight: d.insight, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: pace, steps: makeMockSteps(type, pace, zones) };
     }
 
-    function makeMockSteps(type, pace) {
+    function makeMockSteps(type, pace, zones) {
+        // zones is the full pace_zones dict so each step can carry the
+        // appropriate pace for its effort level as a separate field:
+        // - Warm up / Cool down → Easy pace
+        // - Run (main) → the workout type's target pace
+        // - Recover → Recovery pace
+        // - Rest → no pace
+        const easyPace = (zones && zones['Easy']) || '6:30';
+        const recoveryPace = (zones && zones['Recovery']) || '6:50';
+        const typePace = pace; // the workout type's own target pace
+
         if (type === 'Intervals' || type === 'Speedwork') {
             return [
-                { type: 'Warm up', detail: '10 min', level: 0 },
-                { type: 'Repeat', detail: '6×', level: 0 },
-                { type: 'Run', detail: '2 min', level: 1 },
-                { type: 'Recover', detail: '2 min', level: 1 },
-                { type: 'Cool down', detail: '5 min', level: 0 },
+                { type: 'Warm up', detail: '10 min', level: 0, pace: easyPace },
+                { type: 'Repeat', detail: '6×', level: 0, pace: null },
+                { type: 'Run', detail: '2 min', level: 1, pace: typePace },
+                { type: 'Recover', detail: '2 min', level: 1, pace: recoveryPace },
+                { type: 'Cool down', detail: '5 min', level: 0, pace: easyPace },
             ];
         }
         if (type === 'Tempo') {
             return [
-                { type: 'Warm up', detail: '10 min', level: 0 },
-                { type: 'Run', detail: '8 km', level: 0 },
-                { type: 'Cool down', detail: '5 min', level: 0 },
+                { type: 'Warm up', detail: '10 min', level: 0, pace: easyPace },
+                { type: 'Run', detail: '8 km', level: 0, pace: typePace },
+                { type: 'Cool down', detail: '5 min', level: 0, pace: easyPace },
             ];
         }
         if (type === 'Long Run') {
-            return [{ type: 'Run', detail: '16 km', level: 0 }];
+            return [{ type: 'Run', detail: '16 km', level: 0, pace: typePace }];
         }
-        return [{ type: 'Run', detail: '6 km', level: 0 }];
+        if (type === 'Recovery') {
+            return [{ type: 'Run', detail: '5 km', level: 0, pace: recoveryPace }];
+        }
+        return [{ type: 'Run', detail: '6 km', level: 0, pace: typePace }];
     }
 
     async function generateCoachPlan(prefs, force) {
@@ -4149,20 +4162,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Build a numbered procedure: top-level steps get a step number, steps
         // inside a repeat group are indented beneath the "Repeat N×" marker.
+        // Each step's pace is rendered as a separate element with its own
+        // spacing so the time/distance and pace don't run together.
         const steps = w.steps || [];
         let stepNum = 0;
         const stepsHtml = steps.map(s => {
+            const paceHtml = s.pace ? `<span class="rgd-sheet-step-pace">${escapeHtml(s.pace)}/km</span>` : '';
             if (s.level === 1) {
-                return `<div class="rgd-sheet-step rgd-sheet-step--sub"><span class="rgd-sheet-step-type">↳ ${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span></div>`;
+                return `<div class="rgd-sheet-step rgd-sheet-step--sub"><span class="rgd-sheet-step-type">↳ ${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
             }
             stepNum += 1;
             const isRepeat = s.type === 'Repeat';
-            return `<div class="rgd-sheet-step ${isRepeat ? 'rgd-sheet-step--repeat' : ''}"><span class="rgd-sheet-step-num">${stepNum}</span><span class="rgd-sheet-step-type">${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span></div>`;
+            return `<div class="rgd-sheet-step ${isRepeat ? 'rgd-sheet-step--repeat' : ''}"><span class="rgd-sheet-step-num">${stepNum}</span><span class="rgd-sheet-step-type">${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
         }).join('');
+
+        // Workout description — the short 1-2 sentence intent summary that
+        // is also sent to Garmin as the workout description. Shown before
+        // the AI coach insight so the runner sees the session purpose first.
+        const descriptionHtml = w.description ? `
+            <div class="rgd-sheet-section">
+                <span class="rgd-sheet-section-title">Description</span>
+                <p class="rgd-sheet-description">${escapeHtml(w.description)}</p>
+            </div>` : '';
 
         const insightHtml = w.insight ? `
             <div class="rgd-sheet-section">
-                <span class="rgd-sheet-section-title">Coach insight</span>
+                <span class="rgd-sheet-section-title">AI coach insight</span>
                 <p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>
             </div>` : '';
 
@@ -4177,6 +4202,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="rgd-sheet-meta-item"><strong>${pace}</strong>/km</span>
                 <span class="rgd-sheet-meta-item">${sheetDate}</span>
             </div>
+            ${descriptionHtml}
             ${insightHtml}
             ${stepsHtml ? `<div class="rgd-sheet-section"><span class="rgd-sheet-section-title">Workout breakdown</span><div class="rgd-sheet-steps">${stepsHtml}</div></div>` : ''}
         `;

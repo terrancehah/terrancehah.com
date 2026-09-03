@@ -3872,6 +3872,28 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-variant-numeric: tabular-nums;
 }
 
+/* Per-step target pace — rendered as a separate element after the detail
+   so there's a clear visual gap between time/distance and pace. Uses the
+   blue accent to distinguish it from the muted detail text. */
+.rgd-sheet-step-pace {
+    margin-left: 0.75rem;
+    color: var(--rgd-blue);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Description section — the short intent summary sent to Garmin as the
+   workout description. Styled like the insight but without the background
+   fill so it reads as a lighter, secondary block above the AI insight. */
+.rgd-sheet-description {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    line-height: 1.55;
+    color: var(--rgd-muted);
+    margin: 0;
+}
+
 .rgd-sheet-step--sub {
     padding-left: 2rem;
 }
