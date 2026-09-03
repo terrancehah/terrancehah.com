@@ -369,6 +369,112 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Scroll-direction handler — drives two scroll-aware UI behaviours:
+    //   1. The mobile tab bar slides down below the bottom edge when the
+    //      user scrolls down and slides back up when they scroll up.
+    //   2. The demo banner collapses into a slim "Demo Mode · Connect"
+    //      pill when scrolling down and recovers to the full banner when
+    //      scrolling up. Both are toggled by adding/removing a single
+    //      modifier class so the CSS transitions handle the animation.
+    //
+    // Implementation follows the industry-standard pattern used by
+    // Safari-style scroll-to-hide bars: deltas ACCUMULATE in the current
+    // direction and only commit past a threshold. This reacts to intent,
+    // not every pixel — a trackpad's jittery micro-scrolls and Safari's
+    // momentum tail (where the delta sign wobbles frame to frame) can't
+    // flip the state. The accumulator resets on direction change and at
+    // the top of the page, and the first scroll event is ignored so
+    // scroll restoration doesn't read as a jump.
+    const SCROLL_COMMIT_PX = 24;   // accumulated px before committing a hide/show
+    const SCROLL_TOP_PX = 24;      // always visible within this distance from top
+    let lastScrollY = window.scrollY;
+    let scrollDir = 'up';          // currently applied direction
+    let scrollAccum = 0;           // accumulated px in the candidate direction
+    let scrollTicking = false;
+    let firstScroll = true;
+    function updateScrollDirection() {
+        const currentY = window.scrollY;
+        const delta = currentY - lastScrollY;
+
+        // Ignore the very first scroll event so scroll restoration on
+        // page load doesn't register as a downward jump.
+        if (firstScroll) {
+            firstScroll = false;
+            lastScrollY = currentY;
+            scrollTicking = false;
+            return;
+        }
+
+        // Always visible near the top — reset to "up" (shown) state.
+        if (currentY <= SCROLL_TOP_PX) {
+            scrollAccum = 0;
+            if (scrollDir !== 'up') {
+                scrollDir = 'up';
+                applyScrollDirection(false);
+            }
+            lastScrollY = currentY;
+            scrollTicking = false;
+            return;
+        }
+
+        // Determine the candidate direction from this frame's delta.
+        // If it matches the current direction, accumulate; if it flips,
+        // reset the accumulator to this delta (starting fresh in the new
+        // direction). Near-zero deltas (momentum tail) don't accumulate
+        // or reset — they're just noise.
+        if (Math.abs(delta) < 1) {
+            // Noise — don't touch the accumulator
+        } else if (delta > 0) {
+            // Scrolling down
+            if (scrollDir === 'down') {
+                scrollAccum += delta;
+            } else {
+                // Direction change candidate — reset accumulator
+                scrollAccum = delta;
+            }
+        } else {
+            // Scrolling up
+            if (scrollDir === 'up') {
+                scrollAccum += delta; // delta is negative, so this accumulates upward
+            } else {
+                scrollAccum = delta;
+            }
+        }
+
+        // Commit a direction change only when the accumulated movement
+        // in the candidate direction clears the threshold. This is the
+        // key to preventing flicker: one deliberate scroll flick hides,
+        // but jitter around zero does nothing.
+        if (scrollDir === 'up' && scrollAccum >= SCROLL_COMMIT_PX) {
+            scrollDir = 'down';
+            applyScrollDirection(true);
+        } else if (scrollDir === 'down' && scrollAccum <= -SCROLL_COMMIT_PX) {
+            scrollDir = 'up';
+            applyScrollDirection(false);
+        }
+
+        lastScrollY = currentY;
+        scrollTicking = false;
+    }
+
+    // Apply the scroll direction to the DOM — toggles the tab bar hide
+    // class and the demo banner slim class. Called only when the
+    // direction actually changes, so a page of scrolling costs at most a
+    // couple of class toggles.
+    function applyScrollDirection(hide) {
+        const tabbar = $('#rgd-tabbar');
+        if (tabbar) tabbar.classList.toggle('rgd-tabbar--hidden', hide);
+        const banner = $('#rgd-demo-banner');
+        if (banner && !banner.hidden) banner.classList.toggle('rgd-demo-banner--slim', hide);
+    }
+
+    window.addEventListener('scroll', () => {
+        if (!scrollTicking) {
+            scrollTicking = true;
+            requestAnimationFrame(updateScrollDirection);
+        }
+    }, { passive: true });
+
     // Initial route
     navigateTo(getPageFromHash());
 
@@ -467,7 +573,7 @@ document.addEventListener('DOMContentLoaded', function () {
             stress_level: 28,
             weekly_distance: 38, weekly_duration: 3.2, weekly_runs: 5,
             total_activities: 187,
-            device_name: 'Forerunner 265',
+            device_name: 'Forerunner 165',
             // Today's date in ISO format — demo mode always shows "today"
             metrics_date: new Date().toISOString().slice(0, 10),
             // Current timestamp — simulates the server fetch time
@@ -732,7 +838,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         loadAllData();
         // If the user landed directly on the Plan page, kick off its load too
-        if (getPageFromHash() === 'plan') generateCoachPlan(coachPrefs, false);
+        if (getPageFromHash() === 'plan') openPlanPage();
 
         // Re-position the sidebar/tab indicators now that the dashboard is
         // visible. On initial page load, navigateTo() runs before the
@@ -1579,6 +1685,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         borderWidth: 1,
                         titleFont: { family: 'Raleway', size: 12 },
                         bodyFont: { family: 'Lato', size: 14 },
+                        // Standardized tooltip properties — shared across all
+                        // Chart.js tooltips so they look identical regardless
+                        // of chart type (bar, scatter, etc.)
+                        displayColors: false,
+                        padding: 8,
+                        cornerRadius: 6,
                         callbacks: {
                             // Show the full week date range (Monday – Sunday) in the tooltip title
                             title: (ctx) => {
@@ -1633,23 +1745,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const cardTitle = calendarEl.closest('.rgd-chart-card')?.querySelector('.rgd-card-title');
         if (cardTitle) cardTitle.textContent = monthName;
 
-        // Map day → activity type (only one dot per day, prioritize longest).
-        // Exclude non-running activities (hiking, cycling, etc.)
-        const dayMap = {};
+        // Collect every run for each day of the current month, keeping each
+        // run's tag so dots can be coloured by run type. A day with two
+        // different run types gets a split (left/right halves) dot.
+        const dayRuns = {}; // day -> [{ name, tag, distance, pace, hr }]
         activities.forEach(a => {
             if (!isRunningActivity(a)) return;
             const d = parseDate(a.start_time);
             if (isNaN(d.getTime())) return;
             if (d.getMonth() === month && d.getFullYear() === year) {
                 const day = d.getDate();
-                const dist = a.distance || 0;
-                const type = (a.type || 'run').toLowerCase();
-                const cat = dist > 15 ? 'long' : 'run';
-                // Keep the "best" activity type for the day
-                const priority = { 'long': 3, 'run': 2, 'other': 1 };
-                if (!dayMap[day] || priority[cat] > priority[dayMap[day]]) {
-                    dayMap[day] = cat;
-                }
+                const tag = a.run_tag || 'Easy';
+                (dayRuns[day] = dayRuns[day] || []).push({
+                    name: a.name || 'Run',
+                    tag,
+                    distance: a.distance || 0,
+                    pace: a.avg_pace ? formatPace(a.avg_pace) : '--',
+                    hr: a.avg_hr || null,
+                });
             }
         });
 
@@ -1667,21 +1780,111 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '<span class="rgd-calendar-dot empty"></span>';
         }
 
-        // Day dots
+        // Day dots — coloured by run type (solid) or split when a day has
+        // two different run types. data-day lets the click handler look up
+        // the day's runs for the tooltip.
         for (let day = 1; day <= daysInMonth; day++) {
-            const cat = dayMap[day];
+            const runs = dayRuns[day];
             const isToday = day === today;
 
             let cls = 'rgd-calendar-dot';
-            if (cat) cls += ` ${cat}`;
+            let style = '';
+            if (runs) {
+                cls += ' has-runs';
+                // Distinct run types on this day (preserve first-seen order)
+                const tags = [];
+                runs.forEach(r => { if (!tags.includes(r.tag)) tags.push(r.tag); });
+                if (tags.length >= 2) {
+                    // Two different run types — side-by-side halves
+                    const c1 = RUN_TAG_COLOR[tags[0]] || RUN_TAG_COLOR['Easy'];
+                    const c2 = RUN_TAG_COLOR[tags[1]] || RUN_TAG_COLOR['Easy'];
+                    style = `style="background: linear-gradient(to right, ${c1} 50%, ${c2} 50%);"`;
+                } else {
+                    const c = RUN_TAG_COLOR[tags[0]] || RUN_TAG_COLOR['Easy'];
+                    style = `style="background: ${c};"`;
+                }
+            }
             if (isToday) cls += ' today';
 
-            const title = cat ? `${cat} on ${monthName} ${day}` : `${monthName} ${day}`;
-            html += `<span class="${cls}" title="${title}"></span>`;
+            const dataAttr = runs ? `data-day="${day}"` : '';
+            html += `<span class="${cls}" ${style} ${dataAttr}></span>`;
         }
 
         html += '</div>';
         calendarEl.innerHTML = html;
+
+        // Wire click handlers on dots that have runs — show a tooltip
+        // listing the day's runs (display-only, standardized styling).
+        calendarEl.querySelectorAll('.rgd-calendar-dot.has-runs').forEach(dot => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showCalendarTooltip(e.currentTarget, dayRuns, monthName);
+            });
+        });
+    }
+
+    // Calendar day tooltip — shown when a dot is clicked. Lists the runs
+    // on that day (display-only, no navigation). Reuses a single DOM
+    // element and the shared .rgd-chart-tooltip styling so it matches the
+    // radar chart tooltip design.
+    let calendarTooltipEl = null;
+    let calendarTooltipDismissBound = false;
+    function showCalendarTooltip(dot, dayRuns, monthName) {
+        const day = parseInt(dot.getAttribute('data-day'), 10);
+        const runs = dayRuns[day] || [];
+        if (!runs.length) return;
+
+        // Reuse a single tooltip element across clicks
+        if (!calendarTooltipEl) {
+            calendarTooltipEl = document.createElement('div');
+            calendarTooltipEl.className = 'rgd-chart-tooltip rgd-calendar-tooltip';
+            document.body.appendChild(calendarTooltipEl);
+        }
+
+        // Bind dismiss handlers once — close when clicking outside, on
+        // scroll, or on Escape so the tooltip never lingers stale.
+        if (!calendarTooltipDismissBound) {
+            calendarTooltipDismissBound = true;
+            document.addEventListener('click', (e) => {
+                if (!calendarTooltipEl) return;
+                if (calendarTooltipEl.contains(e.target)) return;
+                if (e.target && e.target.classList && e.target.classList.contains('rgd-calendar-dot')) return;
+                calendarTooltipEl.style.opacity = 0;
+            }, true);
+            window.addEventListener('scroll', () => {
+                if (calendarTooltipEl) calendarTooltipEl.style.opacity = 0;
+            }, { passive: true });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && calendarTooltipEl) calendarTooltipEl.style.opacity = 0;
+            });
+        }
+
+        const monthShort = monthName.split(' ')[0];
+        calendarTooltipEl.innerHTML = `
+            <div class="rgd-calendar-tooltip-date">${monthShort} ${day}</div>
+            ${runs.map(r => {
+                const color = RUN_TAG_COLOR[r.tag] || RUN_TAG_COLOR['Easy'];
+                const meta = `${r.distance} km · ${r.pace}/km${r.hr ? ' · ' + r.hr + ' bpm' : ''}`;
+                return `
+                    <div class="rgd-calendar-tooltip-run">
+                        <span class="rgd-calendar-tooltip-run-dot" style="background:${color}"></span>
+                        <span class="rgd-calendar-tooltip-run-name">${escapeHtml(r.name)}</span>
+                        <span class="rgd-calendar-tooltip-run-meta">${meta}</span>
+                    </div>
+                `;
+            }).join('')}
+        `;
+
+        // Position below the dot, clamped to the viewport horizontally.
+        // Measure after content is set so width is accurate.
+        const rect = dot.getBoundingClientRect();
+        const tw = calendarTooltipEl.offsetWidth || 160;
+        let left = rect.left + rect.width / 2 - tw / 2;
+        left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+        const top = rect.bottom + window.scrollY + 8;
+        calendarTooltipEl.style.left = `${left}px`;
+        calendarTooltipEl.style.top = `${top}px`;
+        calendarTooltipEl.style.opacity = 1;
     }
 
     // =========================================================================
@@ -1827,6 +2030,18 @@ document.addEventListener('DOMContentLoaded', function () {
         'LSD': 'rgd-run-tag--lsd',
         'Speedwork': 'rgd-run-tag--speedwork',
         'Easy': 'rgd-run-tag--easy',
+    };
+
+    // Run type → dot fill colour. Mirrors the run-tag CSS colour scheme so
+    // calendar dots match the activity-list tag colours. Used for solid
+    // fills and for the two-colour split when a day has two different types.
+    const RUN_TAG_COLOR = {
+        'Run': '#388e8e',
+        'Easy': '#388e8e',
+        'Warmup': '#888888',
+        'Tempo Long': '#b5832a',
+        'LSD': '#5d6db0',
+        'Speedwork': '#c44b4b',
     };
 
     function buildActivityItem(a, i) {
@@ -1975,7 +2190,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const buckets = [
             { label: `<${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}`, min: 0, max: secToMin(goalBucketMinSec - bucketWidthSec) },
             { label: `${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}–${formatPaceLabel(secToMin(goalBucketMinSec))}`, min: secToMin(goalBucketMinSec - bucketWidthSec), max: secToMin(goalBucketMinSec) },
-            { label: `${formatPaceLabel(secToMin(goalBucketMinSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec))}`, min: secToMin(goalBucketMinSec), max: secToMin(goalBucketMaxSec) },
+            // Goal bucket — the "(Race Pace)" caption is part of the label
+            // itself (as a second line via Chart.js multi-line array) so it
+            // renders naturally under the pace range without a custom plugin.
+            { label: [`${formatPaceLabel(secToMin(goalBucketMinSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec))}`, '(Race Pace)'], min: secToMin(goalBucketMinSec), max: secToMin(goalBucketMaxSec) },
             { label: `${formatPaceLabel(secToMin(goalBucketMaxSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec + bucketWidthSec))}`, min: secToMin(goalBucketMaxSec), max: secToMin(goalBucketMaxSec + bucketWidthSec) },
             { label: `>${formatPaceLabel(secToMin(goalBucketMaxSec + bucketWidthSec))}`, min: secToMin(goalBucketMaxSec + bucketWidthSec), max: 99 },
         ];
@@ -2010,6 +2228,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
         const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Standardized theme-aware tooltip colours — shared with the weekly
+        // mileage, HR vs pace, and calendar tooltips so all charts match.
+        const chartSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+        // Update the card title to reflect the number of activities analysed
+        const paceTitleEl = canvas.closest('.rgd-chart-card')?.querySelector('.rgd-card-title');
+        if (paceTitleEl) paceTitleEl.textContent = `Pace Distribution Over Last ${runs.length} Activities`;
 
         paceDistChart = new Chart(canvas, {
             type: 'bar',
@@ -2030,6 +2257,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        // Standardized theme-aware tooltip styling
+                        backgroundColor: chartSurface,
+                        titleColor: chartText,
+                        bodyColor: chartText,
+                        borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
+                        borderWidth: 1,
+                        titleFont: { family: 'Raleway', size: 12 },
+                        bodyFont: { family: 'Lato', size: 14 },
+                        displayColors: false,
+                        padding: 8,
+                        cornerRadius: 6,
                         callbacks: {
                             label: (ctx) => {
                                 const b = bucketData[ctx.dataIndex];
@@ -2050,35 +2288,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         grid: { color: chartGridColor }
                     }
                 }
-            },
-            plugins: [{
-                // Custom plugin: draw a vertical line at the goal pace bucket
-                id: 'goalPaceLine',
-                afterDraw(chart) {
-                    if (goalBucketIndex < 0) return;
-                    const meta = chart.getDatasetMeta(0);
-                    if (!meta.data.length) return;
-                    const x = meta.data[goalBucketIndex].x;
-                    const topY = chart.scales.y.top;
-                    const bottomY = chart.scales.y.bottom;
-                    const ctx = chart.ctx;
-                    ctx.save();
-                    ctx.setLineDash([6, 4]);
-                    ctx.strokeStyle = 'rgba(196, 75, 75, 0.7)';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(x, topY);
-                    ctx.lineTo(x, bottomY);
-                    ctx.stroke();
-                    // Label above the line
-                    ctx.setLineDash([]);
-                    ctx.fillStyle = '#c44b4b';
-                    ctx.font = '600 11px Raleway';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Goal pace', x, topY - 8);
-                    ctx.restore();
-                }
-            }]
+            }
         });
     }
 
@@ -2142,6 +2352,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
         const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Standardized theme-aware tooltip colours — shared across all charts
+        const chartSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         hrPaceScatter = new Chart(canvas, {
             type: 'scatter',
@@ -2161,6 +2375,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
+                        // Standardized theme-aware tooltip styling
+                        backgroundColor: chartSurface,
+                        titleColor: chartText,
+                        bodyColor: chartText,
+                        borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
+                        borderWidth: 1,
+                        titleFont: { family: 'Raleway', size: 12 },
+                        bodyFont: { family: 'Lato', size: 14 },
+                        displayColors: false,
+                        padding: 8,
+                        cornerRadius: 6,
                         callbacks: {
                             label: (ctx) => {
                                 const p = scatterData[ctx.dataIndex];
@@ -2173,6 +2398,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 scales: {
                     x: {
+                        // Multi-line axis title: the main label plus
+                        // directional hints at each end. Chart.js renders
+                        // the title array as stacked lines, and align:
+                        // 'center' keeps it centered under the axis.
                         title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
                         ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
                         grid: { color: chartGridColor },
@@ -2670,7 +2899,9 @@ document.addEventListener('DOMContentLoaded', function () {
             showRadarSkeleton(false);
             renderRadarChart(cached);
             renderPillars(cached);
-            refreshAnalysisBtn.hidden = false;
+            // Hide the regenerate button in demo mode — there's no real AI
+            // call to refresh, so the action is meaningless for demo users.
+            refreshAnalysisBtn.hidden = window.__demoMode;
             return;
         }
 
@@ -2690,7 +2921,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.hidden = false;
                 });
                 pillarsContents.forEach(el => el.hidden = true);
-                refreshAnalysisBtn.hidden = false;
+                refreshAnalysisBtn.hidden = window.__demoMode;
                 return;
             }
             // Cache the successful response for future loads
@@ -2706,7 +2937,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 el.hidden = false;
             });
             pillarsContents.forEach(el => el.hidden = true);
-            refreshAnalysisBtn.hidden = false;
+            refreshAnalysisBtn.hidden = window.__demoMode;
         }
     }
 
@@ -3093,7 +3324,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show content on all instances (overview + readiness pages)
         pillarsContents.forEach(el => el.hidden = false);
         summaryErrors.forEach(el => el.hidden = true);
-        refreshAnalysisBtn.hidden = false;
+        // Hide the regenerate button in demo mode — demo insights are mock
+        // data, so regenerating has no effect and shouldn't be offered.
+        refreshAnalysisBtn.hidden = window.__demoMode;
 
         const dims = data.dimensions || [];
 
@@ -3368,10 +3601,12 @@ document.addEventListener('DOMContentLoaded', function () {
             settingsLogoutBtn.textContent = 'Disconnect Garmin';
             settingsLogoutBtn.className = 'rgd-btn rgd-btn-danger';
         } else {
-            // Demo mode — show placeholder + connect button
+            // Demo mode — show placeholder + connect button. Assign a
+            // realistic Garmin device (Forerunner 165) rather than a
+            // "Demo Device" label so the settings read naturally.
             $('#rgd-settings-name').textContent = 'Demo Runner';
             $('#rgd-settings-email').textContent = 'demo@example.com';
-            $('#rgd-settings-device').textContent = 'Demo Device';
+            $('#rgd-settings-device').textContent = 'Forerunner 165';
             settingsLogoutBtn.textContent = 'Connect Garmin';
             settingsLogoutBtn.className = 'rgd-btn rgd-btn-primary';
         }
@@ -3512,16 +3747,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Demo CTA buttons — open the login modal to connect Garmin
     const demoBannerCta = $('#rgd-demo-banner-cta');
+    const demoBannerSlimCta = $('#rgd-demo-banner-slim-cta');
     const demoPageCtaBtn = $('#rgd-demo-cta-btn');
     if (demoBannerCta) demoBannerCta.addEventListener('click', openLoginModal);
+    // Slim pill "Connect" link — same behaviour as the full banner CTA
+    if (demoBannerSlimCta) demoBannerSlimCta.addEventListener('click', openLoginModal);
     if (demoPageCtaBtn) demoPageCtaBtn.addEventListener('click', openLoginModal);
 
     // "Show more" button on the overview page — navigates to the full
-    // activities page where pagination is available
+    // activities page and scrolls to the top so users land on the most
+    // recent activities first. On desktop the body is the scroll
+    // container (.rgd-content has overflow:clip, not auto), so we use
+    // window.scrollTo rather than scrollIntoView on a child element.
+    // A short setTimeout lets the hashchange → navigateTo() run first
+    // so the activities page is visible before we scroll.
     const showMoreActivitiesBtn = $('#rgd-show-more-activities');
     if (showMoreActivitiesBtn) {
         showMoreActivitiesBtn.addEventListener('click', () => {
             window.location.hash = 'activities';
+            setTimeout(() => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 50);
         });
     }
 
@@ -3605,6 +3851,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let coachLoaded = false;    // whether the plan has been fetched this session
     let coachEditingDate = null; // the day currently in edit mode (or null)
     const coachScheduledDates = new Set(); // dates already pushed to Garmin
+
+    // Plan page history pagination — how many days of past activities to
+    // render before the current date. Starts at 2 weeks (14 days); the
+    // "Show more" button extends this by 14 days per click. Reset to 14
+    // every time the plan page is opened so it always leads to today.
+    let planPastDays = 14;
+    const planShowMoreBtn = $('#rgd-plan-show-more');
 
     const WORKOUT_TYPES = ['Easy', 'Recovery', 'Long Run', 'Tempo', 'Intervals', 'Speedwork'];
 
@@ -3915,7 +4168,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function renderCoachCalendar(data) {
+    // Open the plan page — resets the past history window to 2 weeks and
+    // always leads to the current date. Called every time the user
+    // navigates to the Plan tab. If the plan is already loaded, we just
+    // re-render from the cached data (no refetch); otherwise we kick off
+    // the initial generation, which renders + scrolls to today on done.
+    function openPlanPage() {
+        planPastDays = 14;
+        if (coachLoaded && coachPlanData) {
+            renderCoachCalendar(coachPlanData, true);
+        } else {
+            generateCoachPlan(coachPrefs, false);
+        }
+    }
+
+    // "Show more" on the plan page — extends the past history window by
+    // 2 weeks and re-renders. Keeps the scroll near the top of the
+    // calendar so the newly loaded older weeks are visible (does not
+    // jump back to today, since the user is deliberately browsing back).
+    if (planShowMoreBtn) {
+        planShowMoreBtn.addEventListener('click', () => {
+            if (!coachPlanData) return;
+            planShowMoreBtn.textContent = 'Loading…';
+            planShowMoreBtn.disabled = true;
+            planPastDays += 14;
+            renderCoachCalendar(coachPlanData, false);
+            // Scroll the calendar top into view so the older weeks appear
+            requestAnimationFrame(() => {
+                const firstRow = coachCalendarEl.querySelector('.rgd-cal-row');
+                if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    }
+
+    function renderCoachCalendar(data, scrollToToday = true) {
         if (!coachCalendarEl) return;
         const history = data.history || [];
         const plan = data.plan || {};
@@ -3931,13 +4217,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const planByDate = {};
         planDays.forEach(d => { planByDate[d.date] = d; });
 
-        // Vertical agenda grouped into weeks (Monday start): today-13 back to
-        // its Monday, through the Sunday of the upcoming week (which is always
-        // strictly after today — matching the backend's next-Monday anchor).
+        // Vertical agenda grouped into weeks (Monday start). The past
+        // window is controlled by planPastDays (default 14 = 2 weeks);
+        // the "Show more" button extends it. We go back to the Monday of
+        // the oldest visible week, through the Sunday of the upcoming
+        // week (always strictly after today — matching the backend's
+        // next-Monday anchor).
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const start = new Date(today);
-        start.setDate(start.getDate() - 13);
+        start.setDate(start.getDate() - (planPastDays - 1));
         start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
 
         const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
@@ -3964,6 +4253,32 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `).join('');
         schedulePlanBtn.hidden = false;
+
+        // Show the "Show more" button only if there's older history beyond
+        // the currently rendered past window. Determines the oldest history
+        // date and compares it against the rendered start.
+        if (planShowMoreBtn) {
+            let oldestKey = null;
+            Object.keys(historyByDate).forEach(k => {
+                if (!oldestKey || k < oldestKey) oldestKey = k;
+            });
+            const startKey = localDateKey(start);
+            const hasOlder = oldestKey && oldestKey < startKey;
+            planShowMoreBtn.hidden = !hasOlder;
+            planShowMoreBtn.textContent = 'Show more';
+            planShowMoreBtn.disabled = false;
+        }
+
+        // Lead to the current date — scroll today's row into the centre of
+        // the viewport so the plan always opens on today, not the top.
+        // Skipped when loading more history (the user is browsing older
+        // weeks and expects to stay near the newly added content).
+        if (scrollToToday) {
+            requestAnimationFrame(() => {
+                const todayRow = coachCalendarEl.querySelector('.rgd-cal-row--today');
+                if (todayRow) todayRow.scrollIntoView({ behavior: 'auto', block: 'center' });
+            });
+        }
     }
 
     function renderDayRow(day) {
@@ -4375,9 +4690,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Load the plan when the Plan page is navigated to
+    // Load the plan when the Plan page is navigated to — openPlanPage
+    // resets to 2 weeks of history and scrolls to today on every open
     window.addEventListener('hashchange', () => {
-        if (getPageFromHash() === 'plan') generateCoachPlan(coachPrefs, false);
+        if (getPageFromHash() === 'plan') openPlanPage();
     });
 
     // =========================================================================

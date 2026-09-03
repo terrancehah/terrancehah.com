@@ -400,21 +400,30 @@
                     </button>
                 </nav>
 
-                <!-- Mobile theme toggle — icon only, sticky bottom-right, above the tab bar -->
-                <button class="rgd-theme-toggle-mobile" id="rgd-theme-toggle-mobile" title="Toggle theme">
-                    <svg class="rgd-theme-toggle-mobile-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                    <svg class="rgd-theme-toggle-mobile-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                </button>
+                <!-- Mobile theme toggle — moved into the settings popup
+                     profile container (see .rgd-settings-profile below) on
+                     mobile. The floating button is no longer rendered here;
+                     the toggle element itself now lives inside settings. -->
 
                 <!-- Main Content -->
                 <div class="rgd-content" id="rgd-content">
 
-                    <!-- Demo banner — shown when viewing sample data in demo mode -->
+                    <!-- Demo banner — shown when viewing sample data in demo mode.
+                         The full view (icon + message + Connect Garmin button) is
+                         shown at rest; when the user scrolls down the banner
+                         shrinks to a slim "Demo Mode · Connect" pill (toggled via
+                         the .rgd-demo-banner--slim class by the scroll handler). -->
                     <div class="rgd-demo-banner" id="rgd-demo-banner" hidden>
+                        <div class="rgd-demo-banner-full">
                             <svg class="rgd-demo-banner-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             <span class="rgd-demo-banner-text">You're exploring with sample data. Connect Garmin for personalized insights.</span>
                             <button class="rgd-demo-banner-cta" id="rgd-demo-banner-cta">Connect Garmin</button>
                         </div>
+                        <div class="rgd-demo-banner-slim">
+                            <span>Demo Mode ·</span>
+                            <button class="rgd-demo-banner-slim-cta" id="rgd-demo-banner-slim-cta" type="button">Connect</button>
+                        </div>
+                    </div>
 
                     <!-- ========== PAGE: Overview ========== -->
                     <div class="rgd-page" id="rgd-page-overview">
@@ -620,6 +629,11 @@
                             </h2>
                             <p class="rgd-section-sub">The AI coach studies your recent training and schedules next week's workouts around your preferences. Tap Edit to adjust them, then schedule the week to Garmin.</p>
 
+                            <!-- Show more history — loads 2 more weeks of past
+                                 activities into the plan calendar. Hidden until
+                                 the calendar renders and older history exists. -->
+                            <button class="rgd-btn rgd-btn-secondary rgd-show-more-btn rgd-plan-show-more" id="rgd-plan-show-more" hidden>Show more</button>
+
                             <div class="rgd-coach-calendar" id="rgd-coach-calendar"></div>
 
                             <button class="rgd-btn rgd-btn-primary rgd-schedule-btn" id="rgd-schedule-plan" hidden>Send Workouts to Garmin</button>
@@ -657,6 +671,15 @@
                     <!-- Profile section — only visible on mobile where the sidebar
                          (which normally contains the profile) is hidden -->
                     <div class="rgd-settings-profile" id="rgd-settings-profile" hidden>
+                        <!-- Mobile theme toggle — relocated here from the
+                             floating position. Sits at the top-right corner
+                             of the profile container on mobile. The same
+                             #rgd-theme-toggle-mobile id is kept so the
+                             existing JS listener continues to work. -->
+                        <button class="rgd-theme-toggle-mobile" id="rgd-theme-toggle-mobile" title="Toggle theme">
+                            <svg class="rgd-theme-toggle-mobile-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                            <svg class="rgd-theme-toggle-mobile-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        </button>
                         <div class="rgd-sidebar-avatar" id="rgd-settings-avatar">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="5" r="2.5"/>

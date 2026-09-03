@@ -535,6 +535,11 @@
     width: 100%;
 }
 
+/* Ensure the HTML hidden attribute actually hides buttons — .rgd-btn sets
+   display:inline-flex which overrides the default [hidden] { display:none }
+   from the UA stylesheet, so without this rule hidden buttons stay visible. */
+.rgd-btn[hidden] { display: none !important; }
+
 .rgd-btn-primary { background: var(--rgd-navy); color: var(--rgd-btn-primary-text); }
 .rgd-btn-primary:hover { background: var(--rgd-btn-primary-hover); }
 .rgd-btn-primary:active { transform: translateY(0); }
@@ -722,6 +727,18 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding-left: 0.7rem;
     padding-right: 0.7rem;
     padding-bottom: 0;
+    /* Slide animation: the bar translates down below the bottom edge when
+       the user scrolls down (toggled via the .rgd-tabbar--hidden class
+       added by the scroll-direction handler in runassist.js) and slides
+       back up when the user scrolls up. */
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hidden state — translated fully below the viewport (height + bottom
+   offset + safe-area inset so it clears the screen edge on notched
+   devices). Toggled by the scroll-direction handler. */
+.rgd-tabbar.rgd-tabbar--hidden {
+    transform: translateY(calc(100% + 1.5rem + env(safe-area-inset-bottom, 0)));
 }
 
 /* Glossy diagonal sheen — a light gradient that catches across the glass
@@ -1314,6 +1331,89 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-demo-banner-cta:hover { background: var(--rgd-btn-primary-hover); }
 .rgd-demo-banner-cta:active { transform: scale(0.96); }
 
+/* ---- Demo banner slim pill ----
+   When the user scrolls down the full banner collapses into a compact
+   pill ("Demo Mode · Connect"). The .rgd-demo-banner--slim class is
+   toggled by the same scroll-direction handler that hides the tab bar.
+   Both contents stay in the DOM and cross-fade via opacity; the slim
+   content is absolutely positioned and centered so the container can
+   animate its max-width from 100% to a narrow pill smoothly. */
+.rgd-demo-banner {
+    /* transition the animatable properties for shrink/expand.
+       Slowed down slightly (0.4s) so the shrink to pill and expand back
+       to full banner feels deliberate rather than snappy. Height and
+       padding are animated together so the pill is visibly shorter than
+       the full banner, not just narrower. */
+    transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                border-radius 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 100%;
+    /* max-height must be large enough for the full banner content;
+       the slim state shrinks it to the pill height. */
+    max-height: 5rem;
+}
+
+.rgd-demo-banner-full {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    /* Cross-fade timing slowed to match the container shrink/expand */
+    transition: opacity 0.3s ease;
+}
+
+.rgd-demo-banner-slim {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* "Connect" inside the slim pill — clickable link that opens the login
+   modal, matching the full banner's Connect Garmin CTA behaviour. */
+.rgd-demo-banner-slim-cta {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-blue);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+.rgd-demo-banner-slim-cta:hover { text-decoration: underline; }
+
+/* Slim state — shrink the container to a tight centered pill via
+   max-width and max-height (both interpolable), round the border-radius,
+   reduce padding for a slimmer pill, and cross-fade the inner content. */
+.rgd-demo-banner--slim {
+    max-width: 11rem;
+    max-height: 1.75rem;
+    border-radius: 999px;
+    padding: 0.25rem 0.9rem;
+    margin-left: auto;
+    margin-right: auto;
+}
+.rgd-demo-banner--slim .rgd-demo-banner-full {
+    opacity: 0;
+    pointer-events: none;
+}
+.rgd-demo-banner--slim .rgd-demo-banner-slim {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* Bottom-of-page demo CTA — shown on every page in demo mode */
 .rgd-demo-cta {
     display: flex;
@@ -1833,6 +1933,19 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-blue);
     text-decoration: none;
     cursor: pointer;
+    /* Clickable indicator — a small chevron signals the link navigates
+       to the readiness pillar detail (standardized tooltip affordance
+       for interactive items). */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.rgd-radar-tooltip-link::after {
+    content: "›";
+    font-weight: 700;
+    color: var(--rgd-blue);
+    opacity: 0.7;
 }
 
 .rgd-radar-tooltip-link:hover {
@@ -1843,6 +1956,72 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-label);
     color: var(--rgd-muted);
+}
+
+/* ---- Shared chart tooltip (DOM) ----
+   Standardized styling for DOM-based chart tooltips (radar + calendar).
+   Chart.js built-in tooltips (weekly mileage, HR vs pace, pace
+   distribution) are standardized via the theme-aware tooltip config
+   applied in JS so they share the same surface/border/font treatment. */
+.rgd-chart-tooltip {
+    position: absolute;
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+    pointer-events: auto;
+    z-index: 1000;
+    white-space: nowrap;
+}
+
+/* ---- Calendar day tooltip ----
+   Shown when a user clicks a calendar dot. Lists the runs on that day
+   (display-only — no navigation, so no clickable indicator per the
+   standardized tooltip spec). Uses the shared .rgd-chart-tooltip base. */
+.rgd-calendar-tooltip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-width: 16rem;
+    white-space: normal;
+}
+
+.rgd-calendar-tooltip-date {
+    font-family: 'Raleway', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-navy);
+    border-bottom: 0.0625rem solid var(--rgd-border);
+    padding-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
+}
+
+.rgd-calendar-tooltip-run {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Lato', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-text);
+}
+
+.rgd-calendar-tooltip-run-dot {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.rgd-calendar-tooltip-run-name {
+    font-weight: 600;
+}
+
+.rgd-calendar-tooltip-run-meta {
+    color: var(--rgd-muted);
+    margin-left: auto;
 }
 
 /* Brief highlight pulse when a pillar is scrolled into view from the
@@ -1977,10 +2156,11 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-calendar-dot:hover { transform: scale(1.25); }
 .rgd-calendar-dot.empty { background: transparent; pointer-events: none; }
-/* Single color for any day with activity (run, long, or other) */
-.rgd-calendar-dot.run,
-.rgd-calendar-dot.long,
-.rgd-calendar-dot.other { background: var(--rgd-blue); }
+/* Dots with activity data are clickable (open the day tooltip). The
+   fill colour is applied inline by renderCalendar() based on the run
+   type(s) that day — solid for a single type, or a hard 50/50 split
+   (left/right halves) when two different run types occurred. */
+.rgd-calendar-dot.has-runs { cursor: pointer; }
 
 .rgd-calendar-dot.today {
     box-shadow: 0 0 0 0.125rem var(--rgd-surface), 0 0 0 0.1875rem var(--rgd-blue);
@@ -2103,10 +2283,12 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: #3f7b4f;
 }
 
-/* Gaps label — amber/red tint indicating areas for improvement */
+/* Gaps label — yellow/amber tint indicating areas for improvement.
+   Yellow (rather than red) keeps gaps feeling actionable rather than
+   alarming, distinguishing them from error states. */
 .rgd-pillar-section-label--gaps {
-    background: rgba(196, 75, 75, 0.15);
-    color: #c44b4b;
+    background: rgba(212, 160, 23, 0.15);
+    color: #b5832a;
 }
 
 /* Dark mode overrides for section labels */
@@ -2116,8 +2298,8 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 [data-theme="dark"] .rgd-pillar-section-label--gaps {
-    background: rgba(196, 75, 75, 0.25);
-    color: #e07070;
+    background: rgba(212, 160, 23, 0.25);
+    color: #d9b24f;
 }
 
 /* ---- Skeleton loading state for AI insight pillars ---- */
@@ -2174,6 +2356,14 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-size: var(--rgd-text-label);
     width: auto;
     min-width: auto;
+}
+
+/* Plan page "Show more" — sits above the calendar as a standalone
+   load-more control (not inside a title), so centre it and add space
+   below before the calendar rows. */
+.rgd-plan-show-more {
+    margin: 0 auto 1rem;
+    display: block;
 }
 
 /* Month separator header — divides activities by month for easier scanning */
@@ -2644,6 +2834,18 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding-bottom: 0.75rem;
     border-bottom: 0.0625rem solid var(--rgd-border);
     margin-bottom: 0.25rem;
+    /* Anchor for the relocated mobile theme toggle, which is absolutely
+       positioned at the top-right corner of this container. */
+    position: relative;
+}
+
+/* Mobile theme toggle relocated into the settings profile — overrides the
+   old floating fixed positioning so it sits at the top-right corner of
+   the profile container instead of floating over the page. */
+.rgd-settings-profile .rgd-theme-toggle-mobile {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
 }
 
 .rgd-settings-profile-name {
