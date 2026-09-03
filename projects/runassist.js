@@ -78,7 +78,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let radarCharts = []; // multiple instances — overview + readiness pages
     let lastRadarData = null; // stored for theme-change re-render
     let paceDistChart = null; // pace distribution histogram
+    let lastPaceDistActivities = null; // stored for theme-change re-render
     let hrPaceScatter = null; // HR vs Pace scatter plot
+    let lastHrPaceActivities = null; // stored for theme-change re-render
     let lastHrvStatus = null; // Garmin HRV status string — used for color-coding
 
     // =========================================================================
@@ -222,6 +224,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             if (lastMileageWeeks) {
                 renderMileageChart(lastMileageWeeks);
+            }
+            if (lastPaceDistActivities) {
+                renderPaceDistribution(lastPaceDistActivities);
+            }
+            if (lastHrPaceActivities) {
+                renderHrPaceScatter(lastHrPaceActivities);
             }
         }
     }
@@ -714,13 +722,19 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // Transitioning from demo to real mode — destroy any radar chart
-        // instances left over from demo mock data so the user doesn't see
-        // stale mock scores while the real AI radar loads. Show the skeleton
-        // immediately so the radar enters a clear loading state.
+        // Transitioning from demo to real mode — destroy any chart instances
+        // left over from demo mock data so the user doesn't see stale values
+        // while the real data loads. Show the skeleton immediately so the
+        // radar enters a clear loading state.
         radarCharts.forEach(c => c.destroy());
         radarCharts = [];
         lastRadarData = null;
+        if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
+        lastMileageWeeks = null;
+        if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
+        lastPaceDistActivities = null;
+        if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
+        lastHrPaceActivities = null;
         showRadarSkeleton(true);
         // Hide pillars content until real AI data arrives
         pillarsContents.forEach(el => el.hidden = true);
@@ -1813,6 +1827,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const canvas = document.getElementById('rgd-pace-distribution-chart');
         if (!canvas || !activities.length) return;
         if (paceDistChart) paceDistChart.destroy();
+        // Store activities for theme-change re-render
+        lastPaceDistActivities = activities;
 
         // Filter: only running activities, exclude warmup (<2km) and non-running types
         const runs = activities.filter(a => isRunningActivity(a) && (a.distance || 0) >= 2);
@@ -1955,6 +1971,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const canvas = document.getElementById('rgd-hr-pace-scatter');
         if (!canvas || !activities.length) return;
         if (hrPaceScatter) hrPaceScatter.destroy();
+        // Store activities for theme-change re-render
+        lastHrPaceActivities = activities;
 
         // Filter to runs only: exclude non-running types (hiking etc.), warmup runs (<2km),
         // and require both pace + HR data, within the last 12 weeks
@@ -2576,8 +2594,23 @@ document.addEventListener('DOMContentLoaded', function () {
     // When hiding, fades the skeleton out via CSS opacity transition before
     // setting hidden=true — this creates a smooth crossfade with the chart
     // canvas which fades in simultaneously.
+    // When showing, destroys any existing radar chart instances so the old
+    // chart numbers and labels don't overlap with the skeleton overlay.
     function showRadarSkeleton(show) {
-        if (show) startRadarMorph(); else stopRadarMorph();
+        if (show) {
+            // Destroy existing charts so old numbers/labels don't bleed
+            // through the semi-transparent skeleton overlay
+            radarCharts.forEach(c => c.destroy());
+            radarCharts = [];
+            // Reset the canvas opacity so it can fade in again when the
+            // new chart is created
+            document.querySelectorAll('.rgd-radar-chart').forEach(canvas => {
+                canvas.classList.remove('rgd-radar-loaded');
+            });
+            startRadarMorph();
+        } else {
+            stopRadarMorph();
+        }
         document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
             if (show) {
                 // Showing: unhide immediately and fade in
@@ -3143,6 +3176,12 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
             // Goal changed — cached AI insights are no longer valid
             clearAICache();
+            // Clear stored chart data so stale values aren't re-rendered
+            // during the reload (e.g. by a theme toggle mid-fetch)
+            lastRadarData = null;
+            lastMileageWeeks = null;
+            lastPaceDistActivities = null;
+            lastHrPaceActivities = null;
             // Update the sidebar goal display
             sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
             // Update the goal specifics panel
@@ -3392,6 +3431,16 @@ document.addEventListener('DOMContentLoaded', function () {
         radarCharts.forEach(c => c.destroy()); radarCharts = [];
         if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
         if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
+        // Reset stored chart data so theme-toggle doesn't re-render stale charts
+        lastMileageWeeks = null;
+        lastRadarData = null;
+        lastPaceDistActivities = null;
+        lastHrPaceActivities = null;
+        // Reset coach plan state so the Plan page loads fresh after re-login
+        coachLoaded = false;
+        coachPlanData = null;
+        coachEditingDate = null;
+        coachScheduledDates.clear();
         // Clear all cached session data so the next load starts fresh
         localStorage.removeItem('rgd_session_token');
         localStorage.removeItem('rgd_race_goal');
