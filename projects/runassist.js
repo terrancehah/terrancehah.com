@@ -392,9 +392,16 @@ document.addEventListener('DOMContentLoaded', function () {
             'Evening Easy', 'Marathon Pace Long', 'Mid-Distance Steady', 'Speed 800s', 'Pre-Race Easy'
         ];
 
+        // Realistic weekly run schedule — 5 runs per week with rest days
+        // between each. Pattern repeats every 7 days going back from today.
+        // Day offsets within each week: Tue(1), Wed(2), Thu(3), Sat(5), Sun(6)
+        // — Mon and Fri are rest days, giving gaps between every run.
+        const weeklyOffsets = [1, 2, 3, 5, 6];
+
         for (let i = 0; i < 20; i++) {
-            // Spread across ~10 weeks, with more density in recent 2 weeks
-            const daysAgo = i < 8 ? i + Math.floor(Math.random() * 3) : i * 3 + Math.floor(Math.random() * 4);
+            const weekBack = Math.floor(i / weeklyOffsets.length);
+            const dayInWeek = i % weeklyOffsets.length;
+            const daysAgo = weekBack * 7 + weeklyOffsets[dayInWeek];
             const d = new Date(now);
             d.setDate(d.getDate() - daysAgo);
             const t = types[i % types.length];
@@ -3630,17 +3637,25 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem(COACH_CACHE_KEY);
     }
 
-    // Mock 2-week history for demo mode — ~10 recent runs as compact cards
+    // Mock 2-week history for demo mode — ~10 recent runs spread across
+    // 2 weeks with rest days between runs (same weekly pattern as
+    // generateMockActivities: Tue, Wed, Thu, Sat, Sun).
     function getMockCoachHistory() {
         const now = new Date();
         const names = ['Easy Morning', 'Weekend Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog'];
         const tags = ['Easy', 'LSD', 'Speedwork', 'Speedwork', 'Easy'];
-        const secPerKm = [400, 420, 350, 330, 450]; // slower -> faster -> recovery
+        const secPerKm = [400, 420, 350, 330, 450]; // easy, long, tempo, interval, recovery
         const distances = [6, 18, 10, 8, 5];
+        // Same weekly offsets as generateMockActivities: Tue(1), Wed(2),
+        // Thu(3), Sat(5), Sun(6) — Mon and Fri are rest days.
+        const weeklyOffsets = [1, 2, 3, 5, 6];
         const results = [];
         for (let i = 0; i < 10; i++) {
+            const weekBack = Math.floor(i / weeklyOffsets.length);
+            const dayInWeek = i % weeklyOffsets.length;
+            const daysAgo = weekBack * 7 + weeklyOffsets[dayInWeek];
             const d = new Date(now);
-            d.setDate(d.getDate() - (i + 1));
+            d.setDate(d.getDate() - daysAgo);
             const idx = i % names.length;
             const p = secPerKm[idx];
             const dist = distances[idx];
@@ -3667,30 +3682,97 @@ document.addEventListener('DOMContentLoaded', function () {
         return results;
     }
 
-    // Mock 7-day plan for demo mode — honours the same days_per_week preference
+    // Mock plan for demo mode — mirrors the new coach-plan.py logic:
+    // starts tomorrow, extends through the end of the next full Mon–Sun
+    // week (up to 13 days), places the long run on Sat/Sun, quality
+    // mid-week (Tue/Wed), and never schedules two hard days back to back.
     function getMockCoachPlan(prefs) {
         const p = prefs || {};
         const daysPerWeek = p.days_per_week || 3;
         const today = new Date();
-        const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
-        const monday = new Date(today);
-        monday.setDate(today.getDate() + daysUntilMonday);
-        const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        // Plan starts tomorrow
+        const planStart = new Date(today);
+        planStart.setDate(today.getDate() + 1);
+        // Find the next Monday after (or on) planStart
+        const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
+        const nextMonday = new Date(planStart);
+        nextMonday.setDate(planStart.getDate() + (daysUntilMonday === 0 ? 0 : daysUntilMonday));
+        // Plan ends on the Sunday at the end of that full week
+        const planEnd = new Date(nextMonday);
+        planEnd.setDate(nextMonday.getDate() + 6);
+        const totalDays = Math.round((planEnd - planStart) / 86400000) + 1;
+
+        const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const paceZones = { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' };
-        // A sensible weekly order: easy → long → speedwork → tempo → recovery
-        const typeOrder = ['Easy', 'Long Run', 'Speedwork', 'Tempo', 'Recovery', 'Easy'];
-        const days = [];
-        let workoutIdx = 0;
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const workout = workoutIdx < daysPerWeek
-                ? makeMockWorkout(typeOrder[workoutIdx % typeOrder.length], paceZones)
-                : null;
-            if (workout) workoutIdx++;
-            days.push({ date: localDateKey(d), day_of_week: dow[i], is_rest: !workout, workout });
+
+        // Placement: long run on Sat or Sun, quality on Tue or Wed,
+        // easy/recovery fill the remaining days. No two hard days
+        // back to back. The gap days (before nextMonday) get at most
+        // one easy run to complete the current week.
+        const gapDays = Math.round((nextMonday - planStart) / 86400000);
+
+        // Build the workout schedule as a map of day-index → workout type
+        // Day indices are 0-based from planStart.
+        const schedule = {};
+
+        // Gap days: at most 1 easy run if there are 3+ gap days
+        if (gapDays >= 3) {
+            // Place an easy run mid-gap (e.g. 2 days after planStart)
+            schedule[Math.min(2, gapDays - 1)] = 'Easy';
         }
-        return { week_start: localDateKey(monday), pace_zones: paceZones, days };
+
+        // Full Mon–Sun block: place workouts on the right days
+        // nextMonday is at index `gapDays` in the plan
+        const monIdx = gapDays;       // Monday index in the plan
+        const tueIdx = gapDays + 1;
+        const wedIdx = gapDays + 2;
+        const thuIdx = gapDays + 3;
+        const friIdx = gapDays + 4;
+        const satIdx = gapDays + 5;
+        const sunIdx = gapDays + 6;
+
+        // Always place the long run on Saturday (or Sunday if Sat is
+        // outside the window — but it never is since we cover a full week)
+        schedule[satIdx] = 'Long Run';
+
+        // Place the quality session on Tuesday or Wednesday
+        const qualityIdx = tueIdx; // Tuesday — mid-week, rest day before long run
+        schedule[qualityIdx] = 'Speedwork';
+
+        // Fill remaining workout days based on daysPerWeek
+        // Already placed: long run (Sat) + quality (Tue) = 2 workouts
+        // Gap easy run (if any) is separate from the weekly count
+        const remaining = daysPerWeek - 2;
+        // Fill easy/recovery on Mon, Wed, Thu, Sun in that order
+        const fillOrder = [wedIdx, monIdx, thuIdx, sunIdx];
+        const fillTypes = ['Easy', 'Recovery', 'Easy', 'Easy'];
+        for (let i = 0; i < remaining && i < fillOrder.length; i++) {
+            schedule[fillOrder[i]] = fillTypes[i];
+        }
+
+        // Build the days array
+        const days = [];
+        for (let i = 0; i < totalDays; i++) {
+            const d = new Date(planStart);
+            d.setDate(planStart.getDate() + i);
+            const wType = schedule[i];
+            const workout = wType ? makeMockWorkout(wType, paceZones) : null;
+            days.push({
+                date: localDateKey(d),
+                day_of_week: dow[d.getDay()],
+                is_rest: !workout,
+                workout,
+            });
+        }
+
+        return {
+            week_start: localDateKey(planStart),
+            plan_start: localDateKey(planStart),
+            plan_end: localDateKey(planEnd),
+            total_plan_days: totalDays,
+            pace_zones: paceZones,
+            days,
+        };
     }
 
     function makeMockWorkout(type, zones) {
