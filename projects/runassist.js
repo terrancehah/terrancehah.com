@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginModal = $('#rgd-login-modal');
     const loginModalClose = $('#rgd-login-modal-close');
     const onboardScreen = $('#rgd-onboarding-screen');
+    const onboardPlanScreen = $('#rgd-onboarding-plan-screen');
     const dashboardScreen = $('#rgd-dashboard-screen');
     const overlay = $('#rgd-overlay');
     const overlayText = $('#rgd-overlay-text');
@@ -28,6 +29,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Onboarding
     const onboardForm = $('#rgd-onboard-form');
     const onboardBtn = $('#rgd-onboard-btn');
+    const onboardPlanForm = $('#rgd-onboard-plan-form');
+    const onboardPlanBtn = $('#rgd-onboard-plan-btn');
 
     // Dashboard
     const greetingEl = $('#rgd-greeting');
@@ -107,7 +110,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return fetch(url, options);
     }
 
-    // Rotating loading messages — cycles through motivational phrases while data loads
+    // Rotating loading messages — cycles through motivational phrases while data loads.
+    // The overlay text is wrapped in a .rgd-shimmer-text span so the shimmer
+    // animation persists even as the text content rotates.
     const LOADING_MESSAGES = [
         'Loading your training data…',
         'Crunching the numbers…',
@@ -118,15 +123,26 @@ document.addEventListener('DOMContentLoaded', function () {
     ];
     let loadingMsgTimer = null;
 
+    // Update the shimmer text inside the overlay — preserves the span element
+    // so the CSS animation isn't interrupted on each message rotation.
+    function setOverlayText(text) {
+        const shimmer = overlayText.querySelector('.rgd-shimmer-text');
+        if (shimmer) {
+            shimmer.textContent = text;
+        } else {
+            overlayText.innerHTML = `<span class="rgd-shimmer-text">${escapeHtml(text)}</span>`;
+        }
+    }
+
     function showOverlay(text) {
-        overlayText.textContent = text;
+        setOverlayText(text);
         overlay.hidden = false;
         // Start rotating through messages every 4 seconds
         let idx = 0;
         if (loadingMsgTimer) clearInterval(loadingMsgTimer);
         loadingMsgTimer = setInterval(() => {
             idx = (idx + 1) % LOADING_MESSAGES.length;
-            overlayText.textContent = LOADING_MESSAGES[idx];
+            setOverlayText(LOADING_MESSAGES[idx]);
         }, 4000);
     }
 
@@ -143,7 +159,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function showScreen(screen) {
-        [onboardScreen, dashboardScreen].forEach(s => s.hidden = true);
+        [onboardScreen, onboardPlanScreen, dashboardScreen].forEach(s => s.hidden = true);
         screen.hidden = false;
         // Always close the login modal when switching to a full screen
         closeLoginModal();
@@ -636,9 +652,25 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             raceGoal = data.goal;
             localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
-            showDashboard();
+            // Proceed to Step 3 — planning preferences
+            showScreen(onboardPlanScreen);
         } catch (err) { alert('Network error. Please try again.'); }
         finally { setButtonLoading(onboardBtn, false); }
+    });
+
+    // Step 3 — planning preferences. Saves the runner's plan prefs and
+    // proceeds to the dashboard. The prefs are stored locally and used
+    // when the coach plan is first generated on the Plan page.
+    onboardPlanForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const prefs = {
+            days_per_week: Number($('#rgd-onboard-pref-days').value) || 3,
+            intensity: $('#rgd-onboard-pref-intensity').value || 'moderate',
+            distance_adj: DISTANCE_ADJ[Number($('#rgd-onboard-pref-distance').value)] || 'keep',
+        };
+        coachPrefs = prefs;
+        writeCoachPrefs(prefs);
+        showDashboard();
     });
 
     // =========================================================================
@@ -701,6 +733,13 @@ document.addEventListener('DOMContentLoaded', function () {
         loadAllData();
         // If the user landed directly on the Plan page, kick off its load too
         if (getPageFromHash() === 'plan') generateCoachPlan(coachPrefs, false);
+
+        // Re-position the sidebar/tab indicators now that the dashboard is
+        // visible. On initial page load, navigateTo() runs before the
+        // dashboard screen is unhidden, so getBoundingClientRect() returns
+        // zeros and the indicator is invisible until the next page change.
+        // Calling it here ensures the active nav highlight appears immediately.
+        requestAnimationFrame(() => positionIndicators());
     }
 
     // Render the Race Goal Specifics panel with key metrics + countdown
@@ -3025,8 +3064,12 @@ document.addEventListener('DOMContentLoaded', function () {
         chartMorphStates = [];
     }
 
-    // Skeleton placeholder cards shown while AI is generating insights
-    function showPillarsSkeleton() {        const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
+    // Skeleton placeholder cards shown while AI is generating insights.
+    // Each card shows animated skeleton lines for the summary text, and
+    // the whole section is introduced by a shimmer text label so the
+    // loading state is unmistakable.
+    function showPillarsSkeleton() {
+        const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
             <div class="rgd-pillar-card rgd-pillar-card--skeleton">
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
@@ -3042,7 +3085,7 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
         pillarsContents.forEach(el => {
             el.hidden = false;
-            el.innerHTML = skeletonHtml;
+            el.innerHTML = `<div class="rgd-pillars-skeleton-label"><span class="rgd-shimmer-text">Generating AI insights…</span></div>` + skeletonHtml;
         });
     }
 
@@ -3838,14 +3881,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         coachErrorEl.hidden = true;
         scheduleStatusEl.hidden = true;
-        coachCalendarEl.innerHTML = '<div class="rgd-coach-loading">Building your plan…</div>';
+        coachCalendarEl.innerHTML = '<div class="rgd-coach-loading rgd-coach-loading--active"><span class="rgd-shimmer-text">Building your plan…</span></div>';
         schedulePlanBtn.hidden = true;
 
-        // Demo mode uses local mocks — no API calls
+        // Demo mode uses local mocks — no API calls. A 3-second delay
+        // (matching DEMO_CHART_LOADING_MS) lets the shimmer loading state
+        // appear so the placeholder is visible instead of flashing away
+        // instantly.
         if (window.__demoMode) {
-            coachPlanData = { history: getMockCoachHistory(), plan: getMockCoachPlan(coachPrefs) };
-            renderCoachCalendar(coachPlanData);
-            coachLoaded = true;
+            setTimeout(() => {
+                coachPlanData = { history: getMockCoachHistory(), plan: getMockCoachPlan(coachPrefs) };
+                renderCoachCalendar(coachPlanData);
+                coachLoaded = true;
+            }, DEMO_CHART_LOADING_MS);
             return;
         }
 

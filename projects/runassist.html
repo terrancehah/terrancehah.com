@@ -216,6 +216,58 @@
             </div>
         </section>
 
+        <!-- ========== ONBOARDING SCREEN — STEP 3: PLANNING PREFERENCES ========== -->
+        <section class="rgd-screen" id="rgd-onboarding-plan-screen" hidden>
+            <div class="rgd-onboard-card">
+                <div class="rgd-onboard-header">
+                    <span class="rgd-eyebrow">Step 3 of 3</span>
+                    <h2 class="rgd-onboard-title">Customise your training plan</h2>
+                    <p class="rgd-onboard-subtitle">
+                        Tell us how you want to train. You can change these later in the Plan page.
+                    </p>
+                </div>
+                <form class="rgd-onboard-form" id="rgd-onboard-plan-form" novalidate>
+                    <!-- Days per week — how many runs to schedule -->
+                    <div class="rgd-field">
+                        <label for="rgd-onboard-pref-days" class="rgd-label">Days per week <span class="rgd-required">*</span></label>
+                        <select id="rgd-onboard-pref-days" class="rgd-input rgd-select" required>
+                            <option value="2">2</option>
+                            <option value="3" selected>3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                        </select>
+                    </div>
+
+                    <!-- Intensity — how hard the plan should be -->
+                    <div class="rgd-field">
+                        <label for="rgd-onboard-pref-intensity" class="rgd-label">Intensity <span class="rgd-required">*</span></label>
+                        <select id="rgd-onboard-pref-intensity" class="rgd-input rgd-select" required>
+                            <option value="easy">Easy</option>
+                            <option value="moderate" selected>Moderate</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+
+                    <!-- Weekly distance adjustment — relative to current volume -->
+                    <div class="rgd-field">
+                        <label class="rgd-label">Weekly distance</label>
+                        <input type="range" id="rgd-onboard-pref-distance" class="rgd-distance-slider" min="0" max="2" step="1" value="1">
+                        <div class="rgd-distance-slider-labels">
+                            <span>Relaxed</span>
+                            <span>Optimum</span>
+                            <span>Progressive</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-onboard-plan-btn">
+                        <span class="rgd-btn-text">Save & Start</span>
+                        <span class="rgd-btn-spinner" hidden></span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
         <!-- ========== DASHBOARD SCREEN ========== -->
         <section class="rgd-screen" id="rgd-dashboard-screen" hidden>
             <div class="rgd-dashboard-layout">
@@ -435,7 +487,7 @@
                                                 <circle cx="30" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
                                             </svg>
                                             <!-- Loading hint — makes the placeholder state unmistakable -->
-                                            <div class="rgd-radar-skeleton-label">Analyzing your readiness…</div>
+                                            <div class="rgd-radar-skeleton-label"><span class="rgd-shimmer-text">Analyzing your readiness…</span></div>
                                         </div>
                                     </div>
                                 </div>
@@ -537,7 +589,7 @@
                                             <circle cx="30" cy="60" r="2.5" fill="var(--rgd-blue)" opacity="0.55" class="rgd-radar-morph-dot"/>
                                         </svg>
                                         <!-- Loading hint — makes the placeholder state unmistakable -->
-                                        <div class="rgd-radar-skeleton-label">Analyzing your readiness…</div>
+                                        <div class="rgd-radar-skeleton-label"><span class="rgd-shimmer-text">Analyzing your readiness…</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -588,8 +640,7 @@
         <!-- ========== LOADING OVERLAY ========== -->
         <div class="rgd-overlay" id="rgd-overlay" hidden>
             <div class="rgd-overlay-content">
-                <div class="rgd-spinner"></div>
-                <p class="rgd-overlay-text" id="rgd-overlay-text">Loading...</p>
+                <p class="rgd-overlay-text" id="rgd-overlay-text"><span class="rgd-shimmer-text">Loading...</span></p>
             </div>
         </div>
 

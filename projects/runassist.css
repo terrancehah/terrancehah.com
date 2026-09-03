@@ -32,6 +32,12 @@
     --rgd-text-subheading: 1rem;     /* card titles, section subs, prominent labels */
     --rgd-text-heading: 1.25rem;     /* section titles, page headings */
     --rgd-text-display: 1.75rem;     /* hero numbers, countdown, large metrics */
+
+    /* ---- Button tokens ---- */
+    /* Primary button text + hover use dedicated tokens so they flip
+       correctly in dark mode (where --rgd-navy becomes light). */
+    --rgd-btn-primary-text: #ffffff;
+    --rgd-btn-primary-hover: #142a47;
 }
 
 /* ---- Dark theme overrides ---- */
@@ -51,6 +57,11 @@
     --rgd-accent-red: #e07070;
     --rgd-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.2);
     --rgd-shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.25);
+
+    /* Dark mode button tokens — navy is light, so text and hover
+       need to flip to dark colors for proper contrast. */
+    --rgd-btn-primary-text: #0f1a26;
+    --rgd-btn-primary-hover: #c8d8e8;
 }
 
 /* ========== LAYOUT SHELL ========== */
@@ -524,8 +535,8 @@
     width: 100%;
 }
 
-.rgd-btn-primary { background: var(--rgd-navy); color: white; }
-.rgd-btn-primary:hover { background: #142a47; }
+.rgd-btn-primary { background: var(--rgd-navy); color: var(--rgd-btn-primary-text); }
+.rgd-btn-primary:hover { background: var(--rgd-btn-primary-hover); }
 .rgd-btn-primary:active { transform: translateY(0); }
 
 .rgd-btn-secondary {
@@ -542,7 +553,7 @@
     padding: 0.5rem;
     width: auto;
 }
-.rgd-btn-ghost:hover { color: var(--rgd-accent-red); background: rgba(196, 75, 75, 0.06); }
+.rgd-btn-ghost:hover { color: var(--rgd-accent-red); background: color-mix(in srgb, var(--rgd-accent-red) 6%, transparent); }
 
 .rgd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
@@ -1282,12 +1293,14 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex: 1;
 }
 
-/* "Connect Garmin" button inside the demo banner */
+/* "Connect Garmin" button inside the demo banner — uses the blue
+   accent (not the navy primary) to distinguish it as a demo-mode
+   conversion CTA rather than a standard form action. */
 .rgd-demo-banner-cta {
     font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--rgd-text-label);
-    color: #fff;
+    color: var(--rgd-btn-primary-text);
     background: var(--rgd-blue);
     border: none;
     border-radius: var(--rgd-radius-sm);
@@ -1298,7 +1311,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex-shrink: 0;
 }
 
-.rgd-demo-banner-cta:hover { background: #3a6b8a; }
+.rgd-demo-banner-cta:hover { background: var(--rgd-btn-primary-hover); }
 .rgd-demo-banner-cta:active { transform: scale(0.96); }
 
 /* Bottom-of-page demo CTA — shown on every page in demo mode */
@@ -1324,15 +1337,16 @@ header.rgd-header-offset.rgd-header-collapsed {
     line-height: 1.5;
 }
 
+/* Footer demo CTA button — matches the demo banner CTA's blue accent
+   so both "Connect Garmin" buttons look identical across the site. */
 .rgd-demo-cta-btn {
     padding: 0.6rem 1.5rem;
     width: 100%;
     max-width: 15rem;
-    /* Match the banner CTA's blue colour instead of the default navy primary */
     background: var(--rgd-blue);
 }
 
-.rgd-demo-cta-btn:hover { background: #3a6b8a; }
+.rgd-demo-cta-btn:hover { background: var(--rgd-btn-primary-hover); }
 
 .rgd-page { display: flex; flex-direction: column; gap: clamp(1.25rem, 2.5vw, 2rem); }
 .rgd-page[hidden] { display: none; }
@@ -1770,7 +1784,9 @@ header.rgd-header-offset.rgd-header-collapsed {
    points attribute is rewritten each frame, so no CSS animation is needed. */
 
 /* "Analyzing…" label under the radar skeleton — makes the placeholder state
-   unmistakable instead of looking like a faint copy of the final chart */
+   unmistakable instead of looking like a faint copy of the final chart.
+   The text inside uses the shimmer animation, so the label color is set
+   transparent by the .rgd-shimmer-text class. */
 .rgd-radar-skeleton-label {
     position: absolute;
     bottom: 0.5rem;
@@ -1778,8 +1794,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     right: 0;
     text-align: center;
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-caption);
-    color: var(--rgd-muted);
+    font-size: var(--rgd-text-body);
     opacity: 0.75;
     pointer-events: none;
     letter-spacing: 0.02em;
@@ -2139,6 +2154,15 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-skeleton-line--short { width: 60%; }
 
+/* Shimmer text label shown above the pillars skeleton cards — makes the
+   loading state obvious with the same animated gradient sweep as other
+   loading placeholders across the site. */
+.rgd-pillars-skeleton-label {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    margin-bottom: 0.75rem;
+}
+
 /* ---- Activities list ---- */
 .rgd-activities-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
@@ -2451,6 +2475,50 @@ header.rgd-header-offset.rgd-header-collapsed {
     gap: 1rem;
 }
 
+/* Shimmer text — a reusable loading effect where a gradient sweep moves
+   across transparent text, creating a glowing/pulsing shimmer. Used for
+   all loading placeholders across the site (plan loading, radar skeleton,
+   full-screen overlay, pillars skeleton, etc.).
+
+   The text is made transparent via background-clip: text, then two
+   background layers are stacked:
+   1. A moving gradient sweep (the shimmer) — animated left to right
+   2. A solid base color (the muted text color underneath)
+
+   The sweep is a narrow band of the accent color that travels across,
+   making the text appear to glow as it passes. In dark mode the sweep
+   is white; in light mode it's the navy accent. */
+.rgd-shimmer-text {
+    --rgd-shimmer-spread: 36px;
+    --rgd-shimmer-base: var(--rgd-muted);
+    --rgd-shimmer-sweep: var(--rgd-navy);
+    display: inline-block;
+    background-image:
+        linear-gradient(90deg,
+            transparent calc(50% - var(--rgd-shimmer-spread)),
+            var(--rgd-shimmer-sweep),
+            transparent calc(50% + var(--rgd-shimmer-spread))),
+        linear-gradient(var(--rgd-shimmer-base), var(--rgd-shimmer-base));
+    background-size: 250% 100%, auto;
+    background-repeat: no-repeat;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: rgd-shimmer-sweep 2.5s ease-in-out infinite;
+}
+
+@keyframes rgd-shimmer-sweep {
+    0%   { background-position: 150% center, 0 center; }
+    100% { background-position: -50% center, 0 center; }
+}
+
+/* Dark mode — sweep is white so it reads against the dark background */
+[data-theme="dark"] .rgd-shimmer-text {
+    --rgd-shimmer-base: var(--rgd-muted);
+    --rgd-shimmer-sweep: #ffffff;
+}
+
 .rgd-spinner {
     width: 2.25rem;
     height: 2.25rem;
@@ -2462,8 +2530,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-overlay-text {
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-body);
-    color: var(--rgd-muted);
+    font-size: var(--rgd-text-subheading);
     margin: 0;
 }
 
@@ -2650,6 +2717,9 @@ header.rgd-header-offset.rgd-header-collapsed {
     border-top: 0.0625rem solid var(--rgd-border);
 }
 
+/* Danger button — uses accent-red tokens so it adapts to dark mode.
+   Light mode: soft red tint background with red text.
+   Dark mode: darker red tint with the lighter red text token. */
 .rgd-btn-danger {
     width: 100%;
     padding: 0.5rem 1rem;
@@ -2659,14 +2729,13 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-weight: 600;
     font-size: var(--rgd-text-label);
     cursor: pointer;
-    background: rgba(196, 75, 75, 0.1);
-    color: #c44b4b;
+    background: color-mix(in srgb, var(--rgd-accent-red) 10%, transparent);
+    color: var(--rgd-accent-red);
     transition: background 0.15s ease, color 0.15s ease;
 }
 
 .rgd-btn-danger:hover {
-    background: rgba(196, 75, 75, 0.2);
-    color: #a33;
+    background: color-mix(in srgb, var(--rgd-accent-red) 20%, transparent);
 }
 
 /* ========== RESPONSIVE BREAKPOINTS ========== */
@@ -3029,12 +3098,63 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-coach-loading,
 .rgd-coach-empty {
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-label);
+    font-size: var(--rgd-text-subheading);
     color: var(--rgd-muted);
-    padding: 1rem;
+    padding: 2rem 1rem;
     background: var(--rgd-surface);
     border: 0.0625rem dashed var(--rgd-border);
     border-radius: var(--rgd-radius);
+    text-align: center;
+}
+
+/* Circling halo — a rotating conic gradient ring around the loading
+   container. Uses a ::before pseudo-element positioned slightly outside
+   the container, with a conic gradient that sweeps from transparent to
+   the blue accent. The container's own background sits on top via
+   z-index stacking so only the ring halo is visible. The rotation
+   runs on a 2s linear loop, synchronized with the shimmer text. */
+.rgd-coach-loading--active {
+    position: relative;
+    border-color: transparent;
+    overflow: hidden;
+}
+
+.rgd-coach-loading--active::before {
+    content: '';
+    position: absolute;
+    inset: -0.125rem;
+    border-radius: inherit;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0%,
+        transparent 60%,
+        var(--rgd-blue) 85%,
+        transparent 100%
+    );
+    animation: rgd-halo-spin 2s linear infinite;
+    z-index: 0;
+}
+
+/* Keep the shimmer text above the rotating halo */
+.rgd-coach-loading--active > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Solid background layer to mask the inner part of the conic gradient
+   so only the ring shows */
+.rgd-coach-loading--active::after {
+    content: '';
+    position: absolute;
+    inset: 0.0625rem;
+    border-radius: calc(var(--rgd-radius) - 0.0625rem);
+    background: var(--rgd-surface);
+    z-index: 0;
+}
+
+@keyframes rgd-halo-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 /* ---- Last 2 weeks history ---- */
