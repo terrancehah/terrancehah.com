@@ -739,20 +739,50 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
     text-decoration: none;
     border-radius: 1rem;
-    transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+    transition: color 0.2s ease, transform 0.15s ease;
+    /* Sit above the sliding indicator so icon stays clickable */
+    position: relative;
+    z-index: 1;
 }
 
-.rgd-tab-item.active {
-    color: var(--rgd-navy);
-    /* Frosted pill — slightly more opaque than the bar itself so the active
-       tab reads as a raised glass button sitting on the glass surface */
+/* Sliding indicator for the mobile tab bar — a frosted pill that
+   animates between tabs. positioned via JS (left/top/width/height).
+   No transition on first render; the .rgd-indicator-ready class is
+   added after the first positioning to enable smooth sliding. */
+.rgd-tab-indicator {
+    position: absolute;
+    border-radius: 1rem;
+    pointer-events: none;
+    z-index: 0;
+    /* Same frosted pill styling as the old static active background */
     background: rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     box-shadow:
         inset 0 0.0625rem 0.0625rem rgba(255, 255, 255, 0.5),
         0 0.125rem 0.375rem rgba(29, 53, 87, 0.12);
+    transition: none;
 }
+.rgd-tab-indicator.rgd-indicator-ready {
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rgd-tab-item.active {
+    color: var(--rgd-navy);
+    /* Background is now handled by the sliding indicator */
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Filled icon toggle — inactive tabs show the outline SVG, active tabs
+   show the filled SVG. Each tab item contains both versions; CSS
+   controls which is visible based on the .active class. */
+.rgd-tab-item .rgd-tab-icon-filled { display: none; }
+.rgd-tab-item.active .rgd-tab-icon-outline { display: none; }
+.rgd-tab-item.active .rgd-tab-icon-filled { display: block; }
 
 .rgd-tab-item:hover { color: var(--rgd-navy); }
 .rgd-tab-item:active { transform: scale(0.92); }
@@ -778,7 +808,7 @@ header.rgd-header-offset.rgd-header-collapsed {
         transparent 60%);
 }
 
-[data-theme="dark"] .rgd-tab-item.active {
+[data-theme="dark"] .rgd-tab-indicator {
     background: rgba(255, 255, 255, 0.12);
     box-shadow:
         inset 0 0.0625rem 0.0625rem rgba(255, 255, 255, 0.18),
@@ -961,7 +991,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-reset-goal-icon:hover { opacity: 1 !important; color: var(--rgd-blue); }
 
 /* Sidebar nav */
-.rgd-sidebar-nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+.rgd-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    flex: 1;
+    /* Needed for the absolutely-positioned sliding indicator */
+    position: relative;
+}
 /* Collapsed sidebar: fade out text labels via opacity, keep icons in fixed position */
 .rgd-sidebar.collapsed .rgd-sidebar-nav { opacity: 1; pointer-events: auto; }
 .rgd-sidebar.collapsed .rgd-nav-label {
@@ -988,16 +1025,38 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding: 0.45rem 0.55rem;
     border-radius: var(--rgd-radius-sm);
     cursor: pointer;
-    transition: all var(--rgd-transition);
+    transition: color var(--rgd-transition);
     width: 100%;
     box-sizing: border-box;
     overflow: hidden;
+    /* Sit above the sliding indicator so label/icon stay clickable */
+    position: relative;
+    z-index: 1;
 }
 
-.rgd-nav-item:hover { background: var(--rgd-light); color: var(--rgd-navy); }
-.rgd-nav-item.active { background: var(--rgd-light); color: var(--rgd-navy); font-weight: 600; }
+.rgd-nav-item:hover { color: var(--rgd-navy); }
+.rgd-nav-item.active { color: var(--rgd-navy); font-weight: 600; }
 .rgd-nav-icon { flex-shrink: 0; opacity: 0.7; }
 .rgd-nav-item.active .rgd-nav-icon { opacity: 1; color: var(--rgd-blue); }
+
+/* Sliding indicator for the sidebar nav — a tinted background that
+   animates between nav items. Positioned via JS (top/left/width/height).
+   No transition on first render; the .rgd-indicator-ready class is
+   added after the first positioning to enable smooth sliding. */
+.rgd-nav-indicator {
+    position: absolute;
+    background: var(--rgd-light);
+    border-radius: var(--rgd-radius-sm);
+    pointer-events: none;
+    z-index: 0;
+    transition: none;
+}
+.rgd-nav-indicator.rgd-indicator-ready {
+    transition: top 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* Nav label — fades out smoothly when sidebar collapses */
 .rgd-nav-label {

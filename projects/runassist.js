@@ -196,6 +196,21 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Update title
         sidebarToggle.title = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+        // Reposition the sidebar nav indicator after the collapse/expand
+        // transition completes — the nav items change width so the indicator
+        // needs to follow. Disable the ready class during the layout change
+        // so the indicator tracks smoothly with the collapsing items rather
+        // than lagging behind, then re-enable after.
+        if (navIndicator) {
+            navIndicator.classList.remove('rgd-indicator-ready');
+            // Track the nav width during the CSS transition (0.2s)
+            const trackInterval = setInterval(() => positionIndicators(), 16);
+            setTimeout(() => {
+                clearInterval(trackInterval);
+                positionIndicators();
+                navIndicator.classList.add('rgd-indicator-ready');
+            }, 250);
+        }
     });
 
     // =========================================================================
@@ -274,10 +289,69 @@ document.addEventListener('DOMContentLoaded', function () {
         // Scroll to top of content
         const content = $('#rgd-content');
         if (content) content.scrollTop = 0;
+        // Position the sliding indicators behind the now-active items
+        positionIndicators();
+    }
+
+    // Sliding indicators — frosted/tinted backgrounds that animate their
+    // position to sit behind whichever nav item or tab is active.
+    // On first render the indicators jump without transition; after that
+    // the .rgd-indicator-ready class enables smooth sliding.
+    const tabIndicator = $('#rgd-tab-indicator');
+    const navIndicator = $('#rgd-nav-indicator');
+    let indicatorsReady = false;
+
+    function positionIndicators() {
+        // Mobile tab bar indicator — match the active tab item's rect
+        if (tabIndicator) {
+            const activeTab = document.querySelector('.rgd-tab-item.active');
+            if (activeTab) {
+                const tabRect = activeTab.getBoundingClientRect();
+                const barRect = activeTab.parentElement.getBoundingClientRect();
+                tabIndicator.style.left = `${tabRect.left - barRect.left}px`;
+                tabIndicator.style.top = `${tabRect.top - barRect.top}px`;
+                tabIndicator.style.width = `${tabRect.width}px`;
+                tabIndicator.style.height = `${tabRect.height}px`;
+            }
+        }
+        // Sidebar nav indicator — match the active nav item's rect
+        if (navIndicator) {
+            const activeNav = document.querySelector('.rgd-nav-item.active');
+            if (activeNav) {
+                const navRect = activeNav.getBoundingClientRect();
+                const parentRect = activeNav.parentElement.getBoundingClientRect();
+                navIndicator.style.left = `${navRect.left - parentRect.left}px`;
+                navIndicator.style.top = `${navRect.top - parentRect.top}px`;
+                navIndicator.style.width = `${navRect.width}px`;
+                navIndicator.style.height = `${navRect.height}px`;
+            }
+        }
+        // Enable transitions after the first positioning so the indicator
+        // doesn't slide in from the top-left on initial load
+        if (!indicatorsReady) {
+            requestAnimationFrame(() => {
+                tabIndicator?.classList.add('rgd-indicator-ready');
+                navIndicator?.classList.add('rgd-indicator-ready');
+                indicatorsReady = true;
+            });
+        }
     }
 
     // Listen for hash changes
     window.addEventListener('hashchange', () => navigateTo(getPageFromHash()));
+
+    // Reposition indicators on viewport resize — the tab bar and sidebar
+    // nav item dimensions change across breakpoints, so the indicators
+    // need to follow. Debounced via requestAnimationFrame to avoid
+    // excessive calls during drag-resize.
+    let resizeRaf = null;
+    window.addEventListener('resize', () => {
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+            positionIndicators();
+            resizeRaf = null;
+        });
+    });
 
     // Initial route
     navigateTo(getPageFromHash());
