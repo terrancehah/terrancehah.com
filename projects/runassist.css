@@ -38,6 +38,27 @@
        correctly in dark mode (where --rgd-navy becomes light). */
     --rgd-btn-primary-text: #ffffff;
     --rgd-btn-primary-hover: #142a47;
+
+    /* ---- Run-type tag tokens ---- */
+    /* Categorical colours for workout types. These are the one exception
+       to full palette tokenisation — they represent distinct data
+       categories (Easy, Tempo, Speedwork, etc.) and need unique hues.
+       Defined as tokens so dark mode can lighten them for coherence. */
+    --rgd-run-easy: #388e8e;
+    --rgd-run-warmup: #7a7a7a;
+    --rgd-run-tempo: #8a6313;
+    --rgd-run-lsd: #5d6db0;
+    --rgd-run-speedwork: #c44b4b;
+
+    /* ---- Spacing scale ---- */
+    /* 6-step rem-based scale for consistent vertical rhythm. Components
+       should reference these instead of inventing ad-hoc values. */
+    --rgd-space-xs: 0.25rem;   /* tight gaps inside dense components */
+    --rgd-space-sm: 0.5rem;    /* default inner padding, small gaps */
+    --rgd-space-md: 0.75rem;   /* card padding, medium gaps */
+    --rgd-space-lg: 1rem;      /* section gaps, larger padding */
+    --rgd-space-xl: 1.5rem;    /* section separation, page-level gaps */
+    --rgd-space-2xl: 2rem;     /* generous breathing room */
 }
 
 /* ---- Dark theme overrides ---- */
@@ -62,6 +83,13 @@
        need to flip to dark colors for proper contrast. */
     --rgd-btn-primary-text: #0f1a26;
     --rgd-btn-primary-hover: #c8d8e8;
+
+    /* Dark mode run-type tags — lightened for visibility on dark surfaces */
+    --rgd-run-easy: #5fb8b8;
+    --rgd-run-warmup: #a0a0a0;
+    --rgd-run-tempo: #d9b24f;
+    --rgd-run-lsd: #8b9bd6;
+    --rgd-run-speedwork: #e07070;
 }
 
 /* ========== LAYOUT SHELL ========== */
@@ -101,7 +129,7 @@
     /* Sit above the sticky demo banner (z-index: 100) so the modal's
        blur overlay covers the banner when the login dialog is open */
     z-index: 200;
-    padding: 1rem;
+    padding: var(--rgd-space-lg);
 }
 
 .rgd-modal-overlay[hidden] { display: none; }
@@ -141,7 +169,7 @@
 .rgd-metric-popup-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-bottom: 0.75rem;
 }
 
@@ -169,7 +197,7 @@
 .rgd-metric-popup-value-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-bottom: 1.25rem;
     flex-wrap: wrap;
 }
@@ -192,7 +220,7 @@
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
     font-weight: 600;
-    color: #ffffff;
+    color: var(--rgd-btn-primary-text);
     padding: 0.2rem 0.5rem;
     border-radius: var(--rgd-radius-sm);
     text-transform: uppercase;
@@ -309,7 +337,7 @@
 .rgd-score-tier {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-body);
     color: var(--rgd-text);
@@ -399,7 +427,7 @@
 
 .rgd-field-row {
     display: flex;
-    gap: 1rem;
+    gap: var(--rgd-space-lg);
 }
 
 @media (max-width: 30rem) {
@@ -433,7 +461,12 @@
     box-shadow: 0 0 0 0.1875rem rgba(69, 123, 157, 0.15);
 }
 
-.rgd-input::placeholder { color: #a0b4c4; }
+/* Placeholder uses the muted text token at reduced opacity for visual
+   hierarchy while still meeting WCAG AA 4.5:1 contrast in both themes.
+   The muted token (#5a7184 light / #8ba5be dark) passes contrast at
+   full opacity; 0.85 opacity keeps it visually secondary without
+   dropping below the 4.5:1 threshold in either theme. */
+.rgd-input::placeholder { color: var(--rgd-muted); opacity: 0.85; }
 
 /* Validation */
 .rgd-input.error {
@@ -499,7 +532,7 @@
 }
 
 /* Mileage row */
-.rgd-mileage-row { display: flex; gap: 0.5rem; align-items: flex-start; }
+.rgd-mileage-row { display: flex; gap: var(--rgd-space-sm); align-items: flex-start; }
 .rgd-mileage-input { flex: 1; }
 
 .rgd-unit-select {
@@ -523,7 +556,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--rgd-text-body);
@@ -555,7 +588,7 @@
     background: transparent;
     color: var(--rgd-muted);
     font-size: var(--rgd-text-label);
-    padding: 0.5rem;
+    padding: var(--rgd-space-sm);
     width: auto;
 }
 .rgd-btn-ghost:hover { color: var(--rgd-accent-red); background: color-mix(in srgb, var(--rgd-accent-red) 6%, transparent); }
@@ -572,11 +605,11 @@
 .rgd-tab-item:focus-visible,
 .rgd-sidebar-toggle:focus-visible,
 .rgd-theme-toggle:focus-visible,
-.rd-theme-toggle-mobile:focus-visible,
+.rgd-theme-toggle-mobile:focus-visible,
 .rgd-readiness-card-link:focus-visible,
 .rgd-demo-banner-cta:focus-visible,
 .rgd-settings-popup-close:focus-visible,
-.rgd-metric-popup-close:focus-visible {
+.rgd-modal-close:focus-visible {
     outline: 0.125rem solid var(--rgd-blue);
     outline-offset: 0.125rem;
     border-radius: var(--rgd-radius-sm);
@@ -610,7 +643,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     padding: 1rem 0 0;
     border-top: 0.0625rem solid var(--rgd-border);
     margin-top: 0.5rem;
@@ -655,9 +688,10 @@ header.rgd-header-offset.rgd-header-collapsed {
     header.rgd-header-offset { padding-left: 0; }
 }
 
-/* Header color scheme — light mode defaults (match existing Tailwind colors) */
-.rgd-header-title { color: #1d3557; transition: color 0.3s ease; }
-.rgd-header-link { color: #457B9D; transition: color 0.3s ease, background-color 0.3s ease; }
+/* Header colour scheme — uses the design system tokens so the header
+   transitions correctly when switching between light and dark themes. */
+.rgd-header-title { color: var(--rgd-navy); transition: color 0.3s ease; }
+.rgd-header-link { color: var(--rgd-blue); transition: color 0.3s ease, background-color 0.3s ease; }
 
 /* Header dark mode overrides */
 [data-theme="dark"] .rgd-header-title { color: #a8c5e8; }
@@ -919,13 +953,13 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex-direction: column;
     height: 100%;
     padding: 1.25rem 0.75rem;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-sidebar-header {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     padding-bottom: 0.75rem;
     border-bottom: 0.0625rem solid var(--rgd-border);
     white-space: nowrap;
@@ -996,6 +1030,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-blue);
     font-weight: 500;
     flex: 1;
+    text-align: end;
 }
 
 .rgd-reset-goal-icon {
@@ -1042,7 +1077,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-nav-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: var(--rgd-text-label);
@@ -1127,7 +1162,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-sidebar-theme-toggle {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: var(--rgd-text-label);
@@ -1200,7 +1235,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-sidebar-settings {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: var(--rgd-text-label);
@@ -1252,7 +1287,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-content-header {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-bottom: clamp(1rem, 2vw, 1.5rem);
 }
 
@@ -1280,7 +1315,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-demo-banner {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     background: var(--rgd-light);
     border: 0.0625rem solid var(--rgd-border);
     border-radius: var(--rgd-radius-sm);
@@ -1332,12 +1367,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-demo-banner-cta:active { transform: scale(0.96); }
 
 /* ---- Demo banner slim pill ----
-   When the user scrolls down the full banner collapses into a compact
+   When the user scrolls down far enough that the sticky banner reaches
+   the top of the viewport, the full banner collapses into a compact
    pill ("Demo Mode · Connect"). The .rgd-demo-banner--slim class is
-   toggled by the same scroll-direction handler that hides the tab bar.
-   Both contents stay in the DOM and cross-fade via opacity; the slim
-   content is absolutely positioned and centered so the container can
-   animate its max-width from 100% to a narrow pill smoothly. */
+   toggled by the scroll handler based on the banner's sticky position
+   (getBoundingClientRect().top <= 28px), not on scroll direction. Both
+   contents stay in the DOM and cross-fade via opacity; the slim content
+   is absolutely positioned and centered so the container can animate
+   its max-width from 100% to a narrow pill smoothly. */
 .rgd-demo-banner {
     /* transition the animatable properties for shrink/expand.
        Slowed down slightly (0.4s) so the shrink to pill and expand back
@@ -1357,7 +1394,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-demo-banner-full {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     width: 100%;
     /* Cross-fade timing slowed to match the container shrink/expand */
     transition: opacity 0.3s ease;
@@ -1419,7 +1456,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     text-align: center;
     padding: clamp(1.5rem, 3vw, 2.5rem) 1rem;
     margin-top: clamp(1rem, 2vw, 2rem);
@@ -1452,7 +1489,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-page[hidden] { display: none; }
 
 /* ---- Sections ---- */
-.rgd-section { display: flex; flex-direction: column; gap: 1rem; }
+.rgd-section { display: flex; flex-direction: column; gap: var(--rgd-space-lg); }
 
 .rgd-section-title {
     font-family: 'Lato', sans-serif;
@@ -1463,7 +1500,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     text-decoration: none;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
 /* "Last updated" date label shown inline with the Training Vitals
@@ -1598,7 +1635,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-metric-value-row {
     display: flex;
     align-items: baseline;
-    gap: 0.25rem;
+    gap: var(--rgd-space-xs);
     flex-wrap: wrap;
 }
 
@@ -1667,7 +1704,11 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-weight: 900;
     /* Bigger — display size for strong visual impact */
     font-size: var(--rgd-text-display);
-    color: #ffffff;
+    /* Use the button primary text token so the countdown text flips to
+       dark in dark mode (where --rgd-blue lightens to #6ba3d0 and white
+       text would fail contrast at ~2.8:1). Matches the primary button
+       text pattern for consistency. */
+    color: var(--rgd-btn-primary-text);
     line-height: 1;
 }
 
@@ -1746,6 +1787,17 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin-top: 0.25rem;
 }
 
+/* Dimension dot colour variants — each maps to a performance dimension.
+   Colours use the run-type tokens since the dimensions share the same
+   palette (red = lactate/speed, green = aerobic, amber = economy,
+   purple = strength, blue = VO₂max, teal = fatigue). */
+.rgd-dimension-explainer-dot--lactate { background: color-mix(in srgb, var(--rgd-run-speedwork) 70%, transparent); }
+.rgd-dimension-explainer-dot--aerobic { background: color-mix(in srgb, var(--rgd-accent-green) 70%, transparent); }
+.rgd-dimension-explainer-dot--economy { background: color-mix(in srgb, var(--rgd-run-tempo) 70%, transparent); }
+.rgd-dimension-explainer-dot--strength { background: color-mix(in srgb, var(--rgd-run-lsd) 70%, transparent); }
+.rgd-dimension-explainer-dot--vo2max { background: color-mix(in srgb, var(--rgd-blue) 70%, transparent); }
+.rgd-dimension-explainer-dot--fatigue { background: color-mix(in srgb, var(--rgd-run-easy) 70%, transparent); }
+
 .rgd-dimension-explainer-name {
     display: block;
     font-family: 'Lato', sans-serif;
@@ -1798,7 +1850,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-goal-stat-value-row {
     display: flex;
     align-items: baseline;
-    gap: 0.25rem;
+    gap: var(--rgd-space-xs);
     flex-wrap: wrap;
 }
 
@@ -2191,10 +2243,10 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding: clamp(0.75rem, 1.5vw, 1rem);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
-.rgd-pillar-header { display: flex; align-items: center; gap: 0.5rem; }
+.rgd-pillar-header { display: flex; align-items: center; gap: var(--rgd-space-sm); }
 
 .rgd-pillar-dot {
     width: 0.5rem;
@@ -2263,7 +2315,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-pillar-section {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: var(--rgd-space-xs);
 }
 
 .rgd-pillar-section-label {
@@ -2285,10 +2337,12 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 /* Gaps label — yellow/amber tint indicating areas for improvement.
    Yellow (rather than red) keeps gaps feeling actionable rather than
-   alarming, distinguishing them from error states. */
+   alarming, distinguishing them from error states. Text colour
+   darkened to #8a6313 (~5.2:1 on the tinted background) to meet WCAG
+   AA 4.5:1 for small text. */
 .rgd-pillar-section-label--gaps {
     background: rgba(212, 160, 23, 0.15);
-    color: #b5832a;
+    color: #8a6313;
 }
 
 /* Dark mode overrides for section labels */
@@ -2322,7 +2376,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-skeleton-lines {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-top: 0.5rem;
 }
 
@@ -2411,7 +2465,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     padding: 0.75rem clamp(0.75rem, 1.5vw, 1rem);
     cursor: pointer;
     user-select: none;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     transition: background 0.15s ease;
 }
 
@@ -2436,7 +2490,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-activity-summary {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     flex: 1;
     min-width: 0;
 }
@@ -2491,20 +2545,21 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex-shrink: 0;
 }
 
-/* Tag color variants — each workout type has a distinct color */
-/* Run type tags — colored badges indicating workout category */
-.rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.15); color: #5d6db0; }
-.rgd-run-tag--easy { background: rgba(56, 142, 142, 0.15); color: #388e8e; }
-.rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.15); color: #c44b4b; }
-.rgd-run-tag--tempo-long { background: rgba(212, 160, 23, 0.15); color: #b5832a; }
-.rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.15); color: #888; }
+/* Tag color variants — each workout type uses a tokenized colour so
+   dark mode overrides are handled by the token, not per-tag rules. */
+.rgd-run-tag--lsd { background: color-mix(in srgb, var(--rgd-run-lsd) 15%, transparent); color: var(--rgd-run-lsd); }
+.rgd-run-tag--easy { background: color-mix(in srgb, var(--rgd-run-easy) 15%, transparent); color: var(--rgd-run-easy); }
+.rgd-run-tag--speedwork { background: color-mix(in srgb, var(--rgd-run-speedwork) 15%, transparent); color: var(--rgd-run-speedwork); }
+.rgd-run-tag--tempo-long { background: color-mix(in srgb, var(--rgd-run-tempo) 15%, transparent); color: var(--rgd-run-tempo); }
+.rgd-run-tag--warmup { background: color-mix(in srgb, var(--rgd-run-warmup) 15%, transparent); color: var(--rgd-run-warmup); }
 
-/* Dark mode tag colors — slightly brighter for visibility */
-[data-theme="dark"] .rgd-run-tag--lsd { background: rgba(93, 109, 176, 0.25); color: #8b9ad6; }
-[data-theme="dark"] .rgd-run-tag--easy { background: rgba(56, 142, 142, 0.25); color: #5dbfbf; }
-[data-theme="dark"] .rgd-run-tag--speedwork { background: rgba(196, 75, 75, 0.25); color: #e07070; }
-[data-theme="dark"] .rgd-run-tag--tempo-long { background: rgba(212, 160, 23, 0.25); color: #d9b24f; }
-[data-theme="dark"] .rgd-run-tag--warmup { background: rgba(157, 157, 157, 0.25); color: #aaa; }
+/* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
+   Text colour is already handled by the dark-mode token overrides. */
+[data-theme="dark"] .rgd-run-tag--lsd { background: color-mix(in srgb, var(--rgd-run-lsd) 25%, transparent); }
+[data-theme="dark"] .rgd-run-tag--easy { background: color-mix(in srgb, var(--rgd-run-easy) 25%, transparent); }
+[data-theme="dark"] .rgd-run-tag--speedwork { background: color-mix(in srgb, var(--rgd-run-speedwork) 25%, transparent); }
+[data-theme="dark"] .rgd-run-tag--tempo-long { background: color-mix(in srgb, var(--rgd-run-tempo) 25%, transparent); }
+[data-theme="dark"] .rgd-run-tag--warmup { background: color-mix(in srgb, var(--rgd-run-warmup) 25%, transparent); }
 
 .rgd-activity-meta {
     display: flex;
@@ -2557,7 +2612,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-activity-detail-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(clamp(6rem, 12vw, 8rem), 1fr));
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     padding-top: 0.75rem;
 }
 
@@ -2583,7 +2638,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-dimension-legend {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(clamp(10rem, 16vw, 12rem), 1fr));
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-top: 1rem;
     padding-top: 1rem;
     border-top: 0.0625rem solid var(--rgd-border);
@@ -2592,7 +2647,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-legend-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-label);
     color: var(--rgd-navy);
@@ -2608,7 +2663,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 /* ---- Skeleton loading ---- */
-.rgd-skeleton-block { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem 0; }
+.rgd-skeleton-block { display: flex; flex-direction: column; gap: var(--rgd-space-md); padding: 1rem 0; }
 
 .rgd-skeleton {
     background: linear-gradient(90deg, var(--rgd-border) 25%, #e8eff4 50%, var(--rgd-border) 75%);
@@ -2634,7 +2689,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-label);
     color: var(--rgd-accent-red);
-    padding: 0.75rem;
+    padding: var(--rgd-space-md);
     background: rgba(196, 75, 75, 0.05);
     border-radius: var(--rgd-radius-sm);
 }
@@ -2662,7 +2717,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: var(--rgd-space-lg);
 }
 
 /* Shimmer text — a reusable loading effect where a gradient sweep moves
@@ -2768,7 +2823,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     border: none;
     color: var(--rgd-muted);
     cursor: pointer;
-    padding: 0.25rem;
+    padding: var(--rgd-space-xs);
     border-radius: 0.25rem;
     display: flex;
     align-items: center;
@@ -2810,10 +2865,10 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 .rgd-edit-goal-form {
-    padding: 1rem;
+    padding: var(--rgd-space-lg);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-settings-popup-body {
@@ -2830,7 +2885,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     padding-bottom: 0.75rem;
     border-bottom: 0.0625rem solid var(--rgd-border);
     margin-bottom: 0.25rem;
@@ -2872,7 +2927,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-settings-field-label {
@@ -3048,7 +3103,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Phone: single column, compact */
 @media (max-width: 30rem) {
     :root {
-        --rgd-content-padding: 0.5rem;
+        --rgd-content-padding: var(--rgd-space-sm);
     }
 
     .rgd-metrics-grid {
@@ -3076,7 +3131,7 @@ header.rgd-header-offset.rgd-header-collapsed {
         width: 100%;
         justify-content: left;
         padding-left: 0.5rem;
-        gap: 1.5rem;
+        gap: var(--rgd-space-xl);
     }
 
     .rgd-activity-detail-grid {
@@ -3095,8 +3150,8 @@ header.rgd-header-offset.rgd-header-collapsed {
     .rgd-calendar-grid { gap: clamp(0.3rem, 1.5vw, 0.45rem); }
     .rgd-calendar-header { gap: clamp(0.3rem, 1.5vw, 0.45rem); }
 
-    .rgd-chart-card { padding: 0.75rem; }
-    .rgd-chart-card--large { padding: 0.75rem; }
+    .rgd-chart-card { padding: var(--rgd-space-md); }
+    .rgd-chart-card--large { padding: var(--rgd-space-md); }
 
     .rgd-section-title { font-size: var(--rgd-text-subheading); }
 
@@ -3281,14 +3336,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-plan-block {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-plan-header-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-plan-header-row .rgd-refresh-btn {
@@ -3363,7 +3418,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-coach-history {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--rgd-space-lg);
 }
 
 .rgd-history-day {
@@ -3391,7 +3446,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-history-run-main {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     flex-wrap: wrap;
 }
 
@@ -3446,7 +3501,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-lap-row {
     display: grid;
     grid-template-columns: 2rem 1fr 1fr 1fr;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     align-items: center;
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-caption);
@@ -3463,7 +3518,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-coach-plan {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
 }
 
 .rgd-plan-day {
@@ -3488,7 +3543,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-plan-day-header {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
 .rgd-plan-day-dow {
@@ -3528,13 +3583,13 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-plan-controls {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
 .rgd-plan-control {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: var(--rgd-space-xs);
 }
 
 .rgd-plan-control-label {
@@ -3634,7 +3689,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     background: var(--rgd-surface);
     border: 0.0625rem solid var(--rgd-border);
     border-radius: var(--rgd-radius);
@@ -3668,12 +3723,12 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-coach-calendar {
     display: flex;
     flex-direction: column;
-    /* gap: 0.5rem; */
+    /* gap: var(--rgd-space-sm); */
 }
 
 .rgd-cal-row {
     display: flex;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     align-items: stretch;
     padding: 0.5rem 0;
     border-bottom: 0.0625rem dashed var(--rgd-border);
@@ -3733,7 +3788,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-card {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     border-radius: var(--rgd-radius-sm);
     padding: 0.45rem 0.6rem;
     position: relative;
@@ -3776,14 +3831,14 @@ header.rgd-header-offset.rgd-header-collapsed {
     flex-direction: column;
     min-width: 0;
     padding-right: 1.25rem;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
 /* First row: title on the left, tag on the right */
 .rgd-cal-card-title-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
 }
 
 .rgd-cal-card-title {
@@ -3797,7 +3852,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-card-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     flex-wrap: wrap;
 }
 
@@ -3878,7 +3933,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-card-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--rgd-space-sm);
     margin-top: 0.2rem;
 }
 
@@ -3939,7 +3994,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-plan-prefs-form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--rgd-space-lg);
 }
 
 .rgd-distance-slider {
@@ -3957,7 +4012,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-plan-prefs-actions {
     display: flex;
-    gap: 0.75rem;
+    gap: var(--rgd-space-md);
     justify-content: flex-end;
 }
 
@@ -3994,7 +4049,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-cal-date-value {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--rgd-space-xs);
 }
 
 /* ========== WORKOUT DETAIL — bottom sheet on mobile, modal on desktop ========== */
@@ -4031,7 +4086,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     width: min(100%, 40rem);
     max-height: 85dvh;
     overflow-y: auto;
-    padding: 1.5rem;
+    padding: var(--rgd-space-xl);
     position: relative;
     transform: translateY(100%);
     transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
@@ -4238,3 +4293,74 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Clickable suggested workout card */
 .rgd-cal-card[data-action="view"] { cursor: pointer; }
 .rgd-cal-card[data-action="view"]:hover { border-color: var(--rgd-blue); }
+
+/* ===========================================================================
+   Reduced motion — respect the user's OS-level preference.
+   When prefers-reduced-motion is set, all animations and transitions are
+   disabled so users with vestibular sensitivity or motion aversion get
+   instant state changes instead of slides, fades, spins, and shimmer
+   sweeps. This is a non-negotiable quality-floor requirement.
+   =========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    /* Disable all transitions — state changes happen instantly */
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Hide shimmer/skeleton sweep animations — show the base colour only */
+    .rgd-shimmer-text,
+    .rgd-skeleton,
+    .rgd-skeleton-text,
+    .rgd-skeleton-line,
+    .rgd-radar-skeleton,
+    .rgd-radar-skeleton-svg,
+    .rgd-radar-skeleton-fill,
+    .rgd-radar-morph,
+    .rgd-coach-loading--active {
+        animation: none !important;
+        background: var(--rgd-light) !important;
+    }
+
+    /* Disable the radar pulse and pillar highlight pulse */
+    .rgd-radar-skeleton { opacity: 0.3 !important; }
+    .rgd-pillar-card--highlight { animation: none !important; box-shadow: none !important; }
+
+    /* Disable the conic-gradient halo spin on coach loading */
+    .rgd-coach-loading--active::before { animation: none !important; }
+
+    /* Disable the spinner rotation */
+    .rgd-btn-spinner { animation: none !important; }
+
+    /* Disable the demo banner shrink/expand — snap to the target state */
+    .rgd-demo-banner,
+    .rgd-demo-banner-full,
+    .rgd-demo-banner-slim {
+        transition: none !important;
+    }
+
+    /* Disable the tab bar slide and chat popup spring */
+    .rgd-tabbar,
+    .rgd-chat-popup,
+    .rgd-workout-sheet,
+    .rgd-sheet-overlay {
+        transition: none !important;
+    }
+
+    /* Disable the sidebar collapse animation */
+    .rgd-sidebar,
+    .rgd-dashboard-layout,
+    .rgd-header-offset {
+        transition: none !important;
+    }
+
+    /* Disable theme toggle icon transitions */
+    .rgd-theme-icon-sun,
+    .rgd-theme-icon-moon {
+        transition: none !important;
+    }
+}

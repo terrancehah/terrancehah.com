@@ -356,6 +356,23 @@ document.addEventListener('DOMContentLoaded', function () {
     // Listen for hash changes
     window.addEventListener('hashchange', () => navigateTo(getPageFromHash()));
 
+    // Re-tap active tab scrolls to top — when the user taps the tab that
+    // is already active, the hash doesn't change so hashchange never fires.
+    // This click listener detects that case and scrolls to the top of the
+    // page so the user can quickly get back to the start of a long page.
+    $$('.rgd-tab-item[href]').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const targetPage = item.getAttribute('href').replace('#', '');
+            const currentPage = getPageFromHash();
+            // Only scroll to top if the tapped tab is already the active page.
+            // If it's a different page, let the normal hashchange flow handle it.
+            if (targetPage === currentPage) {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+    });
+
     // Reposition indicators on viewport resize — the tab bar and sidebar
     // nav item dimensions change across breakpoints, so the indicators
     // need to follow. Debounced via requestAnimationFrame to avoid
@@ -387,6 +404,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // scroll restoration doesn't read as a jump.
     const SCROLL_COMMIT_PX = 24;   // accumulated px before committing a hide/show
     const SCROLL_TOP_PX = 24;      // always visible within this distance from top
+    // Always visible within this distance from the bottom. Matches the
+    // mobile content's padding-bottom (7rem ≈ 112px) so the tab bar
+    // reappears just as the user enters the padded zone, keeping the
+    // gap justified instead of leaving empty space below content.
+    const SCROLL_BOTTOM_PX = 120;
     let lastScrollY = window.scrollY;
     let scrollDir = 'up';          // currently applied direction
     let scrollAccum = 0;           // accumulated px in the candidate direction
@@ -395,6 +417,45 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateScrollDirection() {
         const currentY = window.scrollY;
         const delta = currentY - lastScrollY;
+
+        // Demo banner slim — shrink only when the banner has reached its
+        // sticky position at the top of the viewport. The banner is
+        // position:sticky with top: clamp(1rem, 2vw, 1.5rem).
+        //
+        // CRITICAL: we must NOT read the banner's own getBoundingClientRect
+        // for the threshold. When the banner shrinks to a pill, its height
+        // decreases, which shifts the content below it, which changes the
+        // banner's rect.top, which can cross back past the exit threshold,
+        // which expands the banner, which shifts content back, which
+        // crosses the enter threshold again — an infinite flicker loop.
+        // No amount of hysteresis on the banner's rect.top fixes this
+        // because the signal (rect.top) is coupled to the action (shrink).
+        //
+        // Instead, we read the CONTENT container's rect.top — a stable
+        // signal that does NOT change when the banner shrinks. The banner
+        // is the first child inside .rgd-content, so the banner's natural
+        // top = contentRect.top + contentPaddingTop. The banner sticks
+        // when this natural top <= the sticky top offset. With content
+        // padding of clamp(1rem, 3vw, 2rem) (16-32px) and sticky top of
+        // clamp(1rem, 2vw, 1.5rem) (16-24px), the banner sticks when
+        // contentRect.top reaches roughly 0 to -8px. Using contentRect.top
+        // <= 0 as the enter threshold covers the full clamp range.
+        //
+        // Hysteresis (40px gap) prevents edge-case flicker at the boundary,
+        // though the signal is already stable so this is just insurance.
+        const banner = $('#rgd-demo-banner');
+        if (banner && !banner.hidden) {
+            const content = $('#rgd-content');
+            if (content) {
+                const contentTop = content.getBoundingClientRect().top;
+                const isSlim = banner.classList.contains('rgd-demo-banner--slim');
+                if (!isSlim && contentTop <= 0) {
+                    banner.classList.add('rgd-demo-banner--slim');
+                } else if (isSlim && contentTop > 40) {
+                    banner.classList.remove('rgd-demo-banner--slim');
+                }
+            }
+        }
 
         // Ignore the very first scroll event so scroll restoration on
         // page load doesn't register as a downward jump.
@@ -407,6 +468,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Always visible near the top — reset to "up" (shown) state.
         if (currentY <= SCROLL_TOP_PX) {
+            scrollAccum = 0;
+            if (scrollDir !== 'up') {
+                scrollDir = 'up';
+                applyScrollDirection(false);
+            }
+            lastScrollY = currentY;
+            scrollTicking = false;
+            return;
+        }
+
+        // Always visible near the bottom — the content has a large
+        // padding-bottom on mobile to clear the floating tab bar. If the
+        // tab bar is hidden (from scrolling down) but the user reaches
+        // the bottom, that padding becomes a huge empty gap. Forcing the
+        // tab bar to show near the bottom keeps the padding justified and
+        // gives the user navigation options after finishing the page.
+        const scrollHeight = document.documentElement.scrollHeight;
+        const viewportHeight = window.innerHeight;
+        const distanceFromBottom = scrollHeight - currentY - viewportHeight;
+        if (distanceFromBottom <= SCROLL_BOTTOM_PX) {
             scrollAccum = 0;
             if (scrollDir !== 'up') {
                 scrollDir = 'up';
@@ -458,14 +539,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Apply the scroll direction to the DOM — toggles the tab bar hide
-    // class and the demo banner slim class. Called only when the
-    // direction actually changes, so a page of scrolling costs at most a
-    // couple of class toggles.
+    // class only. The demo banner slim state is handled separately in
+    // updateScrollDirection based on whether the banner has reached its
+    // sticky position at the top of the viewport, not on scroll direction.
     function applyScrollDirection(hide) {
         const tabbar = $('#rgd-tabbar');
         if (tabbar) tabbar.classList.toggle('rgd-tabbar--hidden', hide);
-        const banner = $('#rgd-demo-banner');
-        if (banner && !banner.hidden) banner.classList.toggle('rgd-demo-banner--slim', hide);
     }
 
     window.addEventListener('scroll', () => {
@@ -2032,16 +2111,19 @@ document.addEventListener('DOMContentLoaded', function () {
         'Easy': 'rgd-run-tag--easy',
     };
 
-    // Run type → dot fill colour. Mirrors the run-tag CSS colour scheme so
-    // calendar dots match the activity-list tag colours. Used for solid
-    // fills and for the two-colour split when a day has two different types.
+    // Run type → dot fill colour. Reads the tokenised CSS custom properties
+    // (--rgd-run-*) so calendar dots match the run-tag colours and respect
+    // dark mode automatically. Falls back to hardcoded hex if the token is
+    // missing (e.g. older browsers without CSS variable support).
+    const cssVar = (name, fallback) =>
+        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
     const RUN_TAG_COLOR = {
-        'Run': '#388e8e',
-        'Easy': '#388e8e',
-        'Warmup': '#888888',
-        'Tempo Long': '#b5832a',
-        'LSD': '#5d6db0',
-        'Speedwork': '#c44b4b',
+        'Run': cssVar('--rgd-run-easy', '#388e8e'),
+        'Easy': cssVar('--rgd-run-easy', '#388e8e'),
+        'Warmup': cssVar('--rgd-run-warmup', '#7a7a7a'),
+        'Tempo Long': cssVar('--rgd-run-tempo', '#8a6313'),
+        'LSD': cssVar('--rgd-run-lsd', '#5d6db0'),
+        'Speedwork': cssVar('--rgd-run-speedwork', '#c44b4b'),
     };
 
     function buildActivityItem(a, i) {
@@ -2446,10 +2528,26 @@ document.addEventListener('DOMContentLoaded', function () {
         // No break point — return as single-line
         return [label];
     }
+    // Radar dimension colours — read from the same tokens used by the
+    // dimension explainer dots so the radar and the explainer modal stay
+    // in sync. Uses rgba via color-mix fallback parsing: since Chart.js
+    // needs rgba strings (not CSS variables), we read the computed hex
+    // tokens and apply 0.7 alpha inline.
+    const radarHex = (name, fallback) => {
+        const hex = cssVar(name, fallback);
+        // Convert hex (#rrggbb) to rgba(r,g,b,0.7)
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.7)`;
+    };
     const RADAR_COLORS = [
-        'rgba(196, 75, 75, 0.7)', 'rgba(63, 123, 79, 0.7)',
-        'rgba(212, 160, 23, 0.7)', 'rgba(93, 109, 176, 0.7)',
-        'rgba(69, 123, 157, 0.7)', 'rgba(56, 142, 142, 0.7)',
+        radarHex('--rgd-run-speedwork', '#c44b4b'),  // lactate threshold — red
+        radarHex('--rgd-accent-green', '#3f7b4f'),   // aerobic endurance — green
+        radarHex('--rgd-run-tempo', '#8a6313'),      // running economy — amber
+        radarHex('--rgd-run-lsd', '#5d6db0'),        // strength/durability — purple
+        radarHex('--rgd-blue', '#457b9d'),           // vo2max/speed — blue
+        radarHex('--rgd-run-easy', '#388e8e'),       // fatigue resistance — teal
     ];
     const RADAR_KEYS = [
         'lactate_threshold', 'aerobic_endurance', 'running_economy',

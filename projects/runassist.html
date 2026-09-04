@@ -25,8 +25,11 @@
     <!-- Load Google Fonts via <link> instead of @import — @import inside
          a <style> tag is render-blocking and prevents preconnect from
          helping. <link> with display=swap lets text render immediately
-         with fallback fonts while the web fonts load asynchronously. -->
-    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Baskervville:ital@0;1&display=swap" rel="stylesheet">
+         with fallback fonts while the web fonts load asynchronously.
+         Only Lato and Raleway are loaded — Baskervville is used by other
+         site pages but not by RunAssist, so excluding it saves ~15-20KB
+         of font data and an unnecessary render-blocking request. -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <!-- Chart.js — deferred so it doesn't block initial render.
          The dashboard JS waits for DOMContentLoaded before using Chart,
          so deferring this script is safe and saves ~1,830ms of
@@ -410,7 +413,8 @@
 
                     <!-- Demo banner — shown when viewing sample data in demo mode.
                          The full view (icon + message + Connect Garmin button) is
-                         shown at rest; when the user scrolls down the banner
+                         shown at rest; when the user scrolls down far enough that
+                         the sticky banner reaches the top of the viewport, it
                          shrinks to a slim "Demo Mode · Connect" pill (toggled via
                          the .rgd-demo-banner--slim class by the scroll handler). -->
                     <div class="rgd-demo-banner" id="rgd-demo-banner" hidden>
@@ -886,42 +890,42 @@
                 </div>
                 <div class="rgd-dimension-list">
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(196, 75, 75, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--lactate"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">Lactate Threshold</span>
                             <p class="rgd-dimension-explainer-desc">The pace at which lactate accumulates faster than your body can clear it. A higher threshold means you can sustain faster speeds for longer before fatigue sets in — critical for maintaining race pace in the middle third of your race.</p>
                         </div>
                     </div>
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(63, 123, 79, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--aerobic"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">Aerobic Endurance</span>
                             <p class="rgd-dimension-explainer-desc">Your cardiovascular foundation — how efficiently your heart and lungs deliver oxygen to working muscles over sustained effort. This is the base that lets you complete the full race distance without fading.</p>
                         </div>
                     </div>
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(212, 160, 23, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--economy"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">Running Economy</span>
                             <p class="rgd-dimension-explainer-desc">How much energy you expend at a given pace. Better economy means you use less oxygen to maintain the same speed, effectively giving you more fuel in the tank for the closing kilometers.</p>
                         </div>
                     </div>
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(93, 109, 176, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--strength"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">Strength / Durability</span>
                             <p class="rgd-dimension-explainer-desc">Musculoskeletal resilience — how well your muscles, tendons, and joints handle the repetitive impact of running. Stronger durability means lower injury risk and better late-race form when fatigue sets in.</p>
                         </div>
                     </div>
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(69, 123, 157, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--vo2max"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">VO₂max / Speed</span>
                             <p class="rgd-dimension-explainer-desc">Your maximum oxygen uptake and raw speed ceiling. A higher VO₂max gives you more headroom above race pace, making goal pace feel easier and allowing you to surge when needed.</p>
                         </div>
                     </div>
                     <div class="rgd-dimension-explainer-item">
-                        <span class="rgd-dimension-explainer-dot" style="background: rgba(56, 142, 142, 0.7)"></span>
+                        <span class="rgd-dimension-explainer-dot rgd-dimension-explainer-dot--fatigue"></span>
                         <div>
                             <span class="rgd-dimension-explainer-name">Fatigue Resistance</span>
                             <p class="rgd-dimension-explainer-desc">Your ability to maintain performance as fatigue accumulates over the race. This determines whether you can hold your target pace through the final kilometers or whether you slow down in the closing stages.</p>

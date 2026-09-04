@@ -234,7 +234,7 @@ WRITING STYLE AND RULES:
     - Do not use jargons like physiological validation, training effect 4.5, profile value, blended session data, accumulated load. Keep things simple.
     - Strengths answer: what does this mean for the race goal?
     - Gaps answer: what should they do next, and why?
-    - Do not invent data.
+    - Do not invent data.rgd-sidebar-goal
     - Keep each dimension to its own evidence. Spread citations across the 30 activities. Before citing a run, ask whether it is the best proof for THIS dimension.
     - For heart rate, pick one only: "easy", "comfortably hard", "about 80% of your max", or "164 bpm". Never stack datas or specific like bpm + % + zone + date + pace in one sentence.
 
