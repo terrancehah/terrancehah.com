@@ -1654,6 +1654,11 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
 }
 
+/* Vitals disclosure toggle — hidden on desktop where all tiles are visible.
+   Shown only inside the max-width: 30rem media query below. On mobile it
+   appears as a subtle chevron-based toggle below the metrics grid. */
+.rgd-vitals-toggle { display: none; }
+
 /* ---- Charts row ---- */
 .rgd-charts-row {
     display: grid;
@@ -2220,6 +2225,208 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 /* Calendar legend (hidden by default) */
 .rgd-calendar-legend { display: none; }
+
+/* ---- Overall Insight ---- */
+/* The coach's top-level synthesized assessment. A single prominent card
+   that sits between Race Readiness and Training Vitals. Unlike the
+   per-pillar Pre Race Insights grid, this is one cohesive narrative
+   that tells the runner where they stand overall and what to focus on. */
+.rgd-overall-insight {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    padding: clamp(1rem, 2vw, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-md);
+}
+
+/* Override [hidden] — display:flex would otherwise prevent the hidden
+   attribute from hiding the element during the skeleton loading state. */
+.rgd-overall-insight[hidden] { display: none; }
+
+/* Header row — verdict label on the left, score on the right */
+.rgd-overall-insight-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--rgd-space-sm);
+}
+
+.rgd-overall-insight-verdict {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-subheading);
+    color: var(--rgd-navy);
+}
+
+/* Score — large number with small /10 suffix. Color is set inline by JS
+   based on the score value (green/amber/red from the AI score scale). */
+.rgd-overall-insight-score {
+    font-family: 'Lato', sans-serif;
+    font-weight: 900;
+    font-size: var(--rgd-text-heading);
+    line-height: 1;
+}
+
+.rgd-overall-insight-score-max {
+    font-size: var(--rgd-text-label);
+    font-weight: 600;
+    color: var(--rgd-muted);
+    margin-left: 0.15rem;
+}
+
+/* Summary paragraph — the coach's opening assessment */
+.rgd-overall-insight-summary {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    line-height: 1.6;
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+/* Takeaways — two-column grid on desktop, stacked on mobile.
+   Shows the top strength and biggest gap side by side. */
+.rgd-overall-insight-takeaways {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--rgd-space-md);
+}
+
+@media (max-width: 37.5rem) {
+    .rgd-overall-insight-takeaways { grid-template-columns: 1fr; }
+}
+
+/* Individual takeaway card — tinted background distinguishes strength
+   (green tint) from gap (amber tint), matching the pillar section labels */
+.rgd-overall-insight-takeaway {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: var(--rgd-space-sm) var(--rgd-space-md);
+    border-radius: var(--rgd-radius-sm);
+}
+
+.rgd-overall-insight-takeaway--strength {
+    background: color-mix(in srgb, var(--rgd-accent-green) 8%, var(--rgd-surface));
+}
+
+.rgd-overall-insight-takeaway--gap {
+    background: color-mix(in srgb, var(--rgd-accent-amber) 8%, var(--rgd-surface));
+}
+
+.rgd-overall-insight-takeaway-label {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--rgd-muted);
+}
+
+.rgd-overall-insight-takeaway-name {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-navy);
+}
+
+.rgd-overall-insight-takeaway-note {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    line-height: 1.55;
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+/* Focus callout — the single most impactful next action, highlighted
+   with a left accent border to draw the eye */
+.rgd-overall-insight-focus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-left: var(--rgd-space-md);
+    border-left: 0.1875rem solid var(--rgd-blue);
+}
+
+.rgd-overall-insight-focus-label {
+    font-family: 'Lato', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--rgd-blue);
+}
+
+.rgd-overall-insight-focus-text {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    line-height: 1.55;
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+/* Skeleton loading state for the overall insight — mirrors the real
+   card layout (header, summary, takeaways, focus) with animated
+   skeleton lines inside the same card container so the loading
+   state matches the shape of the final content. */
+.rgd-overall-insight-skeleton {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    padding: clamp(1rem, 2vw, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-md);
+}
+
+.rgd-overall-insight-skeleton[hidden] { display: none; }
+
+/* Header row — verdict placeholder on left, score on right */
+.rgd-overall-insight-skeleton-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--rgd-space-sm);
+}
+
+/* Summary paragraph — three lines of varying width */
+.rgd-overall-insight-skeleton-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Takeaways — two-column grid matching the real layout */
+.rgd-overall-insight-skeleton-takeaways {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--rgd-space-md);
+}
+
+@media (max-width: 37.5rem) {
+    .rgd-overall-insight-skeleton-takeaways { grid-template-columns: 1fr; }
+}
+
+/* Individual takeaway skeleton — tinted background matching the real
+   takeaway cards so the loading state has the same visual rhythm */
+.rgd-overall-insight-skeleton-takeaway {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: var(--rgd-space-sm) var(--rgd-space-md);
+    border-radius: var(--rgd-radius-sm);
+    background: var(--rgd-light);
+}
+
+/* Focus block skeleton — left accent border matching the real focus */
+.rgd-overall-insight-skeleton-focus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-left: var(--rgd-space-md);
+    border-left: 0.1875rem solid var(--rgd-border);
+}
 
 /* ---- 6-Pillar Grid ---- */
 .rgd-pillars-grid {
@@ -3114,6 +3321,50 @@ header.rgd-header-offset.rgd-header-collapsed {
 
     .rgd-metric-tile { padding: 0.6rem; }
     .rgd-metric-value { font-size: var(--rgd-text-heading); }
+
+    /* Mobile vitals drawer — extra tiles (beyond the first 4) are hidden
+       by default. The chevron toggle toggles the --expanded class on
+       the grid to reveal them. This keeps the mobile overview concise
+       while still giving access to all vitals on demand. */
+    .rgd-metric-tile--extra { display: none; }
+    .rgd-metrics-grid--expanded .rgd-metric-tile--extra { display: flex; }
+
+    /* Chevron disclosure toggle — subtle inline button centered below
+       the grid. Uses a small label + rotating chevron icon rather than
+       a full secondary button to keep the visual weight minimal. */
+    .rgd-vitals-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        margin: var(--rgd-space-md) auto 0;
+        padding: 0.3rem 0.75rem;
+        background: none;
+        border: none;
+        font-family: 'Raleway', sans-serif;
+        font-size: var(--rgd-text-label);
+        font-weight: 500;
+        color: var(--rgd-muted);
+        cursor: pointer;
+        border-radius: var(--rgd-radius-sm);
+        transition: color var(--rgd-transition);
+    }
+
+    .rgd-vitals-toggle:hover { color: var(--rgd-blue); }
+
+    .rgd-vitals-toggle:focus-visible {
+        outline: 0.125rem solid var(--rgd-blue);
+        outline-offset: 0.125rem;
+    }
+
+    /* Chevron rotates 180deg when expanded — the rotation is the
+       primary visual indicator of the toggle state */
+    .rgd-vitals-toggle-chevron {
+        transition: transform 0.2s ease;
+    }
+
+    .rgd-vitals-toggle[aria-expanded="true"] .rgd-vitals-toggle-chevron {
+        transform: rotate(180deg);
+    }
 
     /* On mobile, stack the metrics below the activity name/date row
        instead of hiding them. The chevron is absolutely positioned so

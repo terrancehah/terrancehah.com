@@ -222,6 +222,17 @@ Each dimension:
     - "strengths": 2–3 sentences describing what the recent data shows as positive. You must reference specific data from the activities AND/OR physiological trends above (paces, distances, heart rates, cadences, VO2max values, HRV trends, RHR trends, sleep scores). Refer to the writing style section below for response style reference.
     - "gaps": 2-3 sentences describing the areas that can still be improved relative to the race goal. Reference specific data if available. Frame these as clear next opportunities rather than pure shortcomings. Refer to the writing style section below for response style reference.
 
+OVERALL INSIGHT:
+After scoring all six dimensions, synthesize across them to produce a single overall assessment. This is the coach's top-level view — not a repeat of any one dimension, but a holistic judgment that weighs all six together and tells the runner where they stand overall and what to focus on next.
+
+The "overall" object must contain:
+    - "verdict": a short label (3–6 words) summarizing overall readiness. Examples: "On track, with work to do", "Ahead of schedule", "Significant gap to close".
+    - "score": integer 0–10 — the overall readiness score. This is NOT a simple average of the six dimension scores. Weigh the dimensions by their importance to the specific race goal and time target. For example, aerobic endurance matters more for a marathon than a 5K.
+    - "summary": 3–4 sentences synthesizing across all six dimensions into one narrative. Tell the runner where they stand overall, what their biggest asset is, and what the main gap is. Do not repeat individual dimension summaries — synthesize. Refer to the writing style section below for response style reference.
+    - "topStrength": an object with "label" (the dimension name that is the runner's biggest strength) and "note" (2–3 sentences explaining why this is their top strength and what it means for race day, referencing specific data).
+    - "topGap": an object with "label" (the dimension name that is the runner's biggest gap) and "note" (2–3 sentences explaining why this is their biggest gap and what fixing it would do for their race, referencing specific data).
+    - "focus": 2–3 sentences describing the single most impactful action the runner should take next. Pick the one change that would most improve their race readiness. Be specific — name the session type, the pace, the frequency. Refer to the writing style section below for response style reference.
+
 WRITING STYLE AND RULES:
     - Write like a good running coach texting a club runner, not like a sports scientist writing a report.
     - Make the tone constructive. If the score is 7 or higher, the summary should feel reassuring and forward-looking.
@@ -237,10 +248,11 @@ WRITING STYLE AND RULES:
     - Do not invent data.rgd-sidebar-goal
     - Keep each dimension to its own evidence. Spread citations across the 30 activities. Before citing a run, ask whether it is the best proof for THIS dimension.
     - For heart rate, pick one only: "easy", "comfortably hard", "about 80% of your max", or "164 bpm". Never stack datas or specific like bpm + % + zone + date + pace in one sentence.
+    - The overall insight must not just repeat dimension summaries. It should read as a coach stepping back and looking at the whole picture.
 
 OUTPUT FORMAT:
     Return ONLY valid JSON:
-    {{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...]}}
+    {{"dimensions": [{{"name": "Lactate Threshold", "score": 0, "summary": "", "strengths": "", "gaps": ""}}, ...], "overall": {{"verdict": "", "score": 0, "summary": "", "topStrength": {{"label": "", "note": ""}}, "topGap": {{"label": "", "note": ""}}, "focus": ""}}}}
 """
 
     try:
@@ -253,8 +265,9 @@ OUTPUT FORMAT:
             ],
             response_format={"type": "json_object"},
             # gpt-5.6-luna only supports max_completion_tokens + reasoning_effort (no temperature)
-            # Increased from 1024 to 4096 — 6 dimensions × 4-5 sentences each requires more tokens
-            max_completion_tokens=4096,
+            # 6 dimensions × 4-5 sentences each + overall insight (verdict, summary,
+            # topStrength, topGap, focus) requires more tokens than the dimensions alone.
+            max_completion_tokens=5120,
             reasoning_effort="medium"
         )
         result = json.loads(response.choices[0].message.content)
@@ -263,6 +276,10 @@ OUTPUT FORMAT:
         for dim in result.get("dimensions", []):
             if isinstance(dim.get("score"), (int, float)):
                 dim["score"] = max(0, min(10, round(dim["score"])))
+        # Enforce integer score on the overall insight too
+        overall = result.get("overall")
+        if overall and isinstance(overall.get("score"), (int, float)):
+            overall["score"] = max(0, min(10, round(overall["score"])))
         return JSONResponse(content=result)
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})

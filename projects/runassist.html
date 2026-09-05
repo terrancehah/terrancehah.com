@@ -434,18 +434,11 @@
                         <!-- Project title + intro — only on the overview page -->
                         <div class="rgd-content-header">
                             <h1 class="rgd-project-title">RunAssist</h1>
-                            <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights.  <span class="rgd-tap-hint">Select a card for details.</span></p>
+                            <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights. </p>
                         </div>
 
-                        <!-- Training vitals section -->
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Training Vitals
-                                <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
-                            </h2>
-                            <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
-                        </section>
-
-                        <!-- Race Goal Specifics and Readiness section -->
+                        <!-- Race Goal Specifics and Readiness section — shown first
+                             as the main selling point: race parameters + AI readiness -->
                         <section class="rgd-section">
                             <div class="rgd-readiness-row">
                                 <!-- Race Goal Specifics — left column on laptop, top on mobile -->
@@ -505,6 +498,81 @@
                                     </div>
                                 </div>
                             </div>
+                        </section>
+
+                        <!-- Overall Insight — the coach's top-level assessment across all
+                             dimensions. Higher-level than the per-pillar Pre Race Insights:
+                             a single synthesized narrative that tells the runner where they
+                             stand overall and what to focus on next. -->
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Overall Insight</h2>
+                            <div class="rgd-overall-insight" id="rgd-overall-insight" hidden>
+                                <!-- Populated by renderOverallInsight() in runassist.js.
+                                     Contains an overall readiness verdict, a summary
+                                     paragraph, and key takeaways (top strength + top gap). -->
+                            </div>
+                            <div class="rgd-overall-insight-skeleton" id="rgd-overall-insight-skeleton" hidden>
+                                <!-- Skeleton mirrors the real overall insight layout:
+                                     header row (verdict + score), summary paragraph,
+                                     two takeaway blocks, and a focus block. All as
+                                     animated skeleton lines inside the same card
+                                     container so the loading state matches the shape
+                                     of the final content. -->
+                                <div class="rgd-overall-insight-skeleton-header">
+                                    <div class="rgd-skeleton-line" style="width: 40%; height: 1rem;"></div>
+                                    <div class="rgd-skeleton-line" style="width: 2.5rem; height: 1.25rem;"></div>
+                                </div>
+                                <div class="rgd-overall-insight-skeleton-summary">
+                                    <div class="rgd-skeleton-line"></div>
+                                    <div class="rgd-skeleton-line"></div>
+                                    <div class="rgd-skeleton-line rgd-skeleton-line--short"></div>
+                                </div>
+                                <div class="rgd-overall-insight-skeleton-takeaways">
+                                    <div class="rgd-overall-insight-skeleton-takeaway">
+                                        <div class="rgd-skeleton-line" style="width: 30%; height: 0.5rem;"></div>
+                                        <div class="rgd-skeleton-line" style="width: 50%; height: 0.75rem;"></div>
+                                        <div class="rgd-skeleton-line"></div>
+                                        <div class="rgd-skeleton-line rgd-skeleton-line--short"></div>
+                                    </div>
+                                    <div class="rgd-overall-insight-skeleton-takeaway">
+                                        <div class="rgd-skeleton-line" style="width: 30%; height: 0.5rem;"></div>
+                                        <div class="rgd-skeleton-line" style="width: 50%; height: 0.75rem;"></div>
+                                        <div class="rgd-skeleton-line"></div>
+                                        <div class="rgd-skeleton-line rgd-skeleton-line--short"></div>
+                                    </div>
+                                </div>
+                                <div class="rgd-overall-insight-skeleton-focus">
+                                    <div class="rgd-skeleton-line" style="width: 45%; height: 0.5rem;"></div>
+                                    <div class="rgd-skeleton-line"></div>
+                                    <div class="rgd-skeleton-line rgd-skeleton-line--short"></div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Training vitals section — moved after Race Readiness + Overall
+                             Insight. On mobile, only 4 key vitals are shown initially
+                             (Readiness, Sleep, Recovery, Body Battery). The remaining
+                             vitals are hidden behind a "Show more" collapsible drawer. -->
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Training Vitals
+                                <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
+                            </h2>
+                            <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
+                            <!-- Chevron disclosure toggle — mobile only. Reveals the
+                                 remaining vitals hidden by default on small screens.
+                                 Uses aria-expanded for screen reader state, and a
+                                 rotating chevron icon as the visual indicator.
+                                 Toggled by JS in renderMetrics(). -->
+                            <button class="rgd-vitals-toggle" id="rgd-vitals-show-more" hidden
+                                aria-expanded="false" aria-controls="rgd-metrics-grid">
+                                <span class="rgd-vitals-toggle-label">More vitals</span>
+                                <svg class="rgd-vitals-toggle-chevron" width="16" height="16"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                    aria-hidden="true">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
                         </section>
 
                         <!-- Weekly mileage and calendar section -->

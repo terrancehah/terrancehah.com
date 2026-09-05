@@ -86,6 +86,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastHrPaceActivities = null; // stored for theme-change re-render
     let lastHrvStatus = null; // Garmin HRV status string — used for color-coding
 
+    // Track when training vitals were last fetched from the API, so the
+    // auto-refresh mechanism (visibilitychange + setInterval) can decide
+    // whether enough time has passed to warrant a background re-fetch.
+    let lastDataFetchTime = 0;
+
     // =========================================================================
     // API helpers
     // =========================================================================
@@ -712,6 +717,34 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Mock overall insight — the coach's top-level assessment that synthesizes
+    // across all six dimensions into a single narrative. Unlike the per-pillar
+    // insights, this does not focus on one dimension but tells the runner where
+    // they stand overall, what their biggest strength is, what their biggest
+    // gap is, and what to focus on next. Calibrated to the demo race goal
+    // (KL Half Marathon, 2:10:00, 35km/week, VO2max 52).
+    function getMockOverallInsight() {
+        return {
+            // Overall verdict — a short label that summarises readiness
+            verdict: 'On track, with work to do',
+            // Overall readiness score — average of the six dimension scores
+            score: 6,
+            // Summary paragraph — the coach's opening assessment
+            summary: 'Your aerobic base and speed reserve are solid for a 2:10 half marathon, and your training consistency tells me you are taking this seriously. The gap between where you are and where you need to be is closeable in the time you have left — but only if you shift your focus from logging miles to targeted work. Your threshold blocks are too short, your long-run pace fades late, and you have no strength work to keep your form intact past 15km. Fix those three things and you will arrive on race day ready.',
+            // Key takeaways — the single biggest strength and biggest gap
+            topStrength: {
+                label: 'Aerobic Endurance',
+                note: 'Your weekly volume and long-run distance are exactly where they need to be. You are running 35km per week with long runs reaching 21km, and your easy days are genuinely easy. This base will carry you through race day.',
+            },
+            topGap: {
+                label: 'Lactate Threshold',
+                note: 'Your threshold blocks are too short to confirm you can hold race pace under fatigue. A 2km repeat at 5:00/km is faster than race pace but only lasts 10 minutes. Add 3x3km at 6:00/km each week to stretch that effort to race distance.',
+            },
+            // What to focus on next — the single most impactful action
+            focus: 'Add one 3x3km threshold session per week at 6:00/km. This is the highest-impact change you can make — it directly addresses your biggest gap and builds the specific fitness you need to hold race pace for 21km.',
+        };
+    }
+
     // Start demo mode — used as the default landing and after logout
     function startDemoMode() {
         sessionToken = 'demo';
@@ -1014,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Charts + pillars load after a simulated 3s delay in demo mode
             setDemoChartsLoading(true);
             showPillarsSkeleton();
+            showOverallInsightSkeleton(true);
             setTimeout(() => {
                 // Destroy loading charts first so the canvases are free
                 // for the real chart instances to render on
@@ -1023,6 +1057,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderHrPaceScatter(mockActs);
                 renderRadarChart(getMockRadarData());
                 renderPillars(getMockPillars());
+                renderOverallInsight(getMockOverallInsight());
             }, DEMO_CHART_LOADING_MS);
             return;
         }
@@ -1098,6 +1133,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (err) { console.error('Load error:', err); }
         hideOverlay();
+        // Record the fetch time so the auto-refresh mechanism knows when
+        // the data was last refreshed from the API.
+        lastDataFetchTime = Date.now();
 
         // Render the mileage chart now that the overlay is gone — its bars
         // grow from the x-axis to their final height as a visible entrance.
@@ -1370,16 +1408,23 @@ document.addEventListener('DOMContentLoaded', function () {
         // status (BALANCED/UNBALANCED/LOW/POOR) rather than absolute ms ranges
         lastHrvStatus = m.hrv_status || null;
 
-        // Display "Last updated" inline with the section title, aligned right.
+        // Display "Last Garmin sync" inline with the section title, aligned right.
         // Uses fetched_at (server timestamp) for the time, and metrics_date
-        // to decide whether to show "today" or the calendar date.
-        // Format: "Last updated: today, 3:45 PM" or "Last updated: Aug 15, 9:30 AM"
+        // to decide whether to show "today", "yesterday", or the calendar date.
+        // "Sync" (not "updated") makes it clear the timestamp reflects when
+        // Garmin last synced the watch — not when our site fetched the data.
+        // Format: "Last Garmin sync: today, 3:45 PM" or
+        //         "Last Garmin sync: yesterday, 9:30 AM" or
+        //         "Last Garmin sync: Aug 15, 9:30 AM"
         const metricsDateEl = $('#rgd-metrics-date');
         if (metricsDateEl && m.metrics_date) {
             const dataDate = new Date(m.metrics_date + 'T00:00:00');
             const today = new Date();
             today.setHours(0, 0, 0, 0);
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
             const isToday = dataDate.getTime() === today.getTime();
+            const isYesterday = dataDate.getTime() === yesterday.getTime();
             // Use fetched_at for the time component; fall back to metrics_date if missing
             const fetchedAt = m.fetched_at ? new Date(m.fetched_at) : dataDate;
             const timeStr = fetchedAt.toLocaleTimeString('en-US', {
@@ -1387,30 +1432,43 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             const dateStr = isToday
                 ? 'today'
+                : isYesterday
+                ? 'yesterday'
                 : dataDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            metricsDateEl.textContent = `Last updated: ${dateStr}, ${timeStr}`;
+            metricsDateEl.textContent = `Last Garmin sync: ${dateStr}, ${timeStr}`;
             metricsDateEl.hidden = false;
         }
 
         // Build tile data — values are color-coded based on Garmin's official
         // tier zones. HRV color-coding uses the Garmin status field.
+        // Tile order matters: the first 4 are "primary" vitals shown on
+        // mobile by default (Readiness, Sleep, Recovery, Body Battery).
+        // The remaining 5 are "extra" vitals hidden behind a Show More
+        // button on mobile (max-width: 30rem), and always visible on
+        // larger screens.
         const tiles = [
-            { label: 'VO₂max', value: m.vo2max || '--', unit: 'ml/kg/min' },
             { label: 'Readiness', value: m.training_readiness_score || '--', unit: m.training_readiness_level ? m.training_readiness_level.charAt(0) + m.training_readiness_level.slice(1).toLowerCase() : '' },
             { label: 'Sleep', value: m.sleep_score || '--', unit: '/100' },
+            { label: 'Recovery', value: m.recovery_time_hrs || '--', unit: 'hrs' },
             { label: 'Body Battery', value: m.body_battery || '--', unit: '%' },
+            { label: 'VO₂max', value: m.vo2max || '--', unit: 'ml/kg/min' },
             { label: 'HRV', value: m.hrv_last_night_avg || '--', unit: 'ms' },
             { label: 'Resting HR', value: m.resting_hr || '--', unit: 'bpm' },
             { label: 'Stress', value: m.stress_level || '--', unit: '/100' },
-            { label: 'Recovery', value: m.recovery_time_hrs || '--', unit: 'hrs' },
             { label: 'Fitness Age', value: m.fitness_age || '--', unit: 'years' },
         ];
-        metricsGrid.innerHTML = tiles.map(t => {
+        // Number of primary vitals shown on mobile before the Show More button
+        const MOBILE_PRIMARY_VITALS = 4;
+        metricsGrid.innerHTML = tiles.map((t, i) => {
             // Get the zone color for this metric value — null if no match
             const color = getMetricZoneColor(t.label, t.value);
             const valueStyle = color ? `style="color: ${color};"` : '';
+            // Tiles beyond the primary count get a class that hides them
+            // on mobile by default. The Show More button toggles this.
+            const isExtra = i >= MOBILE_PRIMARY_VITALS;
+            const extraClass = isExtra ? ' rgd-metric-tile--extra' : '';
             return `
-            <div class="rgd-metric-tile" data-metric-label="${t.label}"
+            <div class="rgd-metric-tile${extraClass}" data-metric-label="${t.label}"
                  role="button" tabindex="0"
                  aria-label="${t.label}: ${t.value}${t.unit ? ' ' + t.unit : ''}. Select for details.">
                 <div class="rgd-metric-top">
@@ -1423,6 +1481,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>`;
         }).join('');
+
+        // Chevron disclosure toggle — mobile only. Toggles the --expanded
+        // class on the grid to reveal/hide the extra tiles. Updates
+        // aria-expanded for screen reader state and swaps the label text.
+        const vitalsToggle = $('#rgd-vitals-show-more');
+        if (vitalsToggle) {
+            // Check if we're on a mobile viewport (matches the CSS breakpoint)
+            const isMobile = window.matchMedia('(max-width: 30rem)').matches;
+            vitalsToggle.hidden = !isMobile;
+            // Reset to collapsed state on each render
+            metricsGrid.classList.remove('rgd-metrics-grid--expanded');
+            vitalsToggle.setAttribute('aria-expanded', 'false');
+            const toggleLabel = vitalsToggle.querySelector('.rgd-vitals-toggle-label');
+            if (toggleLabel) toggleLabel.textContent = 'More vitals';
+            vitalsToggle.onclick = () => {
+                const expanded = metricsGrid.classList.toggle('rgd-metrics-grid--expanded');
+                vitalsToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                if (toggleLabel) toggleLabel.textContent = expanded ? 'Fewer vitals' : 'More vitals';
+            };
+        }
 
         // Attach click + keyboard handlers to each metric tile for the popup.
         // Keyboard: Enter and Space both trigger the same popup as a click.
@@ -2997,6 +3075,10 @@ document.addEventListener('DOMContentLoaded', function () {
             showRadarSkeleton(false);
             renderRadarChart(cached);
             renderPillars(cached);
+            // Use the AI-provided overall insight if present; fall back to
+            // deriveOverallInsight for cached responses from before the
+            // overall field was added to the API response.
+            renderOverallInsight(cached.overall || deriveOverallInsight(cached));
             // Hide the regenerate button in demo mode — there's no real AI
             // call to refresh, so the action is meaningless for demo users.
             refreshAnalysisBtn.hidden = window.__demoMode;
@@ -3006,6 +3088,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // No valid cache — show radar + pillars skeletons and fetch from API
         showRadarSkeleton(true);
         showPillarsSkeleton();
+        showOverallInsightSkeleton(true);
         summaryErrors.forEach(el => el.hidden = true);
         refreshAnalysisBtn.hidden = true;
 
@@ -3028,6 +3111,9 @@ document.addEventListener('DOMContentLoaded', function () {
             showRadarSkeleton(false);
             renderRadarChart(data);
             renderPillars(data);
+            // Use the AI-provided overall insight; fall back to client-side
+            // derivation if the API response doesn't include it.
+            renderOverallInsight(data.overall || deriveOverallInsight(data));
         } catch (err) {
             showRadarSkeleton(false);
             summaryErrors.forEach(el => {
@@ -3394,9 +3480,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Skeleton placeholder cards shown while AI is generating insights.
-    // Each card shows animated skeleton lines for the summary text, and
-    // the whole section is introduced by a shimmer text label so the
-    // loading state is unmistakable.
+    // Each card shows animated skeleton lines for the summary text.
+    // No loading text label — the skeleton cards themselves are the
+    // visual feedback, and a text label would push the first real
+    // card down when it loads.
     function showPillarsSkeleton() {
         const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
             <div class="rgd-pillar-card rgd-pillar-card--skeleton">
@@ -3414,8 +3501,95 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
         pillarsContents.forEach(el => {
             el.hidden = false;
-            el.innerHTML = `<div class="rgd-pillars-skeleton-label"><span class="rgd-shimmer-text">Generating AI insights…</span></div>` + skeletonHtml;
+            el.innerHTML = skeletonHtml;
         });
+    }
+
+    // =========================================================================
+    // Overall Insight — the coach's top-level synthesized assessment
+    // =========================================================================
+
+    const overallInsightEl = $('#rgd-overall-insight');
+    const overallInsightSkeleton = $('#rgd-overall-insight-skeleton');
+
+    // Derive an overall insight from pillars data when a dedicated overall
+    // insight isn't available from the API. Computes the average score,
+    // picks the highest-scoring dimension as top strength and the lowest
+    // as top gap, and generates a summary from the dimension summaries.
+    function deriveOverallInsight(pillarsData) {
+        const dims = (pillarsData.dimensions || []).filter(d => typeof d.score === 'number');
+        if (dims.length === 0) return null;
+
+        const scores = dims.map(d => d.score);
+        const avgScore = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+        const sorted = [...dims].sort((a, b) => b.score - a.score);
+        const top = sorted[0];
+        const bottom = sorted[sorted.length - 1];
+
+        // Verdict based on average score — matches the 0-10 AI score scale
+        let verdict;
+        if (avgScore >= 8) verdict = 'Ahead of schedule';
+        else if (avgScore >= 7) verdict = 'On track';
+        else if (avgScore >= 6) verdict = 'On track, with work to do';
+        else if (avgScore >= 5) verdict = 'Slightly behind';
+        else verdict = 'Significant gap to close';
+
+        return {
+            verdict,
+            score: avgScore,
+            summary: dims.map(d => d.summary).join(' '),
+            topStrength: {
+                label: top.name,
+                note: top.strengths || top.summary || '',
+            },
+            topGap: {
+                label: bottom.name,
+                note: bottom.gaps || bottom.summary || '',
+            },
+            focus: bottom.gaps || bottom.summary || '',
+        };
+    }
+
+    // Show/hide the overall insight skeleton loading state
+    function showOverallInsightSkeleton(show) {
+        if (overallInsightSkeleton) overallInsightSkeleton.hidden = !show;
+        if (overallInsightEl) overallInsightEl.hidden = show;
+    }
+
+    function renderOverallInsight(data) {
+        if (!overallInsightEl || !data) return;
+        showOverallInsightSkeleton(false);
+
+        // Score color — matches the AI score scale used in the dimension modal
+        const scoreColor = data.score >= 8 ? 'var(--rgd-accent-green)'
+            : data.score >= 7 ? 'var(--rgd-accent-green)'
+            : data.score >= 6 ? 'var(--rgd-accent-amber)'
+            : data.score >= 5 ? 'var(--rgd-accent-amber)'
+            : 'var(--rgd-accent-red)';
+
+        overallInsightEl.innerHTML = `
+            <div class="rgd-overall-insight-header">
+                <div class="rgd-overall-insight-verdict">${escapeHtml(data.verdict)}</div>
+                <div class="rgd-overall-insight-score" style="color: ${scoreColor};">${data.score}<span class="rgd-overall-insight-score-max">/10</span></div>
+            </div>
+            <p class="rgd-overall-insight-summary">${escapeHtml(data.summary)}</p>
+            <div class="rgd-overall-insight-takeaways">
+                <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--strength">
+                    <span class="rgd-overall-insight-takeaway-label">Top strength</span>
+                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(data.topStrength.label)}</span>
+                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(data.topStrength.note)}</p>
+                </div>
+                <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--gap">
+                    <span class="rgd-overall-insight-takeaway-label">Biggest gap</span>
+                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(data.topGap.label)}</span>
+                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(data.topGap.note)}</p>
+                </div>
+            </div>
+            <div class="rgd-overall-insight-focus">
+                <span class="rgd-overall-insight-focus-label">What to focus on next</span>
+                <p class="rgd-overall-insight-focus-text">${escapeHtml(data.focus)}</p>
+            </div>
+        `;
     }
 
     function renderPillars(data) {
@@ -4860,5 +5034,78 @@ document.addEventListener('DOMContentLoaded', function () {
         // No saved session or demo token — launch demo mode as default landing
         startDemoMode();
     }
+
+    // =========================================================================
+    // Auto-refresh — re-fetch training vitals when the tab regains focus
+    // or on a periodic interval, so a user who stays logged in sees fresh
+    // data without manually reloading the page. Skipped in demo mode (no
+    // real API to call) and only triggers if at least 1 hour has passed
+    // since the last fetch, avoiding redundant calls on rapid tab switches.
+    // =========================================================================
+
+    const AUTO_REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour — matches SWR TTL
+
+    // Re-fetch if enough time has passed since the last fetch. Guards
+    // against concurrent refreshes and demo mode.
+    let isRefreshing = false;
+    function refreshDataIfStale() {
+        if (window.__demoMode || isRefreshing) return;
+        if (Date.now() - lastDataFetchTime < AUTO_REFRESH_INTERVAL_MS) return;
+        isRefreshing = true;
+        lastDataFetchTime = Date.now();
+        // Silently re-fetch — no overlay, just update the data in place.
+        // loadAllData shows the overlay which is disruptive for a background
+        // refresh, so we fetch metrics + activities + mileage directly and
+        // re-render without the loading state.
+        (async () => {
+            try {
+                const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
+                    apiCall('GET', 'metrics'),
+                    apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
+                    apiCall('GET', 'weekly-mileage?weeks=12'),
+                ]);
+                const metricsData = await metricsResp.json();
+                const activitiesData = await activitiesResp.json();
+                const mileageData = await mileageResp.json();
+                if (metricsResp.ok && metricsData.metrics) {
+                    renderMetrics(metricsData.metrics);
+                    writeSWRCache(METRICS_CACHE_KEY, metricsData.metrics);
+                }
+                if (activitiesResp.ok && activitiesData.activities) {
+                    const acts = activitiesData.activities;
+                    fullActivitiesLoaded = acts;
+                    activitiesOffset = acts.length;
+                    renderActivities(acts);
+                    renderCalendar(acts);
+                    renderPaceDistribution(acts);
+                    renderHrPaceScatter(acts);
+                }
+                if (mileageResp.ok && mileageData.weeks) {
+                    renderMileageChart(mileageData.weeks);
+                    writeSWRCache(MILEAGE_CACHE_KEY, mileageData.weeks);
+                }
+            } catch (err) {
+                // Network error during background refresh — silently skip.
+                // The user still sees the cached data; next manual reload
+                // or tab switch will retry.
+                console.warn('Background refresh failed:', err);
+            } finally {
+                isRefreshing = false;
+            }
+        })();
+    }
+
+    // Re-fetch when the tab becomes visible again (user switches back
+    // from another tab or app). This is the primary refresh trigger for
+    // most users — they leave the tab open, check other things, come back.
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            refreshDataIfStale();
+        }
+    });
+
+    // Periodic fallback — if the user never switches tabs, re-fetch every
+    // hour. This covers long idle sessions where the tab stays visible.
+    setInterval(refreshDataIfStale, AUTO_REFRESH_INTERVAL_MS);
 
 });
