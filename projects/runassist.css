@@ -2308,7 +2308,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 .rgd-overall-insight-takeaway--strength {
-    background: color-mix(in srgb, var(--rgd-accent-green) 8%, var(--rgd-surface));
+    background: color-mix(in srgb, var(--rgd-accent-green) 15%, var(--rgd-surface));
 }
 
 .rgd-overall-insight-takeaway--gap {
@@ -3076,6 +3076,113 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: flex;
     flex-direction: column;
     gap: var(--rgd-space-md);
+}
+
+/* ---- Race goal reminder popup ---- */
+/* Shown when a returning user logs in and has a persisted race goal.
+   Uses the same modal overlay pattern as the edit-goal popup but with
+   a simpler card body — just a summary of the saved goal and three
+   action buttons (keep / edit / new). */
+.rgd-goal-reminder-card {
+    background: var(--rgd-surface);
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: min(100%, 28rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    position: relative;
+}
+
+.rgd-goal-reminder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--rgd-border);
+}
+
+.rgd-goal-reminder-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-navy);
+    margin: 0;
+}
+
+.rgd-goal-reminder-body {
+    padding: var(--rgd-space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-md);
+}
+
+.rgd-goal-reminder-intro {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+/* Summary card showing the saved race goal details — race name, distance,
+   time target, race date, weekly mileage. Uses a tinted background to
+   visually distinguish it from the surrounding text. */
+.rgd-goal-reminder-summary {
+    background: var(--rgd-light);
+    border-radius: var(--rgd-radius-sm);
+    padding: var(--rgd-space-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.rgd-goal-reminder-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--rgd-space-sm);
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+}
+
+.rgd-goal-reminder-summary-label {
+    color: var(--rgd-muted);
+    font-weight: 500;
+}
+
+.rgd-goal-reminder-summary-value {
+    color: var(--rgd-text);
+    font-weight: 600;
+    text-align: right;
+}
+
+.rgd-goal-reminder-question {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    margin: 0;
+}
+
+.rgd-goal-reminder-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-sm);
+    padding: 0 var(--rgd-space-lg) var(--rgd-space-lg);
+}
+
+/* On wider screens, the edit + new buttons sit side by side while the
+   primary "Keep" button stays full-width above them. */
+@media (min-width: 30rem) {
+    .rgd-goal-reminder-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .rgd-goal-reminder-actions .rgd-btn:first-child {
+        width: 100%;
+    }
+    .rgd-goal-reminder-actions .rgd-btn:nth-child(2),
+    .rgd-goal-reminder-actions .rgd-btn:nth-child(3) {
+        flex: 1;
+    }
 }
 
 .rgd-settings-popup-body {

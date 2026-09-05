@@ -444,7 +444,7 @@
                                 <!-- Race Goal Specifics — left column on laptop, top on mobile -->
                                 <div class="rgd-readiness-card" id="rgd-goal-specifics">
                                     <h3 class="rgd-card-title">Race Goal Specifics</h3>
-                                    <p class="rgd-readiness-card-sub w-0-7">Your target race parameters and training pace. The countdown updates daily as race day approaches.</p>
+                                    <p class="rgd-readiness-card-sub w-0-7">Your target race parameters and training pace.</p>
                                     <!-- Countdown highlight — top-right corner of the container -->
                                     <div class="rgd-countdown-highlight" id="rgd-countdown-highlight">
                                         <span class="rgd-countdown-value" id="rgd-countdown-value">--</span>
@@ -1048,6 +1048,32 @@
                         <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-plan-prefs-save">Save & Generate</button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <!-- Race goal reminder popup — shown when a returning user logs in
+             and has a persisted race goal from a previous session. Lets them
+             keep the existing goal, edit it, or start fresh with a new one. -->
+        <div class="rgd-modal-overlay" id="rgd-goal-reminder-popup" hidden role="dialog" aria-modal="true" aria-label="Welcome back — race goal reminder">
+            <div class="rgd-goal-reminder-card">
+                <div class="rgd-goal-reminder-header">
+                    <h3 class="rgd-goal-reminder-title">Welcome back</h3>
+                    <button class="rgd-modal-close" id="rgd-goal-reminder-close" title="Close" aria-label="Close reminder">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+                <div class="rgd-goal-reminder-body">
+                    <p class="rgd-goal-reminder-intro">You have a race goal saved from a previous session:</p>
+                    <div class="rgd-goal-reminder-summary" id="rgd-goal-reminder-summary">
+                        <!-- Populated by JS with the saved race goal details -->
+                    </div>
+                    <p class="rgd-goal-reminder-question">Would you like to keep this goal, edit it, or set a new one?</p>
+                </div>
+                <div class="rgd-goal-reminder-actions">
+                    <button class="rgd-btn rgd-btn-primary" id="rgd-goal-reminder-keep">Keep this goal</button>
+                    <button class="rgd-btn rgd-btn-secondary" id="rgd-goal-reminder-edit">Edit goal</button>
+                    <button class="rgd-btn rgd-btn-secondary" id="rgd-goal-reminder-new">Set a new goal</button>
+                </div>
             </div>
         </div>
 

@@ -16,7 +16,7 @@ from garminconnect import (
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import GarminAuthRequest, _save_session, _update_session, create_app
+from lib._shared import GarminAuthRequest, _save_session, _update_session, _get_persistent_race_goal, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/garmin-auth so routes at "/" match)
@@ -77,9 +77,14 @@ async def garmin_auth(body: GarminAuthRequest):
         logging.getLogger("garmin-auth").exception("Failed to serialize Garmin tokens")
 
     token = str(uuid.uuid4())
+    # Check if the user already has a race goal from a previous session.
+    # Race goals are persisted by email in Redis, decoupled from the session
+    # lifecycle, so they survive logout and session expiry. If found, load
+    # it into the new session so the user skips onboarding on re-login.
+    existing_goal = _get_persistent_race_goal(body.email)
     session_data = {
         "email": body.email,
-        "race_goal": None,
+        "race_goal": existing_goal,
         "created_at": datetime.now().isoformat(),
     }
     if tokens_json:
@@ -143,5 +148,7 @@ async def garmin_auth(body: GarminAuthRequest):
         "full_name": full_name,
         "profile_image_url": profile_image_url,
         "device_name": device_name,
+        "has_race_goal": existing_goal is not None,
+        "race_goal": existing_goal,
         "message": "Authenticated successfully."
     })

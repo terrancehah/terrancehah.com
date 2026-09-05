@@ -8,7 +8,7 @@ from datetime import datetime
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _get_session, _update_session, create_app
+from lib._shared import _get_session, _update_session, _save_persistent_race_goal, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/onboarding so routes at "/" match)
@@ -37,7 +37,7 @@ async def onboarding(
     with empty defaults.
     """
     # Validate the session exists (raises 401 if not)
-    _get_session(token)
+    sess = _get_session(token)
     goal = {
         "race_name": race_name,
         "purpose": purpose,
@@ -53,4 +53,10 @@ async def onboarding(
     }
     # Merge the race goal into the existing session and re-save to Redis
     _update_session(token, {"race_goal": goal})
+    # Also persist the race goal keyed by email so it survives logout and
+    # session expiry. On re-login, garmin-auth.py loads it from this store
+    # and the user skips onboarding.
+    email = sess.get("email", "")
+    if email:
+        _save_persistent_race_goal(email, goal)
     return JSONResponse(content={"message": "Race goal saved.", "goal": goal})

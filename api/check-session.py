@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, create_app
+from lib._shared import _session_exists, _get_session, _get_persistent_race_goal, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -36,6 +36,21 @@ async def check_session(token: str = ""):
         display_name = full_name or raw_display
     else:
         display_name = raw_display
+    # Return the race goal data if available. Check the session first, then
+    # fall back to the persistent store keyed by email — this covers the case
+    # where the session's race_goal is None but the user has a persisted goal
+    # from a previous session (e.g. session expired and was recreated).
+    race_goal = sess.get("race_goal")
+    if not race_goal:
+        email = sess.get("email", "")
+        if email:
+            race_goal = _get_persistent_race_goal(email)
+            # If we found it in the persistent store but not the session,
+            # backfill the session so subsequent calls don't need to check.
+            if race_goal:
+                from lib._shared import _update_session
+                _update_session(token, {"race_goal": race_goal})
+
     return JSONResponse(content={
         "valid": True,
         "display_name": display_name,
@@ -43,5 +58,6 @@ async def check_session(token: str = ""):
         "profile_image_url": sess.get("profile_image_url", ""),
         "email": sess.get("email", ""),
         "device_name": sess.get("device_name", ""),
-        "has_race_goal": sess.get("race_goal") is not None,
+        "has_race_goal": race_goal is not None,
+        "race_goal": race_goal,
     })

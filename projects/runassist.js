@@ -800,10 +800,23 @@ document.addEventListener('DOMContentLoaded', function () {
             // Cache profile data so the dashboard can render instantly on refresh
             localStorage.setItem('rgd_display_name', displayName || '');
             localStorage.setItem('rgd_profile_image_url', profileImageUrl);
-            // Close modal and proceed to onboarding for real Garmin users
+            // Close modal and proceed — if the user has a persisted race goal
+            // from a previous session, show a reminder popup so they can keep,
+            // edit, or replace it. Otherwise go to onboarding as before.
             closeLoginModal();
             window.__demoMode = false;
-            showScreen(onboardScreen);
+            if (data.has_race_goal && data.race_goal) {
+                // Store the restored goal so the dashboard can use it
+                raceGoal = data.race_goal;
+                localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+                // Show the reminder popup instead of going straight to the
+                // dashboard or onboarding — the user should consciously
+                // decide whether to keep their old goal.
+                showGoalReminderPopup(data.race_goal);
+            } else {
+                // New user or no persisted goal — go to onboarding
+                showScreen(onboardScreen);
+            }
         } catch (err) {
             authError.textContent = 'Could not reach the server. Check that both servers are running (bash start-dev.sh).';
             authError.hidden = false;
@@ -3841,6 +3854,95 @@ document.addEventListener('DOMContentLoaded', function () {
     if (settingsResetGoalBtn) settingsResetGoalBtn.addEventListener('click', editGoal);
 
     // =========================================================================
+    // Race goal reminder popup — shown when a returning user logs in and has
+    // a persisted race goal from a previous session. Lets them keep the
+    // existing goal, edit it, or start fresh with the onboarding flow.
+    // =========================================================================
+
+    const goalReminderPopup = $('#rgd-goal-reminder-popup');
+    const goalReminderClose = $('#rgd-goal-reminder-close');
+    const goalReminderKeep = $('#rgd-goal-reminder-keep');
+    const goalReminderEdit = $('#rgd-goal-reminder-edit');
+    const goalReminderNew = $('#rgd-goal-reminder-new');
+    const goalReminderSummary = $('#rgd-goal-reminder-summary');
+    let goalReminderTrigger = null;
+
+    // Populate the summary card with the saved race goal details and show
+    // the popup. Called from the login handler when data.has_race_goal is true.
+    function showGoalReminderPopup(goal) {
+        if (!goalReminderPopup || !goal) return;
+        goalReminderTrigger = document.activeElement;
+
+        // Build the summary rows — only show fields that have values
+        const rows = [];
+        if (goal.race_name) rows.push(['Race', goal.race_name]);
+        if (goal.distance) rows.push(['Distance', goal.distance]);
+        if (goal.time_target) rows.push(['Time target', goal.time_target]);
+        if (goal.race_date) rows.push(['Race date', goal.race_date]);
+        if (goal.weekly_mileage) {
+            rows.push(['Weekly mileage', `${goal.weekly_mileage} ${goal.mileage_unit || 'km'}`]);
+        }
+        if (goal.saved_at) {
+            // Show when the goal was last saved — helps the user decide if
+            // it's still relevant
+            const savedDate = new Date(goal.saved_at).toLocaleDateString('en-US', {
+                month: 'short', day: 'numeric', year: 'numeric'
+            });
+            rows.push(['Last updated', savedDate]);
+        }
+
+        goalReminderSummary.innerHTML = rows.map(([label, value]) => `
+            <div class="rgd-goal-reminder-summary-row">
+                <span class="rgd-goal-reminder-summary-label">${escapeHtml(label)}</span>
+                <span class="rgd-goal-reminder-summary-value">${escapeHtml(String(value))}</span>
+            </div>
+        `).join('');
+
+        goalReminderPopup.hidden = false;
+        goalReminderClose.focus();
+    }
+
+    function closeGoalReminderPopup() {
+        if (!goalReminderPopup) return;
+        goalReminderPopup.hidden = true;
+        if (goalReminderTrigger) goalReminderTrigger.focus();
+    }
+
+    // Keep — go straight to the dashboard with the existing goal
+    goalReminderKeep.addEventListener('click', () => {
+        closeGoalReminderPopup();
+        showDashboard();
+    });
+
+    // Edit — open the edit-goal popup pre-filled with the existing goal
+    goalReminderEdit.addEventListener('click', () => {
+        closeGoalReminderPopup();
+        // Show the dashboard first so the edit-goal popup has the right
+        // context, then open the edit popup
+        showDashboard();
+        setTimeout(() => openEditGoalPopup(), 100);
+    });
+
+    // New — clear the existing goal and go to onboarding
+    goalReminderNew.addEventListener('click', () => {
+        closeGoalReminderPopup();
+        raceGoal = null;
+        localStorage.removeItem('rgd_race_goal');
+        showScreen(onboardScreen);
+    });
+
+    // Close on close button, overlay click, or Escape
+    goalReminderClose.addEventListener('click', closeGoalReminderPopup);
+    goalReminderPopup.addEventListener('click', (e) => {
+        if (e.target === goalReminderPopup) closeGoalReminderPopup();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && goalReminderPopup && !goalReminderPopup.hidden) {
+            closeGoalReminderPopup();
+        }
+    });
+
+    // =========================================================================
     // Settings button — opens the login modal for Garmin connection
     // (Also handles logout if already connected)
     // =========================================================================
@@ -5007,10 +5109,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Refresh avatar + greeting in case the data changed
                 greetingEl.textContent = displayName;
                 updateAvatar();
-                // If race goal state changed on the server, switch screens
-                if (data.has_race_goal && !raceGoal) {
-                    showDashboard();
+                // If race goal state changed on the server, sync the frontend.
+                // The server now returns the actual race_goal data (not just a
+                // boolean), so we can restore it if localStorage is missing it
+                // (e.g. user cleared cache, or is on a new device).
+                if (data.has_race_goal && data.race_goal) {
+                    if (!raceGoal) {
+                        // Server has a goal but frontend doesn't — restore it
+                        raceGoal = data.race_goal;
+                        localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+                        showDashboard();
+                    }
+                    // If both have the goal, stay on the dashboard — no change needed
                 } else if (!data.has_race_goal && raceGoal) {
+                    // Server has no goal but frontend thinks it has one — the
+                    // persisted goal was removed (shouldn't happen normally,
+                    // but handle it gracefully)
                     showScreen(onboardScreen);
                 }
             } else {

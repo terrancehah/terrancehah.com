@@ -344,6 +344,57 @@ def _get_cached_garmin_data(token: str) -> dict | None:
         return _local_sessions.get(f"{GARMIN_CACHE_PREFIX}{token}")
 
 
+# --- Persistent race goal store (Redis) ---
+#
+# Race goals are stored separately from sessions, keyed by Garmin account
+# email rather than session token. This decouples the race goal from the
+# session lifecycle so it survives logout, session expiry, and re-login.
+# When a user logs back in, garmin-auth.py checks this store and loads the
+# existing race goal into the new session, skipping onboarding.
+#
+# No TTL — the user explicitly set this goal and it persists indefinitely
+# until they change it. A reminder popup on the frontend lets them review,
+# edit, or replace it when they return.
+
+RACE_GOAL_PREFIX = "race:goal:"
+
+
+def _save_persistent_race_goal(email: str, goal: dict):
+    """Store a race goal keyed by Garmin account email.
+
+    Called by onboarding.py when the user sets or updates their race goal.
+    Overwrites any previous goal for this email. No TTL — the goal persists
+    until the user explicitly changes it.
+    """
+    if not email:
+        return
+    key = f"{RACE_GOAL_PREFIX}{email}"
+    if _redis:
+        _redis.set(key, json.dumps(goal))
+    else:
+        _local_sessions[key] = goal
+
+
+def _get_persistent_race_goal(email: str) -> dict | None:
+    """Read a persisted race goal by Garmin account email.
+
+    Called by garmin-auth.py on login to check if the user already has a
+    race goal from a previous session. Returns None if no goal exists.
+    """
+    if not email:
+        return None
+    key = f"{RACE_GOAL_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(key)
+
+
 def _fetch_physio_trends(client, days: int = 60) -> dict:
     """Fetch 60-day physiological trend data from Garmin for AI analysis.
 
