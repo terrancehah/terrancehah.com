@@ -111,6 +111,6 @@ server.listen(PORT, () => {
   console.log(`   Static site:               http://localhost:${PORT}`);
   console.log(`   API proxied from:          http://localhost:${API_PORT}`);
   console.log(`\n   Persona generator:         http://localhost:${PORT}/projects/persona`);
-  console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser`);
-  console.log(`   RunAssist:                http://localhost:${PORT}/projects/runassist\n`);
+  console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser/running-posture-analyser.html`);
+  console.log(`   RunAssist:                http://localhost:${PORT}/projects/runassist/runassist.html\n`);
 });
