@@ -1659,6 +1659,13 @@ header.rgd-header-offset.rgd-header-collapsed {
    appears as a subtle chevron-based toggle below the metrics grid. */
 .rgd-vitals-toggle { display: none; }
 
+/* Extra vitals wrapper — on desktop, display:contents makes both wrappers
+   transparent so the extra tiles participate in the parent grid as if the
+   wrappers didn't exist. On mobile, the outer wrapper becomes a collapsible
+   container (see the max-width: 30rem media query below). */
+.rgd-metrics-extra { display: contents; }
+.rgd-metrics-extra-inner { display: contents; }
+
 /* ---- Charts row ---- */
 .rgd-charts-row {
     display: grid;
@@ -2127,6 +2134,15 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-size: var(--rgd-text-subheading);
     color: var(--rgd-navy);
     margin: 0 0 0.4rem;
+}
+
+/* Card title row that contains an inline action button (e.g. "Show more"
+   inside the Last 5 Activities heading). Makes the h3 a flex row so the
+   button pushes to the far right, matching the section-title pattern. */
+.rgd-card-title--with-action {
+    display: flex;
+    align-items: center;
+    gap: var(--rgd-space-sm);
 }
 
 /* Subtitle / explanation text inside a chart card */
@@ -3429,12 +3445,35 @@ header.rgd-header-offset.rgd-header-collapsed {
     .rgd-metric-tile { padding: 0.6rem; }
     .rgd-metric-value { font-size: var(--rgd-text-heading); }
 
-    /* Mobile vitals drawer — extra tiles (beyond the first 4) are hidden
-       by default. The chevron toggle toggles the --expanded class on
-       the grid to reveal them. This keeps the mobile overview concise
-       while still giving access to all vitals on demand. */
-    .rgd-metric-tile--extra { display: none; }
-    .rgd-metrics-grid--expanded .rgd-metric-tile--extra { display: flex; }
+    /* Mobile vitals drawer — extra tiles are wrapped in a collapsible
+       container that animates open/closed using the grid-template-rows
+       0fr→1fr technique. This animates height from 0 to auto smoothly
+       without needing a fixed max-height guess. The outer wrapper is a
+       single-row grid that collapses; the inner wrapper has overflow
+       hidden and holds the actual tiles in a 2-column sub-grid. */
+    .rgd-metrics-extra {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-rows: 0fr;
+        transition: grid-template-rows 0.3s ease;
+    }
+
+    .rgd-metrics-grid--expanded .rgd-metrics-extra {
+        grid-template-rows: 1fr;
+    }
+
+    .rgd-metrics-extra-inner {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+        overflow: hidden;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+    }
+
+    .rgd-metrics-grid--expanded .rgd-metrics-extra-inner {
+        opacity: 1;
+    }
 
     /* Chevron disclosure toggle — subtle inline button centered below
        the grid. Uses a small label + rotating chevron icon rather than
@@ -3443,7 +3482,7 @@ header.rgd-header-offset.rgd-header-collapsed {
         display: inline-flex;
         align-items: center;
         gap: 0.3rem;
-        margin: var(--rgd-space-md) auto 0;
+        margin: 0 auto;
         padding: 0.3rem 0.75rem;
         background: none;
         border: none;

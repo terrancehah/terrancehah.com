@@ -1472,16 +1472,19 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
         // Number of primary vitals shown on mobile before the Show More button
         const MOBILE_PRIMARY_VITALS = 4;
-        metricsGrid.innerHTML = tiles.map((t, i) => {
-            // Get the zone color for this metric value — null if no match
+        // Render primary tiles as direct grid children, then wrap extra tiles
+        // in a collapsible container (.rgd-metrics-extra > .rgd-metrics-extra-inner).
+        // On desktop, both wrappers use display:contents so all tiles flow in
+        // the parent grid as before. On mobile, the outer wrapper animates its
+        // grid-template-rows from 0fr to 1fr for a smooth expand/collapse.
+        const primaryTiles = tiles.slice(0, MOBILE_PRIMARY_VITALS);
+        const extraTiles = tiles.slice(MOBILE_PRIMARY_VITALS);
+
+        const renderTile = (t) => {
             const color = getMetricZoneColor(t.label, t.value);
             const valueStyle = color ? `style="color: ${color};"` : '';
-            // Tiles beyond the primary count get a class that hides them
-            // on mobile by default. The Show More button toggles this.
-            const isExtra = i >= MOBILE_PRIMARY_VITALS;
-            const extraClass = isExtra ? ' rgd-metric-tile--extra' : '';
             return `
-            <div class="rgd-metric-tile${extraClass}" data-metric-label="${t.label}"
+            <div class="rgd-metric-tile" data-metric-label="${t.label}"
                  role="button" tabindex="0"
                  aria-label="${t.label}: ${t.value}${t.unit ? ' ' + t.unit : ''}. Select for details.">
                 <div class="rgd-metric-top">
@@ -1493,7 +1496,13 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${t.unit ? `<span class="rgd-metric-unit">${t.unit}</span>` : ''}
                 </div>
             </div>`;
-        }).join('');
+        };
+
+        metricsGrid.innerHTML =
+            primaryTiles.map(renderTile).join('') +
+            `<div class="rgd-metrics-extra"><div class="rgd-metrics-extra-inner">` +
+            extraTiles.map(renderTile).join('') +
+            `</div></div>`;
 
         // Chevron disclosure toggle — mobile only. Toggles the --expanded
         // class on the grid to reveal/hide the extra tiles. Updates

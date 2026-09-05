@@ -437,9 +437,12 @@
                             <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights. </p>
                         </div>
 
-                        <!-- Race Goal Specifics and Readiness section — shown first
-                             as the main selling point: race parameters + AI readiness -->
+                        <!-- ===== 1. Race Goal & Readiness =====
+                             The main selling point: race parameters + AI readiness radar.
+                             Two cards side by side on desktop, stacked on mobile.
+                             Each card has its own h3 title inside the container. -->
                         <section class="rgd-section">
+                            <h2 class="rgd-section-title">Race Goal & Readiness</h2>
                             <div class="rgd-readiness-row">
                                 <!-- Race Goal Specifics — left column on laptop, top on mobile -->
                                 <div class="rgd-readiness-card" id="rgd-goal-specifics">
@@ -500,10 +503,10 @@
                             </div>
                         </section>
 
-                        <!-- Overall Insight — the coach's top-level assessment across all
-                             dimensions. Higher-level than the per-pillar Pre Race Insights:
-                             a single synthesized narrative that tells the runner where they
-                             stand overall and what to focus on next. -->
+                        <!-- ===== 2. Overall Insight =====
+                             The coach's top-level synthesized assessment across all
+                             dimensions. A single narrative that tells the runner
+                             where they stand overall and what to focus on next. -->
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Overall Insight</h2>
                             <div class="rgd-overall-insight" id="rgd-overall-insight" hidden>
@@ -549,10 +552,10 @@
                             </div>
                         </section>
 
-                        <!-- Training vitals section — moved after Race Readiness + Overall
-                             Insight. On mobile, only 4 key vitals are shown initially
-                             (Readiness, Sleep, Recovery, Body Battery). The remaining
-                             vitals are hidden behind a "Show more" collapsible drawer. -->
+                        <!-- ===== 3. Training Vitals =====
+                             Key Garmin metrics at a glance. On mobile, only 4 primary
+                             vitals are shown initially; the rest are in a collapsible
+                             drawer toggled by the chevron button below. -->
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Training Vitals
                                 <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
@@ -575,8 +578,32 @@
                             </button>
                         </section>
 
-                        <!-- Weekly mileage and calendar section -->
+                        <!-- ===== 4. Training Trends =====
+                             Charts that show how training is progressing over time:
+                             pace distribution vs goal pace, and HR vs pace trend.
+                             Each chart card has its own h3 title inside. -->
                         <section class="rgd-section">
+                            <h2 class="rgd-section-title">Training Trends</h2>
+                            <div class="rgd-charts-row">
+                                <div class="rgd-chart-card rgd-chart-card--equal">
+                                    <h3 class="rgd-card-title">Pace Distribution vs Goal Pace</h3>
+                                    <p class="rgd-card-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training.</p>
+                                    <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
+                                </div>
+                                <div class="rgd-chart-card rgd-chart-card--equal">
+                                    <h3 class="rgd-card-title">HR vs Pace Trend</h3>
+                                    <p class="rgd-card-sub">Each dot is a run from the last 12 weeks. Colour indicates recency — darker dots are older. Dots shifting down and right over time means improving fitness.</p>
+                                    <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- ===== 5. Recent Activity =====
+                             Weekly mileage trend, training calendar, and the latest
+                             activities. Grouped together because they all answer
+                             "what have I been doing lately?" -->
+                        <section class="rgd-section">
+                            <h2 class="rgd-section-title">Recent Activity</h2>
                             <div class="rgd-charts-row">
                                 <div class="rgd-chart-card">
                                     <h3 class="rgd-card-title">Weekly Mileage</h3>
@@ -587,27 +614,17 @@
                                     <div class="rgd-calendar" id="rgd-calendar"></div>
                                 </div>
                             </div>
+                            <div>
+                                <h3 class="rgd-card-title rgd-card-title--with-action">Last 5 Activities
+                                    <button class="rgd-btn rgd-btn-secondary rgd-show-more-btn" id="rgd-show-more-activities">Show more</button>
+                                </h3>
+                                <div class="rgd-activities-list" id="rgd-activities-list"></div>
+                            </div>
                         </section>
 
-                        <!-- Pace Distribution + HR vs Pace: 50/50 side by side on large screens -->
-                        <div class="rgd-charts-row">
-                            <div class="rgd-chart-card rgd-chart-card--equal">
-                                <h3 class="rgd-card-title">Pace Distribution vs Goal Pace</h3>
-                                <p class="rgd-card-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training.</p>
-                                <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
-                            </div>
-                            <div class="rgd-chart-card rgd-chart-card--equal">
-                                <h3 class="rgd-card-title">HR vs Pace Trend</h3>
-                                <p class="rgd-card-sub">Each dot is a run from the last 12 weeks. Colour indicates recency — darker dots are older. Dots shifting down and right over time means improving fitness.</p>
-                                <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
-                            </div>
-                        </div>
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Last 5 Activities
-                                <button class="rgd-btn rgd-btn-secondary rgd-show-more-btn" id="rgd-show-more-activities">Show more</button>
-                            </h2>
-                            <div class="rgd-activities-list" id="rgd-activities-list"></div>
-                        </section>
+                        <!-- ===== 6. Pre Race Insights =====
+                             GPT-powered breakdown across six performance dimensions.
+                             Each dimension has a score, summary, strengths, and gaps. -->
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Pre Race Insights
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
