@@ -1,5 +1,6 @@
 {
     "cleanUrls": true,
+    "trailingSlash": true,
     "functions": {
         "api/*.py": {
             "maxDuration": 60,
@@ -7,13 +8,13 @@
         }
     },
     "redirects": [
-        { "source": "/projects/runassist.html", "destination": "/projects/runassist", "permanent": true },
-        { "source": "/projects/running-posture-analyser.html", "destination": "/projects/running-posture-analyser", "permanent": true },
-        { "source": "/projects/foodtracker.html", "destination": "/projects/foodtracker", "permanent": true },
-        { "source": "/projects/anniversary.html", "destination": "/projects/anniversary", "permanent": true },
-        { "source": "/projects/career-plan.html", "destination": "/projects/career-plan", "permanent": true },
-        { "source": "/projects/form-a-story.html", "destination": "/projects/form-a-story", "permanent": true },
-        { "source": "/projects/teaching-syllabus-template.html", "destination": "/projects/teaching-syllabus-template", "permanent": true }
+        { "source": "/projects/runassist.html", "destination": "/projects/runassist/", "permanent": true },
+        { "source": "/projects/running-posture-analyser.html", "destination": "/projects/running-posture-analyser/", "permanent": true },
+        { "source": "/projects/foodtracker.html", "destination": "/projects/foodtracker/", "permanent": true },
+        { "source": "/projects/anniversary.html", "destination": "/projects/anniversary/", "permanent": true },
+        { "source": "/projects/career-plan.html", "destination": "/projects/career-plan/", "permanent": true },
+        { "source": "/projects/form-a-story.html", "destination": "/projects/form-a-story/", "permanent": true },
+        { "source": "/projects/teaching-syllabus-template.html", "destination": "/projects/teaching-syllabus-template/", "permanent": true }
     ],
     "rewrites": [
         {
