@@ -125,7 +125,7 @@
                     <span class="rgd-eyebrow">Step 2 of 3</span>
                     <h2 class="rgd-onboard-title">Tell us about your race goal</h2>
                     <p class="rgd-onboard-subtitle">
-                        This helps the AI tailor its analysis to what you're training for.
+                        This helps your coach tailor your plan and insights to what you're training for.
                     </p>
                 </div>
                 <form class="rgd-onboard-form" id="rgd-onboard-form" novalidate>
@@ -135,9 +135,9 @@
                         <input type="text" id="rgd-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
                     </div>
 
-                    <!-- Race Purpose -->
+                    <!-- Race Type -->
                     <div class="rgd-field">
-                        <label for="rgd-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>
+                        <label for="rgd-purpose" class="rgd-label">Race Type <span class="rgd-required">*</span></label>
                         <select id="rgd-purpose" class="rgd-input rgd-select" required>
                             <option value="" disabled selected>Select race type</option>
                             <option value="5K">5K</option>
@@ -150,9 +150,9 @@
                         <span class="rgd-field-error" hidden>Please select a race type.</span>
                     </div>
 
-                    <!-- Time Target — duration picker H : M : S -->
+                    <!-- Target Time — duration picker H : M : S -->
                     <div class="rgd-field">
-                        <label class="rgd-label">Time Target <span class="rgd-required">*</span></label>
+                        <label class="rgd-label">Target Time <span class="rgd-required">*</span></label>
                         <div class="rgd-duration-picker" id="rgd-duration-picker">
                             <div class="rgd-duration-unit">
                                 <input type="number" id="rgd-time-h" class="rgd-input rgd-duration-input" placeholder="0" min="0" max="99" required>
@@ -444,9 +444,9 @@
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Race Goal & Readiness</h2>
                             <div class="rgd-readiness-row">
-                                <!-- Race Goal Specifics — left column on laptop, top on mobile -->
+                                <!-- Race Goal — left column on laptop, top on mobile -->
                                 <div class="rgd-readiness-card" id="rgd-goal-specifics">
-                                    <h3 class="rgd-card-title">Race Goal Specifics</h3>
+                                    <h3 class="rgd-card-title">Race Goal</h3>
                                     <p class="rgd-readiness-card-sub w-0-7">Your target race parameters and training pace.</p>
                                     <!-- Countdown highlight — top-right corner of the container -->
                                     <div class="rgd-countdown-highlight" id="rgd-countdown-highlight">
@@ -460,7 +460,7 @@
                                     <h3 class="rgd-card-title">
                                         <a class="rgd-readiness-card-link" href="#readiness">Race Readiness</a>
                                     </h3>
-                                    <p class="rgd-readiness-card-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. <span class="rgd-tap-hint">Select a label for details.</span></p>
+                                    <p class="rgd-readiness-card-sub">How ready you are across six areas of fitness, based on your recent runs. <span class="rgd-tap-hint">Select a label for details.</span></p>
                                     <div class="rgd-radar-wrap">
                                         <canvas class="rgd-radar-chart"></canvas>
                                         <div class="rgd-radar-skeleton" hidden>
@@ -503,12 +503,13 @@
                             </div>
                         </section>
 
-                        <!-- ===== 2. Overall Insight =====
+                        <!-- ===== 2. The Big Picture =====
                              The coach's top-level synthesized assessment across all
                              dimensions. A single narrative that tells the runner
-                             where they stand overall and what to focus on next. -->
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Overall Insight</h2>
+                             where they stand overall and what to focus on next.
+                             Spaced — marks a topic shift from race data to AI insight. -->
+                        <section class="rgd-section rgd-section--spaced">
+                            <h2 class="rgd-section-title">The Big Picture</h2>
                             <div class="rgd-overall-insight" id="rgd-overall-insight" hidden>
                                 <!-- Populated by renderOverallInsight() in runassist.js.
                                      Contains an overall readiness verdict, a summary
@@ -552,12 +553,13 @@
                             </div>
                         </section>
 
-                        <!-- ===== 3. Training Vitals =====
+                        <!-- ===== 3. Today's Metrics =====
                              Key Garmin metrics at a glance. On mobile, only 4 primary
                              vitals are shown initially; the rest are in a collapsible
-                             drawer toggled by the chevron button below. -->
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Training Vitals
+                             drawer toggled by the chevron button below.
+                             Tight — closely related to The Big Picture (both today's status). -->
+                        <section class="rgd-section rgd-section--tight">
+                            <h2 class="rgd-section-title">Today's Metrics
                                 <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
                             </h2>
                             <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
@@ -581,29 +583,32 @@
                         <!-- ===== 4. Training Trends =====
                              Charts that show how training is progressing over time:
                              pace distribution vs goal pace, and HR vs pace trend.
-                             Each chart card has its own h3 title inside. -->
-                        <section class="rgd-section">
+                             Each chart card has its own h3 title inside.
+                             Spaced — marks a topic shift from today's status to trends. -->
+                        <section class="rgd-section rgd-section--spaced">
                             <h2 class="rgd-section-title">Training Trends</h2>
                             <div class="rgd-charts-row">
                                 <div class="rgd-chart-card rgd-chart-card--equal">
-                                    <h3 class="rgd-card-title">Pace Distribution vs Goal Pace</h3>
-                                    <p class="rgd-card-sub">How your recent runs are distributed across pace bands. The goal pace band is in green — the closer to race pace, the more relevant the training.</p>
+                                    <h3 class="rgd-card-title">Pace Breakdown</h3>
+                                    <p class="rgd-card-sub">How your recent runs split across pace ranges. Green marks your goal pace — the closer your runs cluster there, the more on-target your training.</p>
                                     <canvas class="rgd-chart-canvas" id="rgd-pace-distribution-chart"></canvas>
                                 </div>
                                 <div class="rgd-chart-card rgd-chart-card--equal">
-                                    <h3 class="rgd-card-title">HR vs Pace Trend</h3>
-                                    <p class="rgd-card-sub">Each dot is a run from the last 12 weeks. Colour indicates recency — darker dots are older. Dots shifting down and right over time means improving fitness.</p>
+                                    <h3 class="rgd-card-title">Heart Rate vs Pace</h3>
+                                    <p class="rgd-card-sub">Each dot is a run from the last 12 weeks. Darker dots are older runs. Dots moving down and to the right over time mean your fitness is improving.</p>
                                     <canvas class="rgd-chart-canvas" id="rgd-hr-pace-scatter"></canvas>
                                 </div>
                             </div>
                         </section>
 
-                        <!-- ===== 5. Recent Activity =====
+                        <!-- ===== 5. Training Log =====
                              Weekly mileage trend, training calendar, and the latest
                              activities. Grouped together because they all answer
-                             "what have I been doing lately?" -->
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Recent Activity</h2>
+                             "what have I been doing lately?"
+                             Tight — closely related to Training Trends (both "what
+                             have I been doing"). -->
+                        <section class="rgd-section rgd-section--tight">
+                            <h2 class="rgd-section-title">Training Log</h2>
                             <div class="rgd-charts-row">
                                 <div class="rgd-chart-card">
                                     <h3 class="rgd-card-title">Weekly Mileage</h3>
@@ -622,17 +627,18 @@
                             </div>
                         </section>
 
-                        <!-- ===== 6. Pre Race Insights =====
-                             GPT-powered breakdown across six performance dimensions.
-                             Each dimension has a score, summary, strengths, and gaps. -->
-                        <section class="rgd-section">
-                            <h2 class="rgd-section-title">Pre Race Insights
+                        <!-- ===== 6. What to Work On =====
+                             AI breakdown across six performance areas.
+                             Each area has a score, summary, strengths, and gaps.
+                             Spaced — marks a topic shift from raw data to AI analysis. -->
+                        <section class="rgd-section rgd-section--spaced">
+                            <h2 class="rgd-section-title">What to Work On
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
-                                <button class="rgd-score-info-btn" type="button" aria-label="How AI scores work" title="How AI scores work">
+                                <button class="rgd-score-info-btn" type="button" aria-label="How scores work" title="How scores work">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
+                            <p class="rgd-section-sub">How you stack up across six areas of fitness, with specific things to improve.</p>
                             <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
                             <div class="rgd-summary-error" hidden></div>
                         </section>
@@ -652,11 +658,11 @@
                         <section class="rgd-section">
                             <h2 class="rgd-section-title">Race Readiness
                                 <!-- Info button — opens the modal explaining what each of the six dimensions means -->
-                                <button class="rgd-dimension-info-btn" type="button" aria-label="What the six dimensions mean" title="What the six dimensions mean">
+                                <button class="rgd-dimension-info-btn" type="button" aria-label="What the six areas mean" title="What the six areas mean">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">Six dimensions from AI analysis of your recent workouts, measured against your race goal. Each score shows how close you are to where you need to be on race day. <span class="rgd-tap-hint">Select a label for details.</span></p>
+                            <p class="rgd-section-sub">How ready you are across six areas of fitness, based on your recent runs. Each score shows how close you are to where you need to be on race day. <span class="rgd-tap-hint">Select a label for details.</span></p>
                             <div class="rgd-readiness-card">
                                 <div class="rgd-radar-wrap rgd-radar-wrap--full">
                                     <canvas class="rgd-radar-chart" height="400"></canvas>
@@ -691,18 +697,18 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Pre Race Insights — the six full pillar cards (strengths/gaps)
+                            <!-- What to Work On — the six full pillar cards (strengths/gaps)
                                  live below the radar on this page -->
-                            <h2 class="rgd-section-title">Pre Race Insights
+                            <h2 class="rgd-section-title">What to Work On
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
-                                <button class="rgd-score-info-btn" type="button" aria-label="How AI scores work" title="How AI scores work">
+                                <button class="rgd-score-info-btn" type="button" aria-label="How scores work" title="How scores work">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">GPT-powered breakdown of your training across six performance dimensions.</p>
+                            <p class="rgd-section-sub">How you stack up across six areas of fitness, with specific things to improve.</p>
                             <div class="rgd-pillars-grid rgd-pillars-content" hidden></div>
                             <div class="rgd-summary-error" hidden></div>
-                            <button class="rgd-btn rgd-btn-secondary rgd-refresh-btn" id="rgd-refresh-analysis" hidden>Regenerate Insights</button>
+                            <button class="rgd-btn rgd-btn-secondary rgd-refresh-btn" id="rgd-refresh-analysis" hidden>Refresh insights</button>
                         </section>
                     </div>
 
@@ -716,7 +722,7 @@
                                     Edit
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">The AI coach studies your recent training and schedules next week's workouts around your preferences. Tap Edit to adjust them, then schedule the week to Garmin.</p>
+                            <p class="rgd-section-sub">Your coach studies your recent training and schedules next week's workouts around your preferences. Tap Edit to adjust them, then send the week to Garmin.</p>
 
                             <!-- Show more history — loads 2 more weeks of past
                                  activities into the plan calendar. Hidden until
@@ -733,7 +739,7 @@
 
                     <!-- Demo CTA — shown at the bottom of every page in demo mode -->
                     <div class="rgd-demo-cta" id="rgd-demo-cta" hidden>
-                        <p class="rgd-demo-cta-text">Ready to see your real training data and AI-powered insights? Connect Garmin to get started.</p>
+                        <p class="rgd-demo-cta-text">Ready to see your real training data and personalised insights? Connect Garmin to get started.</p>
                         <button class="rgd-btn rgd-btn-primary rgd-demo-cta-btn" id="rgd-demo-cta-btn">Connect Garmin</button>
                     </div>
                 </div>
@@ -829,9 +835,9 @@
                         <input type="text" id="rgd-edit-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
                     </div>
 
-                    <!-- Race Purpose -->
+                    <!-- Race Type -->
                     <div class="rgd-field">
-                        <label for="rgd-edit-purpose" class="rgd-label">Race Purpose <span class="rgd-required">*</span></label>
+                        <label for="rgd-edit-purpose" class="rgd-label">Race Type <span class="rgd-required">*</span></label>
                         <select id="rgd-edit-purpose" class="rgd-input rgd-select" required>
                             <option value="" disabled>Select race type</option>
                             <option value="5K">5K</option>
@@ -844,9 +850,9 @@
                         <span class="rgd-field-error" hidden>Please select a race type.</span>
                     </div>
 
-                    <!-- Time Target -->
+                    <!-- Target Time -->
                     <div class="rgd-field">
-                        <label class="rgd-label">Time Target <span class="rgd-required">*</span></label>
+                        <label class="rgd-label">Target Time <span class="rgd-required">*</span></label>
                         <div class="rgd-duration-picker" id="rgd-edit-duration-picker">
                             <div class="rgd-duration-unit">
                                 <input type="number" id="rgd-edit-time-h" class="rgd-input rgd-duration-input" placeholder="0" min="0" max="99" required>
@@ -924,10 +930,10 @@
             </div>
         </div>
 
-        <!-- Scoring guide modal — explains the 0-10 AI score scale used by
-             the Pre Race Insights dimensions. Static content, opened via the
+        <!-- Scoring guide modal — explains the 0-10 score scale used by
+             the What to Work On section. Static content, opened via the
              info buttons next to the insight titles. -->
-        <div class="rgd-modal-overlay" id="rgd-score-modal" hidden role="dialog" aria-modal="true" aria-label="How AI scores work">
+        <div class="rgd-modal-overlay" id="rgd-score-modal" hidden role="dialog" aria-modal="true" aria-label="How scores work">
             <div class="rgd-metric-popup-card rgd-score-modal-card">
                 <button class="rgd-modal-close" id="rgd-score-modal-close" title="Close" aria-label="Close scoring guide dialog">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -936,12 +942,12 @@
                     <span class="rgd-metric-popup-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                     </span>
-                    <h3 class="rgd-metric-popup-title">How AI scores work</h3>
+                    <h3 class="rgd-metric-popup-title">How scores work</h3>
                 </div>
                 <p class="rgd-metric-popup-explanation">
-                    Each of the six performance dimensions is rated from 0–10 (whole numbers only).
-                    Scores are conservative and evidence-based — the AI only awards high scores when
-                    your activity and physiological data clearly support them, and it prefers to
+                    Each of the six areas of fitness is rated from 0–10 (whole numbers only).
+                    Scores are conservative and evidence-based — high scores are only awarded when
+                    your activity and body data clearly support them, and the coach prefers to
                     under-rate when evidence is weak, missing, or inconsistent.
                 </p>
                 <div class="rgd-score-tier-list">
@@ -952,26 +958,26 @@
                     <div class="rgd-score-tier"><span class="rgd-score-tier-range">0–5</span><span class="rgd-score-tier-desc">Meaningful gap — needs addressing before race day.</span></div>
                 </div>
                 <p class="rgd-metric-popup-explanation">
-                    Physiological trends (HRV, resting heart rate, sleep) are weighed heavily —
-                    if they contradict the activity data, the AI trusts the body's recovery signals.
+                    Body signals (HRV, resting heart rate, sleep) are weighed heavily —
+                    if they contradict the activity data, the coach trusts your body's recovery signals.
                     A score of 7 or above means your summary should read as reassuring and forward-looking.
                 </p>
             </div>
         </div>
 
-        <!-- Dimensions explainer modal — explains what each of the six
-             radar dimensions measures and how it influences race performance.
+        <!-- Areas explainer modal — explains what each of the six
+             radar areas measures and how it influences race performance.
              Opened via the info button next to the Race Readiness title. -->
-        <div class="rgd-modal-overlay" id="rgd-dimension-modal" hidden role="dialog" aria-modal="true" aria-label="Understanding your six dimensions">
+        <div class="rgd-modal-overlay" id="rgd-dimension-modal" hidden role="dialog" aria-modal="true" aria-label="Understanding your six areas of fitness">
             <div class="rgd-metric-popup-card rgd-dimension-modal-card">
-                <button class="rgd-modal-close" id="rgd-dimension-modal-close" title="Close" aria-label="Close dimensions explanation dialog">
+                <button class="rgd-modal-close" id="rgd-dimension-modal-close" title="Close" aria-label="Close explanation dialog">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="rgd-metric-popup-header">
                     <span class="rgd-metric-popup-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     </span>
-                    <h3 class="rgd-metric-popup-title">Understanding Your Six Dimensions</h3>
+                    <h3 class="rgd-metric-popup-title">Your Six Areas of Fitness</h3>
                 </div>
                 <div class="rgd-dimension-list">
                     <div class="rgd-dimension-explainer-item">
@@ -1108,16 +1114,16 @@
     <!-- Floating AI chat button — bottom-right of the interface, above the
          mobile tab bar. Opens a chat popup for discussing workouts and
          insights with the AI. Currently locked as "coming soon". -->
-    <button class="rgd-chat-fab" id="rgd-chat-fab" title="Chat with AI" aria-label="Open AI chat">
+    <button class="rgd-chat-fab" id="rgd-chat-fab" title="Chat with coach" aria-label="Open chat">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
 
     <!-- AI chat popup — chat interface for discussing workouts and insights.
          Currently shows a "coming soon" locked state. -->
-    <div class="rgd-chat-popup" id="rgd-chat-popup" role="dialog" aria-modal="true" aria-label="AI chat">
+    <div class="rgd-chat-popup" id="rgd-chat-popup" role="dialog" aria-modal="true" aria-label="Chat with coach">
         <div class="rgd-chat-popup-card">
             <div class="rgd-chat-popup-header">
-                <h3 class="rgd-chat-popup-title">AI Coach</h3>
+                <h3 class="rgd-chat-popup-title">Coach</h3>
                 <button class="rgd-modal-close" id="rgd-chat-popup-close" title="Close" aria-label="Close chat">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -1126,7 +1132,7 @@
                 <div class="rgd-chat-coming-soon">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4; margin-bottom: 1rem;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <p class="rgd-chat-coming-soon-title">Coming Soon</p>
-                    <p class="rgd-chat-coming-soon-text">Chat with your AI coach about your workouts, training insights, and race readiness. This feature is under development.</p>
+                    <p class="rgd-chat-coming-soon-text">Chat with your coach about your workouts, training insights, and race readiness. This feature is under development.</p>
                 </div>
             </div>
         </div>

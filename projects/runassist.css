@@ -1485,11 +1485,23 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-demo-cta-btn:hover { background: var(--rgd-btn-primary-hover); }
 
-.rgd-page { display: flex; flex-direction: column; gap: clamp(1.25rem, 2.5vw, 2rem); }
+/* Page-level gap is set to the tight value; sections that mark a topic
+   shift get extra top margin via .rgd-section--spaced. This produces a
+   two-tier rhythm: related sections sit close, topic changes pull apart. */
+.rgd-page { display: flex; flex-direction: column; gap: var(--rgd-space-md); }
 .rgd-page[hidden] { display: none; }
 
 /* ---- Sections ---- */
+/* Sections use a two-tier spacing rhythm: the default gap is loose (topic
+   shift), and --tight reduces it for closely related sections. This creates
+   visual grouping — related sections sit closer, unrelated ones pull apart. */
 .rgd-section { display: flex; flex-direction: column; gap: var(--rgd-space-lg); }
+.rgd-section--tight { gap: var(--rgd-space-md); }
+
+/* Extra top margin for sections that mark a topic shift. Combined with the
+   page's reduced base gap, this creates the two-tier rhythm: tight default
+   spacing with deliberate wider breaks between unrelated topics. */
+.rgd-section--spaced { margin-top: var(--rgd-space-xl); }
 
 .rgd-section-title {
     font-family: 'Lato', sans-serif;

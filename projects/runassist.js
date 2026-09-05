@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const LOADING_MESSAGES = [
         'Loading your training data…',
         'Crunching the numbers…',
-        'Analysing your progress…',
+        'Reviewing your progress…',
         'Almost there…',
         'Preparing your dashboard…',
         'Syncing with Garmin…',
@@ -973,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function () {
         requestAnimationFrame(() => positionIndicators());
     }
 
-    // Render the Race Goal Specifics panel with key metrics + countdown
+    // Render the Race Goal panel with key metrics + countdown
     function renderGoalSpecifics(goal) {
         const grid = $('#rgd-goal-specifics-grid');
         if (!grid) return;
@@ -1315,7 +1315,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 { label: 'Medium', max: 75, color: '#e0b840' },
                 { label: 'High', max: 100, color: '#e07070' },
             ],
-            explanation: 'Stress Level is derived from HRV, heart rate, and other physiological signals. Garmin classifies stress as Rest (0-25), Low (26-50), Medium (51-75), and High (76-100). Lower stress levels are better for recovery.',
+            explanation: 'Stress Level is derived from HRV, heart rate, and other body signals. Garmin classifies stress as Rest (0-25), Low (26-50), Medium (51-75), and High (76-100). Lower stress levels are better for recovery.',
         },
         'Recovery': {
             min: 0, max: 72, unit: 'hrs',
@@ -3528,7 +3528,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // =========================================================================
-    // Overall Insight — the coach's top-level synthesized assessment
+    // The Big Picture — the coach's top-level synthesized assessment
     // =========================================================================
 
     const overallInsightEl = $('#rgd-overall-insight');
@@ -4933,7 +4933,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const insightHtml = w.insight ? `
             <div class="rgd-sheet-section">
-                <span class="rgd-sheet-section-title">AI coach insight</span>
+                <span class="rgd-sheet-section-title">Coach insight</span>
                 <p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>
             </div>` : '';
 
