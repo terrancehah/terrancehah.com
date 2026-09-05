@@ -800,6 +800,16 @@ document.addEventListener('DOMContentLoaded', function () {
             // Cache profile data so the dashboard can render instantly on refresh
             localStorage.setItem('rgd_display_name', displayName || '');
             localStorage.setItem('rgd_profile_image_url', profileImageUrl);
+            // Pre-seed the AI insights and coach plan caches from the server's
+            // persistent store so a new device renders instantly without
+            // waiting for expensive AI calls. The background refresh will
+            // validate and update these if new activities exist.
+            if (data.cached_ai_insights) {
+                writeAICache(data.cached_ai_insights);
+            }
+            if (data.cached_coach_plan) {
+                writeCoachCache(data.cached_coach_plan);
+            }
             // Close modal and proceed — if the user has a persisted race goal
             // from a previous session, show a reminder popup so they can keep,
             // edit, or replace it. Otherwise go to onboarding as before.
@@ -901,7 +911,9 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         coachPrefs = prefs;
         writeCoachPrefs(prefs);
-        showDashboard();
+        // Force AI refresh — the user just set a new goal, so any cached
+        // insights from a previous goal are no longer valid.
+        showDashboard(true);
     });
 
     // =========================================================================
@@ -936,7 +948,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
     }
 
-    function showDashboard() {
+    function showDashboard(forceAIRefresh = false) {
         showScreen(dashboardScreen);
         // Show full display name in sidebar (not just first name)
         greetingEl.textContent = displayName || 'Runner';
@@ -961,7 +973,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderGoalSpecifics(raceGoal);
         }
 
-        loadAllData();
+        loadAllData(forceAIRefresh);
         // If the user landed directly on the Plan page, kick off its load too
         if (getPageFromHash() === 'plan') openPlanPage();
 
@@ -1040,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (countdownLabelEl) countdownLabelEl.textContent = countdownDays === 1 ? 'day to go' : 'days to go';
     }
 
-    async function loadAllData() {
+    async function loadAllData(forceAIRefresh = false) {
         const isDemo = window.__demoMode;
 
         if (isDemo) {
@@ -1157,8 +1169,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (mileageWeeks && !cachedMileage.data) renderMileageChart(mileageWeeks);
 
         // AI radar + insight text load together — AI scores are the single
-        // source of truth for both the radar chart and the pillar analysis
-        loadAISummary();
+        // source of truth for both the radar chart and the pillar analysis.
+        // When forceAIRefresh is true (e.g. after a goal change), pass the
+        // force flag so the server skips its persistent cache and regenerates.
+        loadAISummary(forceAIRefresh);
     }
 
     // Fetch the next batch of activities for the activities page.
@@ -3115,7 +3129,10 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshAnalysisBtn.hidden = true;
 
         try {
-            const resp = await apiCall('GET', 'ai-radar');
+            // Pass force=1 when forceRefresh is true so the server skips its
+            // persistent email-keyed cache and regenerates from scratch.
+            const url = forceRefresh ? 'ai-radar?force=1' : 'ai-radar';
+            const resp = await apiCall('GET', url);
             const data = await resp.json();
             if (!resp.ok) {
                 showRadarSkeleton(false);
@@ -3837,8 +3854,10 @@ document.addEventListener('DOMContentLoaded', function () {
             sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
             // Update the goal specifics panel
             renderGoalSpecifics(raceGoal);
-            // Reload all data with the new goal (charts, radar, insights)
-            loadAllData();
+            // Reload all data with the new goal (charts, radar, insights).
+            // Pass forceAIRefresh=true so the server regenerates AI insights
+            // against the new goal instead of returning the stale cache.
+            loadAllData(true);
             closeEditGoalPopup();
         } catch (err) { alert('Network error. Please try again.'); }
         finally { setButtonLoading(editGoalBtn, false); }
@@ -3932,11 +3951,15 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => openEditGoalPopup(), 100);
     });
 
-    // New — clear the existing goal and go to onboarding
+    // New — clear the existing goal and go to onboarding. Also clear the
+    // AI and coach caches so the server regenerates against the new goal
+    // instead of returning stale insights from the old goal.
     goalReminderNew.addEventListener('click', () => {
         closeGoalReminderPopup();
         raceGoal = null;
         localStorage.removeItem('rgd_race_goal');
+        clearAICache();
+        clearCoachCache();
         showScreen(onboardScreen);
     });
 
@@ -4534,7 +4557,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const resp = await apiCall('POST', 'coach-plan', coachPrefs);
+            // Pass force=1 when the user explicitly regenerates so the server
+            // skips its persistent email-keyed cache and generates a fresh plan.
+            const body = { ...coachPrefs };
+            if (force) body.force = '1';
+            const resp = await apiCall('POST', 'coach-plan', body);
             const data = await resp.json();
             if (!resp.ok) {
                 coachErrorEl.textContent = data.error || 'Failed to generate plan.';
@@ -5135,6 +5162,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     // persisted goal was removed (shouldn't happen normally,
                     // but handle it gracefully)
                     showScreen(onboardScreen);
+                }
+                // Pre-seed AI insights and coach plan caches from the server's
+                // persistent store if the frontend doesn't have them. This
+                // covers the new-device case where localStorage is empty but
+                // the server has cached data from another device.
+                if (data.cached_ai_insights && !readAICache()) {
+                    writeAICache(data.cached_ai_insights);
+                }
+                if (data.cached_coach_plan && !readCoachCache()) {
+                    writeCoachCache(data.cached_coach_plan);
                 }
             } else {
                 // Session expired — clear cache and fall back to demo mode

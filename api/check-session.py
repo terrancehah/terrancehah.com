@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, _get_persistent_race_goal, create_app
+from lib._shared import _session_exists, _get_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -40,16 +40,21 @@ async def check_session(token: str = ""):
     # fall back to the persistent store keyed by email — this covers the case
     # where the session's race_goal is None but the user has a persisted goal
     # from a previous session (e.g. session expired and was recreated).
+    email = sess.get("email", "")
     race_goal = sess.get("race_goal")
-    if not race_goal:
-        email = sess.get("email", "")
-        if email:
-            race_goal = _get_persistent_race_goal(email)
-            # If we found it in the persistent store but not the session,
-            # backfill the session so subsequent calls don't need to check.
-            if race_goal:
-                from lib._shared import _update_session
-                _update_session(token, {"race_goal": race_goal})
+    if not race_goal and email:
+        race_goal = _get_persistent_race_goal(email)
+        # If we found it in the persistent store but not the session,
+        # backfill the session so subsequent calls don't need to check.
+        if race_goal:
+            from lib._shared import _update_session
+            _update_session(token, {"race_goal": race_goal})
+
+    # Fetch cached AI insights and coach plan from the persistent email-keyed
+    # stores so a device with empty localStorage can render instantly. These
+    # may be None if no cache exists yet.
+    cached_ai = _get_persistent_ai_cache(email) if email else None
+    cached_coach = _get_persistent_coach_cache(email) if email else None
 
     return JSONResponse(content={
         "valid": True,
@@ -60,4 +65,6 @@ async def check_session(token: str = ""):
         "device_name": sess.get("device_name", ""),
         "has_race_goal": race_goal is not None,
         "race_goal": race_goal,
+        "cached_ai_insights": cached_ai["data"] if cached_ai else None,
+        "cached_coach_plan": cached_coach["data"] if cached_coach else None,
     })

@@ -13,6 +13,7 @@ from lib._shared import (
     _get_session, _get_garmin_client, create_app,
     _get_cached_garmin_data, _fetch_physio_trends, _fetch_activities_for_ai,
     _compute_goal_pace_ms,
+    _get_persistent_ai_cache, _save_persistent_ai_cache, _delete_persistent_ai_cache,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -21,7 +22,7 @@ app = create_app("ai-radar")
 
 
 @app.get("/")
-async def ai_radar(token: str = ""):
+async def ai_radar(token: str = "", force: str = ""):
     """Send recent workout history to GPT for 6-dimension race readiness ratings.
 
     Fetches the last 30 activities from Garmin, builds a prompt that asks the AI
@@ -32,10 +33,36 @@ async def ai_radar(token: str = ""):
     # Validate session and get race goal (no Garmin client needed yet)
     sess = _get_session(token)
     race_goal = sess.get("race_goal")
+    email = sess.get("email", "")
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    # --- Persistent AI cache check (keyed by email, shared across devices) ---
+    # If we have a cached AI response for this user, check whether any new
+    # activities have been recorded since the cache was generated. If the
+    # Garmin data cache is available, use it to get the latest activity date
+    # without making a separate Garmin call. If no new activities and the
+    # cache is under 7 days old, return it immediately — saves an expensive
+    # AI model call. Skip the cache entirely when force=1 (manual refresh).
+    forceRefresh = force in ("1", "true", "yes")
+    if email and not forceRefresh:
+        persistent = _get_persistent_ai_cache(email)
+        if persistent:
+            cached_latest = persistent.get("latest_activity_date", "")
+            # Check the Garmin data cache for the latest activity date
+            garmin_cache = _get_cached_garmin_data(token)
+            current_latest = ""
+            if garmin_cache:
+                for act in garmin_cache.get("activities", []):
+                    act_date = act.get("start_time", "")[:10]
+                    if act_date and act_date > current_latest:
+                        current_latest = act_date
+            # If no new activities (or we can't tell because the Garmin cache
+            # is empty), return the cached AI response
+            if not current_latest or current_latest <= cached_latest:
+                return JSONResponse(content=persistent["data"])
 
     # Try the Redis cache first — metrics.py populates this cache during the
     # same page load, so in the common case we read from Redis and make zero
@@ -280,6 +307,16 @@ OUTPUT FORMAT:
         overall = result.get("overall")
         if overall and isinstance(overall.get("score"), (int, float)):
             overall["score"] = max(0, min(10, round(overall["score"])))
+        # Save to the persistent email-keyed cache so the same insights appear
+        # on other devices. Record the latest activity date so the cache can be
+        # invalidated when new runs are synced.
+        latest_activity_date = ""
+        for act in activities_data:
+            act_date = act.get("start_time", "")[:10]
+            if act_date and act_date > latest_activity_date:
+                latest_activity_date = act_date
+        if email:
+            _save_persistent_ai_cache(email, result, latest_activity_date)
         return JSONResponse(content=result)
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})

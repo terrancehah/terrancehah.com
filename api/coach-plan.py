@@ -16,6 +16,7 @@ from lib._shared import (
     _get_session, _get_garmin_client, create_app,
     _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
+    _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -28,6 +29,7 @@ class CoachPlanRequest(BaseModel):
     days_per_week: int = 3        # number of workout days to schedule (2-6)
     intensity: str = "moderate"   # easy | moderate | hard
     distance_adj: str = "keep"    # reduce | keep | increase (relative to last week)
+    force: str = ""               # when "1", skip the persistent cache and regenerate
 
 
 @app.post("/")
@@ -45,6 +47,33 @@ async def coach_plan(body: CoachPlanRequest):
 
     sess = _get_session(token)
     race_goal = sess.get("race_goal")
+    email = sess.get("email", "")
+
+    # --- Persistent coach plan cache check (keyed by email, shared across devices) ---
+    # The plan is week-specific — it starts tomorrow and covers the current
+    # planning window. If we have a cached plan for this email with the same
+    # plan_start (tomorrow) and the same preferences, return it immediately.
+    # This prevents different devices from showing different plans.
+    # Skip the cache entirely when force=1 (manual regeneration).
+    forceRefresh = body.force in ("1", "true", "yes")
+    current_prefs = {
+        "days_per_week": days_per_week,
+        "intensity": intensity,
+        "distance_adj": distance_adj,
+    }
+    if email and not forceRefresh:
+        cached_entry = _get_persistent_coach_cache(email)
+        if cached_entry:
+            cached_week_start = cached_entry.get("week_start", "")
+            cached_prefs = cached_entry.get("preferences", {})
+            # Compute tomorrow's date the same way as below
+            tomorrow = (date.today() + timedelta(days=1)).isoformat()
+            # Return cached plan if the week matches and preferences match
+            if (cached_week_start == tomorrow
+                    and cached_prefs.get("days_per_week") == days_per_week
+                    and cached_prefs.get("intensity") == intensity
+                    and cached_prefs.get("distance_adj") == distance_adj):
+                return JSONResponse(content=cached_entry["data"])
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -418,4 +447,15 @@ Return ONLY valid JSON:
     # the AI analysis, not the calendar cards.
     slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
 
-    return JSONResponse(content={"history": slim_history, "plan": plan})
+    response_data = {"history": slim_history, "plan": plan}
+
+    # Save to the persistent email-keyed cache so the same plan appears on
+    # other devices. Store the plan_start and preferences for invalidation.
+    if email:
+        _save_persistent_coach_cache(
+            email, response_data,
+            week_start=plan_start.isoformat(),
+            preferences=current_prefs,
+        )
+
+    return JSONResponse(content=response_data)

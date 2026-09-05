@@ -395,6 +395,150 @@ def _get_persistent_race_goal(email: str) -> dict | None:
         return _local_sessions.get(key)
 
 
+# --- Persistent AI radar cache (Redis, keyed by email) ---
+#
+# Stores the full AI response (six dimensions + overall insight) so it can be
+# shared across devices and sessions for the same user. Invalidated when new
+# activities are recorded or after 7 days (whichever comes first).
+#
+# The cache entry includes:
+#   - data: the full AI response (dimensions + overall)
+#   - generated_at: ISO timestamp of when the AI call was made
+#   - latest_activity_date: the date of the most recent Garmin activity at
+#     generation time — used to detect new runs and invalidate the cache
+
+AI_CACHE_PREFIX = "race:ai-cache:"
+AI_CACHE_TTL = 7 * 24 * 3600  # 7 days — hard fallback expiry
+
+
+def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str = ""):
+    """Store AI radar results keyed by email so they sync across devices.
+
+    Called by ai-radar.py after a successful AI call. Stores the full response
+    along with metadata for activity-based invalidation. The 7-day TTL is a
+    safety net — the activity-date check is the primary invalidation mechanism.
+    """
+    if not email:
+        return
+    key = f"{AI_CACHE_PREFIX}{email}"
+    entry = {
+        "data": data,
+        "generated_at": datetime.now().isoformat(),
+        "latest_activity_date": latest_activity_date,
+    }
+    if _redis:
+        _redis.set(key, json.dumps(entry), ex=AI_CACHE_TTL)
+    else:
+        _local_sessions[key] = entry
+
+
+def _get_persistent_ai_cache(email: str) -> dict | None:
+    """Read a persisted AI radar cache by email. Returns None if no cache exists.
+
+    Returns the full cache entry including metadata, not just the AI data.
+    The caller is responsible for checking the latest_activity_date against
+    current Garmin data to decide whether the cache is still valid.
+    """
+    if not email:
+        return None
+    key = f"{AI_CACHE_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(key)
+
+
+def _delete_persistent_ai_cache(email: str):
+    """Remove a persisted AI radar cache by email.
+
+    Called when the user refreshes insights manually or when the race goal
+    changes (a different goal means the old scores are no longer relevant).
+    """
+    if not email:
+        return
+    key = f"{AI_CACHE_PREFIX}{email}"
+    if _redis:
+        _redis.delete(key)
+    else:
+        _local_sessions.pop(key, None)
+
+
+# --- Persistent coach plan cache (Redis, keyed by email) ---
+#
+# Stores the full coach plan so the same plan appears on every device. The
+# plan is forward-looking and week-specific, so invalidation is based on the
+# plan's week_start date — a new week means a new plan.
+#
+# The cache entry includes:
+#   - data: the full coach plan response ({ history, plan })
+#   - generated_at: ISO timestamp
+#   - week_start: the plan's starting date (used for week-based invalidation)
+#   - preferences: the prefs used to generate the plan (for comparison)
+
+COACH_CACHE_PREFIX = "race:coach-cache:"
+COACH_CACHE_TTL = 7 * 24 * 3600  # 7 days — plans regenerate weekly
+
+
+def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", preferences: dict = None):
+    """Store a coach plan keyed by email so it syncs across devices.
+
+    Called by coach-plan.py after a successful plan generation. Stores the
+    full response along with the plan's week_start and the preferences used.
+    """
+    if not email:
+        return
+    key = f"{COACH_CACHE_PREFIX}{email}"
+    entry = {
+        "data": data,
+        "generated_at": datetime.now().isoformat(),
+        "week_start": week_start,
+        "preferences": preferences or {},
+    }
+    if _redis:
+        _redis.set(key, json.dumps(entry), ex=COACH_CACHE_TTL)
+    else:
+        _local_sessions[key] = entry
+
+
+def _get_persistent_coach_cache(email: str) -> dict | None:
+    """Read a persisted coach plan by email. Returns None if no cache exists.
+
+    Returns the full cache entry including metadata. The caller checks
+    week_start to decide whether the plan is still for the current week.
+    """
+    if not email:
+        return None
+    key = f"{COACH_CACHE_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(key)
+
+
+def _delete_persistent_coach_cache(email: str):
+    """Remove a persisted coach plan by email.
+
+    Called when the user changes preferences or manually regenerates the plan.
+    """
+    if not email:
+        return
+    key = f"{COACH_CACHE_PREFIX}{email}"
+    if _redis:
+        _redis.delete(key)
+    else:
+        _local_sessions.pop(key, None)
+
+
 def _fetch_physio_trends(client, days: int = 60) -> dict:
     """Fetch 60-day physiological trend data from Garmin for AI analysis.
 
