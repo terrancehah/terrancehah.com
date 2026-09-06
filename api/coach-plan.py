@@ -6,6 +6,7 @@ from typing import Optional
 from pydantic import BaseModel
 import os
 import json
+import asyncio
 from openai import AsyncOpenAI
 # Add the api/ directory to Python's search path so lib._shared can be found
 # when running as a Vercel serverless function (cwd is project root, not api/)
@@ -336,12 +337,15 @@ async def _call_ai(prompt, api_key):
 
 
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
-                        progression_text, coach_insight_text, intensity_text, days_per_week,
-                        mix_guide, distance_guide, physio_text, pace_zones, history, prev_summary):
+                        progression_text, week_position_text, coach_insight_text, intensity_text,
+                        days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+                        history, week_targets_text, goal_pace_text):
     """Prompt for one week of the full-block plan. Carries the same context
     as the short-window prompt (goal, phases, prefs, recovery, zones) plus
-    the previous week's summary so the block progresses coherently, plus the
-    readiness insight (when available) so the diagnosis shapes the plan."""
+    standardised week identity — week N of M, phase at that date, goal pace
+    anchor, deterministic per-week progression targets (long run km, volume
+    anchor) — so every week knows where it sits in the block and can be
+    generated concurrently, plus the readiness insight (when available)."""
     return f"""You are an expert running coach. Study the runner's last 2 weeks of training
 (with per-lap detail) and their recovery signals, then propose the week of training below.
 This is one week inside a longer marathon block — progress it, do not reset it.
@@ -349,6 +353,7 @@ This is one week inside a longer marathon block — progress it, do not reset it
 {race_goal_text}
 
 PLAN WINDOW (this week):
+- {week_position_text}
 - Cover exactly {chunk_days_count} consecutive days from {chunk_start.isoformat()} to {chunk_end.isoformat()}.
 - Monday is the start of a new training block; this window may be a partial week.
 - Put the long run on Saturday or Sunday when it falls inside the window.
@@ -362,8 +367,7 @@ PLAN WINDOW (this week):
 
 {coach_insight_text}
 
-PREVIOUS WEEK (already generated — progress from here, do not repeat it):
-{prev_summary}
+{week_targets_text}
 
 {HONESTY_RULES}
 
@@ -398,6 +402,8 @@ TARGET PACE ZONES (computed from the runner's recent fitness + race goal — use
 writing descriptions; the numeric pace field is set automatically):
 {json.dumps(pace_zones, indent=2)}
 
+{goal_pace_text}
+
 Return ONLY valid JSON:
 {{"days": [{{"date": "YYYY-MM-DD", "day_of_week": "Mon", "is_rest": false, "workout": {{...}}}}, ...]}}"""
 
@@ -408,6 +414,8 @@ class CoachPlanRequest(BaseModel):
     intensity: str = "moderate"   # easy | moderate | hard
     distance_adj: str = "keep"    # reduce | keep | increase (relative to last week)
     force: str = ""               # when "1", skip the persistent cache and regenerate
+    week_start: str = ""          # ISO date of a block week: when set, generate ONLY
+                                  # that week (Hobby-friendly single-call mode)
 
 
 @app.post("/")
@@ -450,13 +458,27 @@ async def coach_plan(body: CoachPlanRequest):
             tomorrow = (date.today() + timedelta(days=1)).isoformat()
             # Return cached plan only if the block start, the race date, and
             # the preferences all match — a season plan is stale once the
-            # race date changes or the block start moves.
+            # race date changes or the block start moves. Also require the
+            # cache to cover the WHOLE block: week-by-week generation merges
+            # into the cache incrementally, and a partial cache must fall
+            # through so the frontend keeps requesting the missing weeks.
             if (cached_week_start == tomorrow
                     and cached_race_date == (race_date_str or "")
                     and cached_prefs.get("days_per_week") == days_per_week
                     and cached_prefs.get("intensity") == intensity
                     and cached_prefs.get("distance_adj") == distance_adj):
-                return JSONResponse(content=cached_entry["data"])
+                cached_days = ((cached_entry.get("data") or {}).get("plan") or {}).get("days") or []
+                expected_total = None
+                if race_date_str:
+                    try:
+                        rdate = _dt.strptime(race_date_str, "%Y-%m-%d").date()
+                        plan_start_t = date.today() + timedelta(days=1)
+                        exp_end = min(rdate, plan_start_t + timedelta(days=MAX_PLAN_DAYS))
+                        expected_total = (exp_end - plan_start_t).days + 1
+                    except (ValueError, TypeError):
+                        pass
+                if expected_total is None or len(cached_days) >= expected_total:
+                    return JSONResponse(content=cached_entry["data"])
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -686,22 +708,80 @@ async def coach_plan(body: CoachPlanRequest):
             )
 
         windows = _split_windows(plan_start, plan_end)
-        merged_days = []
-        prev_summary = "No previous weeks yet — this is the first week of the plan."
-        prev_long_km = None
-        for w_start, w_end in windows:
+
+        # Per-week progression anchors computed deterministically from recent
+        # history, so every week can be generated CONCURRENTLY — 26 sequential
+        # AI calls would blow past the serverless function timeout. Long runs
+        # ramp ~10% per week in build, peak in specificity, then cut for
+        # sharpen/taper; the phase text + honesty rules keep each week coherent.
+        base_long_km = 12.0
+        for a in history:
+            if (a.get("run_tag") or "") == "LSD":
+                base_long_km = max(base_long_km, a.get("distance") or 0)
+        base_weekly_km = prev_week_km if prev_week_km and prev_week_km > 0 else 25.0
+
+        # Standardised goal-pace anchor — race-pace work in specificity /
+        # sharpen / taper must use THIS pace, volume work never does.
+        goal_pace_text = ""
+        if goal_pace_ms and goal_pace_ms > 0:
+            goal_pace_text = (
+                "GOAL PACE: " + _format_sec_km(1000 / goal_pace_ms) + "/km — use it ONLY for "
+                "race-pace work: MP blocks in specificity, short race-pace touches in sharpen, "
+                "brief strides in taper. Never use it for easy, recovery, or long-run volume pacing."
+            )
+
+        phase_counts = {}
+        week_plan = []  # (window, chunk_days_count, phase_text, progression_text, targets_text, week_position_text)
+        for week_idx, (w_start, w_end) in enumerate(windows):
             chunk_days_count = (w_end - w_start).days + 1
             # Days remaining at the end of this chunk decide its phase, so a
             # long block moves build -> specificity -> sharpen -> taper.
             days_left = (race_date - w_end).days
             chunk_phase = _phase_for_days_left(days_left)
-            phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
+            phase_counts[chunk_phase] = phase_counts.get(chunk_phase, 0) + 1
+            idx_in_phase = phase_counts[chunk_phase] - 1
             race_day_chunk = w_end >= race_date
-            progression_text = _progression_guide(chunk_phase, prev_long_km, race_day_chunk)
+            phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
+            progression_text = _progression_guide(chunk_phase, None, race_day_chunk)
+            if race_day_chunk:
+                targets_text = ("THIS WEEK'S PROGRESSION TARGETS: race week — no long run; the Race "
+                                "workout on race day is the session. Keep everything else short and easy.")
+            else:
+                if chunk_phase == "build":
+                    long_km = min(24.0, round(base_long_km * (1.1 ** idx_in_phase), 1))
+                elif chunk_phase == "specificity":
+                    long_km = 30.0
+                elif chunk_phase == "sharpen":
+                    long_km = 21.0
+                else:
+                    long_km = 12.0
+                targets_text = (
+                    "THIS WEEK'S PROGRESSION TARGETS (computed from your recent training — follow them):\n"
+                    f"- Long run: about {long_km:g} km.\n"
+                    f"- Recent weekly volume: about {base_weekly_km:g} km — scale this week to the phase guidance."
+                )
+            week_position_text = f"This is week {week_idx + 1} of {len(windows)} of the training block."
+            week_plan.append((w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text))
+
+        # Single-week mode (Hobby-friendly): the frontend requests each week
+        # of the block separately, so no single request exceeds the 60-second
+        # serverless cap. Returns this chunk plus the full block meta; the
+        # frontend merges the weeks. Each response also merges into the
+        # persistent cache so the cache accumulates toward a complete block.
+        if body.week_start:
+            try:
+                target_start = _dt.strptime(body.week_start, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                return JSONResponse(status_code=400, content={"error": "Invalid week_start."})
+            entry = next((e for e in week_plan if e[0] == target_start), None)
+            if entry is None:
+                return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
+            w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
             prompt = _build_chunk_prompt(
                 w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
-                progression_text, coach_insight_text, intensity_text, days_per_week,
-                mix_guide, distance_guide, physio_text, pace_zones, history, prev_summary,
+                progression_text, week_position_text, coach_insight_text, intensity_text,
+                days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+                history, targets_text, goal_pace_text,
             )
             plan_chunk = None
             for attempt in range(2):
@@ -726,10 +806,103 @@ async def coach_plan(body: CoachPlanRequest):
                 else:
                     chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
             chunk_days = chunk_days[:chunk_days_count]
-            merged_days.extend(chunk_days)
-            # Feed the next chunk the week we just made so long runs progress
-            # and volume ramps instead of repeating the same week.
-            prev_summary, _, prev_long_km = _summarize_days(chunk_days)
+            _enforce_workout_counts(chunk_days, days_per_week)
+            _attach_workout_details(chunk_days, pace_zones)
+
+            plan = {
+                "week_start": plan_start.isoformat(),
+                "plan_start": plan_start.isoformat(),
+                "plan_end": plan_end.isoformat(),
+                "total_plan_days": total_plan_days,
+                "race_date": race_date_str,
+                "race_phase": race_phase or "build",
+                "days_to_race": days_to_race,
+                "pace_zones": pace_zones,
+                "preferences": {
+                    "days_per_week": days_per_week,
+                    "intensity": intensity,
+                    "distance_adj": distance_adj,
+                    "weekly_distance_km": weekly_distance_km,
+                },
+                "days": chunk_days,
+            }
+            if feasibility:
+                feasibility["readiness"] = ai_insight
+            plan["feasibility"] = feasibility
+
+            slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
+            response_data = {"history": slim_history, "plan": plan}
+
+            # Merge this week into the persistent email-keyed cache so the
+            # block accumulates across requests and other devices.
+            if email:
+                cached = _get_persistent_coach_cache(email)
+                merged = response_data
+                if cached:
+                    cached_data = cached.get("data") or {}
+                    if (cached.get("week_start") == plan_start.isoformat()
+                            and (cached.get("race_date") or "") == (race_date_str or "")
+                            and (cached.get("preferences") or {}) == current_prefs):
+                        merged = dict(cached_data)
+                        merged_plan = dict(merged.get("plan") or {})
+                        merged_days = {d.get("date"): d for d in merged_plan.get("days") or []}
+                        for d in chunk_days:
+                            merged_days[d["date"]] = d
+                        merged_plan["days"] = [merged_days[k] for k in sorted(merged_days)]
+                        merged["plan"] = merged_plan
+                _save_persistent_coach_cache(
+                    email, merged,
+                    week_start=plan_start.isoformat(),
+                    preferences=current_prefs,
+                    race_date=race_date_str or "",
+                )
+            return JSONResponse(content=response_data)
+
+        # Generate all weeks concurrently, bounded by a semaphore to respect
+        # OpenAI rate limits, then merge the results in block order.
+        sem = asyncio.Semaphore(5)
+
+        async def gen_week(entry):
+            w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
+            prompt = _build_chunk_prompt(
+                w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
+                progression_text, week_position_text, coach_insight_text, intensity_text,
+                days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+                history, targets_text, goal_pace_text,
+            )
+            for attempt in range(2):
+                try:
+                    return await _call_ai(prompt, api_key)
+                except json.JSONDecodeError:
+                    if attempt == 0:
+                        continue
+                    raise
+                except Exception:
+                    if attempt == 0:
+                        continue
+                    raise
+
+        async def guarded(entry):
+            async with sem:
+                return await gen_week(entry)
+
+        results = await asyncio.gather(*(guarded(e) for e in week_plan), return_exceptions=True)
+        merged_days = []
+        for (w_start, w_end, chunk_days_count, *_), plan_chunk in zip(week_plan, results):
+            if isinstance(plan_chunk, Exception):
+                if isinstance(plan_chunk, json.JSONDecodeError):
+                    return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
+                return JSONResponse(status_code=500, content={"error": f"Coach plan failed: {str(plan_chunk)}"})
+            chunk_days = plan_chunk.get("days") or []
+            # Defensive: fix missing or incorrect dates from the known window
+            # so the frontend can always schedule each day reliably.
+            for i in range(chunk_days_count):
+                expected_date = (w_start + timedelta(days=i)).isoformat()
+                if i < len(chunk_days):
+                    chunk_days[i]["date"] = expected_date
+                else:
+                    chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
+            merged_days.extend(chunk_days[:chunk_days_count])
 
         plan = {"week_start": plan_start.isoformat(), "days": merged_days}
         # Cap each Monday-start week at the requested workout count, trimming

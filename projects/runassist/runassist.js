@@ -4580,7 +4580,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Demo insight generator — mirrors the on-demand /api/workout-insight
     // behaviour with the same context: week position in the block, phase at
     // the session's date, the previous planned session, and the runner's
-    // recent similar runs from the demo history.
+    // recent similar runs from the demo history. Context leads; race
+    // specifics (goal time/date) never appear — the race is "race day".
     function mockInsight(dateKey, w) {
         const type = (w && w.type) || 'Easy';
         const purpose = {
@@ -4611,6 +4612,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const daysLeft = Math.round((raceDate - d) / 86400000);
             const phase = mockPhase(daysLeft);
             placementText += ` — ${phase} phase, ${daysLeft} days before race day.`;
+            // Race week mirrors the backend's "arrive fresh" guidance.
+            if (daysLeft >= 0 && daysLeft <= 7) {
+                placementText += ' Race week — the only job is arriving at the line fresh.';
+            }
         } else if (placementText) {
             placementText += '.';
         }
@@ -4716,6 +4721,43 @@ document.addEventListener('DOMContentLoaded', function () {
         return [{ type: 'Run', detail: '6 km', level: 0, pace: typePace }];
     }
 
+    // Mirror of the backend's _split_windows: first chunk runs tomorrow
+    // through the end of the current Mon-Sun week, then full Mon-Sun weeks
+    // until race day (capped at MAX_PLAN_DAYS). Returns ISO start dates of
+    // each chunk, or null when there is no future race date (short-window
+    // fallback).
+    function getPlanWeekStarts() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (!raceGoal || !raceGoal.race_date) return null;
+        const raceDate = new Date(raceGoal.race_date + 'T00:00:00');
+        if (raceDate <= today) return null;
+        const planStart = new Date(today);
+        planStart.setDate(today.getDate() + 1);
+        const maxEnd = new Date(planStart);
+        maxEnd.setDate(planStart.getDate() + MOCK_MAX_PLAN_DAYS);
+        const planEnd = raceDate > maxEnd ? maxEnd : raceDate;
+
+        const starts = [];
+        // Convert JS getDay (Sun=0..Sat=6) to Python weekday (Mon=0..Sun=6)
+        // so the first-chunk math matches the backend exactly.
+        const pyWd = (planStart.getDay() + 6) % 7;
+        const firstEnd = new Date(planStart);
+        firstEnd.setDate(planStart.getDate() + ((7 - pyWd) % 7) + 6);
+        if (firstEnd > planEnd) firstEnd.setTime(planEnd.getTime());
+        starts.push(localDateKey(planStart));
+        const cursor = new Date(firstEnd);
+        cursor.setDate(cursor.getDate() + 1);
+        while (cursor <= planEnd) {
+            starts.push(localDateKey(cursor));
+            const end = new Date(cursor);
+            end.setDate(end.getDate() + 6);
+            const next = end > planEnd ? planEnd : end;
+            cursor.setDate(next.getDate() + 1);
+        }
+        return starts;
+    }
+
     async function generateCoachPlan(prefs, force) {
         // Auto-load is guarded; an explicit Save & Generate always regenerates.
         if (coachLoaded && !force) return;
@@ -4745,24 +4787,83 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        try {
-            // Pass force=1 when the user explicitly regenerates so the server
-            // skips its persistent email-keyed cache and generates a fresh plan.
-            const body = { ...coachPrefs };
-            if (force) body.force = '1';
-            const resp = await apiCall('POST', 'coach-plan', body);
-            const data = await resp.json();
-            if (!resp.ok) {
-                coachErrorEl.textContent = data.error || 'Failed to generate plan.';
-                coachErrorEl.hidden = false;
-                coachCalendarEl.innerHTML = '';
+        // Local 24h cache fast path — skip the network entirely when the
+        // cached block already covers the full plan window.
+        if (!force) {
+            const cached = readCoachCache();
+            if (cached && cached.plan && cached.plan.days && cached.plan.total_plan_days
+                    && cached.plan.days.length >= cached.plan.total_plan_days) {
+                coachPlanData = cached;
+                renderCoachCalendar(coachPlanData);
+                coachLoaded = true;
                 return;
             }
-            coachPlanData = data;
+        }
+
+        try {
+            // Full-block plans are generated week by week — one AI call per
+            // week — so no single request exceeds the Hobby 60s function cap.
+            // Weeks are fetched in small parallel batches; a server-side cache
+            // hit returns the whole block from the first request.
+            const weekStarts = getPlanWeekStarts();
+            if (!weekStarts) {
+                // Short-window fallback (no future race date) — single request.
+                const body = { ...coachPrefs };
+                if (force) body.force = '1';
+                const resp = await apiCall('POST', 'coach-plan', body);
+                const data = await resp.json();
+                if (!resp.ok) {
+                    coachErrorEl.textContent = data.error || 'Failed to generate plan.';
+                    coachErrorEl.hidden = false;
+                    coachCalendarEl.innerHTML = '';
+                    return;
+                }
+                coachPlanData = data;
+                renderCoachCalendar(coachPlanData);
+                coachLoaded = true;
+                return;
+            }
+
+            const batchSize = 5;
+            let history = null;
+            let meta = null;
+            const daysByDate = {};
+            for (let i = 0; i < weekStarts.length; i += batchSize) {
+                const batch = weekStarts.slice(i, i + batchSize);
+                const done = Math.min(i + batch.length, weekStarts.length);
+                coachCalendarEl.innerHTML = `<div class="rgd-coach-loading rgd-coach-loading--active"><span class="rgd-shimmer-text">Building week ${i + 1}–${done} of ${weekStarts.length}…</span></div>`;
+                const results = await Promise.all(batch.map(async (ws) => {
+                    // Pass force=1 when the user explicitly regenerates so the
+                    // server skips its persistent cache for every week.
+                    const body = { ...coachPrefs, week_start: ws };
+                    if (force) body.force = '1';
+                    const resp = await apiCall('POST', 'coach-plan', body);
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error || 'Failed to generate plan.');
+                    return data;
+                }));
+                for (const data of results) {
+                    if (!history && data.history) history = data.history;
+                    if (!meta && data.plan) meta = data.plan;
+                    for (const d of (data.plan && data.plan.days) || []) {
+                        daysByDate[d.date] = d;
+                    }
+                }
+                // Stop early when the block is already complete (e.g. the
+                // server returned the full cached plan on the first call).
+                if (meta && meta.total_plan_days && Object.keys(daysByDate).length >= meta.total_plan_days) {
+                    break;
+                }
+            }
+
+            const plan = meta || {};
+            plan.days = Object.keys(daysByDate).sort().map(k => daysByDate[k]);
+            coachPlanData = { history: history || [], plan };
+            writeCoachCache(coachPlanData);
             renderCoachCalendar(coachPlanData);
             coachLoaded = true;
         } catch (err) {
-            coachErrorEl.textContent = 'Network error.';
+            coachErrorEl.textContent = (err && err.message) || 'Network error.';
             coachErrorEl.hidden = false;
         }
     }
