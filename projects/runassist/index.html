@@ -432,7 +432,7 @@
                         <!-- Project title + intro — only on the overview page -->
                         <div class="rgd-content-header">
                             <h1 class="rgd-project-title">RunAssist</h1>
-                            <p class="rgd-project-intro">Your AI-powered race readiness companion — tracking training progress toward your race goal with Garmin data and intelligent insights. </p>
+                            <p class="rgd-project-intro">Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.</p>
                         </div>
 
                         <!-- ===== 1. Race Goal & Readiness =====
@@ -720,7 +720,12 @@
                                     Edit
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">Your coach studies your recent training and schedules next week's workouts around your preferences. Tap Edit to adjust them, then send the week to Garmin.</p>
+                            <p class="rgd-section-sub">Your coach maps the remaining weeks to race day from recent training and body signals. Tap Edit to adjust preferences, then send workouts to Garmin.</p>
+
+                            <!-- Block meta — countdown to race day, current
+                                 phase, and plan end date. Filled by the plan
+                                 page once the full-block plan loads. -->
+                            <p class="rgd-plan-block-meta" id="rgd-plan-block-meta" hidden></p>
 
                             <!-- Show more history — loads 2 more weeks of past
                                  activities into the plan calendar. Hidden until

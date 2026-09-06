@@ -483,16 +483,18 @@ def _delete_persistent_ai_cache(email: str):
 #   - generated_at: ISO timestamp
 #   - week_start: the plan's starting date (used for week-based invalidation)
 #   - preferences: the prefs used to generate the plan (for comparison)
+#   - race_date: the race date the plan targets (invalidates when it changes)
 
 COACH_CACHE_PREFIX = "race:coach-cache:"
 COACH_CACHE_TTL = 7 * 24 * 3600  # 7 days — plans regenerate weekly
 
 
-def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", preferences: dict = None):
+def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", preferences: dict = None, race_date: str = ""):
     """Store a coach plan keyed by email so it syncs across devices.
 
     Called by coach-plan.py after a successful plan generation. Stores the
-    full response along with the plan's week_start and the preferences used.
+    full response along with the plan's week_start, the race date it targets,
+    and the preferences used.
     """
     if not email:
         return
@@ -501,6 +503,7 @@ def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", p
         "data": data,
         "generated_at": datetime.now().isoformat(),
         "week_start": week_start,
+        "race_date": race_date,
         "preferences": preferences or {},
     }
     if _redis:

@@ -23,6 +23,273 @@ from lib._shared import (
 # Vercel file-based mode (strips /api/coach-plan so routes at "/" match)
 app = create_app("coach-plan")
 
+# ---------------------------------------------------------------------------
+# Full-block plan helpers — the marathon companion generates the whole
+# remaining block to race day, one week (chunk) at a time, so the AI keeps
+# each week coherent without exceeding the JSON response token limit.
+# ---------------------------------------------------------------------------
+
+MAX_PLAN_DAYS = 26 * 7  # cap the season block at 26 weeks (~6 months)
+
+# Default workout mix used to backfill under-filled weeks.
+default_mix = ["Easy", "Long Run", "Speedwork", "Tempo", "Recovery", "Easy"]
+default_specs = {
+    "Easy": {"title": "Easy Run", "description": "Relaxed aerobic run.", "distance_km": 6, "duration_min": 40, "intensity": "easy"},
+    "Recovery": {"title": "Recovery Run", "description": "Very easy shakeout run.", "distance_km": 5, "duration_min": 35, "intensity": "easy"},
+    "Long Run": {"title": "Long Run", "description": "Steady endurance builder.", "distance_km": 15, "duration_min": 100, "intensity": "moderate"},
+    "Tempo": {"title": "Tempo Run", "description": "Sustained threshold effort.", "distance_km": 8, "duration_min": 50, "intensity": "moderate"},
+    "Speedwork": {"title": "Speedwork", "description": "Short, fast repeats.", "distance_km": 6, "duration_min": 45, "intensity": "hard"},
+}
+
+# Honesty rules for every generated week — these answer the verified amateur
+# complaints about plan products (long runs too short, race-week stacking,
+# no pause after illness, fake marathon-pace work).
+HONESTY_RULES = """HONESTY RULES (mechanical — apply before anything else):
+- Long runs must progress toward a traditional peak (about 29-32 km / 18-20 miles
+  or 2-3 hours) when time-to-race allows. Do not keep long runs short forever.
+- Race week: never stack a long or hard session next to the race. The race day
+  itself is the hard session.
+- Marathon-pace work must be real: genuine 15-30 minute blocks at goal pace inside
+  long runs or dedicated MP sessions. Do not fake it with short tempos then
+  auto-shift by RPE.
+- If recent recovery signals are poor (HRV down, RHR up, bad sleep), this week's
+  quality session becomes easy and the long run stays conversational."""
+
+
+def _split_windows(plan_start, plan_end):
+    """Split [plan_start, plan_end] into AI-sized chunks.
+
+    The first chunk runs tomorrow through the current Mon-Sun week (up to 13
+    days); each later chunk is one full Mon-Sun week; the final chunk ends on
+    race day, so it may be partial.
+    """
+    windows = []
+    first_end = plan_start + timedelta(days=((7 - plan_start.weekday()) % 7) + 6)
+    if first_end > plan_end:
+        first_end = plan_end
+    windows.append((plan_start, first_end))
+    cursor = first_end + timedelta(days=1)
+    while cursor <= plan_end:
+        chunk_end = min(cursor + timedelta(days=6), plan_end)
+        windows.append((cursor, chunk_end))
+        cursor = chunk_end + timedelta(days=1)
+    return windows
+
+
+def _phase_for_days_left(days_left):
+    """Map days remaining to a training phase (mirrors the fallback logic)."""
+    if days_left < 0:
+        return "post_race"
+    if days_left <= 7:
+        return "taper"
+    if days_left <= 20:
+        return "sharpen"
+    if days_left <= 42:
+        return "specificity"
+    return "build"
+
+
+def _summarize_days(days):
+    """Compact summary of one generated chunk, fed to the next week's prompt
+    so the plan progresses (long runs grow, volume ramps, taper lands)
+    instead of repeating the same week."""
+    lines = []
+    weekly_km = 0.0
+    for d in days:
+        w = d.get("workout")
+        if not w:
+            lines.append(f"{d.get('date')}: Rest")
+            continue
+        km = w.get("distance_km") or 0
+        weekly_km += km
+        lines.append(f"{d.get('date')}: {w.get('type')} - {w.get('title')} ({km} km, {w.get('duration_min')} min)")
+    long_km = [d["workout"].get("distance_km") or 0 for d in days
+               if d.get("workout") and (d["workout"].get("type") or "").lower() == "long run"]
+    return "\n".join(lines), round(weekly_km, 1), (max(long_km) if long_km else None)
+
+
+def _progression_guide(phase, prev_long_km, race_day_chunk):
+    """Phase-specific progression targets so week N+1 builds on week N."""
+    peak = "about 29-32 km (18-20 miles) or 2-3 hours"
+    if race_day_chunk:
+        return (
+            "- This chunk ends on race day. Put a \"Race\" workout (42.195 km) on the final day.\n"
+            "- No long run or hard session in the 3 days before race day; the day before is a very short easy run or rest.\n"
+            "- Race week volume is roughly half of peak, all easy."
+        )
+    if phase == "build":
+        base = (f"Long run was {prev_long_km} km last week; grow it no more than 10% this week."
+                if prev_long_km else "Long run starts modest; grow it no more than 10% per week.")
+        return f"- {base}\n- Ramp total weekly volume gradually toward the peak block."
+    if phase == "specificity":
+        return (
+            f"- Peak block. Long run reaches {peak}.\n"
+            "- Include goal-pace segments in the final kilometres of the long run.\n"
+            "- One MP session (15-30 min at goal pace) inside a workout or the long run."
+        )
+    if phase == "sharpen":
+        return (
+            f"- Volume about 20-30% below peak. Long run about 70% of peak ({peak}).\n"
+            "- Keep one short race-pace session; no long intervals.\n"
+            "- Last long run should be 10-14 days before race day."
+        )
+    if phase == "taper":
+        return (
+            f"- Volume about 40-60% below peak. Mostly easy with short race-pace touches.\n"
+            f"- No long run beyond 60% of peak ({peak})."
+        )
+    return ""
+
+
+def _enforce_workout_counts(days, days_per_week):
+    """Cap each Monday-start week at days_per_week workouts (trimming excess
+    from the end of the week) and backfill under-filled weeks with the
+    default mix so every week feels complete."""
+    blocks = {}
+    for day in days:
+        try:
+            d = _dt.strptime(day["date"], "%Y-%m-%d").date()
+        except (ValueError, KeyError, TypeError):
+            continue
+        monday = d - timedelta(days=d.weekday())
+        blocks.setdefault(monday, []).append(day)
+    for monday in sorted(blocks):
+        block = blocks[monday]
+        excess = len([d for d in block if d.get("workout")]) - days_per_week
+        if excess > 0:
+            for d in reversed(block):
+                if excess <= 0:
+                    break
+                if d.get("workout"):
+                    d["workout"] = None
+                    d["is_rest"] = True
+                    excess -= 1
+        filled = 0
+        for d in block:
+            if d.get("workout"):
+                continue
+            if filled >= days_per_week:
+                break
+            wtype = default_mix[filled % len(default_mix)]
+            spec = default_specs.get(wtype, default_specs["Easy"])
+            d["workout"] = {
+                "type": wtype,
+                "title": spec["title"],
+                "description": spec["description"],
+                "distance_km": spec["distance_km"],
+                "duration_min": spec["duration_min"],
+                "intensity": spec["intensity"],
+            }
+            d["is_rest"] = False
+            filled += 1
+
+
+def _attach_workout_details(days, pace_zones):
+    """Override each workout's pace with the deterministic zone for its type,
+    attach the coaching insight, and build the native Garmin step breakdown
+    for the detail sheet (pace is derived, never user- or AI-editable)."""
+    for day in days:
+        w = day.get("workout")
+        if not isinstance(w, dict):
+            continue
+        wtype = w.get("type") or "Easy"
+        w["target_pace_min_per_km"] = pace_zones.get(wtype)
+        if not w.get("insight"):
+            w["insight"] = w.get("description") or ""
+        # Native Garmin steps — the exact steps that will be sent to the
+        # watch, flattened into readable {type, detail} rows. Pace zones are
+        # passed so each step's detail includes a target pace.
+        try:
+            w["steps"] = _flatten_workout_steps(
+                _build_running_workout(w).to_dict(),
+                pace_zones=pace_zones,
+                workout_type=wtype,
+            )
+        except Exception:
+            w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
+
+
+async def _call_ai(prompt, api_key):
+    """One AI call returning parsed JSON (the chunk's days array)."""
+    ai_client = AsyncOpenAI(api_key=api_key)
+    response = await ai_client.chat.completions.create(
+        model="gpt-5.6-luna",
+        messages=[
+            {"role": "system", "content": "You are an expert running coach. Return only valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+        # gpt-5.6-luna only supports max_completion_tokens + reasoning_effort (no temperature)
+        max_completion_tokens=4096,
+        reasoning_effort="medium"
+    )
+    return json.loads(response.choices[0].message.content)
+
+
+def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
+                        progression_text, intensity_text, days_per_week, mix_guide,
+                        distance_guide, physio_text, pace_zones, history, prev_summary):
+    """Prompt for one week of the full-block plan. Carries the same context
+    as the short-window prompt (goal, phases, prefs, recovery, zones) plus
+    the previous week's summary so the block progresses coherently."""
+    return f"""You are an expert running coach. Study the runner's last 2 weeks of training
+(with per-lap detail) and their recovery signals, then propose the week of training below.
+This is one week inside a longer marathon block — progress it, do not reset it.
+
+{race_goal_text}
+
+PLAN WINDOW (this week):
+- Cover exactly {chunk_days_count} consecutive days from {chunk_start.isoformat()} to {chunk_end.isoformat()}.
+- Monday is the start of a new training block; this window may be a partial week.
+- Put the long run on Saturday or Sunday when it falls inside the window.
+- Put the quality session mid-week (Tuesday or Wednesday), with at least one easy or rest day
+  before the long run.
+- Never schedule two hard days back to back.
+
+{phase_text}
+
+{progression_text}
+
+PREVIOUS WEEK (already generated — progress from here, do not repeat it):
+{prev_summary}
+
+{HONESTY_RULES}
+
+{intensity_text}
+
+PLAN PREFERENCES (the runner chose these — follow them):
+- Number of workout days per week: {days_per_week} (the other days are rest days).
+- Workout mix: {mix_guide}.
+{distance_guide}
+
+RECOVERY SIGNALS (latest available):
+{physio_text}
+
+RECENT ACTIVITIES (last 2 weeks, newest first; each may include a "laps" array with per-lap
+duration_s, distance_m, avg_pace_ms, avg_hr, max_hr, plus work/rest lap breakdown):
+{json.dumps(history, indent=2)}
+
+NOTE ON PACES: avg_pace_ms inside laps are metres per second. Convert to runner-friendly MM:SS/km
+when quoting. A session that includes "laps" with work_lap_count > 0 was interval/tempo work —
+read the work-lap paces as the true effort, not the blended average.
+
+WORKOUT REQUIREMENTS:
+- Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
+  Speedwork, Race), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
+  "duration_min" (number or null), "insight" (a short paragraph covering the purpose of the run,
+  hydration/recovery-between-efforts tips where relevant, and what to notice during the run such as
+  target RPE or the sensation to hold), and "intensity" (easy, moderate, or hard). Do NOT set
+  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below.
+- Scale distances and durations to the runner's recent training load, the weekly distance target,
+  and this week's phase.
+
+TARGET PACE ZONES (computed from the runner's recent fitness + race goal — use these paces when
+writing descriptions; the numeric pace field is set automatically):
+{json.dumps(pace_zones, indent=2)}
+
+Return ONLY valid JSON:
+{{"days": [{{"date": "YYYY-MM-DD", "day_of_week": "Mon", "is_rest": false, "workout": {{...}}}}, ...]}}"""
+
 
 class CoachPlanRequest(BaseModel):
     token: str = ""
@@ -47,6 +314,7 @@ async def coach_plan(body: CoachPlanRequest):
 
     sess = _get_session(token)
     race_goal = sess.get("race_goal")
+    race_date_str = race_goal.get("race_date") if race_goal else None
     email = sess.get("email", "")
 
     # --- Persistent coach plan cache check (keyed by email, shared across devices) ---
@@ -65,11 +333,15 @@ async def coach_plan(body: CoachPlanRequest):
         cached_entry = _get_persistent_coach_cache(email)
         if cached_entry:
             cached_week_start = cached_entry.get("week_start", "")
+            cached_race_date = cached_entry.get("race_date", "")
             cached_prefs = cached_entry.get("preferences", {})
             # Compute tomorrow's date the same way as below
             tomorrow = (date.today() + timedelta(days=1)).isoformat()
-            # Return cached plan if the week matches and preferences match
+            # Return cached plan only if the block start, the race date, and
+            # the preferences all match — a season plan is stale once the
+            # race date changes or the block start moves.
             if (cached_week_start == tomorrow
+                    and cached_race_date == (race_date_str or "")
                     and cached_prefs.get("days_per_week") == days_per_week
                     and cached_prefs.get("intensity") == intensity
                     and cached_prefs.get("distance_adj") == distance_adj):
@@ -141,7 +413,6 @@ async def coach_plan(body: CoachPlanRequest):
     #   taper (last 7 days):  volume down 40-60%, mostly easy, arrive fresh
     race_phase = None
     days_to_race = None
-    race_date_str = race_goal.get("race_date") if race_goal else None
     if race_date_str:
         try:
             race_date = _dt.strptime(race_date_str, "%Y-%m-%d").date()
@@ -254,6 +525,110 @@ async def coach_plan(body: CoachPlanRequest):
         ),
     }
     intensity_text = intensity_definitions.get(intensity, intensity_definitions["moderate"])
+
+    # ------------------------------------------------------------------
+    # Full remaining-block plan (marathon companion)
+    # ------------------------------------------------------------------
+    # When the runner has a future race date, the plan covers the entire
+    # block from tomorrow to race day instead of a short week window. The
+    # block is generated chunk by chunk (first chunk = the current week,
+    # then one full Mon-Sun week per AI call) so every week stays coherent
+    # and the JSON stays within the response token limit. The final chunk
+    # ends on race day, which gets a Race workout and no stacked hard or
+    # long session.
+    if race_date_str and days_to_race is not None and days_to_race > 0:
+        plan_start = date.today() + timedelta(days=1)
+        plan_end = race_date
+        # Cap the block so a race far in the future does not generate months
+        # of speculative weeks (marathon seasons run about 12-26 weeks).
+        max_end = plan_start + timedelta(days=MAX_PLAN_DAYS)
+        if plan_end > max_end:
+            plan_end = max_end
+        total_plan_days = (plan_end - plan_start).days + 1
+        windows = _split_windows(plan_start, plan_end)
+        merged_days = []
+        prev_summary = "No previous weeks yet — this is the first week of the plan."
+        prev_long_km = None
+        for w_start, w_end in windows:
+            chunk_days_count = (w_end - w_start).days + 1
+            # Days remaining at the end of this chunk decide its phase, so a
+            # long block moves build -> specificity -> sharpen -> taper.
+            days_left = (race_date - w_end).days
+            chunk_phase = _phase_for_days_left(days_left)
+            phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
+            race_day_chunk = w_end >= race_date
+            progression_text = _progression_guide(chunk_phase, prev_long_km, race_day_chunk)
+            prompt = _build_chunk_prompt(
+                w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
+                progression_text, intensity_text, days_per_week, mix_guide,
+                distance_guide, physio_text, pace_zones, history, prev_summary,
+            )
+            plan_chunk = None
+            for attempt in range(2):
+                try:
+                    plan_chunk = await _call_ai(prompt, api_key)
+                    break
+                except json.JSONDecodeError:
+                    if attempt == 0:
+                        continue
+                    return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
+                except Exception as e:
+                    if attempt == 0:
+                        continue
+                    return JSONResponse(status_code=500, content={"error": f"Coach plan failed: {str(e)}"})
+            chunk_days = plan_chunk.get("days") or []
+            # Defensive: fix missing or incorrect dates from the known window
+            # so the frontend can always schedule each day reliably.
+            for i in range(chunk_days_count):
+                expected_date = (w_start + timedelta(days=i)).isoformat()
+                if i < len(chunk_days):
+                    chunk_days[i]["date"] = expected_date
+                else:
+                    chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
+            chunk_days = chunk_days[:chunk_days_count]
+            merged_days.extend(chunk_days)
+            # Feed the next chunk the week we just made so long runs progress
+            # and volume ramps instead of repeating the same week.
+            prev_summary, _, prev_long_km = _summarize_days(chunk_days)
+
+        plan = {"week_start": plan_start.isoformat(), "days": merged_days}
+        # Cap each Monday-start week at the requested workout count, trimming
+        # excess from the end of the week and backfilling under-filled weeks.
+        _enforce_workout_counts(plan["days"], days_per_week)
+        _attach_workout_details(plan["days"], pace_zones)
+        plan["pace_zones"] = pace_zones
+        plan["preferences"] = {
+            "days_per_week": days_per_week,
+            "intensity": intensity,
+            "distance_adj": distance_adj,
+            "weekly_distance_km": weekly_distance_km,
+        }
+        # Include plan window metadata so the frontend knows the date range,
+        # the countdown, and the current race phase (useful for display and
+        # for the calendar scheduling logic).
+        plan["plan_start"] = plan_start.isoformat()
+        plan["plan_end"] = plan_end.isoformat()
+        plan["total_plan_days"] = total_plan_days
+        plan["race_date"] = race_date_str
+        plan["race_phase"] = race_phase or "build"
+        plan["days_to_race"] = days_to_race
+
+        # Strip lap detail from the history sent to the client — laps are only
+        # for the AI analysis, not the calendar cards.
+        slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
+        response_data = {"history": slim_history, "plan": plan}
+
+        # Save to the persistent email-keyed cache so the same plan appears on
+        # other devices. Store plan_start, race_date, and preferences so the
+        # cache is invalidated when the block start, race, or prefs change.
+        if email:
+            _save_persistent_coach_cache(
+                email, response_data,
+                week_start=plan_start.isoformat(),
+                preferences=current_prefs,
+                race_date=race_date_str or "",
+            )
+        return JSONResponse(content=response_data)
 
     prompt = f"""You are an expert running coach. Study the runner's last 2 weeks of training
 (with per-lap detail) and their recovery signals, then propose a training plan that honours the
@@ -377,14 +752,8 @@ Return ONLY valid JSON:
 
     # Backfill: if the AI returned fewer workouts than requested, fill empty
     # days with a sensible default mix so the user always gets a full plan.
-    default_mix = ["Easy", "Long Run", "Speedwork", "Tempo", "Recovery", "Easy"]
-    default_specs = {
-        "Easy": {"title": "Easy Run", "description": "Relaxed aerobic run.", "distance_km": 6, "duration_min": 40, "intensity": "easy"},
-        "Recovery": {"title": "Recovery Run", "description": "Very easy shakeout run.", "distance_km": 5, "duration_min": 35, "intensity": "easy"},
-        "Long Run": {"title": "Long Run", "description": "Steady endurance builder.", "distance_km": 15, "duration_min": 100, "intensity": "moderate"},
-        "Tempo": {"title": "Tempo Run", "description": "Sustained threshold effort.", "distance_km": 8, "duration_min": 50, "intensity": "moderate"},
-        "Speedwork": {"title": "Speedwork", "description": "Short, fast repeats.", "distance_km": 6, "duration_min": 45, "intensity": "hard"},
-    }
+    # (default_mix / default_specs live at module scope — the full-block path
+    # uses them too.)
     needed = max_workouts - len(workout_days)
     if needed > 0:
         for d in plan["days"]:
@@ -405,27 +774,10 @@ Return ONLY valid JSON:
                 workout_days.append(d)
                 needed -= 1
 
-    # Override each workout's pace with the deterministic zone for its type —
-    # pace is derived, never user- or AI-editable. Also attach the coaching
-    # insight and the native Garmin step breakdown for the detail sheet.
-    for day in plan["days"]:
-        w = day.get("workout")
-        if isinstance(w, dict):
-            wtype = w.get("type") or "Easy"
-            w["target_pace_min_per_km"] = pace_zones.get(wtype)
-            if not w.get("insight"):
-                w["insight"] = w.get("description") or ""
-            # Native Garmin steps — the exact steps that will be sent to the
-            # watch, flattened into readable {type, detail} rows. Pace zones
-            # are passed so each step's detail includes a target pace.
-            try:
-                w["steps"] = _flatten_workout_steps(
-                    _build_running_workout(w).to_dict(),
-                    pace_zones=pace_zones,
-                    workout_type=wtype,
-                )
-            except Exception:
-                w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
+    # Override each workout's pace with the deterministic zone for its type,
+    # attach the coaching insight, and build the native Garmin step breakdown
+    # (pace is derived, never user- or AI-editable).
+    _attach_workout_details(plan["days"], pace_zones)
 
     plan["pace_zones"] = pace_zones
     plan["preferences"] = {
@@ -450,12 +802,14 @@ Return ONLY valid JSON:
     response_data = {"history": slim_history, "plan": plan}
 
     # Save to the persistent email-keyed cache so the same plan appears on
-    # other devices. Store the plan_start and preferences for invalidation.
+    # other devices. Store the plan_start, race_date, and preferences for
+    # invalidation.
     if email:
         _save_persistent_coach_cache(
             email, response_data,
             week_start=plan_start.isoformat(),
             preferences=current_prefs,
+            race_date=race_date_str or "",
         )
 
     return JSONResponse(content=response_data)

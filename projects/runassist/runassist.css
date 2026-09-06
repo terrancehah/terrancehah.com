@@ -1534,6 +1534,15 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: -0.5rem 0 0;
 }
 
+/* Block meta line on the Plan page — countdown, phase, plan end date.
+   Mirrors the section subtitle so it reads as one header block. */
+.rgd-plan-block-meta {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-muted);
+    margin: -0.25rem 0 12px;
+}
+
 /* Info button next to section titles — opens the scoring guide modal.
    Small circular outline button with an info icon, aligned to the
    title's baseline so it reads as part of the heading row. */

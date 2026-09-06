@@ -4290,6 +4290,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const prefDistanceEl = $('#rgd-pref-distance');
     const schedulePlanBtn = $('#rgd-schedule-plan');
     const scheduleStatusEl = $('#rgd-coach-schedule-status');
+    const planBlockMetaEl = $('#rgd-plan-block-meta');
     const workoutSheet = $('#rgd-workout-sheet');
     const workoutSheetClose = $('#rgd-workout-sheet-close');
     const workoutSheetBody = $('#rgd-workout-sheet-body');
@@ -4428,83 +4429,108 @@ document.addEventListener('DOMContentLoaded', function () {
         return results;
     }
 
-    // Mock plan for demo mode — mirrors the new coach-plan.py logic:
-    // starts tomorrow, extends through the end of the next full Mon–Sun
-    // week (up to 13 days), places the long run on Sat/Sun, quality
-    // mid-week (Tue/Wed), and never schedules two hard days back to back.
+    // Mock plan for demo mode — mirrors the full-block coach-plan.py logic:
+    // starts tomorrow, runs through race day (build → specificity → sharpen
+    // → taper), long runs progress toward ~30 km then taper, and the final
+    // day is a Race workout with no hard/long session stacked on it.
+    const MOCK_MAX_PLAN_DAYS = 26 * 7; // mirrors MAX_PLAN_DAYS in coach-plan.py
+
     function getMockCoachPlan(prefs) {
         const p = prefs || {};
         const daysPerWeek = p.days_per_week || 3;
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         // Plan starts tomorrow
         const planStart = new Date(today);
         planStart.setDate(today.getDate() + 1);
-        // Find the next Monday after (or on) planStart
-        const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
-        const nextMonday = new Date(planStart);
-        nextMonday.setDate(planStart.getDate() + (daysUntilMonday === 0 ? 0 : daysUntilMonday));
-        // Plan ends on the Sunday at the end of that full week
-        const planEnd = new Date(nextMonday);
-        planEnd.setDate(nextMonday.getDate() + 6);
+
+        // Demo race date: prefer the saved race goal, else 12 weeks out.
+        let raceDate = null;
+        if (raceGoal && raceGoal.race_date) {
+            const saved = new Date(raceGoal.race_date + 'T00:00:00');
+            if (saved > today) raceDate = saved;
+        }
+        if (!raceDate) {
+            raceDate = new Date(today);
+            raceDate.setDate(today.getDate() + 84);
+        }
+        const maxEnd = new Date(planStart);
+        maxEnd.setDate(planStart.getDate() + MOCK_MAX_PLAN_DAYS);
+        if (raceDate > maxEnd) raceDate = maxEnd;
+
+        const planEnd = raceDate;
         const totalDays = Math.round((planEnd - planStart) / 86400000) + 1;
+        const daysToRace = Math.round((raceDate - today) / 86400000);
 
         const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const paceZones = { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' };
 
-        // Placement: long run on Sat or Sun, quality on Tue or Wed,
-        // easy/recovery fill the remaining days. No two hard days
-        // back to back. The gap days (before nextMonday) get at most
-        // one easy run to complete the current week.
-        const gapDays = Math.round((nextMonday - planStart) / 86400000);
+        // Days before the first full Monday: at most one easy run if 3+ gap days
+        const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
+        const gapDays = daysUntilMonday === 0 ? 0 : daysUntilMonday;
 
-        // Build the workout schedule as a map of day-index → workout type
-        // Day indices are 0-based from planStart.
-        const schedule = {};
-
-        // Gap days: at most 1 easy run if there are 3+ gap days
-        if (gapDays >= 3) {
-            // Place an easy run mid-gap (e.g. 2 days after planStart)
-            schedule[Math.min(2, gapDays - 1)] = 'Easy';
+        // Phase by days remaining — mirrors the backend boundaries.
+        function mockPhase(daysLeft) {
+            if (daysLeft <= 7) return 'taper';
+            if (daysLeft <= 20) return 'sharpen';
+            if (daysLeft <= 42) return 'specificity';
+            return 'build';
         }
 
-        // Full Mon–Sun block: place workouts on the right days
-        // nextMonday is at index `gapDays` in the plan
-        const monIdx = gapDays;       // Monday index in the plan
-        const tueIdx = gapDays + 1;
-        const wedIdx = gapDays + 2;
-        const thuIdx = gapDays + 3;
-        const friIdx = gapDays + 4;
-        const satIdx = gapDays + 5;
-        const sunIdx = gapDays + 6;
+        // Long-run distance per full week: ramp in build, peak in specificity,
+        // cut in sharpen, minimal in taper (honesty rules).
+        function mockLongKm(phase, weekIdx) {
+            if (phase === 'taper') return 12;
+            if (phase === 'sharpen') return 21;
+            if (phase === 'specificity') return 30;
+            return Math.min(24, 12 + weekIdx * 1.2);
+        }
 
-        // Always place the long run on Saturday (or Sunday if Sat is
-        // outside the window — but it never is since we cover a full week)
-        schedule[satIdx] = 'Long Run';
-
-        // Place the quality session on Tuesday or Wednesday
-        const qualityIdx = tueIdx; // Tuesday — mid-week, rest day before long run
-        schedule[qualityIdx] = 'Speedwork';
-
-        // Fill remaining workout days based on daysPerWeek
-        // Already placed: long run (Sat) + quality (Tue) = 2 workouts
-        // Gap easy run (if any) is separate from the weekly count
-        const remaining = daysPerWeek - 2;
-        // Fill easy/recovery on Mon, Wed, Thu, Sun in that order
-        const fillOrder = [wedIdx, monIdx, thuIdx, sunIdx];
-        const fillTypes = ['Easy', 'Recovery', 'Easy', 'Easy'];
-        for (let i = 0; i < remaining && i < fillOrder.length; i++) {
-            schedule[fillOrder[i]] = fillTypes[i];
+        // One Mon-Sun week's schedule: long run Sat, quality Tue, fill the
+        // remaining workout days with easy/recovery in a fixed order.
+        function mockWeekSchedule(dpw) {
+            const sched = { 5: 'Long Run', 1: 'Speedwork' };
+            const remaining = dpw - 2;
+            const fillOrder = [2, 0, 3, 6];
+            const fillTypes = ['Easy', 'Recovery', 'Easy', 'Easy'];
+            for (let i = 0; i < remaining && i < fillOrder.length; i++) {
+                sched[fillOrder[i]] = fillTypes[i];
+            }
+            return sched;
         }
 
         // Build the days array
         const days = [];
+        const raceKey = localDateKey(raceDate);
         for (let i = 0; i < totalDays; i++) {
             const d = new Date(planStart);
             d.setDate(planStart.getDate() + i);
-            const wType = schedule[i];
-            const workout = wType ? makeMockWorkout(wType, paceZones) : null;
+            const key = localDateKey(d);
+            const daysLeft = Math.round((raceDate - d) / 86400000);
+            const phase = mockPhase(daysLeft);
+            let wType = null;
+            let overrides = null;
+
+            if (key === raceKey) {
+                wType = 'Race';
+            } else if (i < gapDays) {
+                if (gapDays >= 3 && i === Math.min(2, gapDays - 1)) wType = 'Easy';
+            } else {
+                const weekIdx = Math.floor((i - gapDays) / 7);
+                const dowIdx = (i - gapDays) % 7;
+                const sched = mockWeekSchedule(daysPerWeek);
+                wType = sched[dowIdx];
+                // Race week keeps the long run off the calendar entirely.
+                if (wType === 'Long Run' && phase === 'taper') wType = null;
+                if (wType === 'Long Run') {
+                    const longKm = mockLongKm(phase, weekIdx);
+                    overrides = { distance_km: longKm, duration_min: Math.round(longKm * 6.5) };
+                }
+            }
+
+            const workout = wType ? makeMockWorkout(wType, paceZones, overrides) : null;
             days.push({
-                date: localDateKey(d),
+                date: key,
                 day_of_week: dow[d.getDay()],
                 is_rest: !workout,
                 workout,
@@ -4516,12 +4542,15 @@ document.addEventListener('DOMContentLoaded', function () {
             plan_start: localDateKey(planStart),
             plan_end: localDateKey(planEnd),
             total_plan_days: totalDays,
+            race_date: localDateKey(raceDate),
+            race_phase: mockPhase(daysToRace),
+            days_to_race: daysToRace,
             pace_zones: paceZones,
             days,
         };
     }
 
-    function makeMockWorkout(type, zones) {
+    function makeMockWorkout(type, zones, overrides) {
         const defs = {
             'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.', insight: 'Build aerobic base and aid recovery without adding fatigue. Sip water as needed and keep it conversational; hold RPE 3-4 so you can talk comfortably throughout.' },
             'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.', insight: 'Flush the legs and keep moving between harder days. Stay hydrated, keep the effort very light, and hold RPE 2-3 with a short, bouncy stride.' },
@@ -4529,10 +4558,22 @@ document.addEventListener('DOMContentLoaded', function () {
             'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.', insight: 'Train to hold goal pace under fatigue. Hydrate beforehand and take a breather only if form breaks; hold a "comfortably hard" RPE 7.' },
             'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.', insight: 'Raise your speed reserve above goal pace. Walk or jog the recoveries and sip water between sets; run each rep at RPE 8-9 with a relaxed upper body.' },
             'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.', insight: 'Sharpen your ability to sustain faster paces in blocks. Use full recovery and hydrate during rest; keep RPE 8 and a consistent rhythm across all reps.' },
+            'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Marathon race day.', insight: 'Execute your goal pace plan. Trust the training, hydrate at every station, and hold your pace through halfway before pushing.' },
         };
         const d = defs[type] || defs['Easy'];
+        const o = overrides || {};
         const pace = zones[type] || '6:30';
-        return { type, title: d.title, description: d.description, insight: d.insight, distance_km: d.distance_km, duration_min: d.duration_min, intensity: d.intensity, target_pace_min_per_km: pace, steps: makeMockSteps(type, pace, zones) };
+        return {
+            type,
+            title: type === 'Long Run' && o.distance_km != null ? `Long ${o.distance_km}km` : d.title,
+            description: d.description,
+            insight: d.insight,
+            distance_km: o.distance_km != null ? o.distance_km : d.distance_km,
+            duration_min: o.duration_min != null ? o.duration_min : d.duration_min,
+            intensity: d.intensity,
+            target_pace_min_per_km: type === 'Race' ? null : pace,
+            steps: type === 'Race' ? [{ type: 'Run', detail: '42.195 km', level: 0, pace: null }] : makeMockSteps(type, pace, zones),
+        };
     }
 
     function makeMockSteps(type, pace, zones) {
@@ -4686,8 +4727,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
         const nextMonday = new Date(today);
         nextMonday.setDate(today.getDate() + daysUntilMonday);
-        const end = new Date(nextMonday);
-        end.setDate(nextMonday.getDate() + 6); // Sunday of the upcoming week
+        let end = new Date(nextMonday);
+        end.setDate(end.getDate() + 6); // Sunday of the upcoming week
+        // With a full-block plan the calendar extends through race day so the
+        // whole season is visible; otherwise it stops at the upcoming week.
+        if (plan.plan_end) {
+            const planEndDate = parseDate(plan.plan_end + 'T00:00:00');
+            if (planEndDate > end) end = planEndDate;
+        }
 
         const weeks = [];
         const cursor = new Date(start);
@@ -4706,6 +4753,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ${week.map(day => renderDayRow(day)).join('')}
             </div>
         `).join('');
+        renderPlanBlockMeta(plan);
         schedulePlanBtn.hidden = false;
 
         // Show the "Show more" button only if there's older history beyond
@@ -4733,6 +4781,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (todayRow) todayRow.scrollIntoView({ behavior: 'auto', block: 'center' });
             });
         }
+    }
+
+    // Header line for the full-block plan: countdown to race day, current
+    // phase, and the last day the plan covers. Hidden for the short-window
+    // fallback (a plan with no race target).
+    function renderPlanBlockMeta(plan) {
+        if (!planBlockMetaEl) return;
+        const daysToRace = plan.days_to_race;
+        if (daysToRace == null || !plan.race_date) {
+            planBlockMetaEl.hidden = true;
+            return;
+        }
+        const dayLabel = daysToRace === 1 ? 'day' : 'days';
+        const phaseLabel = String(plan.race_phase || 'build').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        const planEndDate = plan.plan_end
+            ? new Date(plan.plan_end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : '';
+        planBlockMetaEl.textContent = `${daysToRace} ${dayLabel} to race · ${phaseLabel} phase · plan through ${planEndDate}`;
+        planBlockMetaEl.hidden = false;
     }
 
     function renderDayRow(day) {
@@ -5098,8 +5165,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function schedulePlan() {
         if (!coachPlanData || !coachPlanData.plan) return;
+        // Send only the near-term window — a full-season plan can be 20+
+        // weeks long, and the Garmin Training API sync is week-sized by
+        // design (per product scope).
+        const todayKey = localDateKey(new Date());
+        const horizon = new Date();
+        horizon.setDate(horizon.getDate() + 13); // upcoming 14 days
+        const horizonKey = localDateKey(horizon);
         const days = coachPlanData.plan.days
-            .filter(d => !d.is_rest && d.workout && !coachScheduledDates.has(d.date))
+            .filter(d => !d.is_rest && d.workout && !coachScheduledDates.has(d.date)
+                && d.date >= todayKey && d.date <= horizonKey)
             .map(d => ({ date: d.date, workout: d.workout }));
 
         if (!days.length) {
