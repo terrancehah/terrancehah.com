@@ -17,6 +17,7 @@ from lib._shared import (
     _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
+    _get_persistent_ai_cache,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -108,6 +109,112 @@ def _summarize_days(days):
     return "\n".join(lines), round(weekly_km, 1), (max(long_km) if long_km else None)
 
 
+def _format_sec_km(sec_per_km) -> str:
+    """Format seconds-per-km as "M:SS" for user-facing strings."""
+    if not sec_per_km or sec_per_km <= 0:
+        return "--"
+    mins = int(sec_per_km // 60)
+    secs = int(round(sec_per_km % 60))
+    if secs >= 60:
+        mins += 1
+        secs -= 60
+    return f"{mins}:{secs:02d}"
+
+
+def _format_marathon_time(sec_per_km) -> str:
+    """Convert a per-km pace to a total marathon time "H:MM:SS"."""
+    total_sec = int(round(sec_per_km * 42.195))
+    h, rem = divmod(total_sec, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}"
+
+
+def _estimate_feasibility(history: list[dict], goal_pace_ms: float, days_to_race: int) -> dict | None:
+    """Estimate whether the runner's current running pace + remaining block
+    can reach the typed goal pace.
+
+    Current fitness pace = best Riegel projection to marathon distance from
+    recent runs (>= 5 km, falling back to >= 3 km). The remaining block is
+    assumed to improve pace by roughly 1.5% per 4 weeks of structured work
+    (conservative trained-runner rate). Verdict tiers:
+      on_track  — estimate already at or faster than goal pace
+      at_risk   — reachable with a strong, consistent block
+      unlikely  — gap larger than a realistic block can close
+    Returns None when there is not enough data to estimate.
+    """
+    if not history or not goal_pace_ms or goal_pace_ms <= 0:
+        return None
+    goal_sec = 1000 / goal_pace_ms
+
+    # Best Riegel projection: t_marathon = t_run * (42.195 / d_run) ^ 1.06.
+    # Prefer longer runs (>= 8 km): short runs over-project and inflate the
+    # estimate. Training runs are rarely all-out, so this is a conservative
+    # estimator — it errs toward "check your goal", which is the safe
+    # direction for a warning feature.
+    def _best_projection(min_dist):
+        best = None
+        for a in history:
+            pace_ms = a.get("avg_pace") or 0
+            dist_km = a.get("distance") or 0
+            if pace_ms <= 0 or dist_km < min_dist:
+                continue
+            run_min = (dist_km * 1000 / pace_ms) / 60
+            est_marathon_min = run_min * (42.195 / dist_km) ** 1.06
+            est_sec = est_marathon_min * 60 / 42.195
+            best = est_sec if best is None else min(best, est_sec)
+        return best
+
+    best_est_sec = _best_projection(8)
+    if best_est_sec is None:
+        best_est_sec = _best_projection(5)
+    if best_est_sec is None:
+        best_est_sec = _best_projection(3)
+    if best_est_sec is None:
+        return None
+
+    gap_pct = (best_est_sec - goal_sec) / goal_sec * 100
+    weeks = max(days_to_race, 1) / 7.0
+    improvement_pct = 1.5 * weeks / 4.0  # ~1.5% pace gain per 4 weeks of training
+    if gap_pct <= 0:
+        status = "on_track"
+    elif weeks < 4 and gap_pct > 0:
+        status = "unlikely"
+    elif gap_pct <= improvement_pct + 2:
+        status = "at_risk"
+    else:
+        status = "unlikely"
+
+    # Realistic goal for this block: current estimate improved by 70% of the
+    # assumed capacity (never faster than the estimate itself).
+    realistic_sec = best_est_sec * (1 - min(0.7 * improvement_pct / 100, 0.15))
+
+    goal_str = _format_sec_km(goal_sec)
+    est_str = _format_sec_km(best_est_sec)
+    if status == "on_track":
+        note = (f"Your recent training pace ({est_str}/km) already supports the goal pace "
+                f"of {goal_str}/km — keep the block on plan.")
+    elif status == "at_risk":
+        note = (f"Goal pace {goal_str}/km vs estimated {est_str}/km from recent runs "
+                f"({gap_pct:+.0f}%). Reachable with a strong, consistent block "
+                f"({weeks:.0f} weeks left).")
+    else:
+        note = (f"Recent training pace ({est_str}/km) is {gap_pct:+.0f}% off the goal pace "
+                f"({goal_str}/km). With {weeks:.0f} weeks left, a realistic target is "
+                f"about {_format_sec_km(realistic_sec)}/km ({_format_marathon_time(realistic_sec)}).")
+
+    return {
+        "status": status,
+        "goal_pace_sec_km": round(goal_sec, 1),
+        "estimated_marathon_pace_sec_km": round(best_est_sec, 1),
+        "gap_pct": round(gap_pct, 1),
+        "weeks_to_race": round(weeks, 1),
+        "improvement_assumption_pct": round(improvement_pct, 1),
+        "realistic_goal_pace_sec_km": round(realistic_sec, 1),
+        "realistic_goal_time": _format_marathon_time(realistic_sec),
+        "note": note,
+    }
+
+
 def _progression_guide(phase, prev_long_km, race_day_chunk):
     """Phase-specific progression targets so week N+1 builds on week N."""
     peak = "about 29-32 km (18-20 miles) or 2-3 hours"
@@ -194,8 +301,10 @@ def _attach_workout_details(days, pace_zones):
             continue
         wtype = w.get("type") or "Easy"
         w["target_pace_min_per_km"] = pace_zones.get(wtype)
-        if not w.get("insight"):
-            w["insight"] = w.get("description") or ""
+        # Coach insight is generated on demand when the runner opens the
+        # workout card (see /api/workout-insight) — keep it null here so the
+        # full-block plan payload stays light and fast.
+        w.setdefault("insight", None)
         # Native Garmin steps — the exact steps that will be sent to the
         # watch, flattened into readable {type, detail} rows. Pace zones are
         # passed so each step's detail includes a target pace.
@@ -227,11 +336,12 @@ async def _call_ai(prompt, api_key):
 
 
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
-                        progression_text, intensity_text, days_per_week, mix_guide,
-                        distance_guide, physio_text, pace_zones, history, prev_summary):
+                        progression_text, coach_insight_text, intensity_text, days_per_week,
+                        mix_guide, distance_guide, physio_text, pace_zones, history, prev_summary):
     """Prompt for one week of the full-block plan. Carries the same context
     as the short-window prompt (goal, phases, prefs, recovery, zones) plus
-    the previous week's summary so the block progresses coherently."""
+    the previous week's summary so the block progresses coherently, plus the
+    readiness insight (when available) so the diagnosis shapes the plan."""
     return f"""You are an expert running coach. Study the runner's last 2 weeks of training
 (with per-lap detail) and their recovery signals, then propose the week of training below.
 This is one week inside a longer marathon block — progress it, do not reset it.
@@ -249,6 +359,8 @@ PLAN WINDOW (this week):
 {phase_text}
 
 {progression_text}
+
+{coach_insight_text}
 
 PREVIOUS WEEK (already generated — progress from here, do not repeat it):
 {prev_summary}
@@ -276,10 +388,9 @@ read the work-lap paces as the true effort, not the blended average.
 WORKOUT REQUIREMENTS:
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
   Speedwork, Race), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
-  "duration_min" (number or null), "insight" (a short paragraph covering the purpose of the run,
-  hydration/recovery-between-efforts tips where relevant, and what to notice during the run such as
-  target RPE or the sensation to hold), and "intensity" (easy, moderate, or hard). Do NOT set
-  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below.
+  "duration_min" (number or null), and "intensity" (easy, moderate, or hard). Do NOT set
+  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below. Do NOT
+  set "insight" — it is generated on demand when the runner opens the workout, so leave it out.
 - Scale distances and durations to the runner's recent training load, the weekly distance target,
   and this week's phase.
 
@@ -545,6 +656,35 @@ async def coach_plan(body: CoachPlanRequest):
         if plan_end > max_end:
             plan_end = max_end
         total_plan_days = (plan_end - plan_start).days + 1
+
+        # Feasibility: can the runner's current pace + the remaining block
+        # reach the typed goal pace? Computed from the same data the plan
+        # uses (recent runs + goal pace), no extra AI call.
+        feasibility = _estimate_feasibility(history, goal_pace_ms, days_to_race)
+
+        # Readiness insight from the cached AI radar (read-only, cheap): the
+        # plan should treat the diagnosed top gap as the prescription focus.
+        ai_insight = None
+        if email:
+            cached_ai = _get_persistent_ai_cache(email)
+            if cached_ai:
+                overall = (cached_ai.get("data") or {}).get("overall") or {}
+                top_gap = overall.get("topGap") or {}
+                if overall.get("verdict"):
+                    ai_insight = {
+                        "verdict": overall.get("verdict"),
+                        "score": overall.get("score"),
+                        "top_gap_label": top_gap.get("label"),
+                        "top_gap_note": (top_gap.get("note") or "")[:300],
+                    }
+        coach_insight_text = ""
+        if ai_insight:
+            coach_insight_text = (
+                "COACH INSIGHT (readiness analysis of the same data — bias this week toward the top gap):\n"
+                f"- Verdict: {ai_insight['verdict']} ({ai_insight['score']}/10)\n"
+                f"- Top gap: {ai_insight['top_gap_label']} — {ai_insight['top_gap_note']}"
+            )
+
         windows = _split_windows(plan_start, plan_end)
         merged_days = []
         prev_summary = "No previous weeks yet — this is the first week of the plan."
@@ -560,8 +700,8 @@ async def coach_plan(body: CoachPlanRequest):
             progression_text = _progression_guide(chunk_phase, prev_long_km, race_day_chunk)
             prompt = _build_chunk_prompt(
                 w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
-                progression_text, intensity_text, days_per_week, mix_guide,
-                distance_guide, physio_text, pace_zones, history, prev_summary,
+                progression_text, coach_insight_text, intensity_text, days_per_week,
+                mix_guide, distance_guide, physio_text, pace_zones, history, prev_summary,
             )
             plan_chunk = None
             for attempt in range(2):
@@ -612,6 +752,12 @@ async def coach_plan(body: CoachPlanRequest):
         plan["race_date"] = race_date_str
         plan["race_phase"] = race_phase or "build"
         plan["days_to_race"] = days_to_race
+        # Feasibility verdict (on_track / at_risk / unlikely) with the AI
+        # readiness insight attached when available — surfaced by the Plan
+        # page as a warning banner so the runner knows the goal is at risk.
+        if feasibility:
+            feasibility["readiness"] = ai_insight
+        plan["feasibility"] = feasibility
 
         # Strip lap detail from the history sent to the client — laps are only
         # for the AI analysis, not the calendar cards.
@@ -683,10 +829,9 @@ PLAN REQUIREMENTS:
   the next Monday should be treated as the tail of the current week — fill with easy runs or rest.
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
   Speedwork), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
-  "duration_min" (number or null), "insight" (a short paragraph covering the purpose of the run,
-  hydration/recovery-between-efforts tips where relevant, and what to notice during the run such as
-  target RPE or the sensation to hold), and "intensity" (easy, moderate, or hard). Do NOT set
-  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below.
+  "duration_min" (number or null), and "intensity" (easy, moderate, or hard). Do NOT set
+  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below. Do NOT
+  set "insight" — it is generated on demand when the runner opens the workout, so leave it out.
 - Scale distances/durations to the runner's recent training load, the weekly distance target, and
   the race phase (sharpen and taper phases must reduce volume).
 

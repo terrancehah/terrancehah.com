@@ -4291,6 +4291,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const schedulePlanBtn = $('#rgd-schedule-plan');
     const scheduleStatusEl = $('#rgd-coach-schedule-status');
     const planBlockMetaEl = $('#rgd-plan-block-meta');
+    const planFeasibilityEl = $('#rgd-plan-feasibility');
     const workoutSheet = $('#rgd-workout-sheet');
     const workoutSheetClose = $('#rgd-workout-sheet-close');
     const workoutSheetBody = $('#rgd-workout-sheet-body');
@@ -4390,7 +4391,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function getMockCoachHistory() {
         const now = new Date();
         const names = ['Easy Morning', 'Weekend Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog'];
-        const tags = ['Easy', 'LSD', 'Speedwork', 'Speedwork', 'Easy'];
+        // Tags match the backend classifier so the demo insight's
+        // similar-session lookup behaves exactly like the real one.
+        const tags = ['Easy', 'LSD', 'Tempo Long', 'Speedwork', 'Recovery'];
         const secPerKm = [400, 420, 350, 330, 450]; // easy, long, tempo, interval, recovery
         const distances = [6, 18, 10, 8, 5];
         // Same weekly offsets as generateMockActivities: Tue(1), Wed(2),
@@ -4435,6 +4438,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // day is a Race workout with no hard/long session stacked on it.
     const MOCK_MAX_PLAN_DAYS = 26 * 7; // mirrors MAX_PLAN_DAYS in coach-plan.py
 
+    // Phase by days remaining — mirrors the backend boundaries. Shared by the
+    // plan builder and the demo insight generator.
+    function mockPhase(daysLeft) {
+        if (daysLeft <= 7) return 'taper';
+        if (daysLeft <= 20) return 'sharpen';
+        if (daysLeft <= 42) return 'specificity';
+        return 'build';
+    }
+
     function getMockCoachPlan(prefs) {
         const p = prefs || {};
         const daysPerWeek = p.days_per_week || 3;
@@ -4468,14 +4480,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Days before the first full Monday: at most one easy run if 3+ gap days
         const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
         const gapDays = daysUntilMonday === 0 ? 0 : daysUntilMonday;
-
-        // Phase by days remaining — mirrors the backend boundaries.
-        function mockPhase(daysLeft) {
-            if (daysLeft <= 7) return 'taper';
-            if (daysLeft <= 20) return 'sharpen';
-            if (daysLeft <= 42) return 'specificity';
-            return 'build';
-        }
 
         // Long-run distance per full week: ramp in build, peak in specificity,
         // cut in sharpen, minimal in taper (honesty rules).
@@ -4546,28 +4550,128 @@ document.addEventListener('DOMContentLoaded', function () {
             race_phase: mockPhase(daysToRace),
             days_to_race: daysToRace,
             pace_zones: paceZones,
+            // Demo feasibility — mirrors the backend verdict shape so the
+            // banner renders (on_track example).
+            feasibility: {
+                status: 'on_track',
+                goal_pace_sec_km: 320,
+                estimated_marathon_pace_sec_km: 315,
+                gap_pct: -1.6,
+                weeks_to_race: Math.round(daysToRace / 7 * 10) / 10,
+                note: 'Your recent training pace (5:15/km) already supports the goal pace of 5:20/km — keep the block on plan.',
+            },
             days,
         };
     }
 
-    function makeMockWorkout(type, zones, overrides) {
-        const defs = {
-            'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.', insight: 'Build aerobic base and aid recovery without adding fatigue. Sip water as needed and keep it conversational; hold RPE 3-4 so you can talk comfortably throughout.' },
-            'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.', insight: 'Flush the legs and keep moving between harder days. Stay hydrated, keep the effort very light, and hold RPE 2-3 with a short, bouncy stride.' },
-            'Long Run': { title: 'Long 16km', distance_km: 16, duration_min: 105, intensity: 'moderate', description: 'Endurance builder.', insight: 'Extend aerobic endurance so race distance feels manageable. Drink every 15-20 min and consider a gel past 90 min; keep RPE 4-5 early and save energy for the final third.' },
-            'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.', insight: 'Train to hold goal pace under fatigue. Hydrate beforehand and take a breather only if form breaks; hold a "comfortably hard" RPE 7.' },
-            'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.', insight: 'Raise your speed reserve above goal pace. Walk or jog the recoveries and sip water between sets; run each rep at RPE 8-9 with a relaxed upper body.' },
-            'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.', insight: 'Sharpen your ability to sustain faster paces in blocks. Use full recovery and hydrate during rest; keep RPE 8 and a consistent rhythm across all reps.' },
-            'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Marathon race day.', insight: 'Execute your goal pace plan. Trust the training, hydrate at every station, and hold your pace through halfway before pushing.' },
+    // Canned demo workout specs — mirrors the on-demand /api/workout-insight
+    // behaviour: workouts carry no insight, and opening the card "generates"
+    // one locally in demo mode via mockInsight().
+    const MOCK_WORKOUT_DEFS = {
+        'Easy': { title: 'Easy 6km', distance_km: 6, duration_min: 40, intensity: 'easy', description: 'Relaxed aerobic run.' },
+        'Recovery': { title: 'Recovery 5km', distance_km: 5, duration_min: 35, intensity: 'easy', description: 'Very easy shakeout.' },
+        'Long Run': { title: 'Long 16km', distance_km: 16, duration_min: 105, intensity: 'moderate', description: 'Endurance builder.' },
+        'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.' },
+        'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.' },
+        'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.' },
+        'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Marathon race day.' },
+    };
+
+    // Demo insight generator — mirrors the on-demand /api/workout-insight
+    // behaviour with the same context: week position in the block, phase at
+    // the session's date, the previous planned session, and the runner's
+    // recent similar runs from the demo history.
+    function mockInsight(dateKey, w) {
+        const type = (w && w.type) || 'Easy';
+        const purpose = {
+            'Easy': 'Builds aerobic base and aids recovery without adding fatigue',
+            'Recovery': 'Flushes the legs and keeps you moving between harder days',
+            'Long Run': 'Extends aerobic endurance so race distance feels manageable',
+            'Tempo': 'Trains you to hold goal pace under fatigue',
+            'Intervals': 'Sharpens your ability to sustain faster paces in blocks',
+            'Speedwork': 'Raises your speed reserve above goal pace',
+            'Race': 'Executes the goal pace plan you have trained for',
+        }[type] || 'Keeps your fitness moving forward';
+
+        // Week position + phase at THIS date (same math as the live path).
+        let placementText = '';
+        const plan = coachPlanData && coachPlanData.plan ? coachPlanData.plan : null;
+        const d = parseDate(dateKey + 'T00:00:00');
+        if (plan && plan.plan_start) {
+            const start = parseDate(plan.plan_start + 'T00:00:00');
+            const dayDiff = Math.round((d - start) / 86400000);
+            if (dayDiff >= 0) {
+                const weekIndex = Math.floor(dayDiff / 7) + 1;
+                const totalWeeks = Math.max(1, Math.ceil((plan.total_plan_days || 1) / 7));
+                placementText += ` This is week ${weekIndex} of ${totalWeeks} of the block`;
+            }
+        }
+        if (plan && plan.race_date) {
+            const raceDate = parseDate(plan.race_date + 'T00:00:00');
+            const daysLeft = Math.round((raceDate - d) / 86400000);
+            const phase = mockPhase(daysLeft);
+            placementText += ` — ${phase} phase, ${daysLeft} days before race day.`;
+        } else if (placementText) {
+            placementText += '.';
+        }
+
+        // Previous planned session — mirrors the live context payload.
+        let prevText = '';
+        if (plan) {
+            const idx = plan.days.findIndex(x => x.date === dateKey);
+            for (let i = idx - 1; i >= 0; i--) {
+                const pd = plan.days[i];
+                if (pd && pd.workout) {
+                    prevText = ` It follows the planned ${pd.workout.type.toLowerCase()}${pd.workout.distance_km ? ' (' + pd.workout.distance_km + ' km)' : ''}.`;
+                    break;
+                }
+            }
+        }
+
+        // Recent similar runs from the demo history — same tag mapping as the
+        // backend: Long Run→LSD, Tempo→Tempo Long, Intervals/Speedwork→Speedwork,
+        // Easy→Easy/Warmup, Recovery→Recovery, Race→LSD/Tempo Long.
+        const tagMap = {
+            'Long Run': ['LSD'], 'Tempo': ['Tempo Long'], 'Intervals': ['Speedwork'],
+            'Speedwork': ['Speedwork'], 'Easy': ['Easy', 'Warmup'], 'Recovery': ['Recovery'],
+            'Race': ['LSD', 'Tempo Long'],
         };
-        const d = defs[type] || defs['Easy'];
+        let similarText = '';
+        const history = coachPlanData && coachPlanData.history ? coachPlanData.history : [];
+        const similar = history.filter(h => (tagMap[type] || []).includes(h.run_tag)).slice(0, 2);
+        if (similar.length) {
+            const line = similar.map(s => {
+                const sec = s.avg_pace ? 1000 / s.avg_pace : null;
+                const pace = sec != null ? `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}/km` : '--';
+                return `${(s.start_time || '').slice(5, 10)}: ${s.distance} km @ ${pace}${s.avg_hr ? ', avg HR ' + s.avg_hr : ''}`;
+            }).join('; ');
+            similarText = ` Your recent similar run${similar.length > 1 ? 's' : ''}: ${line}.`;
+        }
+
+        const effort = {
+            'Easy': 'hold RPE 3-4, conversational',
+            'Recovery': 'keep RPE 2-3, very light',
+            'Long Run': 'start at RPE 4-5 and save energy for the final third',
+            'Tempo': 'hold a comfortably hard RPE 7',
+            'Intervals': 'run reps at RPE 8 with full recovery between',
+            'Speedwork': 'run each rep at RPE 8-9, relaxed upper body',
+            'Race': 'hold your goal pace through halfway before pushing',
+        }[type] || 'keep a steady, honest effort';
+
+        return `${purpose} — that is the session's job for race day.${placementText}${prevText}${similarText} Stay hydrated, and ${effort}.`;
+    }
+
+    function makeMockWorkout(type, zones, overrides) {
+        const d = MOCK_WORKOUT_DEFS[type] || MOCK_WORKOUT_DEFS['Easy'];
         const o = overrides || {};
         const pace = zones[type] || '6:30';
         return {
             type,
             title: type === 'Long Run' && o.distance_km != null ? `Long ${o.distance_km}km` : d.title,
             description: d.description,
-            insight: d.insight,
+            // Lazy insight — the card opens with null and the sheet fills it
+            // in via mockInsight (demo) or /api/workout-insight (real).
+            insight: null,
             distance_km: o.distance_km != null ? o.distance_km : d.distance_km,
             duration_min: o.duration_min != null ? o.duration_min : d.duration_min,
             intensity: d.intensity,
@@ -4754,6 +4858,7 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `).join('');
         renderPlanBlockMeta(plan);
+        renderPlanFeasibility(plan);
         schedulePlanBtn.hidden = false;
 
         // Show the "Show more" button only if there's older history beyond
@@ -4800,6 +4905,32 @@ document.addEventListener('DOMContentLoaded', function () {
             : '';
         planBlockMetaEl.textContent = `${daysToRace} ${dayLabel} to race · ${phaseLabel} phase · plan through ${planEndDate}`;
         planBlockMetaEl.hidden = false;
+    }
+
+    // Feasibility banner — tells the runner whether recent training pace and
+    // the remaining block can realistically reach the typed goal pace. Hidden
+    // when the plan has no feasibility verdict (short-window fallback).
+    function renderPlanFeasibility(plan) {
+        if (!planFeasibilityEl) return;
+        const f = plan.feasibility;
+        if (!f || !f.status) {
+            planFeasibilityEl.hidden = true;
+            return;
+        }
+        const label = f.status === 'on_track' ? 'On track'
+            : f.status === 'at_risk' ? 'Reachable, but tight'
+            : 'Goal at risk';
+        const cls = f.status === 'on_track' ? 'rgd-plan-feasibility--on-track'
+            : f.status === 'at_risk' ? 'rgd-plan-feasibility--at-risk'
+            : 'rgd-plan-feasibility--unlikely';
+        let html = `<span class="rgd-plan-feasibility-label">${label}</span>`
+            + `<span class="rgd-plan-feasibility-note">${escapeHtml(f.note || '')}</span>`;
+        if (f.readiness && f.readiness.verdict) {
+            html += `<span class="rgd-plan-feasibility-readiness">Readiness: ${escapeHtml(f.readiness.verdict)} (${f.readiness.score}/10)</span>`;
+        }
+        planFeasibilityEl.className = `rgd-plan-feasibility ${cls}`;
+        planFeasibilityEl.innerHTML = html;
+        planFeasibilityEl.hidden = false;
     }
 
     function renderDayRow(day) {
@@ -4921,8 +5052,12 @@ document.addEventListener('DOMContentLoaded', function () {
             day.date = value;
         } else if (field === 'distance_km' || field === 'duration_min') {
             day.workout[field] = value === '' || value === null ? null : Number(value);
+            // The workout changed — any previously generated insight is stale.
+            day.workout.insight = null;
         } else if (field === 'type') {
             day.workout.type = value;
+            // The workout changed — any previously generated insight is stale.
+            day.workout.insight = null;
             // Pace is derived from the workout type — recompute from pace_zones
             const zones = coachPlanData.plan.pace_zones || {};
             if (zones[value]) day.workout.target_pace_min_per_km = zones[value];
@@ -5069,11 +5204,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="rgd-sheet-description">${escapeHtml(w.description)}</p>
             </div>` : '';
 
-        const insightHtml = w.insight ? `
-            <div class="rgd-sheet-section">
+        // Coach insight is lazy: the full-block plan carries no insight text,
+        // so the sheet shows a placeholder and fills it on demand from
+        // /api/workout-insight (canned text in demo mode).
+        const insightHtml = `
+            <div class="rgd-sheet-section" id="rgd-sheet-insight-slot">
                 <span class="rgd-sheet-section-title">Coach insight</span>
-                <p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>
-            </div>` : '';
+                ${w.insight
+                    ? `<p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>`
+                    : '<p class="rgd-sheet-insight rgd-sheet-insight--loading"><span class="rgd-shimmer-text">Writing your insight…</span></p>'}
+            </div>`;
 
         workoutSheetBody.innerHTML = `
             <div class="rgd-sheet-header">
@@ -5091,10 +5231,81 @@ document.addEventListener('DOMContentLoaded', function () {
             ${stepsHtml ? `<div class="rgd-sheet-section"><span class="rgd-sheet-section-title">Workout breakdown</span><div class="rgd-sheet-steps">${stepsHtml}</div></div>` : ''}
         `;
         workoutSheet.hidden = false;
+        // Fill the insight slot when the plan did not carry one.
+        if (!w.insight) loadWorkoutInsight(dateKey, w);
         // Force reflow so the initial transform applies before the slide-up
         void workoutSheet.offsetHeight;
         workoutSheet.classList.add('rgd-sheet-overlay--open');
         workoutSheetClose.focus();
+    }
+
+    // Lazy coach insight — called when a workout card opens without one.
+    // Writes the paragraph from the workout spec; keeps the sheet open and
+    // swaps the placeholder when the text arrives.
+    async function loadWorkoutInsight(dateKey, w) {
+        if (window.__demoMode) {
+            setTimeout(() => {
+                w.insight = mockInsight(dateKey, w);
+                renderSheetInsight(w);
+            }, 500);
+            return;
+        }
+        // Plan context — where this session sits in the block, so the insight
+        // is written for the week (week number, previous session) and not the
+        // workout in isolation. The backend derives phase from the session
+        // date itself.
+        const context = {};
+        const plan = coachPlanData && coachPlanData.plan ? coachPlanData.plan : null;
+        if (plan && plan.plan_start) {
+            const start = parseDate(plan.plan_start + 'T00:00:00');
+            const d = parseDate(dateKey + 'T00:00:00');
+            const dayDiff = Math.round((d - start) / 86400000);
+            if (dayDiff >= 0) {
+                context.week_index = Math.floor(dayDiff / 7) + 1;
+                context.total_weeks = Math.max(1, Math.ceil((plan.total_plan_days || 1) / 7));
+            }
+            const idx = plan.days.findIndex(x => x.date === dateKey);
+            for (let i = idx - 1; i >= 0; i--) {
+                const pd = plan.days[i];
+                if (pd && pd.workout) {
+                    context.prev_workout = `${pd.workout.type}${pd.workout.distance_km ? ' ' + pd.workout.distance_km + ' km' : ''} — ${pd.workout.title || ''}`;
+                    break;
+                }
+            }
+        }
+        const body = {
+            date: dateKey,
+            workout: {
+                type: w.type,
+                title: w.title,
+                description: w.description,
+                distance_km: w.distance_km,
+                duration_min: w.duration_min,
+                intensity: w.intensity,
+                target_pace_min_per_km: w.target_pace_min_per_km,
+            },
+            context,
+        };
+        try {
+            const resp = await apiCall('POST', 'workout-insight', body);
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Failed to generate insight.');
+            w.insight = data.insight;
+        } catch (err) {
+            w.insight = '';
+        }
+        renderSheetInsight(w);
+    }
+
+    // Swap the placeholder insight section for the real text (or an error).
+    function renderSheetInsight(w) {
+        const slot = document.getElementById('rgd-sheet-insight-slot');
+        if (!slot) return;
+        if (w.insight) {
+            slot.innerHTML = `<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>`;
+        } else {
+            slot.innerHTML = '<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight rgd-sheet-insight--error">Could not generate the insight right now. Try again later.</p>';
+        }
     }
 
     function closeWorkoutSheet() {

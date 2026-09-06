@@ -1543,6 +1543,98 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: -0.25rem 0 12px;
 }
 
+/* Small "?" dot next to field labels — native title tooltip on hover/focus.
+   Gives the race-date field a one-line explainer without extra UI. */
+.rgd-info-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 50%;
+    border: 1px solid var(--rgd-muted);
+    color: var(--rgd-muted);
+    font-size: 0.7rem;
+    line-height: 1;
+    cursor: help;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+}
+
+.rgd-info-dot:hover,
+.rgd-info-dot:focus {
+    border-color: var(--rgd-blue);
+    color: var(--rgd-blue);
+    outline: none;
+}
+
+/* Hint line under an input — muted caption for guidance like the
+   "12+ weeks" training-block note on the race-date field. */
+.rgd-hint {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+    margin: 0.3rem 0 0;
+}
+
+/* Feasibility banner on the Plan page — verdict-first line telling the
+   runner whether recent training pace + remaining weeks support the goal.
+   Status colour comes from the modifier class; hidden by default. */
+.rgd-plan-feasibility {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.6rem;
+    padding: 0.6rem 0.8rem;
+    margin: 0 0 14px;
+    border: 1px solid var(--rgd-border);
+    border-left-width: 3px;
+    border-radius: 8px;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    background: var(--rgd-surface);
+}
+
+.rgd-plan-feasibility-label {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.rgd-plan-feasibility-note {
+    flex: 1 1 16rem;
+}
+
+.rgd-plan-feasibility-readiness {
+    flex-basis: 100%;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+}
+
+.rgd-plan-feasibility--on-track {
+    border-left-color: var(--rgd-accent-green);
+}
+
+.rgd-plan-feasibility--on-track .rgd-plan-feasibility-label {
+    color: var(--rgd-accent-green);
+}
+
+.rgd-plan-feasibility--at-risk {
+    border-left-color: var(--rgd-accent-amber);
+}
+
+.rgd-plan-feasibility--at-risk .rgd-plan-feasibility-label {
+    color: var(--rgd-accent-amber);
+}
+
+.rgd-plan-feasibility--unlikely {
+    border-left-color: var(--rgd-accent-red);
+}
+
+.rgd-plan-feasibility--unlikely .rgd-plan-feasibility-label {
+    color: var(--rgd-accent-red);
+}
+
 /* Info button next to section titles — opens the scoring guide modal.
    Small circular outline button with an info icon, aligned to the
    title's baseline so it reads as part of the heading row. */
@@ -4624,6 +4716,16 @@ header.rgd-header-offset.rgd-header-collapsed {
     border-radius: var(--rgd-radius-sm);
     padding: 0.7rem 0.9rem;
     margin: 0;
+}
+
+/* Lazy insight states — shimmer placeholder while the on-demand text is
+   written, muted error state when generation fails. */
+.rgd-sheet-insight--loading {
+    color: var(--rgd-muted);
+}
+
+.rgd-sheet-insight--error {
+    color: var(--rgd-accent-red);
 }
 
 .rgd-sheet-steps {

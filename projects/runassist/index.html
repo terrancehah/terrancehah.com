@@ -174,8 +174,13 @@
 
                     <!-- Race Date -->
                     <div class="rgd-field">
-                        <label for="rgd-race-date" class="rgd-label">Race Date <span class="rgd-required">*</span></label>
+                        <label for="rgd-race-date" class="rgd-label">
+                            Race Date <span class="rgd-required">*</span>
+                            <span class="rgd-info-dot" tabindex="0" role="tooltip"
+                                  title="An effective marathon block needs about 12 weeks (3 months) of training. Shorter blocks still work, but leave less room to build long runs and taper.">?</span>
+                        </label>
                         <input type="date" id="rgd-race-date" class="rgd-input" required>
+                        <p class="rgd-hint">Most effective training blocks run 12+ weeks (about 3 months). Shorter blocks work too — your plan adapts.</p>
                         <span class="rgd-field-error" hidden>Please select a race date.</span>
                     </div>
 
@@ -727,6 +732,11 @@
                                  page once the full-block plan loads. -->
                             <p class="rgd-plan-block-meta" id="rgd-plan-block-meta" hidden></p>
 
+                            <!-- Feasibility banner — tells the runner whether
+                                 recent training pace + remaining weeks can
+                                 reach the typed goal pace. Status-colored. -->
+                            <div class="rgd-plan-feasibility" id="rgd-plan-feasibility" hidden></div>
+
                             <!-- Show more history — loads 2 more weeks of past
                                  activities into the plan calendar. Hidden until
                                  the calendar renders and older history exists. -->
@@ -876,8 +886,13 @@
 
                     <!-- Race Date -->
                     <div class="rgd-field">
-                        <label for="rgd-edit-race-date" class="rgd-label">Race Date <span class="rgd-required">*</span></label>
+                        <label for="rgd-edit-race-date" class="rgd-label">
+                            Race Date <span class="rgd-required">*</span>
+                            <span class="rgd-info-dot" tabindex="0" role="tooltip"
+                                  title="An effective marathon block needs about 12 weeks (3 months) of training. Shorter blocks still work, but leave less room to build long runs and taper.">?</span>
+                        </label>
                         <input type="date" id="rgd-edit-race-date" class="rgd-input" required>
+                        <p class="rgd-hint">Most effective training blocks run 12+ weeks (about 3 months). Shorter blocks work too — your plan adapts.</p>
                         <span class="rgd-field-error" hidden>Please select a race date.</span>
                     </div>
 
