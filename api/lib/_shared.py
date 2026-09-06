@@ -302,7 +302,11 @@ def _get_garmin_client(token: str) -> Garmin:
 # (long-lived, 12h TTL), while this cache stores transient API data
 # (short-lived, 5min TTL). Different keys, different lifecycles.
 
-GARMIN_CACHE_PREFIX = "race:garmin-cache:"
+# Cache version suffix — bump this when the cache shape changes (e.g. new
+# fields, new tag logic, new filtering) so stale entries from older code
+# are automatically ignored. The key becomes race:garmin-cache:v2:{token}.
+GARMIN_CACHE_VERSION = "v2"
+GARMIN_CACHE_PREFIX = f"race:garmin-cache:{GARMIN_CACHE_VERSION}:"
 # 1 hour — the cache is re-populated on every /metrics dashboard load, so this
 # TTL is a safety net that lets ai-radar, /activities and /weekly-mileage reuse
 # the fetched bundle instead of calling Garmin again within the hour. Garmin
