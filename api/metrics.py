@@ -12,6 +12,7 @@ from lib._shared import (
     _get_garmin_client, _get_session, create_app,
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
     _compute_goal_pace_ms, _slim_activity, _compute_weekly_mileage,
+    ALLOWED_ACTIVITY_TYPES,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -261,12 +262,14 @@ async def metrics(token: str = ""):
         goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
         # Fetch the AI activities (with lap details for speedwork sessions)
         ai_activities = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
-        # Slim UI list + weekly mileage, reused by /activities and /weekly-mileage.
+        # Slim UI list — filtered to allowed activity types (running +
+        # cross-training) so the activities page only shows relevant sports.
         # Goal pace is passed so each activity carries its run_tag (computed by
         # the same single classifier the AI lap-selection uses).
         ui_activities = [
             _slim_activity(a, goal_pace_ms)
             for a in client.get_activities(0, 30)
+            if (a.get("activityType", {}).get("typeKey", "unknown")).lower() in ALLOWED_ACTIVITY_TYPES
         ]
         weekly_mileage = _compute_weekly_mileage(client, weeks=12)
         _cache_garmin_data(token, {

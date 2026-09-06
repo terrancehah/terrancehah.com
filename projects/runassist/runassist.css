@@ -49,6 +49,7 @@
     --rgd-run-tempo: #8a6313;
     --rgd-run-lsd: #5d6db0;
     --rgd-run-speedwork: #c44b4b;
+    --rgd-run-cross-train: #8a8a8a;
 
     /* ---- Spacing scale ---- */
     /* 6-step rem-based scale for consistent vertical rhythm. Components
@@ -90,6 +91,7 @@
     --rgd-run-tempo: #d9b24f;
     --rgd-run-lsd: #8b9bd6;
     --rgd-run-speedwork: #e07070;
+    --rgd-run-cross-train: #b0b0b0;
 }
 
 /* ========== LAYOUT SHELL ========== */
@@ -2787,6 +2789,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-run-tag--speedwork { background: color-mix(in srgb, var(--rgd-run-speedwork) 15%, transparent); color: var(--rgd-run-speedwork); }
 .rgd-run-tag--tempo-long { background: color-mix(in srgb, var(--rgd-run-tempo) 15%, transparent); color: var(--rgd-run-tempo); }
 .rgd-run-tag--warmup { background: color-mix(in srgb, var(--rgd-run-warmup) 15%, transparent); color: var(--rgd-run-warmup); }
+.rgd-run-tag--cross-train { background: color-mix(in srgb, var(--rgd-run-cross-train) 15%, transparent); color: var(--rgd-run-cross-train); }
 
 /* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
    Text colour is already handled by the dark-mode token overrides. */
@@ -2795,6 +2798,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 [data-theme="dark"] .rgd-run-tag--speedwork { background: color-mix(in srgb, var(--rgd-run-speedwork) 25%, transparent); }
 [data-theme="dark"] .rgd-run-tag--tempo-long { background: color-mix(in srgb, var(--rgd-run-tempo) 25%, transparent); }
 [data-theme="dark"] .rgd-run-tag--warmup { background: color-mix(in srgb, var(--rgd-run-warmup) 25%, transparent); }
+[data-theme="dark"] .rgd-run-tag--cross-train { background: color-mix(in srgb, var(--rgd-run-cross-train) 25%, transparent); }
 
 .rgd-activity-meta {
     display: flex;

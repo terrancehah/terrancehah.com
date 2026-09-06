@@ -851,6 +851,22 @@ def _parse_float(val) -> float | None:
         return None
 
 
+# Running activity types — shared across activities.py, _slim_activity,
+# _fetch_recent_activities_with_laps, and the coach plan. Defined here so
+# _slim_activity can reference it without forward-dependency concerns.
+RUNNING_TYPES = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
+
+# Activity types shown in the activities list. This is a running-focused app,
+# so we include running plus cross-training that runners commonly do:
+# strength training, hiking/rucking, and walking. Other sports (cycling,
+# swimming, yoga, etc.) are excluded from the UI but may still appear in the
+# AI radar prompt for context.
+ALLOWED_ACTIVITY_TYPES = RUNNING_TYPES | {
+    "strength_training", "hiit", "indoor_cardio", "fitness_equipment",
+    "hiking", "rucking", "walking",
+}
+
+
 def _slim_activity(a: dict, goal_pace_ms: float = 0) -> dict:
     """Convert a raw Garmin activity summary into the frontend's slim format.
 
@@ -858,11 +874,15 @@ def _slim_activity(a: dict, goal_pace_ms: float = 0) -> dict:
     the cached ui_activities bundle both use it. The run_tag is computed here
     by the single classifier (same one the AI lap-selection uses), so the UI
     tag and the AI selection can never disagree.
+
+    Non-running activities (strength training, hiking, cycling, etc.) get a
+    tag based on their Garmin typeKey rather than the pace-based run classifier.
     """
+    type_key = a.get("activityType", {}).get("typeKey", "unknown")
     slim = {
         "id": a.get("activityId"),
         "name": a.get("activityName", "Unnamed"),
-        "type": a.get("activityType", {}).get("typeKey", "unknown"),
+        "type": type_key,
         "start_time": a.get("startTimeLocal"),
         "distance": round(a.get("distance", 0) / 1000, 2),
         "duration": round(a.get("duration", 0) / 60, 1),
@@ -877,8 +897,42 @@ def _slim_activity(a: dict, goal_pace_ms: float = 0) -> dict:
         "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
         "elapsed_duration": round(a.get("elapsedDuration", 0) / 60, 1) if a.get("elapsedDuration") else None,
     }
-    slim["run_tag"] = _classify_run(a, goal_pace_ms)
+    # Non-running activities get a type-based tag instead of the pace-based
+    # run classifier. This ensures strength training shows as "Strength",
+    # hiking as "Hike", etc., rather than getting a misleading run tag.
+    if type_key.lower() in RUNNING_TYPES:
+        slim["run_tag"] = _classify_run(a, goal_pace_ms)
+    else:
+        slim["run_tag"] = _classify_non_running(type_key)
     return slim
+
+
+# Mapping from Garmin typeKey to display tags for non-running activities.
+# Only covers the allowed cross-training types (strength, hiking, walking).
+# Unmapped types fall back to a humanised version of the typeKey.
+NON_RUNNING_TAGS = {
+    "strength_training": "Strength",
+    "hiit": "HIIT",
+    "indoor_cardio": "Cardio",
+    "fitness_equipment": "Strength",
+    "hiking": "Hike",
+    "walking": "Walk",
+    "rucking": "Ruck",
+}
+
+
+def _classify_non_running(type_key: str) -> str:
+    """Return a display tag for a non-running activity type.
+
+    Looks up the Garmin typeKey in NON_RUNNING_TAGS. Falls back to a
+    humanised version of the key (e.g. "fitness_equipment" → "Fitness
+    Equipment") so unmapped types still get a readable label.
+    """
+    key = (type_key or "other").lower()
+    if key in NON_RUNNING_TAGS:
+        return NON_RUNNING_TAGS[key]
+    # Humanise: "strength_training" → "Strength Training"
+    return key.replace("_", " ").title()
 
 
 def _classify_run(a: dict, goal_pace_ms: float) -> str:
@@ -1107,12 +1161,6 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
 
 
 # --- Coach plan helpers ---
-
-# Running activity types accepted by the coach plan feature (same set as
-# activities.py — keeps the "last 2 weeks" history consistent with the
-# Activities page).
-RUNNING_TYPES = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
-
 
 def _fetch_recent_activities_with_laps(client, days: int = 14, goal_pace_ms: float = 0) -> list[dict]:
     """Fetch the last `days` of running activities with lap detail for every run.

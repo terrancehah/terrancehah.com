@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_garmin_client, _get_session, _get_cached_garmin_data,
-    _slim_activity, _compute_goal_pace_ms, create_app,
+    _slim_activity, _compute_goal_pace_ms, ALLOWED_ACTIVITY_TYPES, create_app,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -28,30 +28,29 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0):
     # Serve the first page from the Redis bundle populated by /metrics —
     # zero logins / Garmin calls on the common path. Pagination (offset > 0)
     # always goes to Garmin since the cache only holds the first batch.
+    # The cache is pre-filtered to ALLOWED_ACTIVITY_TYPES by metrics.py.
     if offset == 0:
         cached = _get_cached_garmin_data(token)
         if cached and cached.get("ui_activities"):
-            return JSONResponse(content={"activities": cached["ui_activities"]})
+            return JSONResponse(content={"activities": cached["ui_activities"][:limit]})
 
     client = _get_garmin_client(token)
-    # Over-fetch to compensate for non-running activities that will be
-    # filtered out. Fetch 3x the requested limit so we have a buffer.
+    # Over-fetch to compensate for excluded activities that get filtered out.
     fetch_limit = max(limit * 3, 30) if offset == 0 else limit * 3
     try:
         activities = client.get_activities(offset, fetch_limit)
     except Exception as e:
         return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
 
-    # Filter to running activities only — exclude hiking, cycling, walking, etc.
-    # Uses the shared _slim_activity so the UI shape (including the run_tag
-    # from the single classifier) matches the cached bundle.
-    running_types = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
+    # Filter to allowed activity types (running + cross-training) and convert
+    # to slim format. _slim_activity handles both running (pace-based tag) and
+    # non-running (type-based tag) activities.
     sess = _get_session(token)
     goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
     slim = []
     for a in activities:
         type_key = a.get("activityType", {}).get("typeKey", "unknown")
-        if type_key.lower() not in running_types:
+        if type_key.lower() not in ALLOWED_ACTIVITY_TYPES:
             continue
         slim.append(_slim_activity(a, goal_pace_ms))
     # Trim to the requested limit after filtering

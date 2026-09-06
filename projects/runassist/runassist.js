@@ -933,8 +933,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (initials && !window.__demoMode) {
                 avatarEl.innerHTML = `<span class="rgd-avatar-initials">${initials}</span>`;
             } else {
-                // Demo mode or no name — keep the default runner SVG icon
-                avatarEl.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M8 22l3-8 2 2 3-2 2 8"/><path d="M9 12l-2-3"/><path d="M15 12l2-3"/></svg>`;
+                // Demo mode or no name — use the Lucide "user" icon as the
+                // profile placeholder (cleaner than a hand-drawn runner figure)
+                avatarEl.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
             }
         }
     }
@@ -2162,16 +2163,43 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Running figure SVG used for activity icons (replaces text abbreviations)
-    const RUNNING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M13 6 L9 11 L6 10"/><path d="M9 11 L12 14 L11 20"/><path d="M12 14 L16 12 L14 8"/></svg>';
+    // Activity icons — all from Tabler Icons (MIT-licensed, 24×24 grid, 2px
+    // stroke). Only activity types in the allowed set have icons; unmapped
+    // types fall back to the running icon.
+    // Sources: https://tabler.io/icons
 
-    // Trail variant adds a small hill line under the runner
-    const TRAIL_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2" fill="currentColor" stroke="none"/><path d="M13 6 L9 10 L6 9"/><path d="M9 10 L12 13 L11 18"/><path d="M12 13 L16 11 L14 8"/><path d="M3 21 L8 17 L12 20 L16 16 L21 21" stroke-width="1.5"/></svg>';
+    // Running — Tabler "run" icon
+    const RUNNING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M4 17l5 1l.75 -1.5"/><path d="M15 21l0 -4l-4 -3l1 -6"/><path d="M7 12l0 -3l5 -1l3 3l3 1"/></svg>';
+
+    // Trail running — Tabler "run" + "mountain" ridge line at 50% opacity
+    const TRAIL_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M4 17l5 1l.75 -1.5"/><path d="M15 21l0 -4l-4 -3l1 -6"/><path d="M7 12l0 -3l5 -1l3 3l3 1"/><path d="M3 20h18l-6.921 -14.612a2.3 2.3 0 0 0 -4.158 0l-6.921 14.612" stroke-width="1.5" opacity="0.5"/></svg>';
+
+    // Strength training — Tabler "barbell" icon
+    const STRENGTH_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h1"/><path d="M6 8h-2a1 1 0 0 0 -1 1v6a1 1 0 0 0 1 1h2"/><path d="M6 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1 -1v-10a1 1 0 0 0 -1 -1h-1a1 1 0 0 0 -1 1"/><path d="M9 12h6"/><path d="M15 7v10a1 1 0 0 0 1 1h1a1 1 0 0 0 1 -1v-10a1 1 0 0 0 -1 -1h-1a1 1 0 0 0 -1 1"/><path d="M18 8h2a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-2"/><path d="M22 12h-1"/></svg>';
+
+    // Hiking / walking — Tabler "walk" icon
+    const HIKING_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M7 21l3 -4"/><path d="M16 21l-2 -4l-3 -3l1 -6"/><path d="M6 12l2 -3l4 -1l3 3l3 1"/></svg>';
+
+    // Map Garmin typeKey → icon. Only allowed activity types are listed;
+    // unmapped types fall back to the running icon.
+    const ACTIVITY_ICONS = {
+        'running': RUNNING_ICON_SVG,
+        'trail_running': TRAIL_ICON_SVG,
+        'track_running': RUNNING_ICON_SVG,
+        'treadmill_running': RUNNING_ICON_SVG,
+        'virtual_run': RUNNING_ICON_SVG,
+        'strength_training': STRENGTH_ICON_SVG,
+        'hiit': STRENGTH_ICON_SVG,
+        'indoor_cardio': STRENGTH_ICON_SVG,
+        'fitness_equipment': STRENGTH_ICON_SVG,
+        'hiking': HIKING_ICON_SVG,
+        'rucking': HIKING_ICON_SVG,
+        'walking': HIKING_ICON_SVG,
+    };
 
     function getActivityIcon(type) {
-        const t = (type || 'run').toLowerCase();
-        if (t.includes('trail')) return TRAIL_ICON_SVG;
-        return RUNNING_ICON_SVG;
+        const t = (type || 'running').toLowerCase();
+        return ACTIVITY_ICONS[t] || RUNNING_ICON_SVG;
     }
 
     // Classify a run into a training type tag using pace + HR heuristics.
@@ -2216,6 +2244,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Run tag styling lookup — the classifier itself lives server-side
     // (single source of truth, shared with the AI lap-selection); the backend
     // sends run_tag with every activity and we only map the label to CSS.
+    // Run type → CSS class. Non-running tags use a neutral grey style so
+    // they're visually distinct from run-specific tags.
     const RUN_TAG_CLASS = {
         'Run': 'rgd-run-tag--easy',
         'Warmup': 'rgd-run-tag--warmup',
@@ -2223,6 +2253,12 @@ document.addEventListener('DOMContentLoaded', function () {
         'LSD': 'rgd-run-tag--lsd',
         'Speedwork': 'rgd-run-tag--speedwork',
         'Easy': 'rgd-run-tag--easy',
+        'Strength': 'rgd-run-tag--cross-train',
+        'HIIT': 'rgd-run-tag--cross-train',
+        'Cardio': 'rgd-run-tag--cross-train',
+        'Hike': 'rgd-run-tag--cross-train',
+        'Walk': 'rgd-run-tag--cross-train',
+        'Ruck': 'rgd-run-tag--cross-train',
     };
 
     // Run type → dot fill colour. Reads the tokenised CSS custom properties
@@ -2238,6 +2274,13 @@ document.addEventListener('DOMContentLoaded', function () {
         'Tempo Long': cssVar('--rgd-run-tempo', '#8a6313'),
         'LSD': cssVar('--rgd-run-lsd', '#5d6db0'),
         'Speedwork': cssVar('--rgd-run-speedwork', '#c44b4b'),
+        // Non-running activities share a neutral colour
+        'Strength': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'HIIT': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'Cardio': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'Hike': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'Walk': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'Ruck': cssVar('--rgd-run-cross-train', '#8a8a8a'),
     };
 
     function buildActivityItem(a, i) {
@@ -4032,7 +4075,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (initials && !window.__demoMode) {
                     settingsAvatar.innerHTML = `<span class="rgd-avatar-initials">${initials}</span>`;
                 } else {
-                    settingsAvatar.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><path d="M8 22l3-8 2 2 3-2 2 8"/><path d="M9 12l-2-3"/><path d="M15 12l2-3"/></svg>`;
+                    // Lucide "user" icon — profile placeholder
+                    settingsAvatar.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
                 }
             }
         }
