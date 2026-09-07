@@ -1,4 +1,8 @@
-"""GET /api/radar — Estimated scores for 6 race-goal dimensions from Garmin data."""
+"""Legacy numeric radar scoring (not a Vercel function).
+
+Kept under api/lib/ so it is not deployed as a serverless function.
+Hobby plans allow 12 functions; the live radar is api/ai-radar.py.
+"""
 
 from fastapi.responses import JSONResponse
 from datetime import datetime, date, timedelta
