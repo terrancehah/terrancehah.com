@@ -5,6 +5,13 @@
         "api/*.py": {
             "maxDuration": 60,
             "excludeFiles": "{resources,public,playground,articles,projects,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
+        },
+        "api/**": {
+            "maxDuration": 60,
+            "excludeFiles": "{resources,public,playground,articles,projects,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
+        },
+        "**/*.py": {
+            "excludeFiles": "{resources,public,playground,articles,projects,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
         }
     },
     "rewrites": [
