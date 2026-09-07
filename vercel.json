@@ -1,9 +1,10 @@
 {
+    "framework": null,
     "cleanUrls": true,
     "functions": {
         "api/*.py": {
             "maxDuration": 60,
-            "excludeFiles": "{resources/**,public/**,playground/**,articles/**,projects/**,dist/**,src/**,*.html,*.mp4,*.mov,*.jpg,*.jpeg,*.png,*.gif,*.webp,*.JPG,*.glb,*.json,*.md,*.txt,*.css,*.js,*.mjs,*.svg,*.ico,*.woff,*.woff2,*.ttf,*.eot,*.otf}"
+            "excludeFiles": "{resources,public,playground,articles,projects,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
         }
     },
     "rewrites": [
