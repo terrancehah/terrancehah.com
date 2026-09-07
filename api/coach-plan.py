@@ -6,7 +6,6 @@ from typing import Optional
 from pydantic import BaseModel
 import os
 import json
-import asyncio
 from openai import AsyncOpenAI
 # Add the api/ directory to Python's search path so lib._shared can be found
 # when running as a Vercel serverless function (cwd is project root, not api/)
@@ -18,7 +17,7 @@ from lib._shared import (
     _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
-    _get_persistent_ai_cache,
+    _get_persistent_ai_cache, _get_cached_garmin_data, RUNNING_TYPES,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -333,7 +332,66 @@ async def _call_ai(prompt, api_key):
         max_completion_tokens=4096,
         reasoning_effort="medium"
     )
-    return json.loads(response.choices[0].message.content)
+    content = response.choices[0].message.content if response.choices else None
+    if not content:
+        raise ValueError("AI returned empty response")
+    parsed = json.loads(content)
+    if not isinstance(parsed, dict):
+        raise ValueError("AI returned a non-object JSON payload")
+    return parsed
+
+
+def _find_week_entry(week_plan, target_start):
+    """Match a requested week_start to a generated window.
+
+    Exact start, then a window that contains the date, then the closest
+    start within one day (local vs UTC off-by-one on Vercel).
+    """
+    exact = next((e for e in week_plan if e[0] == target_start), None)
+    if exact:
+        return exact
+    containing = next((e for e in week_plan if e[0] <= target_start <= e[1]), None)
+    if containing:
+        return containing
+    closest = None
+    closest_delta = None
+    for e in week_plan:
+        delta = abs((e[0] - target_start).days)
+        if delta <= 1 and (closest_delta is None or delta < closest_delta):
+            closest = e
+            closest_delta = delta
+    return closest
+
+
+def _history_from_garmin_cache(cached):
+    """Reuse the metrics Garmin cache so week-by-week plan calls don't
+    each log into Garmin and refetch 14 days of activities."""
+    if not cached:
+        return None, {}
+    physio = cached.get("physio") or {}
+    ui = cached.get("ui_activities") or []
+    cutoff = (date.today() - timedelta(days=13)).isoformat()
+    history = []
+    for a in ui:
+        start = (a.get("start_time") or "")[:10]
+        if not start or start < cutoff:
+            continue
+        type_key = (a.get("type") or "").lower()
+        if type_key and type_key not in RUNNING_TYPES and type_key != "unknown":
+            continue
+        history.append(dict(a))
+    if not history:
+        return None, physio
+    laps_by_date = {}
+    for act in cached.get("activities") or []:
+        d = (act.get("date") or act.get("start_time") or "")[:10]
+        if d and act.get("laps"):
+            laps_by_date[d] = act["laps"]
+    for a in history:
+        d = (a.get("start_time") or "")[:10]
+        if d in laps_by_date and not a.get("laps"):
+            a["laps"] = laps_by_date[d]
+    return history, physio
 
 
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
@@ -484,15 +542,20 @@ async def coach_plan(body: CoachPlanRequest):
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
 
-    client = _get_garmin_client(token)
     goal_pace_ms = _compute_goal_pace_ms(race_goal)
 
-    try:
-        history = _fetch_recent_activities_with_laps(client, days=14, goal_pace_ms=goal_pace_ms)
-    except Exception as e:
-        return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
-
-    physio = _fetch_physio_trends(client, days=60)
+    cached_garmin = _get_cached_garmin_data(token)
+    history = None
+    physio = {}
+    if cached_garmin:
+        history, physio = _history_from_garmin_cache(cached_garmin)
+    if history is None:
+        client = _get_garmin_client(token)
+        try:
+            history = _fetch_recent_activities_with_laps(client, days=14, goal_pace_ms=goal_pace_ms)
+        except Exception as e:
+            return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
+        physio = _fetch_physio_trends(client, days=60)
 
     # Derive per-workout-type pace targets from recent fitness + goal pace
     pace_zones = _compute_pace_zones(goal_pace_ms, history)
@@ -763,186 +826,100 @@ async def coach_plan(body: CoachPlanRequest):
             week_position_text = f"This is week {week_idx + 1} of {len(windows)} of the training block."
             week_plan.append((w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text))
 
-        # Single-week mode (Hobby-friendly): the frontend requests each week
-        # of the block separately, so no single request exceeds the 60-second
-        # serverless cap. Returns this chunk plus the full block meta; the
-        # frontend merges the weeks. Each response also merges into the
-        # persistent cache so the cache accumulates toward a complete block.
-        if body.week_start:
+        # Always generate one week per request (Hobby 60s cap). The frontend
+        # asks for each week separately and merges. If week_start is omitted
+        # (old client, or no race date on the client), generate the first week
+        # only — never fan out the whole season in one serverless invocation.
+        target_start_str = body.week_start or week_plan[0][0].isoformat()
+        try:
+            target_start = _dt.strptime(target_start_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return JSONResponse(status_code=400, content={"error": "Invalid week_start."})
+        entry = _find_week_entry(week_plan, target_start)
+        if entry is None:
+            return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
+        w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
+        prompt = _build_chunk_prompt(
+            w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
+            progression_text, week_position_text, coach_insight_text, intensity_text,
+            days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+            history, targets_text, goal_pace_text,
+        )
+        plan_chunk = None
+        for attempt in range(2):
             try:
-                target_start = _dt.strptime(body.week_start, "%Y-%m-%d").date()
-            except (ValueError, TypeError):
-                return JSONResponse(status_code=400, content={"error": "Invalid week_start."})
-            entry = next((e for e in week_plan if e[0] == target_start), None)
-            if entry is None:
-                return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
-            w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
-            prompt = _build_chunk_prompt(
-                w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
-                progression_text, week_position_text, coach_insight_text, intensity_text,
-                days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
-                history, targets_text, goal_pace_text,
-            )
-            plan_chunk = None
-            for attempt in range(2):
-                try:
-                    plan_chunk = await _call_ai(prompt, api_key)
-                    break
-                except json.JSONDecodeError:
-                    if attempt == 0:
-                        continue
-                    return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
-                except Exception as e:
-                    if attempt == 0:
-                        continue
-                    return JSONResponse(status_code=500, content={"error": f"Coach plan failed: {str(e)}"})
-            chunk_days = plan_chunk.get("days") or []
-            # Defensive: fix missing or incorrect dates from the known window
-            # so the frontend can always schedule each day reliably.
-            for i in range(chunk_days_count):
-                expected_date = (w_start + timedelta(days=i)).isoformat()
-                if i < len(chunk_days):
-                    chunk_days[i]["date"] = expected_date
-                else:
-                    chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
-            chunk_days = chunk_days[:chunk_days_count]
-            _enforce_workout_counts(chunk_days, days_per_week)
-            _attach_workout_details(chunk_days, pace_zones)
+                plan_chunk = await _call_ai(prompt, api_key)
+                break
+            except json.JSONDecodeError:
+                if attempt == 0:
+                    continue
+                return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
+            except Exception as e:
+                if attempt == 0:
+                    continue
+                return JSONResponse(status_code=500, content={"error": f"Coach plan failed: {str(e)}"})
+        if not isinstance(plan_chunk, dict):
+            plan_chunk = {}
+        chunk_days = plan_chunk.get("days") or []
+        if not isinstance(chunk_days, list):
+            chunk_days = []
+        # Defensive: fix missing or incorrect dates from the known window
+        # so the frontend can always schedule each day reliably.
+        for i in range(chunk_days_count):
+            expected_date = (w_start + timedelta(days=i)).isoformat()
+            if i < len(chunk_days) and isinstance(chunk_days[i], dict):
+                chunk_days[i]["date"] = expected_date
+            elif i < len(chunk_days):
+                chunk_days[i] = {"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None}
+            else:
+                chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
+        chunk_days = chunk_days[:chunk_days_count]
+        _enforce_workout_counts(chunk_days, days_per_week)
+        _attach_workout_details(chunk_days, pace_zones)
 
-            plan = {
-                "week_start": plan_start.isoformat(),
-                "plan_start": plan_start.isoformat(),
-                "plan_end": plan_end.isoformat(),
-                "total_plan_days": total_plan_days,
-                "race_date": race_date_str,
-                "race_phase": race_phase or "build",
-                "days_to_race": days_to_race,
-                "pace_zones": pace_zones,
-                "preferences": {
-                    "days_per_week": days_per_week,
-                    "intensity": intensity,
-                    "distance_adj": distance_adj,
-                    "weekly_distance_km": weekly_distance_km,
-                },
-                "days": chunk_days,
-            }
-            if feasibility:
-                feasibility["readiness"] = ai_insight
-            plan["feasibility"] = feasibility
-
-            slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
-            response_data = {"history": slim_history, "plan": plan}
-
-            # Merge this week into the persistent email-keyed cache so the
-            # block accumulates across requests and other devices.
-            if email:
-                cached = _get_persistent_coach_cache(email)
-                merged = response_data
-                if cached:
-                    cached_data = cached.get("data") or {}
-                    if (cached.get("week_start") == plan_start.isoformat()
-                            and (cached.get("race_date") or "") == (race_date_str or "")
-                            and (cached.get("preferences") or {}) == current_prefs):
-                        merged = dict(cached_data)
-                        merged_plan = dict(merged.get("plan") or {})
-                        merged_days = {d.get("date"): d for d in merged_plan.get("days") or []}
-                        for d in chunk_days:
-                            merged_days[d["date"]] = d
-                        merged_plan["days"] = [merged_days[k] for k in sorted(merged_days)]
-                        merged["plan"] = merged_plan
-                _save_persistent_coach_cache(
-                    email, merged,
-                    week_start=plan_start.isoformat(),
-                    preferences=current_prefs,
-                    race_date=race_date_str or "",
-                )
-            return JSONResponse(content=response_data)
-
-        # Generate all weeks concurrently, bounded by a semaphore to respect
-        # OpenAI rate limits, then merge the results in block order.
-        sem = asyncio.Semaphore(5)
-
-        async def gen_week(entry):
-            w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
-            prompt = _build_chunk_prompt(
-                w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
-                progression_text, week_position_text, coach_insight_text, intensity_text,
-                days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
-                history, targets_text, goal_pace_text,
-            )
-            for attempt in range(2):
-                try:
-                    return await _call_ai(prompt, api_key)
-                except json.JSONDecodeError:
-                    if attempt == 0:
-                        continue
-                    raise
-                except Exception:
-                    if attempt == 0:
-                        continue
-                    raise
-
-        async def guarded(entry):
-            async with sem:
-                return await gen_week(entry)
-
-        results = await asyncio.gather(*(guarded(e) for e in week_plan), return_exceptions=True)
-        merged_days = []
-        for (w_start, w_end, chunk_days_count, *_), plan_chunk in zip(week_plan, results):
-            if isinstance(plan_chunk, Exception):
-                if isinstance(plan_chunk, json.JSONDecodeError):
-                    return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
-                return JSONResponse(status_code=500, content={"error": f"Coach plan failed: {str(plan_chunk)}"})
-            chunk_days = plan_chunk.get("days") or []
-            # Defensive: fix missing or incorrect dates from the known window
-            # so the frontend can always schedule each day reliably.
-            for i in range(chunk_days_count):
-                expected_date = (w_start + timedelta(days=i)).isoformat()
-                if i < len(chunk_days):
-                    chunk_days[i]["date"] = expected_date
-                else:
-                    chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
-            merged_days.extend(chunk_days[:chunk_days_count])
-
-        plan = {"week_start": plan_start.isoformat(), "days": merged_days}
-        # Cap each Monday-start week at the requested workout count, trimming
-        # excess from the end of the week and backfilling under-filled weeks.
-        _enforce_workout_counts(plan["days"], days_per_week)
-        _attach_workout_details(plan["days"], pace_zones)
-        plan["pace_zones"] = pace_zones
-        plan["preferences"] = {
-            "days_per_week": days_per_week,
-            "intensity": intensity,
-            "distance_adj": distance_adj,
-            "weekly_distance_km": weekly_distance_km,
+        plan = {
+            "week_start": plan_start.isoformat(),
+            "plan_start": plan_start.isoformat(),
+            "plan_end": plan_end.isoformat(),
+            "total_plan_days": total_plan_days,
+            "race_date": race_date_str,
+            "race_phase": race_phase or "build",
+            "days_to_race": days_to_race,
+            "pace_zones": pace_zones,
+            "preferences": {
+                "days_per_week": days_per_week,
+                "intensity": intensity,
+                "distance_adj": distance_adj,
+                "weekly_distance_km": weekly_distance_km,
+            },
+            "days": chunk_days,
         }
-        # Include plan window metadata so the frontend knows the date range,
-        # the countdown, and the current race phase (useful for display and
-        # for the calendar scheduling logic).
-        plan["plan_start"] = plan_start.isoformat()
-        plan["plan_end"] = plan_end.isoformat()
-        plan["total_plan_days"] = total_plan_days
-        plan["race_date"] = race_date_str
-        plan["race_phase"] = race_phase or "build"
-        plan["days_to_race"] = days_to_race
-        # Feasibility verdict (on_track / at_risk / unlikely) with the AI
-        # readiness insight attached when available — surfaced by the Plan
-        # page as a warning banner so the runner knows the goal is at risk.
         if feasibility:
             feasibility["readiness"] = ai_insight
         plan["feasibility"] = feasibility
 
-        # Strip lap detail from the history sent to the client — laps are only
-        # for the AI analysis, not the calendar cards.
         slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
         response_data = {"history": slim_history, "plan": plan}
 
-        # Save to the persistent email-keyed cache so the same plan appears on
-        # other devices. Store plan_start, race_date, and preferences so the
-        # cache is invalidated when the block start, race, or prefs change.
+        # Merge this week into the persistent email-keyed cache so the
+        # block accumulates across requests and other devices.
         if email:
+            cached = _get_persistent_coach_cache(email)
+            merged = response_data
+            if cached:
+                cached_data = cached.get("data") or {}
+                if (cached.get("week_start") == plan_start.isoformat()
+                        and (cached.get("race_date") or "") == (race_date_str or "")
+                        and (cached.get("preferences") or {}) == current_prefs):
+                    merged = dict(cached_data)
+                    merged_plan = dict(merged.get("plan") or {})
+                    merged_days = {d.get("date"): d for d in merged_plan.get("days") or []}
+                    for d in chunk_days:
+                        merged_days[d["date"]] = d
+                    merged_plan["days"] = [merged_days[k] for k in sorted(merged_days)]
+                    merged["plan"] = merged_plan
             _save_persistent_coach_cache(
-                email, response_data,
+                email, merged,
                 week_start=plan_start.isoformat(),
                 preferences=current_prefs,
                 race_date=race_date_str or "",
@@ -1028,7 +1005,12 @@ Return ONLY valid JSON:
             max_completion_tokens=4096,
             reasoning_effort="medium"
         )
-        plan = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content if response.choices else None
+        if not content:
+            return JSONResponse(status_code=500, content={"error": "AI returned empty response."})
+        plan = json.loads(content)
+        if not isinstance(plan, dict):
+            plan = {}
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})
     except Exception as e:
@@ -1039,10 +1021,14 @@ Return ONLY valid JSON:
     # total_plan_days from plan_start to plan_end.
     plan["week_start"] = plan_start.isoformat()
     days = plan.get("days") or []
+    if not isinstance(days, list):
+        days = []
     for i in range(total_plan_days):
         expected_date = (plan_start + timedelta(days=i)).isoformat()
-        if i < len(days):
+        if i < len(days) and isinstance(days[i], dict):
             days[i]["date"] = expected_date
+        elif i < len(days):
+            days[i] = {"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None}
         else:
             days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
     plan["days"] = days[:total_plan_days]

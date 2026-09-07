@@ -2377,7 +2377,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function escapeHtml(str) {
         const div = document.createElement('div');
-        div.textContent = str;
+        div.textContent = str == null ? '' : String(str);
         return div.innerHTML;
     }
 
@@ -3102,7 +3102,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Cache keyed by session token + race goal hash, 24-hour TTL
     // =========================================================================
 
-    const AI_CACHE_KEY = 'rgd_ai_radar_cache';
+    const AI_CACHE_KEY = 'rgd_ai_radar_cache_v2';
     const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     // Build a deterministic cache key from the session token and race goal
@@ -3151,17 +3151,23 @@ document.addEventListener('DOMContentLoaded', function () {
         // Check cache first — if valid, render immediately without API call
         const cached = !forceRefresh ? readAICache() : null;
         if (cached) {
-            showRadarSkeleton(false);
-            renderRadarChart(cached);
-            renderPillars(cached);
-            // Use the AI-provided overall insight if present; fall back to
-            // deriveOverallInsight for cached responses from before the
-            // overall field was added to the API response.
-            renderOverallInsight(cached.overall || deriveOverallInsight(cached));
-            // Hide the regenerate button in demo mode — there's no real AI
-            // call to refresh, so the action is meaningless for demo users.
-            refreshAnalysisBtn.hidden = window.__demoMode;
-            return;
+            try {
+                showRadarSkeleton(false);
+                renderRadarChart(cached);
+                renderPillars(cached);
+                // Use the AI-provided overall insight if present; fall back to
+                // deriveOverallInsight for cached responses from before the
+                // overall field was added to the API response, or when the
+                // cached overall object is missing topStrength/topGap.
+                renderOverallInsight(normalizeOverallInsight(cached.overall, cached));
+                // Hide the regenerate button in demo mode — there's no real AI
+                // call to refresh, so the action is meaningless for demo users.
+                refreshAnalysisBtn.hidden = window.__demoMode;
+                return;
+            } catch (err) {
+                console.error('Failed to render cached insights:', err);
+                clearAICache();
+            }
         }
 
         // No valid cache — show radar + pillars skeletons and fetch from API
@@ -3187,15 +3193,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 refreshAnalysisBtn.hidden = window.__demoMode;
                 return;
             }
-            // Cache the successful response for future loads
-            writeAICache(data);
+            // Cache complete responses only — a truncated payload (one
+            // pillar) would otherwise stick in localStorage for 24 hours.
+            const realDims = (data.dimensions || []).filter(d => d && d.summary);
+            if (realDims.length >= 6) writeAICache(data);
             // Render both the radar chart and the insight text from the same AI data
             showRadarSkeleton(false);
             renderRadarChart(data);
             renderPillars(data);
             // Use the AI-provided overall insight; fall back to client-side
-            // derivation if the API response doesn't include it.
-            renderOverallInsight(data.overall || deriveOverallInsight(data));
+            // derivation if the API response doesn't include it or is incomplete.
+            renderOverallInsight(normalizeOverallInsight(data.overall, data));
         } catch (err) {
             showRadarSkeleton(false);
             summaryErrors.forEach(el => {
@@ -3632,6 +3640,43 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Normalize an overall-insight object from the API or cache. The model
+    // sometimes returns snake_case keys, a string instead of {label, note},
+    // or omits topStrength/topGap entirely — any of which used to crash
+    // renderOverallInsight on `.label`.
+    function takeawayFrom(value, fallback) {
+        const fb = fallback || { label: '', note: '' };
+        if (value && typeof value === 'object') {
+            const label = value.label || value.name || '';
+            const note = value.note || value.summary || value.text || '';
+            return { label: label || fb.label || '', note: note || fb.note || '' };
+        }
+        if (typeof value === 'string' && value.trim()) {
+            return { label: value.trim(), note: fb.note || '' };
+        }
+        return { label: fb.label || '', note: fb.note || '' };
+    }
+
+    function normalizeOverallInsight(overall, pillarsData) {
+        const derived = deriveOverallInsight(pillarsData) || {
+            verdict: '',
+            score: 0,
+            summary: '',
+            topStrength: { label: '', note: '' },
+            topGap: { label: '', note: '' },
+            focus: '',
+        };
+        if (!overall || typeof overall !== 'object') return derived;
+        return {
+            verdict: overall.verdict || derived.verdict,
+            score: typeof overall.score === 'number' ? overall.score : derived.score,
+            summary: overall.summary || derived.summary,
+            topStrength: takeawayFrom(overall.topStrength || overall.top_strength, derived.topStrength),
+            topGap: takeawayFrom(overall.topGap || overall.top_gap, derived.topGap),
+            focus: overall.focus || derived.focus,
+        };
+    }
+
     // Show/hide the overall insight skeleton loading state
     function showOverallInsightSkeleton(show) {
         if (overallInsightSkeleton) overallInsightSkeleton.hidden = !show;
@@ -3641,6 +3686,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderOverallInsight(data) {
         if (!overallInsightEl || !data) return;
         showOverallInsightSkeleton(false);
+
+        const strength = data.topStrength || { label: '', note: '' };
+        const gap = data.topGap || { label: '', note: '' };
 
         // Score color — matches the AI score scale used in the dimension modal
         const scoreColor = data.score >= 8 ? 'var(--rgd-accent-green)'
@@ -3658,13 +3706,13 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="rgd-overall-insight-takeaways">
                 <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--strength">
                     <span class="rgd-overall-insight-takeaway-label">Top strength</span>
-                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(data.topStrength.label)}</span>
-                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(data.topStrength.note)}</p>
+                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(strength.label)}</span>
+                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(strength.note)}</p>
                 </div>
                 <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--gap">
                     <span class="rgd-overall-insight-takeaway-label">Biggest gap</span>
-                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(data.topGap.label)}</span>
-                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(data.topGap.note)}</p>
+                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(gap.label)}</span>
+                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(gap.note)}</p>
                 </div>
             </div>
             <div class="rgd-overall-insight-focus">
@@ -4824,7 +4872,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
 
-            const batchSize = 5;
+            const batchSize = 2;
             let history = null;
             let meta = null;
             const daysByDate = {};

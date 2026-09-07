@@ -20,6 +20,114 @@ from lib._shared import (
 # Vercel file-based mode (strips /api/ai-radar so routes at "/" match)
 app = create_app("ai-radar")
 
+EXPECTED_DIMENSIONS = [
+    "Lactate Threshold",
+    "Aerobic Endurance",
+    "Running Economy",
+    "Strength / Durability",
+    "VO₂max / Speed",
+    "Fatigue Resistance",
+]
+
+
+def _normalize_name(s):
+    """Lowercase and strip punctuation so 'VO2max / Speed' matches 'VO₂max / Speed'."""
+    if not s:
+        return ""
+    table = str.maketrans({"₂": "2", "₃": "3", "₁": "1", "₀": "0"})
+    return "".join(ch for ch in str(s).translate(table).lower() if ch.isalnum())
+
+
+def _canonical_dim_name(name):
+    key = _normalize_name(name)
+    for expected in EXPECTED_DIMENSIONS:
+        if _normalize_name(expected) == key:
+            return expected
+    return name or ""
+
+
+def _takeaway(value, fallback_label="", fallback_note=""):
+    """Coerce a strength/gap field into {label, note} regardless of model shape."""
+    if isinstance(value, dict):
+        label = value.get("label") or value.get("name") or fallback_label
+        note = value.get("note") or value.get("summary") or value.get("text") or fallback_note
+        return {"label": _canonical_dim_name(label) if label else "", "note": note or ""}
+    if isinstance(value, str) and value.strip():
+        return {"label": _canonical_dim_name(value.strip()), "note": fallback_note or ""}
+    return {"label": fallback_label or "", "note": fallback_note or ""}
+
+
+def _normalize_ai_result(result):
+    """Guarantee the client-facing shape: six dimensions + a complete overall object.
+
+    The model sometimes returns one dimension, snake_case keys, or overall
+    without topStrength/topGap — that used to crash the dashboard on `.label`.
+    """
+    if not isinstance(result, dict):
+        result = {}
+    raw_dims = result.get("dimensions") or []
+    if not isinstance(raw_dims, list):
+        raw_dims = []
+    by_name = {}
+    for dim in raw_dims:
+        if not isinstance(dim, dict):
+            continue
+        key = _normalize_name(dim.get("name"))
+        if key:
+            score = dim.get("score")
+            if isinstance(score, (int, float)):
+                dim["score"] = max(0, min(10, round(score)))
+            by_name[key] = dim
+    dimensions = []
+    for name in EXPECTED_DIMENSIONS:
+        dim = by_name.get(_normalize_name(name))
+        if dim:
+            dim["name"] = name
+            dimensions.append(dim)
+        else:
+            dimensions.append({
+                "name": name,
+                "score": 0,
+                "summary": "",
+                "strengths": "",
+                "gaps": "",
+            })
+    # Only dimensions the model actually returned count as strength/gap.
+    # Padded placeholders (score 0, empty text) would otherwise always win
+    # "biggest gap" when the model truncated to one pillar.
+    scored = [
+        d for d in dimensions
+        if _normalize_name(d.get("name")) in by_name and isinstance(d.get("score"), (int, float))
+    ]
+    top = max(scored, key=lambda d: d["score"]) if scored else None
+    bottom = min(scored, key=lambda d: d["score"]) if scored else None
+
+    overall = result.get("overall") if isinstance(result.get("overall"), dict) else {}
+    score = overall.get("score")
+    if isinstance(score, (int, float)):
+        score = max(0, min(10, round(score)))
+    elif scored:
+        score = round(sum(d["score"] for d in scored) / len(scored))
+    else:
+        score = 0
+    overall = {
+        "verdict": overall.get("verdict") or "",
+        "score": score,
+        "summary": overall.get("summary") or "",
+        "topStrength": _takeaway(
+            overall.get("topStrength") or overall.get("top_strength"),
+            fallback_label=(top or {}).get("name", ""),
+            fallback_note=(top or {}).get("strengths") or (top or {}).get("summary") or "",
+        ),
+        "topGap": _takeaway(
+            overall.get("topGap") or overall.get("top_gap"),
+            fallback_label=(bottom or {}).get("name", ""),
+            fallback_note=(bottom or {}).get("gaps") or (bottom or {}).get("summary") or "",
+        ),
+        "focus": overall.get("focus") or (bottom or {}).get("gaps") or "",
+    }
+    return {"dimensions": dimensions, "overall": overall}
+
 
 @app.get("/")
 async def ai_radar(token: str = "", force: str = ""):
@@ -56,13 +164,15 @@ async def ai_radar(token: str = "", force: str = ""):
             current_latest = ""
             if garmin_cache:
                 for act in garmin_cache.get("activities", []):
-                    act_date = act.get("start_time", "")[:10]
+                    act_date = (act.get("start_time") or act.get("date") or "")[:10]
                     if act_date and act_date > current_latest:
                         current_latest = act_date
             # If no new activities (or we can't tell because the Garmin cache
-            # is empty), return the cached AI response
+            # is empty), return the cached AI response — normalized so older
+            # entries missing topStrength/topGap or extra dimensions still
+            # match the client shape.
             if not current_latest or current_latest <= cached_latest:
-                return JSONResponse(content=persistent["data"])
+                return JSONResponse(content=_normalize_ai_result(persistent.get("data") or {}))
 
     # Try the Redis cache first — metrics.py populates this cache during the
     # same page load, so in the common case we read from Redis and make zero
@@ -272,7 +382,7 @@ WRITING STYLE AND RULES:
     - Do not use jargons like physiological validation, training effect 4.5, profile value, blended session data, accumulated load. Keep things simple.
     - Strengths answer: what does this mean for the race goal?
     - Gaps answer: what should they do next, and why?
-    - Do not invent data.rgd-sidebar-goal
+    - Do not invent data.
     - Keep each dimension to its own evidence. Spread citations across the 30 activities. Before citing a run, ask whether it is the best proof for THIS dimension.
     - For heart rate, pick one only: "easy", "comfortably hard", "about 80% of your max", or "164 bpm". Never stack datas or specific like bpm + % + zone + date + pace in one sentence.
     - The overall insight must not just repeat dimension summaries. It should read as a coach stepping back and looking at the whole picture.
@@ -297,25 +407,24 @@ OUTPUT FORMAT:
             max_completion_tokens=5120,
             reasoning_effort="medium"
         )
-        result = json.loads(response.choices[0].message.content)
-        # Enforce integer scores (0–10) — the prompt asks for no decimals, but
-        # round defensively in case the model returns 0.5 increments anyway.
-        for dim in result.get("dimensions", []):
-            if isinstance(dim.get("score"), (int, float)):
-                dim["score"] = max(0, min(10, round(dim["score"])))
-        # Enforce integer score on the overall insight too
-        overall = result.get("overall")
-        if overall and isinstance(overall.get("score"), (int, float)):
-            overall["score"] = max(0, min(10, round(overall["score"])))
+        content = response.choices[0].message.content if response.choices else None
+        if not content:
+            return JSONResponse(status_code=500, content={"error": "AI returned empty response."})
+        raw = json.loads(content)
+        raw_dims = raw.get("dimensions") if isinstance(raw, dict) else []
+        complete = isinstance(raw_dims, list) and len(raw_dims) >= 6
+        result = _normalize_ai_result(raw)
         # Save to the persistent email-keyed cache so the same insights appear
         # on other devices. Record the latest activity date so the cache can be
-        # invalidated when new runs are synced.
+        # invalidated when new runs are synced. Do not persist truncated
+        # responses (e.g. a single Lactate Threshold pillar) or they stick
+        # for up to 7 days.
         latest_activity_date = ""
         for act in activities_data:
-            act_date = act.get("start_time", "")[:10]
+            act_date = (act.get("start_time") or act.get("date") or "")[:10]
             if act_date and act_date > latest_activity_date:
                 latest_activity_date = act_date
-        if email:
+        if email and complete:
             _save_persistent_ai_cache(email, result, latest_activity_date)
         return JSONResponse(content=result)
     except json.JSONDecodeError:
