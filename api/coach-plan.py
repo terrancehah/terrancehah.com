@@ -161,19 +161,34 @@ def _attach_workout_details(days, pace_zones):
         if not isinstance(w, dict):
             continue
         wtype = w.get("type") or "Easy"
-        w["target_pace_min_per_km"] = pace_zones.get(wtype)
+        # Goal-pace work carries the goal pace itself — never the
+        # fitness-derived type zone — so the steps match the description:
+        # - a Race workout is the goal effort by definition
+        # - a quality session whose description prescribes goal-pace work
+        #   (the phase text asks for these in specificity/sharpen)
+        goal_pace = pace_zones.get("Race")
+        desc = (w.get("description") or "").lower()
+        if wtype == "Race" and goal_pace:
+            w["target_pace_min_per_km"] = goal_pace
+        elif (wtype in ("Tempo", "Intervals", "Speedwork") and goal_pace
+                and ("goal pace" in desc or "race pace" in desc)):
+            w["target_pace_min_per_km"] = goal_pace
+        else:
+            w["target_pace_min_per_km"] = pace_zones.get(wtype)
         # Coach insight is generated on demand when the runner opens the
         # workout card (see /api/workout-insight) — keep it null here so the
         # full-block plan payload stays light and fast.
         w.setdefault("insight", None)
         # Native Garmin steps — the exact steps that will be sent to the
         # watch, flattened into readable {type, detail} rows. Pace zones are
-        # passed so each step's detail includes a target pace.
+        # passed so each step's detail includes a target pace; the main step
+        # uses the workout's target pace (goal pace for goal-pace sessions).
         try:
             w["steps"] = _flatten_workout_steps(
                 _build_running_workout(w).to_dict(),
                 pace_zones=pace_zones,
                 workout_type=wtype,
+                main_pace=w["target_pace_min_per_km"],
             )
         except Exception:
             w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
@@ -596,6 +611,11 @@ async def coach_plan(body: CoachPlanRequest):
         race_distance_km = _race_distance_km(race_goal)
         peak_long_km = PEAK_LONG_KM.get(race_distance_km, 24.0)
 
+        # Whether the plan actually reaches race day — a block capped at
+        # MAX_PLAN_DAYS ends mid-season with no race week, so the pre-taper
+        # sharpen override must not apply there.
+        reaches_race = plan_end >= race_date
+
         # Readiness insight from the cached AI radar (read-only, cheap): the
         # plan should treat the diagnosed top gap as the prescription focus.
         ai_insight = None
@@ -658,13 +678,25 @@ async def coach_plan(body: CoachPlanRequest):
             gap_days_count = max(0, min(chunk_days_count, (next_monday - w_start).days))
             if gap_days_count > 0 and chunk_days_count > gap_days_count:
                 gap_sunday = w_start + timedelta(days=gap_days_count - 1)
+                remaining = chunk_days_count - gap_days_count
+                if remaining == 7:
+                    remaining_text = (
+                        f"The remaining 7 days form a full Mon-Sun training week with exactly "
+                        f"{days_per_week} workout days; the rest are rest days."
+                    )
+                else:
+                    # A merged pre-taper chunk can leave a "remaining" span
+                    # that is not a full week — scale the quota to it.
+                    remaining_target = min(days_per_week, max(1, (remaining * days_per_week + 6) // 7))
+                    remaining_text = (
+                        f"The remaining {remaining} days are the start of the next training week: "
+                        f"at most {remaining_target} workout days."
+                    )
                 window_structure_text = (
                     f"Monday starts a new training block, but this window begins mid-week: the "
                     f"first {gap_days_count} days (through {gap_sunday.isoformat()}) are the tail "
                     f"of the current week — at most 1-2 easy or recovery runs there, never a long "
-                    f"run or hard session. The remaining {chunk_days_count - gap_days_count} days "
-                    f"form a full Mon-Sun training week with exactly {days_per_week} workout days; "
-                    f"the rest are rest days."
+                    f"run or hard session. {remaining_text}"
                 )
             elif chunk_days_count == 7:
                 # The final chunk is the 7 days before race day, which may
@@ -684,12 +716,14 @@ async def coach_plan(body: CoachPlanRequest):
             # Days remaining at the end of this chunk decide its phase, so a
             # long block moves build -> specificity -> sharpen -> taper. The
             # race week itself is always taper; the week right before it is
-            # always sharpen (never taper, even for a Monday/Tuesday race).
+            # always sharpen (never taper, even for a Monday/Tuesday race) —
+            # but only when the plan actually reaches the race (a block
+            # capped at MAX_PLAN_DAYS ends mid-season with no race week).
             days_left = (race_date - w_end).days
             race_day_chunk = w_end >= race_date
             if race_day_chunk:
                 chunk_phase = "taper"
-            elif week_idx == len(windows) - 2:
+            elif reaches_race and week_idx == len(windows) - 2:
                 chunk_phase = "sharpen"
             else:
                 chunk_phase = _phase_for_days_left(days_left)

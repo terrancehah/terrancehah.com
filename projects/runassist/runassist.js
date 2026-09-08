@@ -4526,13 +4526,26 @@ document.addEventListener('DOMContentLoaded', function () {
         const daysToRace = Math.round((raceDate - today) / 86400000);
 
         const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const paceZones = { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' };
 
-        // Race-day distance from the typed goal (mirrors the backend's
-        // _race_distance_km) so the demo race card is never a marathon for
-        // a half-marathon goal.
+        // Race-day distance + pace from the typed goal (mirrors the backend's
+        // _race_distance_km and the Race zone) so the demo race card is never
+        // a marathon for a half-marathon goal, and always shows the goal pace.
         const mockRaceDistances = { '5K': 5, '10K': 10, 'Half Marathon': 21.1, 'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40 };
         const raceDistanceKm = (raceGoal && (mockRaceDistances[raceGoal.purpose] || Number(raceGoal.distance))) || 42.2;
+        let racePace = null;
+        if (raceGoal && raceGoal.time_target) {
+            const parts = String(raceGoal.time_target).split(':').map(Number);
+            const totalSec = parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + (parts[2] || 0)
+                : parts.length === 2 ? parts[0] * 60 + (parts[1] || 0) : 0;
+            if (totalSec > 0) {
+                const secPerKm = totalSec / raceDistanceKm;
+                racePace = `${Math.floor(secPerKm / 60)}:${String(Math.round(secPerKm % 60)).padStart(2, '0')}`;
+            }
+        }
+        const paceZones = Object.assign(
+            { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' },
+            racePace ? { Race: racePace } : {}
+        );
 
         // Days before the first full Monday: at most one easy run if 3+ gap days
         const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
@@ -4730,8 +4743,8 @@ document.addEventListener('DOMContentLoaded', function () {
             distance_km: o.distance_km != null ? o.distance_km : d.distance_km,
             duration_min: o.duration_min != null ? o.duration_min : d.duration_min,
             intensity: d.intensity,
-            target_pace_min_per_km: type === 'Race' ? null : pace,
-            steps: type === 'Race' ? [{ type: 'Run', detail: `${(o.distance_km != null ? o.distance_km : 42.195)} km`, level: 0, pace: null }] : makeMockSteps(type, pace, zones),
+            target_pace_min_per_km: type === 'Race' ? (zones['Race'] || null) : pace,
+            steps: type === 'Race' ? [{ type: 'Run', detail: `${(o.distance_km != null ? o.distance_km : 42.195)} km`, level: 0, pace: zones['Race'] || null }] : makeMockSteps(type, pace, zones),
         };
     }
 
