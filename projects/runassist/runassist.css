@@ -51,6 +51,11 @@
     --rgd-run-speedwork: #c44b4b;
     --rgd-run-cross-train: #8a8a8a;
 
+    /* ---- Skeleton loading tokens (plan page) ---- */
+    /* Border-aura glow colour for the coach-plan loading skeleton, so it
+       flips correctly in dark mode. */
+    --rgd-skeleton-glow: rgba(69, 123, 157, 0.55);
+
     /* ---- Spacing scale ---- */
     /* 6-step rem-based scale for consistent vertical rhythm. Components
        should reference these instead of inventing ad-hoc values. */
@@ -92,6 +97,9 @@
     --rgd-run-lsd: #8b9bd6;
     --rgd-run-speedwork: #e07070;
     --rgd-run-cross-train: #b0b0b0;
+
+    /* Dark mode skeleton token — softer blue aura glow */
+    --rgd-skeleton-glow: rgba(107, 163, 208, 0.5);
 }
 
 /* ========== LAYOUT SHELL ========== */
@@ -1575,64 +1583,6 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-size: var(--rgd-text-caption);
     color: var(--rgd-muted);
     margin: 0.3rem 0 0;
-}
-
-/* Feasibility banner on the Plan page — verdict-first line telling the
-   runner whether recent training pace + remaining weeks support the goal.
-   Status colour comes from the modifier class; hidden by default. */
-.rgd-plan-feasibility {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.35rem 0.6rem;
-    padding: 0.6rem 0.8rem;
-    margin: 0 0 14px;
-    border: 1px solid var(--rgd-border);
-    border-left-width: 3px;
-    border-radius: 8px;
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-body);
-    color: var(--rgd-text);
-    background: var(--rgd-surface);
-}
-
-.rgd-plan-feasibility-label {
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-.rgd-plan-feasibility-note {
-    flex: 1 1 16rem;
-}
-
-.rgd-plan-feasibility-readiness {
-    flex-basis: 100%;
-    font-size: var(--rgd-text-caption);
-    color: var(--rgd-muted);
-}
-
-.rgd-plan-feasibility--on-track {
-    border-left-color: var(--rgd-accent-green);
-}
-
-.rgd-plan-feasibility--on-track .rgd-plan-feasibility-label {
-    color: var(--rgd-accent-green);
-}
-
-.rgd-plan-feasibility--at-risk {
-    border-left-color: var(--rgd-accent-amber);
-}
-
-.rgd-plan-feasibility--at-risk .rgd-plan-feasibility-label {
-    color: var(--rgd-accent-amber);
-}
-
-.rgd-plan-feasibility--unlikely {
-    border-left-color: var(--rgd-accent-red);
-}
-
-.rgd-plan-feasibility--unlikely .rgd-plan-feasibility-label {
-    color: var(--rgd-accent-red);
 }
 
 /* Info button next to section titles — opens the scoring guide modal.
@@ -3928,6 +3878,65 @@ header.rgd-header-offset.rgd-header-collapsed {
     to   { transform: rotate(360deg); }
 }
 
+/* ---- Plan page loading skeleton ---- */
+/* A light aura revolving around the loading container's border (adapted
+   from the motion-primitive effect). The glow square is masked to the
+   1px border ring via the mask layers below, so only the ring glows —
+   the container interior stays clean. */
+.rgd-coach-loading--plan {
+    position: relative;
+    border-color: transparent;
+    overflow: hidden;
+}
+
+/* Mask layer that confines the glow square to the 1px border ring:
+   layer 1 (clipped to padding-box) is fully transparent, layer 2
+   (clipped to border-box) is fully opaque — their intersection is
+   exactly the ring between the two boxes. */
+.rgd-plan-skeleton-border {
+    position: absolute;
+    inset: 0;
+    border: 1px solid transparent;
+    border-radius: inherit;
+    pointer-events: none;
+    -webkit-mask-image: linear-gradient(transparent, transparent), linear-gradient(#000, #000);
+    -webkit-mask-clip: padding-box, border-box;
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(transparent, transparent), linear-gradient(#000, #000);
+    mask-clip: padding-box, border-box;
+    mask-composite: intersect;
+}
+
+/* The light source — a square traveling around the container's border via
+   offset-path; its soft shadow is what makes the ring glow. */
+.rgd-plan-skeleton-glow {
+    position: absolute;
+    width: 6.25rem;
+    height: 6.25rem;
+    background: var(--rgd-blue);
+    offset-path: rect(0px auto auto 0px round 100px);
+    box-shadow:
+        0 0 1.875rem 0.75rem var(--rgd-skeleton-glow),
+        0 0 4.375rem 2.1875rem var(--rgd-skeleton-glow);
+    animation: rgd-plan-sweep 3.5s linear infinite;
+}
+
+@keyframes rgd-plan-sweep {
+    from { offset-distance: 0%; }
+    to   { offset-distance: 100%; }
+}
+
+/* Slim build-status line shown above the calendar while the remaining
+   plan weeks are still generating (the calendar is already visible with
+   the past activities + first weeks at that point). */
+.rgd-coach-build-status {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    text-align: center;
+    padding: 0.5rem 0 0.25rem;
+}
+
 /* ---- Last 2 weeks history ---- */
 .rgd-coach-history {
     display: flex;
@@ -4849,6 +4858,9 @@ header.rgd-header-offset.rgd-header-collapsed {
         animation: none !important;
         background: var(--rgd-light) !important;
     }
+
+    /* Plan loading aura: hide the border sweep entirely */
+    .rgd-plan-skeleton-glow { display: none !important; }
 
     /* Disable the radar pulse and pillar highlight pulse */
     .rgd-radar-skeleton { opacity: 0.3 !important; }

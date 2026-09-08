@@ -4339,7 +4339,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const schedulePlanBtn = $('#rgd-schedule-plan');
     const scheduleStatusEl = $('#rgd-coach-schedule-status');
     const planBlockMetaEl = $('#rgd-plan-block-meta');
-    const planFeasibilityEl = $('#rgd-plan-feasibility');
+    const coachBuildStatusEl = $('#rgd-coach-build-status');
     const workoutSheet = $('#rgd-workout-sheet');
     const workoutSheetClose = $('#rgd-workout-sheet-close');
     const workoutSheetBody = $('#rgd-workout-sheet-body');
@@ -4349,6 +4349,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }
     let coachLoaded = false;    // whether the plan has been fetched this session
+    let coachGenerating = false; // whether a generation is in flight (guards re-entry)
     let coachEditingDate = null; // the day currently in edit mode (or null)
     const coachScheduledDates = new Set(); // dates already pushed to Garmin
 
@@ -4806,9 +4807,23 @@ document.addEventListener('DOMContentLoaded', function () {
         return starts;
     }
 
+    // Loading skeleton for the plan page — a light aura revolving around
+    // the loading container's border (motion-primitive effect, adapted to
+    // the RunAssist palette), with the status line below.
+    function coachLoadingMarkup(text) {
+        return `
+            <div class="rgd-coach-loading rgd-coach-loading--plan" role="status" aria-label="Loading plan">
+                <div class="rgd-plan-skeleton-border">
+                    <div class="rgd-plan-skeleton-glow"></div>
+                </div>
+                <span class="rgd-shimmer-text">${text}</span>
+            </div>
+        `;
+    }
+
     async function generateCoachPlan(prefs, force) {
         // Auto-load is guarded; an explicit Save & Generate always regenerates.
-        if (coachLoaded && !force) return;
+        if ((coachLoaded || coachGenerating) && !force) return;
         if (prefs) {
             coachPrefs = {
                 days_per_week: Number(prefs.days_per_week) || 3,
@@ -4819,7 +4834,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         coachErrorEl.hidden = true;
         scheduleStatusEl.hidden = true;
-        coachCalendarEl.innerHTML = '<div class="rgd-coach-loading rgd-coach-loading--active"><span class="rgd-shimmer-text">Building your plan…</span></div>';
+        coachCalendarEl.innerHTML = coachLoadingMarkup('Building your plan…');
         schedulePlanBtn.hidden = true;
 
         // Demo mode uses local mocks — no API calls. A 3-second delay
@@ -4827,10 +4842,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // appear so the placeholder is visible instead of flashing away
         // instantly.
         if (window.__demoMode) {
+            coachGenerating = true;
             setTimeout(() => {
                 coachPlanData = { history: getMockCoachHistory(), plan: getMockCoachPlan(coachPrefs) };
                 renderCoachCalendar(coachPlanData);
                 coachLoaded = true;
+                coachGenerating = false;
             }, DEMO_CHART_LOADING_MS);
             return;
         }
@@ -4848,6 +4865,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
+        // Real network generation — mark as in-flight so tab switches don't
+        // kick off a second generation while the first is still running.
+        coachGenerating = true;
         try {
             // Full-block plans are generated week by week — one AI call per
             // week — so no single request exceeds the Hobby 60s function cap.
@@ -4876,10 +4896,25 @@ document.addEventListener('DOMContentLoaded', function () {
             let history = null;
             let meta = null;
             const daysByDate = {};
+            let complete = false;
             for (let i = 0; i < weekStarts.length; i += batchSize) {
                 const batch = weekStarts.slice(i, i + batchSize);
                 const done = Math.min(i + batch.length, weekStarts.length);
-                coachCalendarEl.innerHTML = `<div class="rgd-coach-loading rgd-coach-loading--active"><span class="rgd-shimmer-text">Building week ${i + 1}–${done} of ${weekStarts.length}…</span></div>`;
+                // Chunks are AI calls, not calendar weeks — the first chunk
+                // can span up to 13 days, so label them "parts".
+                const partLabel = weekStarts.length === 1
+                    ? 'Building your plan…'
+                    : `Building plan part ${i + 1}–${done} of ${weekStarts.length}…`;
+                if (i === 0) {
+                    // First batch — show the loading skeleton while the first
+                    // weeks generate.
+                    coachCalendarEl.innerHTML = coachLoadingMarkup(partLabel);
+                } else if (coachBuildStatusEl) {
+                    // The calendar is already visible (history + first weeks)
+                    // — keep a slim status line instead of the skeleton.
+                    coachBuildStatusEl.textContent = partLabel;
+                    coachBuildStatusEl.hidden = false;
+                }
                 const results = await Promise.all(batch.map(async (ws) => {
                     // Pass force=1 when the user explicitly regenerates so the
                     // server skips its persistent cache for every week.
@@ -4897,22 +4932,30 @@ document.addEventListener('DOMContentLoaded', function () {
                         daysByDate[d.date] = d;
                     }
                 }
+                // Render as soon as the first batch lands — the past activities
+                // (history rides along with every chunk response, computed
+                // before the AI call) plus any plan weeks generated so far.
+                // Later batches re-render with the added weeks so the plan
+                // fills in progressively instead of appearing all at once.
+                const plan = meta ? { ...meta, days: Object.keys(daysByDate).sort().map(k => daysByDate[k]) } : {};
+                complete = !!(meta && meta.total_plan_days && Object.keys(daysByDate).length >= meta.total_plan_days);
+                coachPlanData = { history: history || [], plan };
+                renderCoachCalendar(coachPlanData, i === 0);
                 // Stop early when the block is already complete (e.g. the
                 // server returned the full cached plan on the first call).
-                if (meta && meta.total_plan_days && Object.keys(daysByDate).length >= meta.total_plan_days) {
+                if (complete) {
                     break;
                 }
             }
 
-            const plan = meta || {};
-            plan.days = Object.keys(daysByDate).sort().map(k => daysByDate[k]);
-            coachPlanData = { history: history || [], plan };
+            if (coachBuildStatusEl) coachBuildStatusEl.hidden = true;
             writeCoachCache(coachPlanData);
-            renderCoachCalendar(coachPlanData);
             coachLoaded = true;
         } catch (err) {
             coachErrorEl.textContent = (err && err.message) || 'Network error.';
             coachErrorEl.hidden = false;
+        } finally {
+            coachGenerating = false;
         }
     }
 
@@ -5007,7 +5050,6 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `).join('');
         renderPlanBlockMeta(plan);
-        renderPlanFeasibility(plan);
         schedulePlanBtn.hidden = false;
 
         // Show the "Show more" button only if there's older history beyond
@@ -5054,32 +5096,6 @@ document.addEventListener('DOMContentLoaded', function () {
             : '';
         planBlockMetaEl.textContent = `${daysToRace} ${dayLabel} to race · ${phaseLabel} phase · plan through ${planEndDate}`;
         planBlockMetaEl.hidden = false;
-    }
-
-    // Feasibility banner — tells the runner whether recent training pace and
-    // the remaining block can realistically reach the typed goal pace. Hidden
-    // when the plan has no feasibility verdict (short-window fallback).
-    function renderPlanFeasibility(plan) {
-        if (!planFeasibilityEl) return;
-        const f = plan.feasibility;
-        if (!f || !f.status) {
-            planFeasibilityEl.hidden = true;
-            return;
-        }
-        const label = f.status === 'on_track' ? 'On track'
-            : f.status === 'at_risk' ? 'Reachable, but tight'
-            : 'Goal at risk';
-        const cls = f.status === 'on_track' ? 'rgd-plan-feasibility--on-track'
-            : f.status === 'at_risk' ? 'rgd-plan-feasibility--at-risk'
-            : 'rgd-plan-feasibility--unlikely';
-        let html = `<span class="rgd-plan-feasibility-label">${label}</span>`
-            + `<span class="rgd-plan-feasibility-note">${escapeHtml(f.note || '')}</span>`;
-        if (f.readiness && f.readiness.verdict) {
-            html += `<span class="rgd-plan-feasibility-readiness">Readiness: ${escapeHtml(f.readiness.verdict)} (${f.readiness.score}/10)</span>`;
-        }
-        planFeasibilityEl.className = `rgd-plan-feasibility ${cls}`;
-        planFeasibilityEl.innerHTML = html;
-        planFeasibilityEl.hidden = false;
     }
 
     function renderDayRow(day) {

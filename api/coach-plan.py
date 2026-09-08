@@ -6,7 +6,6 @@ from typing import Optional
 from pydantic import BaseModel
 import os
 import json
-from openai import AsyncOpenAI
 # Add the api/ directory to Python's search path so lib._shared can be found
 # when running as a Vercel serverless function (cwd is project root, not api/)
 import sys
@@ -17,7 +16,8 @@ from lib._shared import (
     _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
-    _get_persistent_ai_cache, _get_cached_garmin_data, RUNNING_TYPES,
+    _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
+    RUNNING_TYPES,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -69,19 +69,6 @@ def _split_windows(plan_start, plan_end):
         windows.append((cursor, chunk_end))
         cursor = chunk_end + timedelta(days=1)
     return windows
-
-
-def _phase_for_days_left(days_left):
-    """Map days remaining to a training phase (mirrors the fallback logic)."""
-    if days_left < 0:
-        return "post_race"
-    if days_left <= 7:
-        return "taper"
-    if days_left <= 20:
-        return "sharpen"
-    if days_left <= 42:
-        return "specificity"
-    return "build"
 
 
 def _summarize_days(days):
@@ -267,29 +254,6 @@ def _attach_workout_details(days, pace_zones):
             )
         except Exception:
             w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
-
-
-async def _call_ai(prompt, api_key):
-    """One AI call returning parsed JSON (the chunk's days array)."""
-    ai_client = AsyncOpenAI(api_key=api_key)
-    response = await ai_client.chat.completions.create(
-        model="gpt-5.6-luna",
-        messages=[
-            {"role": "system", "content": "You are an expert running coach. Return only valid JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"},
-        # gpt-5.6-luna only supports max_completion_tokens + reasoning_effort (no temperature)
-        max_completion_tokens=4096,
-        reasoning_effort="medium"
-    )
-    content = response.choices[0].message.content if response.choices else None
-    if not content:
-        raise ValueError("AI returned empty response")
-    parsed = json.loads(content)
-    if not isinstance(parsed, dict):
-        raise ValueError("AI returned a non-object JSON payload")
-    return parsed
 
 
 def _find_week_entry(week_plan, target_start):
@@ -989,22 +953,7 @@ Return ONLY valid JSON:
 {{"week_start": "{plan_start.isoformat()}", "days": [{{"date": "YYYY-MM-DD", "day_of_week": "Mon", "is_rest": false, "workout": {{...}}}}, ...]}}"""
 
     try:
-        ai_client = AsyncOpenAI(api_key=api_key)
-        response = await ai_client.chat.completions.create(
-            model="gpt-5.6-luna",
-            messages=[
-                {"role": "system", "content": "You are an expert running coach. Return only valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"},
-            # gpt-5.6-luna only supports max_completion_tokens + reasoning_effort (no temperature)
-            max_completion_tokens=4096,
-            reasoning_effort="medium"
-        )
-        content = response.choices[0].message.content if response.choices else None
-        if not content:
-            return JSONResponse(status_code=500, content={"error": "AI returned empty response."})
-        plan = json.loads(content)
+        plan = await _call_ai(prompt, api_key)
         if not isinstance(plan, dict):
             plan = {}
     except json.JSONDecodeError:

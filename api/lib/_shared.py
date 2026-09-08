@@ -27,6 +27,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
+from openai import AsyncOpenAI
 from garminconnect import (
     Garmin,
     GarminConnectConnectionError,
@@ -1168,6 +1169,43 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
 
 
 # --- Coach plan helpers ---
+
+
+def _phase_for_days_left(days_left):
+    """Map days remaining to a training phase (mirrors the fallback logic)."""
+    if days_left < 0:
+        return "post_race"
+    if days_left <= 7:
+        return "taper"
+    if days_left <= 20:
+        return "sharpen"
+    if days_left <= 42:
+        return "specificity"
+    return "build"
+
+
+async def _call_ai(prompt, api_key):
+    """One AI call returning parsed JSON (the chunk's days array)."""
+    ai_client = AsyncOpenAI(api_key=api_key)
+    response = await ai_client.chat.completions.create(
+        model="gpt-5.6-luna",
+        messages=[
+            {"role": "system", "content": "You are an expert running coach. Return only valid JSON."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"},
+        # gpt-5.6-luna only supports max_completion_tokens + reasoning_effort (no temperature)
+        max_completion_tokens=4096,
+        reasoning_effort="medium"
+    )
+    content = response.choices[0].message.content if response.choices else None
+    if not content:
+        raise ValueError("AI returned empty response")
+    parsed = json.loads(content)
+    if not isinstance(parsed, dict):
+        raise ValueError("AI returned a non-object JSON payload")
+    return parsed
+
 
 def _fetch_recent_activities_with_laps(client, days: int = 14, goal_pace_ms: float = 0) -> list[dict]:
     """Fetch the last `days` of running activities with lap detail for every run.

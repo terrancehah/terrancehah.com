@@ -7,15 +7,14 @@ from datetime import date, datetime as _dt
 import os
 import sys
 import json
-# Add the api/ directory to Python's search path so lib._shared and coach_plan
-# can be found when running as a Vercel serverless function (cwd is project root)
+# Add the api/ directory to Python's search path so lib._shared can be found
+# when running as a Vercel serverless function (cwd is project root)
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_session, create_app, _get_persistent_ai_cache, _get_cached_garmin_data,
-    RUNNING_TYPES,
+    RUNNING_TYPES, _call_ai, _phase_for_days_left,
 )
-from coach_plan import _call_ai, _phase_for_days_left
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/workout-insight so routes at "/" match)
