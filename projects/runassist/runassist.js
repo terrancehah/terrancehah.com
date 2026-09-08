@@ -598,11 +598,12 @@ document.addEventListener('DOMContentLoaded', function () {
             'Evening Easy', 'Marathon Pace Long', 'Mid-Distance Steady', 'Speed 800s', 'Pre-Race Easy'
         ];
 
-        // Realistic weekly run schedule — 5 runs per week with rest days
+        // Realistic weekly run schedule — 4 runs per week with rest days
         // between each. Pattern repeats every 7 days going back from today.
-        // Day offsets within each week: Tue(1), Wed(2), Thu(3), Sat(5), Sun(6)
-        // — Mon and Fri are rest days, giving gaps between every run.
-        const weeklyOffsets = [1, 2, 3, 5, 6];
+        // Day offsets within each week: Tue(1), Thu(3), Sat(5), Sun(6)
+        // — Mon, Wed, Fri are rest days; only the weekend long run +
+        // recovery are back to back.
+        const weeklyOffsets = [1, 3, 5, 6];
 
         for (let i = 0; i < 20; i++) {
             const weekBack = Math.floor(i / weeklyOffsets.length);
@@ -4445,11 +4446,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const tags = ['Easy', 'LSD', 'Tempo Long', 'Speedwork', 'Recovery'];
         const secPerKm = [400, 420, 350, 330, 450]; // easy, long, tempo, interval, recovery
         const distances = [6, 18, 10, 8, 5];
-        // Same weekly offsets as generateMockActivities: Tue(1), Wed(2),
-        // Thu(3), Sat(5), Sun(6) — Mon and Fri are rest days.
-        const weeklyOffsets = [1, 2, 3, 5, 6];
+        // Spread across the week like a real runner's schedule: Tue(1),
+        // Thu(3), Sat(5), Sun(6) — a rest day between runs, with only the
+        // weekend long run + recovery back to back. Mon, Wed, Fri rest.
+        const weeklyOffsets = [1, 3, 5, 6];
         const results = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 8; i++) {
             const weekBack = Math.floor(i / weeklyOffsets.length);
             const dayInWeek = i % weeklyOffsets.length;
             const daysAgo = weekBack * 7 + weeklyOffsets[dayInWeek];
@@ -4490,7 +4492,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Phase by days remaining — mirrors the backend boundaries. Shared by the
     // plan builder and the demo insight generator.
     function mockPhase(daysLeft) {
-        if (daysLeft <= 7) return 'taper';
+        if (daysLeft < 7) return 'taper';
         if (daysLeft <= 20) return 'sharpen';
         if (daysLeft <= 42) return 'specificity';
         return 'build';
@@ -4526,6 +4528,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const dow = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const paceZones = { Recovery: '6:50', Easy: '6:30', 'Long Run': '6:25', Tempo: '6:10', Intervals: '5:40', Speedwork: '5:35' };
 
+        // Race-day distance from the typed goal (mirrors the backend's
+        // _race_distance_km) so the demo race card is never a marathon for
+        // a half-marathon goal.
+        const mockRaceDistances = { '5K': 5, '10K': 10, 'Half Marathon': 21.1, 'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40 };
+        const raceDistanceKm = (raceGoal && (mockRaceDistances[raceGoal.purpose] || Number(raceGoal.distance))) || 42.2;
+
         // Days before the first full Monday: at most one easy run if 3+ gap days
         const daysUntilMonday = (8 - planStart.getDay()) % 7; // 0=Sun..6=Sat → Mon=1
         const gapDays = daysUntilMonday === 0 ? 0 : daysUntilMonday;
@@ -4544,7 +4552,9 @@ document.addEventListener('DOMContentLoaded', function () {
         function mockWeekSchedule(dpw) {
             const sched = { 5: 'Long Run', 1: 'Speedwork' };
             const remaining = dpw - 2;
-            const fillOrder = [2, 0, 3, 6];
+            // Fill spaced-out easy/recovery days: Thu(3), Mon(0), Sun(6),
+            // Wed(2) — quality Tue, easy Thu, long Sat, recovery Sun.
+            const fillOrder = [3, 0, 6, 2];
             const fillTypes = ['Easy', 'Recovery', 'Easy', 'Easy'];
             for (let i = 0; i < remaining && i < fillOrder.length; i++) {
                 sched[fillOrder[i]] = fillTypes[i];
@@ -4566,6 +4576,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (key === raceKey) {
                 wType = 'Race';
+                overrides = { distance_km: raceDistanceKm };
             } else if (i < gapDays) {
                 if (gapDays >= 3 && i === Math.min(2, gapDays - 1)) wType = 'Easy';
             } else {
@@ -4599,16 +4610,6 @@ document.addEventListener('DOMContentLoaded', function () {
             race_phase: mockPhase(daysToRace),
             days_to_race: daysToRace,
             pace_zones: paceZones,
-            // Demo feasibility — mirrors the backend verdict shape so the
-            // banner renders (on_track example).
-            feasibility: {
-                status: 'on_track',
-                goal_pace_sec_km: 320,
-                estimated_marathon_pace_sec_km: 315,
-                gap_pct: -1.6,
-                weeks_to_race: Math.round(daysToRace / 7 * 10) / 10,
-                note: 'Your recent training pace (5:15/km) already supports the goal pace of 5:20/km — keep the block on plan.',
-            },
             days,
         };
     }
@@ -4623,7 +4624,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Tempo': { title: 'Tempo 8km', distance_km: 8, duration_min: 50, intensity: 'moderate', description: 'Sustained threshold effort.' },
         'Speedwork': { title: '6 x 400m', distance_km: 6, duration_min: 45, intensity: 'hard', description: 'Short, fast repeats.' },
         'Intervals': { title: '5 x 1km', distance_km: 7, duration_min: 50, intensity: 'hard', description: 'Longer repeats at threshold.' },
-        'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Marathon race day.' },
+        'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Race day — execute the goal-pace plan you trained for.' },
     };
 
     // Demo insight generator — mirrors the on-demand /api/workout-insight
@@ -4730,7 +4731,7 @@ document.addEventListener('DOMContentLoaded', function () {
             duration_min: o.duration_min != null ? o.duration_min : d.duration_min,
             intensity: d.intensity,
             target_pace_min_per_km: type === 'Race' ? null : pace,
-            steps: type === 'Race' ? [{ type: 'Run', detail: '42.195 km', level: 0, pace: null }] : makeMockSteps(type, pace, zones),
+            steps: type === 'Race' ? [{ type: 'Run', detail: `${(o.distance_km != null ? o.distance_km : 42.195)} km`, level: 0, pace: null }] : makeMockSteps(type, pace, zones),
         };
     }
 
@@ -4789,10 +4790,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const starts = [];
         // Convert JS getDay (Sun=0..Sat=6) to Python weekday (Mon=0..Sun=6)
-        // so the first-chunk math matches the backend exactly.
+        // so the first-chunk math matches the backend exactly. The final
+        // chunk is always the 7 days before race day (the only taper chunk)
+        // — no matter which weekday the race falls on.
+        const taperStart = new Date(planEnd);
+        taperStart.setDate(planEnd.getDate() - 6);
+        if (planStart >= taperStart) {
+            // The whole remaining block is inside the taper window.
+            starts.push(localDateKey(planStart));
+            return starts;
+        }
+        const lastPreTaper = new Date(taperStart);
+        lastPreTaper.setDate(taperStart.getDate() - 1);
         const pyWd = (planStart.getDay() + 6) % 7;
         const firstEnd = new Date(planStart);
         firstEnd.setDate(planStart.getDate() + ((7 - pyWd) % 7) + 6);
+        if (firstEnd > lastPreTaper) firstEnd.setTime(lastPreTaper.getTime());
         if (firstEnd > planEnd) firstEnd.setTime(planEnd.getTime());
         starts.push(localDateKey(planStart));
         const cursor = new Date(firstEnd);
@@ -4801,8 +4814,22 @@ document.addEventListener('DOMContentLoaded', function () {
             starts.push(localDateKey(cursor));
             const end = new Date(cursor);
             end.setDate(end.getDate() + 6);
-            const next = end > planEnd ? planEnd : end;
+            const next = cursor >= taperStart
+                ? planEnd                              // taper chunk — last one
+                : (end > lastPreTaper ? lastPreTaper : end);
             cursor.setDate(next.getDate() + 1);
+        }
+        // Mirror the backend's pre-taper merge: a 1-2 day leftover chunk
+        // before the taper window is absorbed into the previous chunk, so
+        // the same window is never requested (or generated) twice.
+        if (starts.length >= 3) {
+            const secondLast = parseDate(starts[starts.length - 2] + 'T00:00:00');
+            const leftoverDays = (lastPreTaper - secondLast) / 86400000 + 1;
+            const thirdLast = parseDate(starts[starts.length - 3] + 'T00:00:00');
+            const mergedDays = (lastPreTaper - thirdLast) / 86400000 + 1;
+            if (leftoverDays <= 2 && mergedDays <= 13) {
+                starts.splice(starts.length - 2, 1);
+            }
         }
         return starts;
     }

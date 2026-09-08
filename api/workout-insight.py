@@ -166,7 +166,7 @@ async def workout_insight(body: WorkoutInsightRequest):
                 )
 
     race_week_extra = ""
-    if days_left is not None and 0 <= days_left <= 7:
+    if days_left is not None and 0 <= days_left < 7:
         race_week_extra = (" This is race week — the only job is arriving at the line fresh, "
                            "so keep everything short and easy except brief goal-pace touches.")
 

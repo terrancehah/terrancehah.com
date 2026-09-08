@@ -818,6 +818,17 @@ def _fetch_physio_trends(client, days: int = 60) -> dict:
     return physio
 
 
+def _race_distance_km(goal: dict | None) -> float:
+    """Race distance in km from a race_goal dict (purpose or explicit distance)."""
+    if not goal:
+        return 0
+    distance_map = {
+        "5K": 5, "10K": 10, "Half Marathon": 21.1,
+        "Marathon": 42.2, "Ultra Marathon": 50, "Triathlon": 40,
+    }
+    return distance_map.get(goal.get("purpose")) or _parse_float(goal.get("distance")) or 0
+
+
 def _compute_goal_pace_ms(goal: dict | None) -> float:
     """Compute the race goal pace in m/s from a race_goal dict.
 
@@ -827,11 +838,7 @@ def _compute_goal_pace_ms(goal: dict | None) -> float:
     """
     if not goal or not goal.get("time_target"):
         return 0
-    distance_map = {
-        "5K": 5, "10K": 10, "Half Marathon": 21.1,
-        "Marathon": 42.2, "Ultra Marathon": 50, "Triathlon": 40,
-    }
-    dist_km = distance_map.get(goal.get("purpose")) or _parse_float(goal.get("distance")) or 0
+    dist_km = _race_distance_km(goal)
     if not dist_km:
         return 0
     # Parse H:MM:SS or MM:SS
@@ -1175,7 +1182,9 @@ def _phase_for_days_left(days_left):
     """Map days remaining to a training phase (mirrors the fallback logic)."""
     if days_left < 0:
         return "post_race"
-    if days_left <= 7:
+    # Taper applies only to the final race week (days_left 0-6); the full
+    # week before it is still sharpen (last long run + race-pace touch).
+    if days_left < 7:
         return "taper"
     if days_left <= 20:
         return "sharpen"

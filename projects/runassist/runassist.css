@@ -3845,11 +3845,16 @@ header.rgd-header-offset.rgd-header-collapsed {
     position: absolute;
     inset: -0.125rem;
     border-radius: inherit;
+    /* Tight comet: the lit band is 72%-90% (about 65 degrees) with a
+       symmetric fade, so only ONE arc is visible at a time. The old
+       60%-100% band wrapped across the 0-degree point, stretching from
+       the bottom edge to the top edge at once — reading as two halos. */
     background: conic-gradient(
         from 0deg,
         transparent 0%,
-        transparent 60%,
-        var(--rgd-blue) 85%,
+        transparent 72%,
+        var(--rgd-blue) 82%,
+        transparent 90%,
         transparent 100%
     );
     animation: rgd-halo-spin 2s linear infinite;

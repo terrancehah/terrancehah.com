@@ -13,7 +13,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_session, _get_garmin_client, create_app,
-    _compute_goal_pace_ms, _fetch_physio_trends, _fetch_recent_activities_with_laps,
+    _compute_goal_pace_ms, _race_distance_km, _fetch_physio_trends,
+    _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
@@ -32,20 +33,26 @@ app = create_app("coach-plan")
 
 MAX_PLAN_DAYS = 26 * 7  # cap the season block at 26 weeks (~6 months)
 
+# Distance-aware LSD caps (km) — long runs never exceed the cap for the typed
+# race distance. A half-marathon block peaks ~18 km, a marathon ~30 km.
+PEAK_LONG_KM = {5.0: 14.0, 10.0: 16.0, 21.1: 18.0, 42.2: 30.0}
+
 # The AI's weeks are trusted as generated — no backfill or cap. The prompt
 # (see _build_chunk_prompt) carries the workout-count, partial-week, and
 # race-week rules instead.
 
 # Honesty rules for every generated week — these answer the verified amateur
 # complaints about plan products (long runs too short, race-week stacking,
-# no pause after illness, fake marathon-pace work).
-HONESTY_RULES = """HONESTY RULES (mechanical — apply before anything else):
-- Long runs must progress toward a traditional peak (about 29-32 km / 18-20 miles
-  or 2-3 hours) when time-to-race allows. Do not keep long runs short forever.
+# no pause after illness, fake goal-pace work). The long-run peak is injected
+# per race distance so a half block never chases marathon-sized longs.
+def _honesty_rules(peak_long_km):
+    return f"""HONESTY RULES (mechanical — apply before anything else):
+- Long runs must progress toward this goal's peak (about {peak_long_km:g} km) when
+  time-to-race allows. Do not keep long runs short forever, and never exceed the peak.
 - Race week: never stack a long or hard session next to the race. The race day
   itself is the hard session.
-- Marathon-pace work must be real: genuine 15-30 minute blocks at goal pace inside
-  long runs or dedicated MP sessions. Do not fake it with short tempos then
+- Goal-pace work must be real: genuine 15-30 minute blocks at goal pace inside
+  long runs or dedicated goal-pace sessions. Do not fake it with short tempos then
   auto-shift by RPE.
 - If recent recovery signals are poor (HRV down, RHR up, bad sleep), this week's
   quality session becomes easy and the long run stays conversational."""
@@ -54,40 +61,46 @@ HONESTY_RULES = """HONESTY RULES (mechanical — apply before anything else):
 def _split_windows(plan_start, plan_end):
     """Split [plan_start, plan_end] into AI-sized chunks.
 
-    The first chunk runs tomorrow through the current Mon-Sun week (up to 13
-    days); each later chunk is one full Mon-Sun week; the final chunk ends on
-    race day, so it may be partial.
+    The final chunk is always the 7 days before race day — the only taper
+    chunk — no matter which weekday the race falls on. For a Monday race
+    that window crosses the Mon-Sun boundary, so the chunk before it is
+    truncated at the day before the taper window (no overlap, no override
+    needed). The first chunk runs tomorrow through the Sunday after the
+    next Monday (up to 13 days); each later chunk is a full Mon-Sun week.
     """
     windows = []
+    taper_start = plan_end - timedelta(days=6)
+    if plan_start >= taper_start:
+        # The whole remaining block is inside the taper window.
+        return [(plan_start, plan_end)]
     first_end = plan_start + timedelta(days=((7 - plan_start.weekday()) % 7) + 6)
-    if first_end > plan_end:
-        first_end = plan_end
+    # Never extend into the taper window — the taper chunk is always its own.
+    first_end = min(first_end, taper_start - timedelta(days=1), plan_end)
     windows.append((plan_start, first_end))
     cursor = first_end + timedelta(days=1)
     while cursor <= plan_end:
-        chunk_end = min(cursor + timedelta(days=6), plan_end)
+        if cursor >= taper_start:
+            # The final taper chunk — the 7 days before race day.
+            chunk_end = plan_end
+        else:
+            chunk_end = min(cursor + timedelta(days=6), taper_start - timedelta(days=1), plan_end)
         windows.append((cursor, chunk_end))
         cursor = chunk_end + timedelta(days=1)
+    # A 1-2 day leftover can appear right before the taper window (the days
+    # between the last Mon-Sun chunk and the taper start, e.g. the Monday
+    # before a Tuesday taper). Merge it into the previous chunk so the AI
+    # sees the whole pre-taper block — a standalone 1-day chunk would be
+    # generated blind, risking a workout sandwiched between workouts its
+    # neighbours scheduled that it cannot see.
+    if len(windows) >= 3:
+        pre_taper_start, pre_taper_end = windows[-2]
+        prev_start, _ = windows[-3]
+        leftover_days = (pre_taper_end - pre_taper_start).days + 1
+        merged_days = (pre_taper_end - prev_start).days + 1
+        if leftover_days <= 2 and merged_days <= 13:
+            windows[-3] = (prev_start, pre_taper_end)
+            windows.pop(-2)
     return windows
-
-
-def _summarize_days(days):
-    """Compact summary of one generated chunk, fed to the next week's prompt
-    so the plan progresses (long runs grow, volume ramps, taper lands)
-    instead of repeating the same week."""
-    lines = []
-    weekly_km = 0.0
-    for d in days:
-        w = d.get("workout")
-        if not w:
-            lines.append(f"{d.get('date')}: Rest")
-            continue
-        km = w.get("distance_km") or 0
-        weekly_km += km
-        lines.append(f"{d.get('date')}: {w.get('type')} - {w.get('title')} ({km} km, {w.get('duration_min')} min)")
-    long_km = [d["workout"].get("distance_km") or 0 for d in days
-               if d.get("workout") and (d["workout"].get("type") or "").lower() == "long run"]
-    return "\n".join(lines), round(weekly_km, 1), (max(long_km) if long_km else None)
 
 
 def _format_sec_km(sec_per_km) -> str:
@@ -102,106 +115,16 @@ def _format_sec_km(sec_per_km) -> str:
     return f"{mins}:{secs:02d}"
 
 
-def _format_marathon_time(sec_per_km) -> str:
-    """Convert a per-km pace to a total marathon time "H:MM:SS"."""
-    total_sec = int(round(sec_per_km * 42.195))
-    h, rem = divmod(total_sec, 3600)
-    m, s = divmod(rem, 60)
-    return f"{h}:{m:02d}:{s:02d}"
+def _progression_guide(phase, prev_long_km, race_day_chunk, peak_long_km, race_distance_km):
+    """Phase-specific progression targets so week N+1 builds on week N.
 
-
-def _estimate_feasibility(history: list[dict], goal_pace_ms: float, days_to_race: int) -> dict | None:
-    """Estimate whether the runner's current running pace + remaining block
-    can reach the typed goal pace.
-
-    Current fitness pace = best Riegel projection to marathon distance from
-    recent runs (>= 5 km, falling back to >= 3 km). The remaining block is
-    assumed to improve pace by roughly 1.5% per 4 weeks of structured work
-    (conservative trained-runner rate). Verdict tiers:
-      on_track  — estimate already at or faster than goal pace
-      at_risk   — reachable with a strong, consistent block
-      unlikely  — gap larger than a realistic block can close
-    Returns None when there is not enough data to estimate.
+    Peak long-run and race-day distances are injected per race goal — a
+    half-marathon block peaks ~18 km and races 21.1 km, never 30/42.2.
     """
-    if not history or not goal_pace_ms or goal_pace_ms <= 0:
-        return None
-    goal_sec = 1000 / goal_pace_ms
-
-    # Best Riegel projection: t_marathon = t_run * (42.195 / d_run) ^ 1.06.
-    # Prefer longer runs (>= 8 km): short runs over-project and inflate the
-    # estimate. Training runs are rarely all-out, so this is a conservative
-    # estimator — it errs toward "check your goal", which is the safe
-    # direction for a warning feature.
-    def _best_projection(min_dist):
-        best = None
-        for a in history:
-            pace_ms = a.get("avg_pace") or 0
-            dist_km = a.get("distance") or 0
-            if pace_ms <= 0 or dist_km < min_dist:
-                continue
-            run_min = (dist_km * 1000 / pace_ms) / 60
-            est_marathon_min = run_min * (42.195 / dist_km) ** 1.06
-            est_sec = est_marathon_min * 60 / 42.195
-            best = est_sec if best is None else min(best, est_sec)
-        return best
-
-    best_est_sec = _best_projection(8)
-    if best_est_sec is None:
-        best_est_sec = _best_projection(5)
-    if best_est_sec is None:
-        best_est_sec = _best_projection(3)
-    if best_est_sec is None:
-        return None
-
-    gap_pct = (best_est_sec - goal_sec) / goal_sec * 100
-    weeks = max(days_to_race, 1) / 7.0
-    improvement_pct = 1.5 * weeks / 4.0  # ~1.5% pace gain per 4 weeks of training
-    if gap_pct <= 0:
-        status = "on_track"
-    elif weeks < 4 and gap_pct > 0:
-        status = "unlikely"
-    elif gap_pct <= improvement_pct + 2:
-        status = "at_risk"
-    else:
-        status = "unlikely"
-
-    # Realistic goal for this block: current estimate improved by 70% of the
-    # assumed capacity (never faster than the estimate itself).
-    realistic_sec = best_est_sec * (1 - min(0.7 * improvement_pct / 100, 0.15))
-
-    goal_str = _format_sec_km(goal_sec)
-    est_str = _format_sec_km(best_est_sec)
-    if status == "on_track":
-        note = (f"Your recent training pace ({est_str}/km) already supports the goal pace "
-                f"of {goal_str}/km — keep the block on plan.")
-    elif status == "at_risk":
-        note = (f"Goal pace {goal_str}/km vs estimated {est_str}/km from recent runs "
-                f"({gap_pct:+.0f}%). Reachable with a strong, consistent block "
-                f"({weeks:.0f} weeks left).")
-    else:
-        note = (f"Recent training pace ({est_str}/km) is {gap_pct:+.0f}% off the goal pace "
-                f"({goal_str}/km). With {weeks:.0f} weeks left, a realistic target is "
-                f"about {_format_sec_km(realistic_sec)}/km ({_format_marathon_time(realistic_sec)}).")
-
-    return {
-        "status": status,
-        "goal_pace_sec_km": round(goal_sec, 1),
-        "estimated_marathon_pace_sec_km": round(best_est_sec, 1),
-        "gap_pct": round(gap_pct, 1),
-        "weeks_to_race": round(weeks, 1),
-        "improvement_assumption_pct": round(improvement_pct, 1),
-        "realistic_goal_pace_sec_km": round(realistic_sec, 1),
-        "realistic_goal_time": _format_marathon_time(realistic_sec),
-        "note": note,
-    }
-
-
-def _progression_guide(phase, prev_long_km, race_day_chunk):
-    """Phase-specific progression targets so week N+1 builds on week N."""
-    peak = "about 29-32 km (18-20 miles) or 2-3 hours"
+    peak = f"about {peak_long_km:g} km"
     if race_day_chunk:
         return (
-            "- This chunk ends on race day. Put a \"Race\" workout (42.195 km) on the final day.\n"
+            f"- This chunk ends on race day. Put a \"Race\" workout ({race_distance_km:g} km) on the final day.\n"
             "- No long run or hard session in the 3 days before race day; the day before is a very short easy run or rest.\n"
             "- Race week volume is roughly half of peak, all easy."
         )
@@ -213,7 +136,7 @@ def _progression_guide(phase, prev_long_km, race_day_chunk):
         return (
             f"- Peak block. Long run reaches {peak}.\n"
             "- Include goal-pace segments in the final kilometres of the long run.\n"
-            "- One MP session (15-30 min at goal pace) inside a workout or the long run."
+            "- One goal-pace session (15-30 min) inside a workout or the long run."
         )
     if phase == "sharpen":
         return (
@@ -312,7 +235,7 @@ def _history_from_garmin_cache(cached):
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
                         progression_text, week_position_text, window_structure_text, coach_insight_text,
                         intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
-                        history, week_targets_text, goal_pace_text):
+                        history, week_targets_text, goal_pace_text, honesty_rules):
     """Prompt for one week of the full-block plan. Carries the same context
     as the short-window prompt (goal, phases, prefs, recovery, zones) plus
     standardised week identity — week N of M, phase at that date, goal pace
@@ -342,7 +265,7 @@ PLAN WINDOW (this week):
 
 {week_targets_text}
 
-{HONESTY_RULES}
+{honesty_rules}
 
 {intensity_text}
 
@@ -523,8 +446,8 @@ async def coach_plan(body: CoachPlanRequest):
     # to race day. The phases follow standard periodization:
     #   build (6+ weeks):  easy volume, controlled quality
     #   specificity (3-6 weeks / 21-42 days):  race-pace work, long runs peak
-    #   sharpen (10-20 days):  volume down 20-30%, one short race-pace session
-    #   taper (last 7 days):  volume down 40-60%, mostly easy, arrive fresh
+    #   sharpen (7-20 days):  volume down 20-30%, one short race-pace session
+    #   taper (race week, <7 days):  volume down 40-60%, mostly easy, arrive fresh
     race_phase = None
     days_to_race = None
     if race_date_str:
@@ -533,7 +456,7 @@ async def coach_plan(body: CoachPlanRequest):
             days_to_race = (race_date - date.today()).days
             if days_to_race < 0:
                 race_phase = "post_race"
-            elif days_to_race <= 7:
+            elif days_to_race < 7:
                 race_phase = "taper"
             elif days_to_race <= 20:
                 race_phase = "sharpen"
@@ -567,7 +490,8 @@ async def coach_plan(body: CoachPlanRequest):
             "- Keep one short race-pace session (no long intervals).\n"
             "- Long run gets shorter — roughly 70% of peak distance.\n"
             "- Last long run should be 10-14 days before race day.\n"
-            "- No new fitness gains expected — maintain what you have."
+            "- No new fitness gains expected — maintain what you have.\n"
+            "- Tapering starts only in race week (the final 7 days) — this week still trains."
         ),
         "taper": (
             "RACE PHASE — TAPER ({days} days to race):\n"
@@ -598,16 +522,22 @@ async def coach_plan(body: CoachPlanRequest):
     plan_end = next_monday + timedelta(days=6)  # Sunday at end of full week
     total_plan_days = (plan_end - plan_start).days + 1
 
-    # Workout mix guidance derived from the requested number of days.
-    # Quality means tempo or intervals — never both in the same week unless
-    # intensity is hard and recovery is good.
-    mix_guide = {
-        2: "one easy run and one long run (LSD). Include quality only if intensity is hard and recovery is good",
-        3: "one easy run, one long run (LSD), and one quality session (tempo or intervals — not both)",
-        4: "two easy runs, one long run (LSD), and one quality session (tempo or intervals — not both)",
-        5: "two easy runs, one recovery run, one long run (LSD), and one quality session",
-        6: "three easy runs, one recovery run, one long run (LSD), and one quality session",
-    }.get(days_per_week, "mostly easy running, one long run, at most one quality session")
+    # Quality (hard) days per week — computed, not left to the model to
+    # invent. At least one hard day is always scheduled (even for an easy
+    # preference); hard intensity gets two; moderate gets a second once the
+    # week has 4+ workout days. Capped so the long run always fits.
+    if intensity == "hard":
+        quality_days = 2
+    elif intensity == "moderate" and days_per_week >= 4:
+        quality_days = 2
+    else:
+        quality_days = 1
+    quality_days = min(quality_days, max(1, days_per_week - 1))
+
+    mix_guide = (
+        f"{quality_days} quality day(s) (tempo or intervals), one long run (LSD), "
+        f"and the remaining workout days easy or recovery"
+    )
 
     distance_guide = ""
     if weekly_distance_km:
@@ -621,19 +551,19 @@ async def coach_plan(body: CoachPlanRequest):
     intensity_definitions = {
         "easy": (
             "INTENSITY: EASY\n"
-            "- At most 1 hard day in the plan (the quality session, if any).\n"
+            f"- {quality_days} quality day(s) this week — at least one hard day is always scheduled.\n"
             "- Long run pace sits 10-15% slower than goal race pace.\n"
-            "- Quality session, if present, is controlled — not all-out."
+            "- Quality sessions are controlled — not all-out."
         ),
         "moderate": (
             "INTENSITY: MODERATE\n"
-            "- Exactly 1 hard day (the quality session).\n"
+            f"- {quality_days} quality day(s) this week.\n"
             "- Long run pace can sit 5-10% slower than goal race pace.\n"
-            "- Quality session is purposeful but not maximal."
+            "- Quality sessions are purposeful but not maximal."
         ),
         "hard": (
             "INTENSITY: HARD\n"
-            "- 1-2 hard days (quality session + optionally a second tempo or intervals).\n"
+            f"- {quality_days} quality days this week.\n"
             "- Long run pace can sit within 5% of goal race pace.\n"
             "- Quality sessions are aggressive — the runner wants to push."
         ),
@@ -660,10 +590,11 @@ async def coach_plan(body: CoachPlanRequest):
             plan_end = max_end
         total_plan_days = (plan_end - plan_start).days + 1
 
-        # Feasibility: can the runner's current pace + the remaining block
-        # reach the typed goal pace? Computed from the same data the plan
-        # uses (recent runs + goal pace), no extra AI call.
-        feasibility = _estimate_feasibility(history, goal_pace_ms, days_to_race)
+        # Distance-aware block parameters: the LSD cap and race-day distance
+        # come from the typed goal, so a half-marathon block never asks for
+        # 30 km longs or a 42.2 km race workout.
+        race_distance_km = _race_distance_km(race_goal)
+        peak_long_km = PEAK_LONG_KM.get(race_distance_km, 24.0)
 
         # Readiness insight from the cached AI radar (read-only, cheap): the
         # plan should treat the diagnosed top gap as the prescription focus.
@@ -693,8 +624,9 @@ async def coach_plan(body: CoachPlanRequest):
         # Per-week progression anchors computed deterministically from recent
         # history, so every week can be generated CONCURRENTLY — 26 sequential
         # AI calls would blow past the serverless function timeout. Long runs
-        # ramp ~10% per week in build, peak in specificity, then cut for
-        # sharpen/taper; the phase text + honesty rules keep each week coherent.
+        # ramp ~10% per week from the runner's real LSD baseline up to the
+        # distance-aware cap, then cut for sharpen/taper; the phase text +
+        # honesty rules keep each week coherent.
         base_long_km = 12.0
         for a in history:
             if (a.get("run_tag") or "") == "LSD":
@@ -707,8 +639,9 @@ async def coach_plan(body: CoachPlanRequest):
         if goal_pace_ms and goal_pace_ms > 0:
             goal_pace_text = (
                 "GOAL PACE: " + _format_sec_km(1000 / goal_pace_ms) + "/km — use it ONLY for "
-                "race-pace work: MP blocks in specificity, short race-pace touches in sharpen, "
-                "brief strides in taper. Never use it for easy, recovery, or long-run volume pacing."
+                "race-pace work: goal-pace blocks in specificity, short race-pace touches in "
+                "sharpen, brief strides in taper. Never use it for easy, recovery, or long-run "
+                "volume pacing."
             )
 
         next_monday = plan_start + timedelta(days=(7 - plan_start.weekday()) % 7)
@@ -734,8 +667,11 @@ async def coach_plan(body: CoachPlanRequest):
                     f"the rest are rest days."
                 )
             elif chunk_days_count == 7:
+                # The final chunk is the 7 days before race day, which may
+                # cross the Mon-Sun boundary for a non-Sunday race.
+                week_label = "Mon-Sun training week" if w_start.weekday() == 0 else "7-day window"
                 window_structure_text = (
-                    f"This is a full Mon-Sun training week: exactly {days_per_week} workout days; "
+                    f"This is a full {week_label}: exactly {days_per_week} workout days; "
                     f"the rest are rest days."
                 )
             else:
@@ -746,14 +682,20 @@ async def coach_plan(body: CoachPlanRequest):
                     f"window), never two hard days back to back."
                 )
             # Days remaining at the end of this chunk decide its phase, so a
-            # long block moves build -> specificity -> sharpen -> taper.
+            # long block moves build -> specificity -> sharpen -> taper. The
+            # race week itself is always taper; the week right before it is
+            # always sharpen (never taper, even for a Monday/Tuesday race).
             days_left = (race_date - w_end).days
-            chunk_phase = _phase_for_days_left(days_left)
-            phase_counts[chunk_phase] = phase_counts.get(chunk_phase, 0) + 1
-            idx_in_phase = phase_counts[chunk_phase] - 1
             race_day_chunk = w_end >= race_date
+            if race_day_chunk:
+                chunk_phase = "taper"
+            elif week_idx == len(windows) - 2:
+                chunk_phase = "sharpen"
+            else:
+                chunk_phase = _phase_for_days_left(days_left)
+            phase_counts[chunk_phase] = phase_counts.get(chunk_phase, 0) + 1
             phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
-            progression_text = _progression_guide(chunk_phase, None, race_day_chunk)
+            progression_text = _progression_guide(chunk_phase, None, race_day_chunk, peak_long_km, race_distance_km)
             if race_day_chunk:
                 progression_text += (
                     f"\n- The Race workout on the final day counts as one of the {days_per_week} "
@@ -763,14 +705,16 @@ async def coach_plan(body: CoachPlanRequest):
                 targets_text = ("THIS WEEK'S PROGRESSION TARGETS: race week — no long run; the Race "
                                 "workout on race day is the session. Keep everything else short and easy.")
             else:
-                if chunk_phase == "build":
-                    long_km = min(24.0, round(base_long_km * (1.1 ** idx_in_phase), 1))
-                elif chunk_phase == "specificity":
-                    long_km = 30.0
+                if chunk_phase in ("build", "specificity"):
+                    # Ramp ~10% per week from the runner's real LSD baseline,
+                    # capped at this goal's peak — no jumps, and no ramp at
+                    # all once the runner is already at the cap.
+                    block_idx = phase_counts.get("build", 0) + phase_counts.get("specificity", 0)
+                    long_km = min(peak_long_km, round(base_long_km * (1.1 ** block_idx), 1))
                 elif chunk_phase == "sharpen":
-                    long_km = 21.0
-                else:
-                    long_km = 12.0
+                    long_km = round(0.7 * peak_long_km, 1)
+                else:  # taper
+                    long_km = round(0.5 * peak_long_km, 1)
                 targets_text = (
                     "THIS WEEK'S PROGRESSION TARGETS (computed from your recent training — follow them):\n"
                     f"- Long run: about {long_km:g} km.\n"
@@ -797,7 +741,7 @@ async def coach_plan(body: CoachPlanRequest):
             w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
             progression_text, week_position_text, window_structure_text, coach_insight_text,
             intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
-            history, targets_text, goal_pace_text,
+            history, targets_text, goal_pace_text, _honesty_rules(peak_long_km),
         )
         plan_chunk = None
         for attempt in range(2):
@@ -852,9 +796,6 @@ async def coach_plan(body: CoachPlanRequest):
             },
             "days": chunk_days,
         }
-        if feasibility:
-            feasibility["readiness"] = ai_insight
-        plan["feasibility"] = feasibility
 
         slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
         response_data = {"history": slim_history, "plan": plan}
