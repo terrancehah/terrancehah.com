@@ -32,15 +32,9 @@ app = create_app("coach-plan")
 
 MAX_PLAN_DAYS = 26 * 7  # cap the season block at 26 weeks (~6 months)
 
-# Default workout mix used to backfill under-filled weeks.
-default_mix = ["Easy", "Long Run", "Speedwork", "Tempo", "Recovery", "Easy"]
-default_specs = {
-    "Easy": {"title": "Easy Run", "description": "Relaxed aerobic run.", "distance_km": 6, "duration_min": 40, "intensity": "easy"},
-    "Recovery": {"title": "Recovery Run", "description": "Very easy shakeout run.", "distance_km": 5, "duration_min": 35, "intensity": "easy"},
-    "Long Run": {"title": "Long Run", "description": "Steady endurance builder.", "distance_km": 15, "duration_min": 100, "intensity": "moderate"},
-    "Tempo": {"title": "Tempo Run", "description": "Sustained threshold effort.", "distance_km": 8, "duration_min": 50, "intensity": "moderate"},
-    "Speedwork": {"title": "Speedwork", "description": "Short, fast repeats.", "distance_km": 6, "duration_min": 45, "intensity": "hard"},
-}
+# The AI's weeks are trusted as generated — no backfill or cap. The prompt
+# (see _build_chunk_prompt) carries the workout-count, partial-week, and
+# race-week rules instead.
 
 # Honesty rules for every generated week — these answer the verified amateur
 # complaints about plan products (long runs too short, race-week stacking,
@@ -248,49 +242,6 @@ def _progression_guide(phase, prev_long_km, race_day_chunk):
     return ""
 
 
-def _enforce_workout_counts(days, days_per_week):
-    """Cap each Monday-start week at days_per_week workouts (trimming excess
-    from the end of the week) and backfill under-filled weeks with the
-    default mix so every week feels complete."""
-    blocks = {}
-    for day in days:
-        try:
-            d = _dt.strptime(day["date"], "%Y-%m-%d").date()
-        except (ValueError, KeyError, TypeError):
-            continue
-        monday = d - timedelta(days=d.weekday())
-        blocks.setdefault(monday, []).append(day)
-    for monday in sorted(blocks):
-        block = blocks[monday]
-        excess = len([d for d in block if d.get("workout")]) - days_per_week
-        if excess > 0:
-            for d in reversed(block):
-                if excess <= 0:
-                    break
-                if d.get("workout"):
-                    d["workout"] = None
-                    d["is_rest"] = True
-                    excess -= 1
-        filled = 0
-        for d in block:
-            if d.get("workout"):
-                continue
-            if filled >= days_per_week:
-                break
-            wtype = default_mix[filled % len(default_mix)]
-            spec = default_specs.get(wtype, default_specs["Easy"])
-            d["workout"] = {
-                "type": wtype,
-                "title": spec["title"],
-                "description": spec["description"],
-                "distance_km": spec["distance_km"],
-                "duration_min": spec["duration_min"],
-                "intensity": spec["intensity"],
-            }
-            d["is_rest"] = False
-            filled += 1
-
-
 def _attach_workout_details(days, pace_zones):
     """Override each workout's pace with the deterministic zone for its type,
     attach the coaching insight, and build the native Garmin step breakdown
@@ -395,8 +346,8 @@ def _history_from_garmin_cache(cached):
 
 
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
-                        progression_text, week_position_text, coach_insight_text, intensity_text,
-                        days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+                        progression_text, week_position_text, window_structure_text, coach_insight_text,
+                        intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
                         history, week_targets_text, goal_pace_text):
     """Prompt for one week of the full-block plan. Carries the same context
     as the short-window prompt (goal, phases, prefs, recovery, zones) plus
@@ -413,7 +364,7 @@ This is one week inside a longer marathon block — progress it, do not reset it
 PLAN WINDOW (this week):
 - {week_position_text}
 - Cover exactly {chunk_days_count} consecutive days from {chunk_start.isoformat()} to {chunk_end.isoformat()}.
-- Monday is the start of a new training block; this window may be a partial week.
+- {window_structure_text}
 - Put the long run on Saturday or Sunday when it falls inside the window.
 - Put the quality session mid-week (Tuesday or Wednesday), with at least one easy or rest day
   before the long run.
@@ -433,6 +384,9 @@ PLAN WINDOW (this week):
 
 PLAN PREFERENCES (the runner chose these — follow them):
 - Number of workout days per week: {days_per_week} (the other days are rest days).
+- Do not pad: if this week's phase or window shape calls for fewer workouts (partial week, taper,
+  race week, or poor recovery), scheduling fewer is CORRECT — never invent extra workouts to reach
+  the count.
 - Workout mix: {mix_guide}.
 {distance_guide}
 
@@ -793,10 +747,40 @@ async def coach_plan(body: CoachPlanRequest):
                 "brief strides in taper. Never use it for easy, recovery, or long-run volume pacing."
             )
 
+        next_monday = plan_start + timedelta(days=(7 - plan_start.weekday()) % 7)
         phase_counts = {}
-        week_plan = []  # (window, chunk_days_count, phase_text, progression_text, targets_text, week_position_text)
+        # (window, chunk_days_count, phase_text, progression_text, targets_text,
+        #  week_position_text, window_structure_text)
+        week_plan = []
         for week_idx, (w_start, w_end) in enumerate(windows):
             chunk_days_count = (w_end - w_start).days + 1
+            # Window shape: gap days (the tail of the current week before the
+            # first full Monday) get at most 1-2 easy runs; full weeks get
+            # days_per_week; partial weeks scale proportionally. The AI sees
+            # this as explicit context instead of mechanical enforcement.
+            gap_days_count = max(0, min(chunk_days_count, (next_monday - w_start).days))
+            if gap_days_count > 0 and chunk_days_count > gap_days_count:
+                gap_sunday = w_start + timedelta(days=gap_days_count - 1)
+                window_structure_text = (
+                    f"Monday starts a new training block, but this window begins mid-week: the "
+                    f"first {gap_days_count} days (through {gap_sunday.isoformat()}) are the tail "
+                    f"of the current week — at most 1-2 easy or recovery runs there, never a long "
+                    f"run or hard session. The remaining {chunk_days_count - gap_days_count} days "
+                    f"form a full Mon-Sun training week with exactly {days_per_week} workout days; "
+                    f"the rest are rest days."
+                )
+            elif chunk_days_count == 7:
+                window_structure_text = (
+                    f"This is a full Mon-Sun training week: exactly {days_per_week} workout days; "
+                    f"the rest are rest days."
+                )
+            else:
+                partial_target = min(days_per_week, max(1, (chunk_days_count * days_per_week + 6) // 7))
+                window_structure_text = (
+                    f"This window is a partial week of {chunk_days_count} days: at most "
+                    f"{partial_target} workout days (never more than the number of days in the "
+                    f"window), never two hard days back to back."
+                )
             # Days remaining at the end of this chunk decide its phase, so a
             # long block moves build -> specificity -> sharpen -> taper.
             days_left = (race_date - w_end).days
@@ -806,6 +790,11 @@ async def coach_plan(body: CoachPlanRequest):
             race_day_chunk = w_end >= race_date
             phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
             progression_text = _progression_guide(chunk_phase, None, race_day_chunk)
+            if race_day_chunk:
+                progression_text += (
+                    f"\n- The Race workout on the final day counts as one of the {days_per_week} "
+                    f"sessions — do not add sessions to make up the count."
+                )
             if race_day_chunk:
                 targets_text = ("THIS WEEK'S PROGRESSION TARGETS: race week — no long run; the Race "
                                 "workout on race day is the session. Keep everything else short and easy.")
@@ -824,7 +813,8 @@ async def coach_plan(body: CoachPlanRequest):
                     f"- Recent weekly volume: about {base_weekly_km:g} km — scale this week to the phase guidance."
                 )
             week_position_text = f"This is week {week_idx + 1} of {len(windows)} of the training block."
-            week_plan.append((w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text))
+            week_plan.append((w_start, w_end, chunk_days_count, phase_text_chunk, progression_text,
+                              targets_text, week_position_text, window_structure_text))
 
         # Always generate one week per request (Hobby 60s cap). The frontend
         # asks for each week separately and merges. If week_start is omitted
@@ -838,11 +828,11 @@ async def coach_plan(body: CoachPlanRequest):
         entry = _find_week_entry(week_plan, target_start)
         if entry is None:
             return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
-        w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text = entry
+        w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text, window_structure_text = entry
         prompt = _build_chunk_prompt(
             w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
-            progression_text, week_position_text, coach_insight_text, intensity_text,
-            days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+            progression_text, week_position_text, window_structure_text, coach_insight_text,
+            intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
             history, targets_text, goal_pace_text,
         )
         plan_chunk = None
@@ -874,7 +864,11 @@ async def coach_plan(body: CoachPlanRequest):
             else:
                 chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
         chunk_days = chunk_days[:chunk_days_count]
-        _enforce_workout_counts(chunk_days, days_per_week)
+        # Trust the AI's week as generated — no backfill or cap. Only complete
+        # the schema so the frontend contract (is_rest = no workout) holds.
+        for d in chunk_days:
+            if isinstance(d, dict):
+                d["is_rest"] = not bool(d.get("workout"))
         _attach_workout_details(chunk_days, pace_zones)
 
         plan = {
@@ -936,10 +930,12 @@ PLAN WINDOW:
 - Start on {plan_start.isoformat()} (tomorrow). Cover exactly {total_plan_days} consecutive days
   from that date, ending on {plan_end.isoformat()}.
 - Do not wait for the next Monday. The plan starts tomorrow.
-- Monday is treated as the start of a new training block. The days between tomorrow and the next
-  Monday ({next_monday.isoformat()}) complete the current week — fill them with easy runs or rest.
-  From {next_monday.isoformat()} onward, build the full Mon-Sun training block.
-- Exactly {days_per_week} workout days per 7-day block; remaining days are rest.
+- Monday starts a new training block. The days between tomorrow and the next Monday
+  ({next_monday.isoformat()}) complete the current week — schedule at most 1-2 easy runs there,
+  never a long run or hard session. From {next_monday.isoformat()} onward, build the full
+  Mon-Sun training block with exactly {days_per_week} workout days; the remaining days are rest.
+- Do not pad: if the window is short or recovery is poor, fewer workouts is correct — never
+  invent extra workouts to reach the count.
 - Put the long run on Saturday or Sunday if those dates fall inside the window.
 - Put the quality session mid-week (Tuesday or Wednesday), with at least one easy or rest day
   before the long run.
@@ -1033,50 +1029,11 @@ Return ONLY valid JSON:
             days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
     plan["days"] = days[:total_plan_days]
 
-    # Enforce the requested number of workout days per 7-day block.
-    # The plan may span up to 13 days (gap days + full Mon-Sun block), so
-    # the allowed workout count scales with the number of full weeks.
-    # Gap days (before next_monday) get at most 1-2 easy workouts to fill
-    # the current week; the full block gets the requested days_per_week.
-    full_blocks = 1  # always one full Mon-Sun block
-    gap_days_count = (next_monday - plan_start).days
-    # Allow up to 1 workout per 3 gap days (rounded up), capped at days_per_week
-    gap_workout_allowance = min(days_per_week, (gap_days_count + 2) // 3) if gap_days_count > 0 else 0
-    max_workouts = days_per_week * full_blocks + gap_workout_allowance
-    workout_days = [d for d in plan["days"] if d.get("workout")]
-    if len(workout_days) > max_workouts:
-        excess = len(workout_days) - max_workouts
-        for d in reversed(plan["days"]):
-            if excess <= 0:
-                break
-            if d.get("workout"):
-                d["workout"] = None
-                d["is_rest"] = True
-                excess -= 1
-
-    # Backfill: if the AI returned fewer workouts than requested, fill empty
-    # days with a sensible default mix so the user always gets a full plan.
-    # (default_mix / default_specs live at module scope — the full-block path
-    # uses them too.)
-    needed = max_workouts - len(workout_days)
-    if needed > 0:
-        for d in plan["days"]:
-            if needed <= 0:
-                break
-            if not d.get("workout"):
-                wtype = default_mix[len(workout_days) % len(default_mix)]
-                spec = default_specs.get(wtype, default_specs["Easy"])
-                d["workout"] = {
-                    "type": wtype,
-                    "title": spec["title"],
-                    "description": spec["description"],
-                    "distance_km": spec["distance_km"],
-                    "duration_min": spec["duration_min"],
-                    "intensity": spec["intensity"],
-                }
-                d["is_rest"] = False
-                workout_days.append(d)
-                needed -= 1
+    # Trust the AI's week as generated — no backfill or cap. Only complete
+    # the schema so the frontend contract (is_rest = no workout) holds.
+    for d in plan["days"]:
+        if isinstance(d, dict):
+            d["is_rest"] = not bool(d.get("workout"))
 
     # Override each workout's pace with the deterministic zone for its type,
     # attach the coaching insight, and build the native Garmin step breakdown

@@ -1,7 +1,0 @@
-fastapi==0.121.2
-openai==2.8.1
-pydantic==2.12.4
-python-dotenv==1.2.1
-python-multipart==0.0.20
-garminconnect==0.3.11
-upstash-redis==1.7.0

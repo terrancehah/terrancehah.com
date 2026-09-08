@@ -1,7 +1,7 @@
-"""Legacy numeric radar scoring (not a Vercel function).
+"""Legacy numeric radar scoring (unused).
 
-Kept under api/lib/ so it is not deployed as a serverless function.
-Hobby plans allow 12 functions; the live radar is api/ai-radar.py.
+Moved out of api/ so Vercel does not treat this file as a serverless
+function. The live radar is api/ai-radar.py.
 """
 
 from fastapi.responses import JSONResponse

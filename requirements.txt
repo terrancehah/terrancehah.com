@@ -1,5 +1,7 @@
-# Installed from api/requirements.txt so the root file does not contain
-# the word "fastapi". Vercel CLI 59 treats a root FastAPI dependency as a
-# single-app framework and zips the whole static site (~240MB) into one
-# function, which exceeds the 225MB limit.
--r api/requirements.txt
+fastapi==0.121.2
+openai==2.8.1
+pydantic==2.12.4
+python-dotenv==1.2.1
+python-multipart==0.0.20
+garminconnect==0.3.11
+upstash-redis==1.7.0
