@@ -3275,37 +3275,58 @@ document.addEventListener('DOMContentLoaded', function () {
     // When showing, destroys any existing radar chart instances so the old
     // chart numbers and labels don't overlap with the skeleton overlay.
     function showRadarSkeleton(show) {
-        if (show) {
-            // Destroy existing charts so old numbers/labels don't bleed
-            // through the semi-transparent skeleton overlay
-            radarCharts.forEach(c => c.destroy());
-            radarCharts = [];
-            // Reset the canvas opacity so it can fade in again when the
-            // new chart is created
-            document.querySelectorAll('.rgd-radar-chart').forEach(canvas => {
-                canvas.classList.remove('rgd-radar-loaded');
-            });
-            startRadarMorph();
-        } else {
-            stopRadarMorph();
-        }
+        // Toggle the skeleton overlays FIRST so a failure in the chart
+        // teardown below can never leave the radar area blank.
         document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
+            // A previous hide may never have completed its transition — the
+            // skeleton sat inside a display:none page (e.g. the readiness
+            // page during the initial overview load), so transitionend never
+            // fired and its listener + fade-out class are still attached.
+            // Remove that stale handler now, or it would fire at the end of
+            // this show's fade-in and re-hide the skeleton.
+            if (el._rgdFadeHandler) {
+                el.removeEventListener('transitionend', el._rgdFadeHandler);
+                el._rgdFadeHandler = null;
+            }
             if (show) {
-                // Showing: unhide immediately and fade in
+                el.classList.remove('rgd-fade-out');
                 el.hidden = false;
-                // Force reflow so the transition triggers from opacity 0
-                requestAnimationFrame(() => { el.classList.remove('rgd-fade-out'); });
             } else {
-                // Hiding: fade out via CSS, then set hidden after transition ends
                 el.classList.add('rgd-fade-out');
                 const onFadeEnd = () => {
                     el.hidden = true;
                     el.classList.remove('rgd-fade-out');
                     el.removeEventListener('transitionend', onFadeEnd);
+                    el._rgdFadeHandler = null;
+                    clearTimeout(fadeTimer);
                 };
+                el._rgdFadeHandler = onFadeEnd;
+                // Fallback: transitionend may never fire inside a hidden
+                // container — force-hide after the fade window either way,
+                // so no stale fade-out state survives for the next show.
+                const fadeTimer = setTimeout(onFadeEnd, 500);
                 el.addEventListener('transitionend', onFadeEnd);
             }
         });
+        if (show) {
+            // Best-effort teardown — the skeleton is already visible, so a
+            // failure here cannot leave a blank radar area.
+            try {
+                radarCharts.forEach(c => c.destroy());
+                radarCharts = [];
+                // Reset the canvas opacity so it can fade in again when the
+                // new chart is created
+                document.querySelectorAll('.rgd-radar-chart').forEach(canvas => {
+                    canvas.classList.remove('rgd-radar-loaded');
+                });
+                startRadarMorph();
+            } catch (err) {
+                console.error('Radar teardown error during refresh:', err);
+                radarCharts = [];
+            }
+        } else {
+            stopRadarMorph();
+        }
     }
 
     // Radar loading morph — while the skeleton is visible, the data polygon
