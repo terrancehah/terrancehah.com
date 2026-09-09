@@ -115,7 +115,7 @@ async def _plan_overview_insight(ctx: dict):
 
 RACE: {race_label} — {race.get('purpose', '')} {race.get('distance', '') or ''}, target {race.get('time_target', '')} (goal pace {fitness.get('goal_pace', '--')}/km) on {race.get('race_date', '')}.
 
-CURRENT FITNESS (from recent runs): long-run pace {fitness.get('current_easy_pace', '--')}/km, quality pace {fitness.get('current_quality_pace', '--')}/km. The goal's quality reference is {fitness.get('goal_quality_pace', '--')}/km.
+CURRENT FITNESS (from recent runs): long-run pace {fitness.get('current_easy_pace', '--')}/km, quality pace {fitness.get('current_quality_pace', '--')}/km. The race goal pace is {fitness.get('goal_pace', '--')}/km (tempo work around {fitness.get('goal_quality_pace', '--')}/km).
 
 PLAN: {ctx.get('race_phase', '')} phase, {ctx.get('days_to_race', '')} days to race.
 

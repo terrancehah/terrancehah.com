@@ -5227,7 +5227,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         planPaceEasyEl.textContent = fitness.current_easy_pace || '--';
         planPaceFastEl.textContent = fitness.current_quality_pace || '--';
-        planPaceGoalEl.textContent = fitness.goal_quality_pace || fitness.goal_pace || '--';
+        planPaceGoalEl.textContent = fitness.goal_pace || '--';
         planRaceCardEl.hidden = false;
 
         renderTrajectoryNote(plan);

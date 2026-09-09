@@ -3936,7 +3936,8 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 /* Race status card — the plan page header block: race info, current
-   fitness chips, the AI coach line, and drift advice in one card. */
+   fitness chips, the AI coach line, and drift advice in one card.
+   Hierarchy: race name (prominent) > race meta > fitness chips > insight. */
 .rgd-plan-race-card {
     display: flex;
     flex-direction: column;
@@ -3952,21 +3953,21 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-plan-race-head {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--rgd-space-md);
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 0.2rem;
 }
 
 .rgd-plan-race-name {
     font-family: 'Lato', sans-serif;
     font-weight: 700;
-    font-size: var(--rgd-text-subheading);
+    font-size: 1.125rem;
+    line-height: 1.3;
     color: var(--rgd-text);
 }
 
 .rgd-plan-race-meta {
-    font-size: var(--rgd-text-label);
+    font-size: var(--rgd-text-body);
+    line-height: 1.45;
     color: var(--rgd-muted);
 }
 
@@ -3981,7 +3982,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
     background: var(--rgd-light);
     border-radius: 999px;
-    padding: 0.2rem 0.6rem;
+    padding: 0.3rem 0.75rem;
 }
 
 .rgd-plan-pace-chip b {
@@ -3993,7 +3994,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: 0;
     font-size: var(--rgd-text-body);
     color: var(--rgd-text);
-    line-height: 1.45;
+    line-height: 1.5;
 }
 
 /* Trajectory status row — inside the race card, always visible when

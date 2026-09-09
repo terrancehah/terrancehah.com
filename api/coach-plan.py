@@ -89,8 +89,16 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None):
     if not fast_sec:
         return None
     goal_sec = 1000 / goal_pace_ms
+    goal_pace_str = _format_sec_km(goal_sec)
+    # The goal demands tempo work ~5s slower than race pace, and an aerobic
+    # base ~50s slower — those are the references the runner's paces are
+    # compared against (the goal pace itself is for display).
     goal_tempo_sec = goal_sec + 5
-    gap = fast_sec - goal_tempo_sec  # positive = slower than the goal needs
+    goal_tempo_str = _format_sec_km(goal_tempo_sec)
+    goal_easy_sec = goal_sec + 50
+    goal_easy_str = _format_sec_km(goal_easy_sec)
+    gap = fast_sec - goal_tempo_sec        # positive = quality slower than needed
+    easy_gap = (easy_sec - goal_easy_sec) if easy_sec else None  # positive = base slower than needed
 
     # Planned quality pace at today's position, from the cached plan's
     # per-week zones (paces ramp across the block).
@@ -104,19 +112,29 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None):
         if planned_zones:
             planned_tempo_sec = _pace_str_sec(planned_zones.get("Tempo"))
 
-    if gap > 45:
-        return {
-            "status": "behind",
-            "note": (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is well off the "
-                     f"{_format_sec_km(goal_tempo_sec)}/km this goal needs. The plan ramps toward it, but the "
-                     f"gap is large — a more conservative goal time or a longer block is worth considering."),
-        }
-    if gap < -20:
-        return {
-            "status": "ahead",
-            "note": (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is already faster than the goal "
-                     f"needs ({_format_sec_km(goal_tempo_sec)}/km) — the goal may be conservative."),
-        }
+    # Behind: quality work well off the goal's tempo demand, OR the aerobic
+    # base (easy/long-run pace) too far from the goal's easy reference.
+    if gap > 45 or (easy_gap is not None and easy_gap > 60):
+        base_issue = easy_gap is not None and easy_gap > 60
+        note = (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is well off the "
+                f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
+        if base_issue:
+            note += (f", and your long runs ({_format_sec_km(easy_sec)}/km) sit far from the "
+                     f"~{goal_easy_str}/km this goal expects")
+        note += (". The plan ramps toward it, but the gap is large — a more conservative goal "
+                 "time or a longer block is worth considering.")
+        return {"status": "behind", "note": note}
+    # Ahead: quality above the goal's demands AND the aerobic base supports it
+    # (fast speedwork alone does not make the goal conservative).
+    ahead_quality = gap < -20
+    ahead_endurance = easy_gap is not None and easy_gap <= 15
+    if ahead_quality and (easy_gap is None or ahead_endurance):
+        note = (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is already faster than the "
+                f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
+        if ahead_endurance:
+            note += f", and your long runs ({_format_sec_km(easy_sec)}/km) sit at goal shape"
+        note += " — the goal may be conservative."
+        return {"status": "ahead", "note": note}
     if planned_tempo_sec and abs(fast_sec - planned_tempo_sec) > 10:
         if fast_sec > planned_tempo_sec:
             return {
