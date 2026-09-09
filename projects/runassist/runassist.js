@@ -2353,7 +2353,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         return `
-            <div class="rgd-activity-item" data-index="${i}">
+            <div class="rgd-activity-item" data-index="${i}" data-activity-id="${a.id != null ? a.id : ''}">
                 <div class="rgd-activity-header" role="button" tabindex="0" aria-expanded="false"
                      aria-label="${escapeHtml(a.name)} on ${date}, ${a.distance} km at ${pace} per km. Select to expand details.">
                     <div class="rgd-activity-summary">
@@ -4419,9 +4419,16 @@ document.addEventListener('DOMContentLoaded', function () {
     const planRaceCardEl = $('#rgd-plan-race-card');
     const planRaceNameEl = $('#rgd-plan-race-name');
     const planRaceMetaEl = $('#rgd-plan-race-meta');
-    const planPaceEasyEl = $('#rgd-plan-pace-easy');
-    const planPaceFastEl = $('#rgd-plan-pace-fast');
-    const planPaceGoalEl = $('#rgd-plan-pace-goal');
+    const planFitnessEl = $('#rgd-plan-fitness');
+    const planFitnessToggle = $('#rgd-plan-fitness-toggle');
+    const planFitnessSummaryEl = $('#rgd-plan-fitness-summary');
+    const planFitnessBody = $('#rgd-plan-fitness-body');
+    const planPaceEasyRangeEl = $('#rgd-pace-easy-range');
+    const planPaceFastRangeEl = $('#rgd-pace-fast-range');
+    const planPaceEasyNoteEl = $('#rgd-pace-easy-note');
+    const planPaceFastNoteEl = $('#rgd-pace-fast-note');
+    const planPaceEasyRunsEl = $('#rgd-pace-easy-runs');
+    const planPaceFastRunsEl = $('#rgd-pace-fast-runs');
     const planInsightEl = $('#rgd-plan-insight');
     const planTrajectoryEl = $('#rgd-plan-trajectory');
     const coachBuildStatusEl = $('#rgd-coach-build-status');
@@ -4584,6 +4591,34 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'build';
     }
 
+    // Demo fitness summary for the race card — mirrors the backend's
+    // plan.fitness shape: medians + IQR ranges + the runs behind them.
+    function buildMockFitness() {
+        const mockHistory = getMockCoachHistory();
+        const runSummary = (r) => ({
+            id: r.id,
+            name: r.name,
+            date: (r.start_time || '').slice(0, 10),
+            distance: r.distance,
+            avg_pace: r.avg_pace,
+            run_tag: r.run_tag,
+        });
+        return {
+            current_easy_pace: '6:32',
+            current_easy_range: '6:20–6:50',
+            current_easy_runs: mockHistory
+                .filter(r => ['Easy', 'LSD', 'Recovery'].includes(r.run_tag))
+                .map(runSummary),
+            current_quality_pace: '5:52',
+            current_quality_range: '5:40–6:05',
+            current_quality_runs: mockHistory
+                .filter(r => ['Tempo Long', 'Speedwork'].includes(r.run_tag))
+                .map(runSummary),
+            goal_quality_pace: '5:18',
+            goal_pace: '5:13',
+        };
+    }
+
     function getMockCoachPlan(prefs) {
         const p = prefs || {};
         const daysPerWeek = p.days_per_week || 3;
@@ -4713,13 +4748,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // so the day-level zone lookup behaves the same way.
             zones_by_date: days.reduce((acc, d) => { acc[d.date] = paceZones; return acc; }, {}),
             // Current fitness summary for the race card — mirrors the
-            // backend's plan.fitness shape.
-            fitness: {
-                current_easy_pace: '6:32',
-                current_quality_pace: '5:52',
-                goal_quality_pace: '5:18',
-                goal_pace: '5:13',
-            },
+            // backend's plan.fitness shape, with ranges + the runs behind
+            // them for the training-paces drawer.
+            fitness: buildMockFitness(),
             // Demo trajectory — on track, so the status row shows green.
             trajectory: {
                 status: 'on_track',
@@ -5248,13 +5279,99 @@ document.addEventListener('DOMContentLoaded', function () {
             phaseLabel,
         ].filter(Boolean).join(' · ');
 
-        planPaceEasyEl.textContent = fitness.current_easy_pace || '--';
-        planPaceFastEl.textContent = fitness.current_quality_pace || '--';
-        planPaceGoalEl.textContent = fitness.goal_pace || '--';
+        renderFitnessDrawer(fitness);
         planRaceCardEl.hidden = false;
 
         renderTrajectoryNote(plan);
         loadPlanInsight();
+    }
+
+    // Training paces drawer — a pace range per type plus the runs that
+    // produced it. Each run links to the activities page.
+    function renderFitnessDrawer(fitness) {
+        if (!planFitnessEl) return;
+        if (!fitness || !fitness.current_quality_pace) {
+            planFitnessEl.hidden = true;
+            return;
+        }
+        const easyLabel = fitness.current_easy_range
+            || (fitness.current_easy_pace ? `≈${fitness.current_easy_pace}` : '--');
+        const fastLabel = fitness.current_quality_range
+            || (fitness.current_quality_pace ? `≈${fitness.current_quality_pace}` : '--');
+        planFitnessSummaryEl.textContent = `Long ${easyLabel} · Speed ${fastLabel} · Goal ${fitness.goal_pace || '--'}`;
+        planPaceEasyRangeEl.textContent = easyLabel;
+        planPaceFastRangeEl.textContent = fastLabel;
+        planPaceEasyRunsEl.innerHTML = buildFitnessRunRows(fitness.current_easy_runs || []);
+        planPaceFastRunsEl.innerHTML = buildFitnessRunRows(fitness.current_quality_runs || []);
+        const easyRuns = (fitness.current_easy_runs || []).length;
+        const fastRuns = (fitness.current_quality_runs || []).length;
+        planPaceEasyNoteEl.textContent = easyRuns
+            ? `Based on ${easyRuns} recent run${easyRuns === 1 ? '' : 's'}.`
+            : 'No recent easy runs — goal-based reference only.';
+        planPaceEasyNoteEl.hidden = false;
+        planPaceFastNoteEl.textContent = fastRuns
+            ? `Based on ${fastRuns} recent quality run${fastRuns === 1 ? '' : 's'}.`
+            : 'No recent quality runs — goal-based reference only.';
+        planPaceFastNoteEl.hidden = false;
+        planFitnessEl.hidden = false;
+    }
+
+    function buildFitnessRunRows(runs) {
+        return runs.map(r => {
+            const date = r.date
+                ? new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                : '--';
+            const pace = r.avg_pace ? formatPace(r.avg_pace) : '--';
+            const dist = r.distance != null ? `${r.distance} km` : '';
+            const id = r.id != null ? r.id : '';
+            return `
+                <li>
+                    <button class="rgd-plan-fitness-run" type="button" data-activity-id="${escapeHtml(String(id))}"
+                            aria-label="View ${escapeHtml(r.name || 'Run')} in activities">
+                        <span class="rgd-plan-fitness-run-date">${date}</span>
+                        <span class="rgd-plan-fitness-run-name">${escapeHtml(r.name || 'Run')}</span>
+                        <span class="rgd-plan-fitness-run-meta">${dist}${dist ? ' · ' : ''}${pace}/km</span>
+                        <svg class="rgd-plan-fitness-run-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+                    </button>
+                </li>
+            `;
+        }).join('');
+    }
+
+    // Jump to a specific run on the activities page and flash-highlight it.
+    function navigateToActivity(activityId) {
+        if (!activityId) return;
+        window.location.hash = 'activities';
+        // The activities page renders asynchronously — retry until the row
+        // exists (or give up after ~5s).
+        let attempts = 0;
+        const iv = setInterval(() => {
+            attempts++;
+            const el = document.querySelector(`.rgd-activity-item[data-activity-id="${CSS.escape(String(activityId))}"]`);
+            if (el) {
+                clearInterval(iv);
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('rgd-activity-item--flash');
+                setTimeout(() => el.classList.remove('rgd-activity-item--flash'), 2000);
+            } else if (attempts > 20) {
+                clearInterval(iv);
+            }
+        }, 250);
+    }
+
+    // Drawer expand/collapse + run navigation (event delegation).
+    if (planFitnessToggle) {
+        planFitnessToggle.addEventListener('click', () => {
+            const open = planFitnessToggle.getAttribute('aria-expanded') === 'true';
+            planFitnessToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+            planFitnessBody.hidden = open;
+        });
+    }
+    if (planFitnessEl) {
+        planFitnessEl.addEventListener('click', (e) => {
+            const btn = e.target.closest('.rgd-plan-fitness-run');
+            if (btn) navigateToActivity(btn.getAttribute('data-activity-id'));
+        });
     }
 
     // Trajectory status row inside the race card — always visible when

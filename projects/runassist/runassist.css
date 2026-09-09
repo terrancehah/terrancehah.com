@@ -3971,23 +3971,179 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
 }
 
-.rgd-plan-fitness-row {
+/* Training paces drawer — collapsible section in the race card showing
+   the pace range per type and the runs that produced them. Each run row
+   links to the activities page. */
+.rgd-plan-fitness {
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius-sm);
+    overflow: hidden;
+}
+
+/* Hidden-state overrides — author display values would otherwise defeat
+   the hidden attribute (the UA [hidden]{display:none} rule loses to a
+   declared display), leaving elements visible when they should be gone. */
+.rgd-plan-race-card[hidden],
+.rgd-plan-fitness-body[hidden],
+.rgd-plan-trajectory[hidden] { display: none; }
+
+.rgd-plan-fitness-toggle {
     display: flex;
+    align-items: center;
     gap: var(--rgd-space-sm);
-    flex-wrap: wrap;
-}
-
-.rgd-plan-pace-chip {
-    font-size: var(--rgd-text-label);
-    color: var(--rgd-muted);
+    width: 100%;
+    min-height: 2.5rem;                 /* comfortable touch target */
+    padding: 0.5rem 0.75rem;
+    border: none;
     background: var(--rgd-light);
-    border-radius: 999px;
-    padding: 0.3rem 0.75rem;
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    text-align: left;
+    transition: background var(--rgd-transition);
 }
 
-.rgd-plan-pace-chip b {
-    color: var(--rgd-text);
+.rgd-plan-fitness-toggle:hover { background: var(--rgd-sky); }
+.rgd-plan-fitness-toggle:active { background: var(--rgd-border); }
+
+.rgd-plan-fitness-toggle:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: -0.125rem;
+}
+
+.rgd-plan-fitness-toggle-label {
     font-weight: 700;
+}
+
+.rgd-plan-fitness-toggle-summary {
+    flex: 1;
+    color: var(--rgd-muted);
+    font-size: var(--rgd-text-label);
+    text-align: right;
+}
+
+.rgd-plan-fitness-chevron {
+    width: 1rem;
+    height: 1rem;
+    flex: none;
+    transition: transform 0.2s ease;
+}
+
+.rgd-plan-fitness-toggle[aria-expanded="true"] .rgd-plan-fitness-chevron {
+    transform: rotate(180deg);
+}
+
+.rgd-plan-fitness-body {
+    padding: 0.5rem 0.75rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-md);
+}
+
+.rgd-plan-fitness-group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--rgd-space-sm);
+}
+
+.rgd-plan-fitness-group-label {
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--rgd-text);
+}
+
+.rgd-plan-fitness-group-range {
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-blue);
+}
+
+.rgd-plan-fitness-note {
+    margin: 0.15rem 0 0;
+    font-size: var(--rgd-text-caption);
+    color: var(--rgd-muted);
+}
+
+.rgd-plan-fitness-runs {
+    list-style: none;
+    margin: 0.35rem 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;                       /* spacing between touch targets */
+}
+
+.rgd-plan-fitness-run {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2rem;                   /* WCAG 2.2 AA target size */
+    padding: 0.45rem 0.5rem;
+    border: none;
+    border-radius: var(--rgd-radius-sm);
+    background: none;
+    cursor: pointer;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-text);
+    text-align: left;
+    transition: background var(--rgd-transition);
+}
+
+.rgd-plan-fitness-run:hover { background: var(--rgd-light); }
+.rgd-plan-fitness-run:hover .rgd-plan-fitness-run-name { color: var(--rgd-blue); }
+
+.rgd-plan-fitness-run:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: -0.125rem;
+}
+
+.rgd-plan-fitness-run-date {
+    color: var(--rgd-muted);
+    flex: none;
+}
+
+.rgd-plan-fitness-run-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color var(--rgd-transition);
+}
+
+.rgd-plan-fitness-run-meta {
+    color: var(--rgd-muted);
+    flex: none;
+}
+
+/* Trailing arrow signals the row opens the run on the activities page */
+.rgd-plan-fitness-run-arrow {
+    width: 0.85rem;
+    height: 0.85rem;
+    color: var(--rgd-muted);
+    flex: none;
+    transition: transform var(--rgd-transition), color var(--rgd-transition);
+}
+
+.rgd-plan-fitness-run:hover .rgd-plan-fitness-run-arrow,
+.rgd-plan-fitness-run:focus-visible .rgd-plan-fitness-run-arrow {
+    transform: translateX(0.15rem);
+    color: var(--rgd-blue);
+}
+
+/* Flash highlight on the activities page when arriving from the drawer */
+.rgd-activity-item--flash {
+    animation: rgd-activity-flash 2s ease-out;
+}
+
+@keyframes rgd-activity-flash {
+    0% { background: var(--rgd-sky); }
+    100% { background: transparent; }
 }
 
 .rgd-plan-insight {

@@ -774,10 +774,33 @@
                                     <span class="rgd-plan-race-name" id="rgd-plan-race-name">—</span>
                                     <span class="rgd-plan-race-meta" id="rgd-plan-race-meta">—</span>
                                 </div>
-                                <div class="rgd-plan-fitness-row" id="rgd-plan-fitness-row">
-                                    <span class="rgd-plan-pace-chip">Long runs <b id="rgd-plan-pace-easy">--</b>/km</span>
-                                    <span class="rgd-plan-pace-chip">Speedwork <b id="rgd-plan-pace-fast">--</b>/km</span>
-                                    <span class="rgd-plan-pace-chip">Goal <b id="rgd-plan-pace-goal">--</b>/km</span>
+                                <!-- Training paces drawer — collapsible, shows the
+                                     pace range per type and the runs behind them.
+                                     Each run links to the activities page. -->
+                                <div class="rgd-plan-fitness" id="rgd-plan-fitness" hidden>
+                                    <button class="rgd-plan-fitness-toggle" id="rgd-plan-fitness-toggle" type="button" aria-expanded="false" aria-controls="rgd-plan-fitness-body">
+                                        <span class="rgd-plan-fitness-toggle-label">Training paces</span>
+                                        <span class="rgd-plan-fitness-toggle-summary" id="rgd-plan-fitness-summary">—</span>
+                                        <svg class="rgd-plan-fitness-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                                    </button>
+                                    <div class="rgd-plan-fitness-body" id="rgd-plan-fitness-body" hidden>
+                                        <div class="rgd-plan-fitness-group">
+                                            <div class="rgd-plan-fitness-group-head">
+                                                <span class="rgd-plan-fitness-group-label">Long runs</span>
+                                                <span class="rgd-plan-fitness-group-range" id="rgd-pace-easy-range">—</span>
+                                            </div>
+                                            <p class="rgd-plan-fitness-note" id="rgd-pace-easy-note" hidden></p>
+                                            <ul class="rgd-plan-fitness-runs" id="rgd-pace-easy-runs"></ul>
+                                        </div>
+                                        <div class="rgd-plan-fitness-group">
+                                            <div class="rgd-plan-fitness-group-head">
+                                                <span class="rgd-plan-fitness-group-label">Speedwork</span>
+                                                <span class="rgd-plan-fitness-group-range" id="rgd-pace-fast-range">—</span>
+                                            </div>
+                                            <p class="rgd-plan-fitness-note" id="rgd-pace-fast-note" hidden></p>
+                                            <ul class="rgd-plan-fitness-runs" id="rgd-pace-fast-runs"></ul>
+                                        </div>
+                                    </div>
                                 </div>
                                 <p class="rgd-plan-insight" id="rgd-plan-insight" hidden></p>
                                 <!-- Drift advice + rebuild, inside the card -->

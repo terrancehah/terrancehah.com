@@ -1402,6 +1402,35 @@ def _race_result_paces(goal: dict | None) -> dict | None:
     }
 
 
+def _fitness_samples(history: list[dict]) -> tuple:
+    """Bucket recent runs into easy and quality samples, each carrying the
+    run itself (so the UI can show which runs produced a pace).
+
+    Quality samples use the lap-level work-rep pace when available — immune
+    to stops/pauses between sets dragging a blended average down and
+    mis-tagging the session as easy. Returns (easy_samples, fast_samples),
+    each a list of {"sec": seconds-per-km, "run": activity}.
+    """
+    easy, fast = [], []
+    for a in history:
+        tag = a.get("run_tag") or ""
+        laps = a.get("laps")
+        if isinstance(laps, dict) and (laps.get("work_lap_count") or 0) > 0:
+            work_pace_ms = laps.get("work_avg_pace_ms")
+            if work_pace_ms and work_pace_ms > 0:
+                fast.append({"sec": 1000 / work_pace_ms, "run": a})
+                continue
+        pace_ms = a.get("avg_pace") or 0
+        if not pace_ms or pace_ms <= 0:
+            continue
+        sec = 1000 / pace_ms
+        if tag in ("Easy", "Recovery", "Warmup", "LSD"):
+            easy.append({"sec": sec, "run": a})
+        elif tag in ("Speedwork", "Tempo Long"):
+            fast.append({"sec": sec, "run": a})
+    return easy, fast
+
+
 def _fitness_medians(history: list[dict]) -> tuple:
     """Median easy and quality paces (sec/km) from recent runs.
 
@@ -1409,24 +1438,24 @@ def _fitness_medians(history: list[dict]) -> tuple:
     stops/pauses between sets dragging a blended average down and mis-tagging
     the session as easy. Returns (easy_sec, fast_sec); either may be None.
     """
-    easy_secs, fast_secs = [], []
-    for a in history:
-        tag = a.get("run_tag") or ""
-        laps = a.get("laps")
-        if isinstance(laps, dict) and (laps.get("work_lap_count") or 0) > 0:
-            work_pace_ms = laps.get("work_avg_pace_ms")
-            if work_pace_ms and work_pace_ms > 0:
-                fast_secs.append(1000 / work_pace_ms)
-                continue
-        pace_ms = a.get("avg_pace") or 0
-        if not pace_ms or pace_ms <= 0:
-            continue
-        sec = 1000 / pace_ms
-        if tag in ("Easy", "Recovery", "Warmup", "LSD"):
-            easy_secs.append(sec)
-        elif tag in ("Speedwork", "Tempo Long"):
-            fast_secs.append(sec)
-    return _median(easy_secs), _median(fast_secs)
+    easy, fast = _fitness_samples(history)
+    return _median([s["sec"] for s in easy]), _median([s["sec"] for s in fast])
+
+
+def _pace_range_sec(secs) -> tuple | None:
+    """(lo, hi) pace range in seconds-per-km for a sample list.
+
+    Interquartile range (25th-75th percentile) for >= 5 samples so a single
+    outlier run cannot stretch it; plain min-max for 2-4 samples (the whole
+    spread is honest at that size); None below 2 samples.
+    """
+    s = sorted(secs)
+    n = len(s)
+    if n < 2:
+        return None
+    if n < 5:
+        return s[0], s[-1]
+    return s[(n - 1) // 4], s[(3 * (n - 1)) // 4]
 
 
 def _pace_str_sec(pace_str) -> float | None:
