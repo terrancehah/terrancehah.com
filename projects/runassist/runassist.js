@@ -4408,7 +4408,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const workoutSheetClose = $('#rgd-workout-sheet-close');
     const workoutSheetBody = $('#rgd-workout-sheet-body');
 
-    const COACH_CACHE_KEY = 'rgd_coach_plan_cache';
+    // v2: the trajectory/race-card payload changed shape — old cached plans
+    // carry stale verdict text, so the key is bumped to ignore them.
+    const COACH_CACHE_KEY = 'rgd_coach_plan_cache_v2';
     const COACH_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }

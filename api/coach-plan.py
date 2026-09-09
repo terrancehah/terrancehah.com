@@ -498,17 +498,23 @@ async def coach_plan(body: CoachPlanRequest):
                         pass
                 if expected_total is None or len(cached_days) >= expected_total:
                     data = cached_entry["data"]
-                    # Trajectory note from current fitness (warm Garmin cache
-                    # only — never triggers a fresh login on a cache hit)
-                    # versus the pace the cached plan projected for today.
+                    # Never serve a STORED trajectory verdict — it is
+                    # transient (reflects current fitness) and old entries
+                    # may carry stale text. Recomputed below from the warm
+                    # Garmin cache only (never triggers a fresh login on a
+                    # cache hit); when the Garmin cache is cold, the card
+                    # simply shows no status row rather than a stale one.
+                    data = dict(data)
+                    plan_data = dict(data.get("plan") or {})
+                    plan_data.pop("trajectory", None)
+                    data["plan"] = plan_data
                     garmin_cached = _get_cached_garmin_data(token)
                     if garmin_cached:
                         check_history, _ = _history_from_garmin_cache(garmin_cached)
-                        trajectory = _build_trajectory(check_history, goal_pace_ms, cached_plan=(data or {}).get("plan"))
+                        trajectory = _build_trajectory(check_history, goal_pace_ms, cached_plan=plan_data)
                         fitness = _fitness_summary(check_history, goal_pace_ms)
                         if trajectory or fitness:
-                            data = dict(data)
-                            data["plan"] = dict(data.get("plan") or {})
+                            data["plan"] = dict(data["plan"])
                             if trajectory:
                                 data["plan"]["trajectory"] = trajectory
                             if fitness:
@@ -992,8 +998,16 @@ async def coach_plan(body: CoachPlanRequest):
                         merged_days[d["date"]] = d
                     merged_plan["days"] = [merged_days[k] for k in sorted(merged_days)]
                     merged["plan"] = merged_plan
+            # The trajectory verdict is transient — it reflects CURRENT
+            # fitness and is recomputed on every read (warm Garmin cache),
+            # so it must never be persisted with the plan. Storing it would
+            # serve stale advice (e.g. an old "ahead" verdict) from cache.
+            merged_plan = dict(merged.get("plan") or {})
+            merged_plan.pop("trajectory", None)
+            cache_data = dict(merged)
+            cache_data["plan"] = merged_plan
             _save_persistent_coach_cache(
-                email, merged,
+                email, cache_data,
                 week_start=plan_start.isoformat(),
                 preferences=current_prefs,
                 race_date=race_date_str or "",
@@ -1129,10 +1143,14 @@ Return ONLY valid JSON:
 
     # Save to the persistent email-keyed cache so the same plan appears on
     # other devices. Store the plan_start, race_date, and preferences for
-    # invalidation.
+    # invalidation. The trajectory verdict is never persisted — it is
+    # transient (recomputed on reads) and must not go stale in the cache.
     if email:
+        cache_plan = dict(plan)
+        cache_plan.pop("trajectory", None)
+        cache_data = {"history": slim_history, "plan": cache_plan}
         _save_persistent_coach_cache(
-            email, response_data,
+            email, cache_data,
             week_start=plan_start.isoformat(),
             preferences=current_prefs,
             race_date=race_date_str or "",
