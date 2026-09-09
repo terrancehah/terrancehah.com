@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
+from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -68,3 +68,14 @@ async def check_session(token: str = ""):
         "cached_ai_insights": cached_ai["data"] if cached_ai else None,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
     })
+
+
+@app.delete("/")
+async def logout(token: str = ""):
+    """End a session and remove it from the session store (Redis or local).
+
+    Merged here from the old logout.py so session lifecycle (check + logout)
+    lives in one serverless function.
+    """
+    _delete_session(token)
+    return JSONResponse(content={"message": "Logged out."})

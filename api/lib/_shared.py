@@ -1359,33 +1359,110 @@ def _format_pace_min_km(sec_per_km) -> str | None:
     return f"{mins}:{secs:02d}"
 
 
-def _compute_pace_zones(goal_pace_ms: float, history: list[dict]) -> dict:
-    """Derive per-workout-type target paces from recent fitness + race goal.
+def _race_result_paces(goal: dict | None) -> dict | None:
+    """Derive training paces from the runner's latest race result — the
+    fitness anchor used only when recent history is sparse (live Garmin
+    data always wins). Returns a {workout_type: "M:SS"} map, or None when
+    no usable race result is stored.
 
-    Follows Runna's "train at current fitness, not a rigid goal time" principle:
-    recent easy/fast paces are the primary anchor, and the race-goal pace plus
-    fixed offsets is only a fallback when recent data is sparse. Returns
-    {workout_type: "M:SS"} so the frontend can show (and re-derive) pace without
-    letting the user edit it directly.
+    Uses the same per-type offsets as the goal fallback, but anchored to
+    the ACTUAL race pace instead of the aspirational goal pace.
     """
-    goal_sec = 1000 / goal_pace_ms if (goal_pace_ms and goal_pace_ms > 0) else None
+    if not goal:
+        return None
+    label = (goal.get("fitness_race_distance") or "").strip()
+    dist_km = _parse_float(label)
+    if not dist_km:
+        dist_km = {
+            "5K": 5, "10K": 10, "15K": 15, "21.1K": 21.1,
+            "Half Marathon": 21.1, "Marathon": 42.2, "42.2K": 42.2,
+        }.get(label, 0)
+    if not dist_km:
+        return None
+    total_sec = 0
+    try:
+        vals = [int(x) for x in str(goal.get("fitness_race_time") or "").split(":")]
+        if len(vals) == 3:
+            total_sec = vals[0] * 3600 + vals[1] * 60 + vals[2]
+        elif len(vals) == 2:
+            total_sec = vals[0] * 60 + vals[1]
+    except (ValueError, TypeError):
+        return None
+    if total_sec <= 0:
+        return None
+    race_sec_per_km = total_sec / dist_km
+    offsets = {
+        "Recovery": 75, "Easy": 50, "Long Run": 35,
+        "Tempo": 5, "Intervals": -30, "Speedwork": -35,
+    }
+    return {
+        t: p for t, p in (
+            (t, _format_pace_min_km(race_sec_per_km + off)) for t, off in offsets.items()
+        ) if p
+    }
 
+
+def _fitness_medians(history: list[dict]) -> tuple:
+    """Median easy and quality paces (sec/km) from recent runs.
+
+    Quality work uses the lap-level work-rep pace when available — immune to
+    stops/pauses between sets dragging a blended average down and mis-tagging
+    the session as easy. Returns (easy_sec, fast_sec); either may be None.
+    """
     easy_secs, fast_secs = [], []
     for a in history:
+        tag = a.get("run_tag") or ""
+        laps = a.get("laps")
+        if isinstance(laps, dict) and (laps.get("work_lap_count") or 0) > 0:
+            work_pace_ms = laps.get("work_avg_pace_ms")
+            if work_pace_ms and work_pace_ms > 0:
+                fast_secs.append(1000 / work_pace_ms)
+                continue
         pace_ms = a.get("avg_pace") or 0
         if not pace_ms or pace_ms <= 0:
             continue
-        tag = a.get("run_tag") or ""
         sec = 1000 / pace_ms
         if tag in ("Easy", "Recovery", "Warmup", "LSD"):
             easy_secs.append(sec)
         elif tag in ("Speedwork", "Tempo Long"):
             fast_secs.append(sec)
+    return _median(easy_secs), _median(fast_secs)
 
-    easy_sec = _median(easy_secs)
-    fast_sec = _median(fast_secs)
 
-    # Offsets from goal race pace (positive = slower), used only as fallback
+def _pace_str_sec(pace_str) -> float | None:
+    """Parse "M:SS" back to seconds-per-km (for ramp interpolation)."""
+    try:
+        parts = [int(x) for x in str(pace_str).split(":")]
+        if len(parts) == 2:
+            return parts[0] * 60 + parts[1]
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
+def _compute_pace_zones(goal_pace_ms: float, history: list[dict], fitness_anchor: dict | None = None, ramp_fraction: float = 0.0) -> dict:
+    """Derive per-workout-type target paces from recent fitness + race goal.
+
+    Follows Runna's "train at current fitness, not a rigid goal time" principle:
+    recent easy/fast paces are the primary anchor, and the race-goal pace plus
+    fixed offsets is only a fallback when recent data is sparse. Fast paces use
+    the lap-level work-rep pace when available — immune to stops/pauses between
+    sets dragging a session's blended average down and mis-tagging it as easy.
+
+    ramp_fraction (0..1) interpolates every zone linearly from current fitness
+    (0) toward the goal-derived value (1) across the block, so training paces
+    progress toward the goal instead of staying static. Returns
+    {workout_type: "M:SS"} for display; the numeric values are never
+    user- or AI-editable.
+    """
+    goal_sec = 1000 / goal_pace_ms if (goal_pace_ms and goal_pace_ms > 0) else None
+
+    easy_sec, fast_sec = _fitness_medians(history)
+
+    # Offsets from race pace (positive = slower): they define both the
+    # goal-derived values (what paces should be at race readiness) and the
+    # fallback when a category has no recent runs — anchored to the goal
+    # pace, or to the runner's latest race result (fitness anchor).
     offsets = {
         "Recovery": 75,
         "Easy": 50,
@@ -1394,18 +1471,33 @@ def _compute_pace_zones(goal_pace_ms: float, history: list[dict]) -> dict:
         "Intervals": -30,
         "Speedwork": -35,
     }
-    zones = {}
+
+    # Current-fitness values (seconds per km)
+    fitness = {}
     for wtype, off in offsets.items():
         if wtype == "Recovery" and easy_sec:
-            zones[wtype] = _format_pace_min_km(easy_sec + 15)
+            fitness[wtype] = easy_sec + 15
         elif wtype in ("Easy", "Recovery", "Long Run") and easy_sec:
-            zones[wtype] = _format_pace_min_km(easy_sec)
+            fitness[wtype] = easy_sec
         elif wtype in ("Tempo", "Intervals", "Speedwork") and fast_sec:
-            zones[wtype] = _format_pace_min_km(fast_sec)
+            fitness[wtype] = fast_sec
+        elif fitness_anchor and fitness_anchor.get(wtype):
+            fitness[wtype] = _pace_str_sec(fitness_anchor[wtype])
         elif goal_sec:
-            zones[wtype] = _format_pace_min_km(goal_sec + off)
+            fitness[wtype] = goal_sec + off  # no data — start at goal-derived
         else:
-            zones[wtype] = None
+            fitness[wtype] = None
+
+    # Linear interpolation: fitness at 0, goal-derived at 1
+    frac = min(1.0, max(0.0, ramp_fraction))
+    zones = {}
+    for wtype, off in offsets.items():
+        f = fitness.get(wtype)
+        if f is None or goal_sec is None:
+            zones[wtype] = _format_pace_min_km(f) if f else None
+            continue
+        g = goal_sec + off
+        zones[wtype] = _format_pace_min_km(f + (g - f) * frac)
     # The race-day workout always targets the goal pace itself — a Race
     # workout is the goal effort by definition, never a derived zone.
     if goal_sec:

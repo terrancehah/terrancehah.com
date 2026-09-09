@@ -122,17 +122,18 @@
         <section class="rgd-screen" id="rgd-onboarding-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
-                    <span class="rgd-eyebrow">Step 2 of 3</span>
+                    <span class="rgd-eyebrow">Step 2 of 4</span>
                     <h2 class="rgd-onboard-title">Tell us about your race goal</h2>
                     <p class="rgd-onboard-subtitle">
                         This helps your coach tailor your plan and insights to what you're training for.
                     </p>
                 </div>
                 <form class="rgd-onboard-form" id="rgd-onboard-form" novalidate>
-                    <!-- Race Name — optional, shown in the goal specifics panel -->
+                    <!-- Race Name — required, shown in the goal specifics panel -->
                     <div class="rgd-field">
-                        <label for="rgd-race-name" class="rgd-label">Race Name <span class="rgd-optional">(optional)</span></label>
-                        <input type="text" id="rgd-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
+                        <label for="rgd-race-name" class="rgd-label">Race Name <span class="rgd-required">*</span></label>
+                        <input type="text" id="rgd-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100" required>
+                        <span class="rgd-field-error" hidden>Please enter a race name.</span>
                     </div>
 
                     <!-- Race Type -->
@@ -224,11 +225,51 @@
             </div>
         </section>
 
-        <!-- ========== ONBOARDING SCREEN — STEP 3: PLANNING PREFERENCES ========== -->
+        <!-- ========== ONBOARDING SCREEN — STEP 3: LATEST RACE RESULT ========== -->
+        <section class="rgd-screen" id="rgd-onboarding-fitness-screen" hidden>
+            <div class="rgd-onboard-card">
+                <div class="rgd-onboard-header">
+                    <span class="rgd-eyebrow">Step 3 of 4</span>
+                    <h2 class="rgd-onboard-title">How fast are you right now?</h2>
+                    <p class="rgd-onboard-desc">A recent race tells us your current fitness, so training paces start from where you actually are — not just where you want to be.</p>
+                </div>
+                <form class="rgd-onboard-form" id="rgd-onboard-fitness-form" novalidate>
+                    <!-- Race result distance -->
+                    <div class="rgd-field">
+                        <label for="rgd-fitness-distance" class="rgd-label">Race Distance <span class="rgd-required">*</span></label>
+                        <select id="rgd-fitness-distance" class="rgd-input rgd-select" required>
+                            <option value="" disabled selected>Select distance</option>
+                            <option value="5K">5K</option>
+                            <option value="10K">10K</option>
+                            <option value="15K">15K</option>
+                            <option value="21.1K">21.1K (Half Marathon)</option>
+                            <option value="Half Marathon">Half Marathon</option>
+                            <option value="Marathon">Marathon</option>
+                        </select>
+                        <span class="rgd-field-error" hidden>Please select the race distance.</span>
+                    </div>
+
+                    <!-- Race result time -->
+                    <div class="rgd-field">
+                        <label for="rgd-fitness-race-time" class="rgd-label">Race Time <span class="rgd-required">*</span></label>
+                        <input type="text" id="rgd-fitness-race-time" class="rgd-input" placeholder="e.g. 48:00 or 1:48:00" required>
+                        <p class="rgd-hint">Minutes:seconds (e.g. 48:00) or hours:minutes:seconds (e.g. 1:48:00).</p>
+                        <span class="rgd-field-error" hidden>Please enter your race time.</span>
+                    </div>
+
+                    <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-onboard-fitness-btn">
+                        <span class="rgd-btn-text">Continue</span>
+                        <span class="rgd-btn-spinner" hidden></span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ========== ONBOARDING SCREEN — STEP 4: PLANNING PREFERENCES ========== -->
         <section class="rgd-screen" id="rgd-onboarding-plan-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
-                    <span class="rgd-eyebrow">Step 3 of 3</span>
+                    <span class="rgd-eyebrow">Step 4 of 4</span>
                     <h2 class="rgd-onboard-title">Customise your training plan</h2>
                     <p class="rgd-onboard-subtitle">
                         Tell us how you want to train. You can change these later in the Plan page.
@@ -725,12 +766,23 @@
                                     Edit
                                 </button>
                             </h2>
-                            <p class="rgd-section-sub">Your coach maps the remaining weeks to race day from recent training and body signals. Tap Edit to adjust preferences, then send workouts to Garmin.</p>
-
-                            <!-- Block meta — countdown to race day, current
-                                 phase, and plan end date. Filled by the plan
-                                 page once the full-block plan loads. -->
-                            <p class="rgd-plan-block-meta" id="rgd-plan-block-meta" hidden></p>
+                            <!-- Race status card — race info, current fitness,
+                                 AI coach line, and drift advice. Filled by the
+                                 plan page once the full-block plan loads. -->
+                            <div class="rgd-plan-race-card" id="rgd-plan-race-card" hidden>
+                                <div class="rgd-plan-race-head">
+                                    <span class="rgd-plan-race-name" id="rgd-plan-race-name">—</span>
+                                    <span class="rgd-plan-race-meta" id="rgd-plan-race-meta">—</span>
+                                </div>
+                                <div class="rgd-plan-fitness-row" id="rgd-plan-fitness-row">
+                                    <span class="rgd-plan-pace-chip">Long runs <b id="rgd-plan-pace-easy">--</b>/km</span>
+                                    <span class="rgd-plan-pace-chip">Speedwork <b id="rgd-plan-pace-fast">--</b>/km</span>
+                                    <span class="rgd-plan-pace-chip">Goal <b id="rgd-plan-pace-goal">--</b>/km</span>
+                                </div>
+                                <p class="rgd-plan-insight" id="rgd-plan-insight" hidden></p>
+                                <!-- Drift advice + rebuild, inside the card -->
+                                <div class="rgd-plan-trajectory" id="rgd-plan-trajectory" hidden></div>
+                            </div>
 
                             <!-- Build status — slim line shown while the plan
                                  weeks are still generating after the calendar
@@ -907,6 +959,23 @@
                             </select>
                         </div>
                         <span class="rgd-field-error" hidden>Please enter your weekly mileage.</span>
+                    </div>
+
+                    <!-- Latest Race Result (optional) — same as onboarding -->
+                    <div class="rgd-field">
+                        <label class="rgd-label">Latest Race Result <span class="rgd-optional">(optional)</span></label>
+                        <div class="rgd-mileage-row">
+                            <input type="text" id="rgd-edit-fitness-race-distance" class="rgd-input" placeholder="e.g. 10K" list="rgd-edit-fitness-distances">
+                            <input type="text" id="rgd-edit-fitness-race-time" class="rgd-input" placeholder="e.g. 48:00">
+                        </div>
+                        <datalist id="rgd-edit-fitness-distances">
+                            <option value="5K"></option>
+                            <option value="10K"></option>
+                            <option value="15K"></option>
+                            <option value="21.1K"></option>
+                            <option value="Half Marathon"></option>
+                            <option value="Marathon"></option>
+                        </datalist>
                     </div>
 
                     <!-- Gender + Age -->

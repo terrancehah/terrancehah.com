@@ -13,11 +13,12 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_session, _get_garmin_client, create_app,
-    _compute_goal_pace_ms, _race_distance_km, _fetch_physio_trends,
+    _compute_goal_pace_ms, _race_distance_km, _race_result_paces, _fetch_physio_trends,
     _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
+    _fitness_medians, _pace_str_sec,
     RUNNING_TYPES,
 )
 
@@ -56,6 +57,85 @@ def _honesty_rules(peak_long_km):
   auto-shift by RPE.
 - If recent recovery signals are poor (HRV down, RHR up, bad sleep), this week's
   quality session becomes easy and the long run stays conversational."""
+
+
+def _fitness_summary(history, goal_pace_ms):
+    """Current fitness numbers for the plan overview card: the runner's
+    recent long-run (easy) pace and quality (work-lap) pace, plus the
+    goal-derived reference paces. None when there is not enough data."""
+    if not history or not goal_pace_ms or goal_pace_ms <= 0:
+        return None
+    easy_sec, fast_sec = _fitness_medians(history)
+    goal_sec = 1000 / goal_pace_ms
+    return {
+        "current_easy_pace": _format_sec_km(easy_sec) if easy_sec else None,
+        "current_quality_pace": _format_sec_km(fast_sec) if fast_sec else None,
+        "goal_quality_pace": _format_sec_km(goal_sec + 5),
+        "goal_pace": _format_sec_km(goal_sec),
+    }
+
+
+def _build_trajectory(history, goal_pace_ms, cached_plan=None):
+    """Compare the runner's CURRENT fitness against the goal and — when a
+    cached plan exists — against the pace that plan projected for today.
+
+    Returns a status dict {status, note} or None when there is not enough
+    data. The status row always shows: on_track is a positive confirmation,
+    behind/ahead carry material-drift advice (rebuild the remaining block).
+    """
+    if not history or not goal_pace_ms or goal_pace_ms <= 0:
+        return None
+    easy_sec, fast_sec = _fitness_medians(history)
+    if not fast_sec:
+        return None
+    goal_sec = 1000 / goal_pace_ms
+    goal_tempo_sec = goal_sec + 5
+    gap = fast_sec - goal_tempo_sec  # positive = slower than the goal needs
+
+    # Planned quality pace at today's position, from the cached plan's
+    # per-week zones (paces ramp across the block).
+    planned_tempo_sec = None
+    if cached_plan:
+        zones_by_date = cached_plan.get("zones_by_date") or {}
+        planned_zones = (
+            zones_by_date.get(date.today().isoformat())
+            or next(iter(zones_by_date.values()), None)
+        )
+        if planned_zones:
+            planned_tempo_sec = _pace_str_sec(planned_zones.get("Tempo"))
+
+    if gap > 45:
+        return {
+            "status": "behind",
+            "note": (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is well off the "
+                     f"{_format_sec_km(goal_tempo_sec)}/km this goal needs. The plan ramps toward it, but the "
+                     f"gap is large — a more conservative goal time or a longer block is worth considering."),
+        }
+    if gap < -20:
+        return {
+            "status": "ahead",
+            "note": (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is already faster than the goal "
+                     f"needs ({_format_sec_km(goal_tempo_sec)}/km) — the goal may be conservative."),
+        }
+    if planned_tempo_sec and abs(fast_sec - planned_tempo_sec) > 10:
+        if fast_sec > planned_tempo_sec:
+            return {
+                "status": "behind",
+                "note": (f"Your current quality pace ({_format_sec_km(fast_sec)}/km) is behind the "
+                         f"{_format_sec_km(planned_tempo_sec)}/km this week's plan expects — rebuilding the "
+                         f"remaining block would start from where you actually are."),
+            }
+        return {
+            "status": "ahead",
+            "note": (f"You're running faster ({_format_sec_km(fast_sec)}/km) than the plan's "
+                     f"{_format_sec_km(planned_tempo_sec)}/km for this week — rebuilding would tighten the "
+                     f"remaining block."),
+        }
+    return {
+        "status": "on_track",
+        "note": (f"Your recent quality pace ({_format_sec_km(fast_sec)}/km) is where the plan expects it "
+                 f"right now — keep the block moving.")
+    }
 
 
 def _split_windows(plan_start, plan_end):
@@ -361,7 +441,12 @@ async def coach_plan(body: CoachPlanRequest):
         "days_per_week": days_per_week,
         "intensity": intensity,
         "distance_adj": distance_adj,
+        # The fitness anchor shapes the zones — changing it invalidates
+        # the cached plan.
+        "fitness_race_distance": (race_goal or {}).get("fitness_race_distance", ""),
+        "fitness_race_time": (race_goal or {}).get("fitness_race_time", ""),
     }
+    goal_pace_ms = _compute_goal_pace_ms(race_goal)
     if email and not forceRefresh:
         cached_entry = _get_persistent_coach_cache(email)
         if cached_entry:
@@ -380,7 +465,9 @@ async def coach_plan(body: CoachPlanRequest):
                     and cached_race_date == (race_date_str or "")
                     and cached_prefs.get("days_per_week") == days_per_week
                     and cached_prefs.get("intensity") == intensity
-                    and cached_prefs.get("distance_adj") == distance_adj):
+                    and cached_prefs.get("distance_adj") == distance_adj
+                    and cached_prefs.get("fitness_race_distance") == current_prefs["fitness_race_distance"]
+                    and cached_prefs.get("fitness_race_time") == current_prefs["fitness_race_time"]):
                 cached_days = ((cached_entry.get("data") or {}).get("plan") or {}).get("days") or []
                 expected_total = None
                 if race_date_str:
@@ -392,13 +479,27 @@ async def coach_plan(body: CoachPlanRequest):
                     except (ValueError, TypeError):
                         pass
                 if expected_total is None or len(cached_days) >= expected_total:
-                    return JSONResponse(content=cached_entry["data"])
+                    data = cached_entry["data"]
+                    # Trajectory note from current fitness (warm Garmin cache
+                    # only — never triggers a fresh login on a cache hit)
+                    # versus the pace the cached plan projected for today.
+                    garmin_cached = _get_cached_garmin_data(token)
+                    if garmin_cached:
+                        check_history, _ = _history_from_garmin_cache(garmin_cached)
+                        trajectory = _build_trajectory(check_history, goal_pace_ms, cached_plan=(data or {}).get("plan"))
+                        fitness = _fitness_summary(check_history, goal_pace_ms)
+                        if trajectory or fitness:
+                            data = dict(data)
+                            data["plan"] = dict(data.get("plan") or {})
+                            if trajectory:
+                                data["plan"]["trajectory"] = trajectory
+                            if fitness:
+                                data["plan"]["fitness"] = fitness
+                    return JSONResponse(content=data)
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
-
-    goal_pace_ms = _compute_goal_pace_ms(race_goal)
 
     cached_garmin = _get_cached_garmin_data(token)
     history = None
@@ -413,8 +514,11 @@ async def coach_plan(body: CoachPlanRequest):
             return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
         physio = _fetch_physio_trends(client, days=60)
 
-    # Derive per-workout-type pace targets from recent fitness + goal pace
-    pace_zones = _compute_pace_zones(goal_pace_ms, history)
+    # Derive per-workout-type pace targets from recent fitness + goal pace.
+    # The runner's latest race result is the fallback fitness anchor, used
+    # only when a category has no recent runs — live Garmin data wins.
+    fitness_anchor = _race_result_paces(race_goal)
+    pace_zones = _compute_pace_zones(goal_pace_ms, history, fitness_anchor=fitness_anchor)
 
     # Previous weekly mileage = distance summed over the last 7 days; the
     # distance slider moves up/down relative to this baseline.
@@ -666,11 +770,19 @@ async def coach_plan(body: CoachPlanRequest):
 
         next_monday = plan_start + timedelta(days=(7 - plan_start.weekday()) % 7)
         phase_counts = {}
+        total_chunks = len(windows)
         # (window, chunk_days_count, phase_text, progression_text, targets_text,
         #  week_position_text, window_structure_text)
         week_plan = []
         for week_idx, (w_start, w_end) in enumerate(windows):
             chunk_days_count = (w_end - w_start).days + 1
+            # Paces ramp linearly across the block: current fitness at week 1
+            # → goal-derived paces by race week. Each chunk gets its own zone
+            # set (prompt + steps), so training paces progress toward the goal.
+            ramp_fraction = week_idx / (total_chunks - 1) if total_chunks > 1 else 0.0
+            chunk_zones = _compute_pace_zones(
+                goal_pace_ms, history, fitness_anchor=fitness_anchor, ramp_fraction=ramp_fraction
+            )
             # Window shape: gap days (the tail of the current week before the
             # first full Monday) get at most 1-2 easy runs; full weeks get
             # days_per_week; partial weeks scale proportionally. The AI sees
@@ -756,7 +868,7 @@ async def coach_plan(body: CoachPlanRequest):
                 )
             week_position_text = f"This is week {week_idx + 1} of {len(windows)} of the training block."
             week_plan.append((w_start, w_end, chunk_days_count, phase_text_chunk, progression_text,
-                              targets_text, week_position_text, window_structure_text))
+                              targets_text, week_position_text, window_structure_text, chunk_zones))
 
         # Always generate one week per request (Hobby 60s cap). The frontend
         # asks for each week separately and merges. If week_start is omitted
@@ -770,11 +882,11 @@ async def coach_plan(body: CoachPlanRequest):
         entry = _find_week_entry(week_plan, target_start)
         if entry is None:
             return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
-        w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text, window_structure_text = entry
+        w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text, window_structure_text, chunk_zones = entry
         prompt = _build_chunk_prompt(
             w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
             progression_text, week_position_text, window_structure_text, coach_insight_text,
-            intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
+            intensity_text, days_per_week, mix_guide, distance_guide, physio_text, chunk_zones,
             history, targets_text, goal_pace_text, _honesty_rules(peak_long_km),
         )
         plan_chunk = None
@@ -811,7 +923,7 @@ async def coach_plan(body: CoachPlanRequest):
         for d in chunk_days:
             if isinstance(d, dict):
                 d["is_rest"] = not bool(d.get("workout"))
-        _attach_workout_details(chunk_days, pace_zones)
+        _attach_workout_details(chunk_days, chunk_zones)
 
         plan = {
             "week_start": plan_start.isoformat(),
@@ -821,7 +933,8 @@ async def coach_plan(body: CoachPlanRequest):
             "race_date": race_date_str,
             "race_phase": race_phase or "build",
             "days_to_race": days_to_race,
-            "pace_zones": pace_zones,
+            "pace_zones": chunk_zones,
+            "zones": chunk_zones,
             "preferences": {
                 "days_per_week": days_per_week,
                 "intensity": intensity,
@@ -830,6 +943,16 @@ async def coach_plan(body: CoachPlanRequest):
             },
             "days": chunk_days,
         }
+
+        # Trajectory note + fitness summary: current fitness vs the goal
+        # (and vs the ramp at today's position on cache hits). Attached per
+        # chunk — the frontend takes them from the first response.
+        trajectory = _build_trajectory(history, goal_pace_ms)
+        if trajectory:
+            plan["trajectory"] = trajectory
+        fitness_summary = _fitness_summary(history, goal_pace_ms)
+        if fitness_summary:
+            plan["fitness"] = fitness_summary
 
         slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
         response_data = {"history": slim_history, "plan": plan}

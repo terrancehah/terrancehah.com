@@ -1542,14 +1542,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     margin: -0.5rem 0 0;
 }
 
-/* Block meta line on the Plan page — countdown, phase, plan end date.
-   Mirrors the section subtitle so it reads as one header block. */
-.rgd-plan-block-meta {
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-body);
-    color: var(--rgd-muted);
-    margin: -0.25rem 0 12px;
-}
+/* (Block meta line removed — folded into the race status card.) */
 
 /* Small "?" dot next to field labels — native title tooltip on hover/focus.
    Gives the race-date field a one-line explainer without extra UI. */
@@ -3940,6 +3933,108 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
     text-align: center;
     padding: 0.5rem 0 0.25rem;
+}
+
+/* Race status card — the plan page header block: race info, current
+   fitness chips, the AI coach line, and drift advice in one card. */
+.rgd-plan-race-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--rgd-space-sm);
+    padding: var(--rgd-space-md) var(--rgd-space-lg);
+    margin: 0 0 14px;
+    border: 0.0625rem solid var(--rgd-border);
+    border-radius: var(--rgd-radius);
+    background: var(--rgd-surface);
+    box-shadow: var(--rgd-shadow);
+    font-family: 'Raleway', sans-serif;
+}
+
+.rgd-plan-race-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--rgd-space-md);
+    flex-wrap: wrap;
+}
+
+.rgd-plan-race-name {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-subheading);
+    color: var(--rgd-text);
+}
+
+.rgd-plan-race-meta {
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
+
+.rgd-plan-fitness-row {
+    display: flex;
+    gap: var(--rgd-space-sm);
+    flex-wrap: wrap;
+}
+
+.rgd-plan-pace-chip {
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+    background: var(--rgd-light);
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+}
+
+.rgd-plan-pace-chip b {
+    color: var(--rgd-text);
+    font-weight: 700;
+}
+
+.rgd-plan-insight {
+    margin: 0;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+    line-height: 1.45;
+}
+
+/* Trajectory status row — inside the race card, always visible when
+   fitness data exists. A colored dot + label + one supporting line, like
+   Garmin's training-status / Whoop recovery pattern; the rebuild button
+   appears only on material drift (behind/ahead). */
+.rgd-plan-trajectory {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    flex-wrap: wrap;
+    margin: 0;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-text);
+}
+
+.rgd-plan-trajectory-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--rgd-accent-green);
+    flex: none;
+}
+
+.rgd-plan-trajectory--behind .rgd-plan-trajectory-dot { background: var(--rgd-accent-amber); }
+.rgd-plan-trajectory--ahead .rgd-plan-trajectory-dot { background: var(--rgd-blue); }
+
+.rgd-plan-trajectory-label {
+    font-weight: 700;
+    font-size: var(--rgd-text-label);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--rgd-accent-green);
+}
+
+.rgd-plan-trajectory--behind .rgd-plan-trajectory-label { color: var(--rgd-accent-amber); }
+.rgd-plan-trajectory--ahead .rgd-plan-trajectory-label { color: var(--rgd-blue); }
+
+.rgd-plan-trajectory-note {
+    color: var(--rgd-muted);
+    flex: 1 1 16rem;
 }
 
 /* ---- Last 2 weeks history ---- */

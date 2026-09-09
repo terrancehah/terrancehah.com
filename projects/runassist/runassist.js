@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const loginModal = $('#rgd-login-modal');
     const loginModalClose = $('#rgd-login-modal-close');
     const onboardScreen = $('#rgd-onboarding-screen');
+    const onboardFitnessScreen = $('#rgd-onboarding-fitness-screen');
     const onboardPlanScreen = $('#rgd-onboarding-plan-screen');
     const dashboardScreen = $('#rgd-dashboard-screen');
     const overlay = $('#rgd-overlay');
@@ -29,6 +30,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Onboarding
     const onboardForm = $('#rgd-onboard-form');
     const onboardBtn = $('#rgd-onboard-btn');
+    const onboardFitnessForm = $('#rgd-onboard-fitness-form');
+    const onboardFitnessBtn = $('#rgd-onboard-fitness-btn');
     const onboardPlanForm = $('#rgd-onboard-plan-form');
     const onboardPlanBtn = $('#rgd-onboard-plan-btn');
 
@@ -838,6 +841,25 @@ document.addEventListener('DOMContentLoaded', function () {
     // Onboarding
     // =========================================================================
 
+    // Build the onboarding POST body from the race-goal form fields.
+    function buildOnboardingBody() {
+        const h = $('#rgd-time-h').value || '0';
+        const m = $('#rgd-time-m').value || '00';
+        const s = $('#rgd-time-s').value || '00';
+        const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+        return {
+            race_name: $('#rgd-race-name').value.trim(),
+            purpose: $('#rgd-purpose').value,
+            distance: $('#rgd-purpose').value,
+            time_target: timeTarget,
+            race_date: $('#rgd-race-date').value,
+            weekly_mileage: $('#rgd-mileage').value,
+            mileage_unit: $('#rgd-mileage-unit').value,
+            gender: $('#rgd-gender').value,
+            age: $('#rgd-age').value,
+        };
+    }
+
     onboardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         $$('.rgd-input.error').forEach(el => el.classList.remove('error'));
@@ -849,6 +871,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
 
         const required = [
+            { id: 'rgd-race-name', val: $('#rgd-race-name').value.trim() },
             { id: 'rgd-purpose', val: $('#rgd-purpose').value },
             { id: 'rgd-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
             { id: 'rgd-race-date', val: $('#rgd-race-date').value },
@@ -877,27 +900,56 @@ document.addEventListener('DOMContentLoaded', function () {
         if (hasError) return;
 
         setButtonLoading(onboardBtn, true);
-        const body = {
-            race_name: $('#rgd-race-name').value,
-            purpose: $('#rgd-purpose').value,
-            distance: $('#rgd-purpose').value,
-            time_target: timeTarget,
-            race_date: $('#rgd-race-date').value,
-            weekly_mileage: $('#rgd-mileage').value,
-            mileage_unit: $('#rgd-mileage-unit').value,
-            gender: $('#rgd-gender').value,
-            age: $('#rgd-age').value,
-        };
+        const body = buildOnboardingBody();
         try {
             const resp = await apiCall('POST', 'onboarding', body, true);
             const data = await resp.json();
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             raceGoal = data.goal;
             localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
-            // Proceed to Step 3 — planning preferences
-            showScreen(onboardPlanScreen);
+            // Proceed to Step 3 — latest race result (current fitness)
+            showScreen(onboardFitnessScreen);
         } catch (err) { alert('Network error. Please try again.'); }
         finally { setButtonLoading(onboardBtn, false); }
+    });
+
+    // Step 3 — latest race result (current fitness anchor). Saves the full
+    // goal with the fitness fields, then proceeds to planning preferences.
+    onboardFitnessForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        $$('.rgd-input.error').forEach(el => el.classList.remove('error'));
+        $$('.rgd-field-error').forEach(el => el.hidden = true);
+
+        const required = [
+            { id: 'rgd-fitness-distance', val: $('#rgd-fitness-distance').value },
+            { id: 'rgd-fitness-race-time', val: $('#rgd-fitness-race-time').value.trim() },
+        ];
+        let hasError = false;
+        for (const f of required) {
+            if (!f.val) {
+                const el = document.getElementById(f.id);
+                if (el) el.classList.add('error');
+                const fg = el && el.closest('.rgd-field');
+                if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
+                hasError = true;
+            }
+        }
+        if (hasError) return;
+
+        setButtonLoading(onboardFitnessBtn, true);
+        const body = buildOnboardingBody();
+        body.fitness_race_distance = $('#rgd-fitness-distance').value;
+        body.fitness_race_time = $('#rgd-fitness-race-time').value.trim();
+        try {
+            const resp = await apiCall('POST', 'onboarding', body, true);
+            const data = await resp.json();
+            if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
+            raceGoal = data.goal;
+            localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            // Proceed to Step 4 — planning preferences
+            showScreen(onboardPlanScreen);
+        } catch (err) { alert('Network error. Please try again.'); }
+        finally { setButtonLoading(onboardFitnessBtn, false); }
     });
 
     // Step 3 — planning preferences. Saves the runner's plan prefs and
@@ -1127,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
                 apiCall('GET', 'metrics'),
                 apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
-                apiCall('GET', 'weekly-mileage?weeks=12'),
+                apiCall('GET', 'activities?mode=mileage&weeks=12'),
             ]);
             const metricsData = await metricsResp.json();
             const activitiesData = await activitiesResp.json();
@@ -3847,6 +3899,8 @@ document.addEventListener('DOMContentLoaded', function () {
             $('#rgd-edit-race-date').value = raceGoal.race_date || '';
             $('#rgd-edit-mileage').value = raceGoal.weekly_mileage || '';
             $('#rgd-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
+            $('#rgd-edit-fitness-race-distance').value = raceGoal.fitness_race_distance || '';
+            $('#rgd-edit-fitness-race-time').value = raceGoal.fitness_race_time || '';
             $('#rgd-edit-gender').value = raceGoal.gender || '';
             $('#rgd-edit-age').value = raceGoal.age || '';
         }
@@ -3920,6 +3974,8 @@ document.addEventListener('DOMContentLoaded', function () {
             race_date: $('#rgd-edit-race-date').value,
             weekly_mileage: $('#rgd-edit-mileage').value,
             mileage_unit: $('#rgd-edit-mileage-unit').value,
+            fitness_race_distance: $('#rgd-edit-fitness-race-distance').value.trim(),
+            fitness_race_time: $('#rgd-edit-fitness-race-time').value.trim(),
             gender: $('#rgd-edit-gender').value,
             age: $('#rgd-edit-age').value,
         };
@@ -4294,7 +4350,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Logout function — shared between settings and session expiry
     async function logout() {
-        try { await apiCall('DELETE', 'logout'); } catch (err) {}
+        try { await apiCall('DELETE', 'check-session'); } catch (err) {}
         sessionToken = ''; displayName = 'Demo Runner'; raceGoal = null; profileImageUrl = '';
         if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
         radarCharts.forEach(c => c.destroy()); radarCharts = [];
@@ -4339,7 +4395,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const prefDistanceEl = $('#rgd-pref-distance');
     const schedulePlanBtn = $('#rgd-schedule-plan');
     const scheduleStatusEl = $('#rgd-coach-schedule-status');
-    const planBlockMetaEl = $('#rgd-plan-block-meta');
+    const planRaceCardEl = $('#rgd-plan-race-card');
+    const planRaceNameEl = $('#rgd-plan-race-name');
+    const planRaceMetaEl = $('#rgd-plan-race-meta');
+    const planPaceEasyEl = $('#rgd-plan-pace-easy');
+    const planPaceFastEl = $('#rgd-plan-pace-fast');
+    const planPaceGoalEl = $('#rgd-plan-pace-goal');
+    const planInsightEl = $('#rgd-plan-insight');
+    const planTrajectoryEl = $('#rgd-plan-trajectory');
     const coachBuildStatusEl = $('#rgd-coach-build-status');
     const workoutSheet = $('#rgd-workout-sheet');
     const workoutSheetClose = $('#rgd-workout-sheet-close');
@@ -4401,7 +4464,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Cache key is scoped by session + goal + day so a stale plan never bleeds
     // across users or across week boundaries.
     function getCoachCacheKey() {
-        const goalFingerprint = raceGoal ? `${raceGoal.purpose || ''}|${raceGoal.time_target || ''}|${raceGoal.race_date || ''}` : 'no-goal';
+        const goalFingerprint = raceGoal ? `${raceGoal.purpose || ''}|${raceGoal.time_target || ''}|${raceGoal.race_date || ''}|${raceGoal.fitness_race_distance || ''}|${raceGoal.fitness_race_time || ''}` : 'no-goal';
         const today = new Date().toISOString().slice(0, 10);
         return `${sessionToken || 'demo'}::${goalFingerprint}::${today}`;
     }
@@ -4623,6 +4686,22 @@ document.addEventListener('DOMContentLoaded', function () {
             race_phase: mockPhase(daysToRace),
             days_to_race: daysToRace,
             pace_zones: paceZones,
+            // The real plan ramps zones per week; the demo keeps a flat set
+            // so the day-level zone lookup behaves the same way.
+            zones_by_date: days.reduce((acc, d) => { acc[d.date] = paceZones; return acc; }, {}),
+            // Current fitness summary for the race card — mirrors the
+            // backend's plan.fitness shape.
+            fitness: {
+                current_easy_pace: '6:32',
+                current_quality_pace: '5:52',
+                goal_quality_pace: '5:18',
+                goal_pace: '5:13',
+            },
+            // Demo trajectory — on track, so the status row shows green.
+            trajectory: {
+                status: 'on_track',
+                note: 'Your recent quality pace (5:52/km) is where the plan expects it right now — keep the block moving.',
+            },
             days,
         };
     }
@@ -4936,6 +5015,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let history = null;
             let meta = null;
             const daysByDate = {};
+            const zonesByDate = {};   // paces ramp across the block — each day knows its week's zones
             let complete = false;
             for (let i = 0; i < weekStarts.length; i += batchSize) {
                 const batch = weekStarts.slice(i, i + batchSize);
@@ -4970,6 +5050,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (!meta && data.plan) meta = data.plan;
                     for (const d of (data.plan && data.plan.days) || []) {
                         daysByDate[d.date] = d;
+                        if (data.plan.zones) zonesByDate[d.date] = data.plan.zones;
                     }
                 }
                 // Render as soon as the first batch lands — the past activities
@@ -4977,7 +5058,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // before the AI call) plus any plan weeks generated so far.
                 // Later batches re-render with the added weeks so the plan
                 // fills in progressively instead of appearing all at once.
-                const plan = meta ? { ...meta, days: Object.keys(daysByDate).sort().map(k => daysByDate[k]) } : {};
+                const plan = meta ? { ...meta, days: Object.keys(daysByDate).sort().map(k => daysByDate[k]), zones_by_date: zonesByDate } : {};
                 complete = !!(meta && meta.total_plan_days && Object.keys(daysByDate).length >= meta.total_plan_days);
                 coachPlanData = { history: history || [], plan };
                 renderCoachCalendar(coachPlanData, i === 0);
@@ -5089,7 +5170,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 ${week.map(day => renderDayRow(day)).join('')}
             </div>
         `).join('');
-        renderPlanBlockMeta(plan);
+        renderPlanRaceCard(plan);
         schedulePlanBtn.hidden = false;
 
         // Show the "Show more" button only if there's older history beyond
@@ -5120,22 +5201,106 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Header line for the full-block plan: countdown to race day, current
-    // phase, and the last day the plan covers. Hidden for the short-window
-    // fallback (a plan with no race target).
-    function renderPlanBlockMeta(plan) {
-        if (!planBlockMetaEl) return;
+    // Race status card — the plan page header block: race name + meta,
+    // current fitness chips, the AI coach line, and drift advice. Hidden
+    // for the short-window fallback (a plan with no race target).
+    function renderPlanRaceCard(plan) {
+        if (!planRaceCardEl) return;
         const daysToRace = plan.days_to_race;
-        if (daysToRace == null || !plan.race_date) {
-            planBlockMetaEl.hidden = true;
+        if (daysToRace == null || !plan.race_date || !raceGoal) {
+            planRaceCardEl.hidden = true;
             return;
         }
-        const dayLabel = daysToRace === 1 ? 'day' : 'days';
+        const fitness = plan.fitness || {};
+        planRaceNameEl.textContent = raceGoal.race_name || raceGoal.purpose || 'Your goal race';
         const phaseLabel = String(plan.race_phase || 'build').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-        const planEndDate = plan.plan_end
-            ? new Date(plan.plan_end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        const raceDateLabel = raceGoal.race_date
+            ? new Date(raceGoal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : '';
-        planBlockMetaEl.textContent = `${daysToRace} ${dayLabel} to race · ${phaseLabel} phase · plan through ${planEndDate}`;
-        planBlockMetaEl.hidden = false;
+        planRaceMetaEl.textContent = [
+            raceGoal.distance || raceGoal.purpose || '',
+            fitness.goal_pace ? `${fitness.goal_pace}/km` : '',
+            raceDateLabel,
+            `${daysToRace} ${daysToRace === 1 ? 'day' : 'days'} to race`,
+            phaseLabel,
+        ].filter(Boolean).join(' · ');
+
+        planPaceEasyEl.textContent = fitness.current_easy_pace || '--';
+        planPaceFastEl.textContent = fitness.current_quality_pace || '--';
+        planPaceGoalEl.textContent = fitness.goal_quality_pace || fitness.goal_pace || '--';
+        planRaceCardEl.hidden = false;
+
+        renderTrajectoryNote(plan);
+        loadPlanInsight();
+    }
+
+    // Trajectory status row inside the race card — always visible when
+    // fitness data exists: a colored dot + label + one supporting line,
+    // with a rebuild button when the runner drifts behind or ahead.
+    function renderTrajectoryNote(plan) {
+        if (!planTrajectoryEl) return;
+        const t = plan.trajectory;
+        if (!t || !t.status) { planTrajectoryEl.hidden = true; return; }
+        const labels = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan' };
+        const drift = t.status === 'behind' || t.status === 'ahead';
+        planTrajectoryEl.className = `rgd-plan-trajectory rgd-plan-trajectory--${t.status}`;
+        planTrajectoryEl.innerHTML = `
+            <span class="rgd-plan-trajectory-dot"></span>
+            <span class="rgd-plan-trajectory-label">${labels[t.status] || 'On track'}</span>
+            <span class="rgd-plan-trajectory-note">${escapeHtml(t.note || '')}</span>
+            ${drift ? '<button class="rgd-btn rgd-btn-secondary rgd-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
+        `;
+        planTrajectoryEl.hidden = false;
+    }
+
+    // Rebuild restarts the remaining block from current fitness (force
+    // regeneration).
+    if (planTrajectoryEl) {
+        planTrajectoryEl.addEventListener('click', (e) => {
+            if (e.target.closest('.rgd-plan-trajectory-rebuild')) {
+                generateCoachPlan(coachPrefs, true);
+            }
+        });
+    }
+
+    // AI coach line for the race card — one short paragraph, generated once
+    // per plan (guarded by plan_start). Demo mode shows a canned line.
+    let lastInsightPlanStart = null;
+    async function loadPlanInsight() {
+        const plan = coachPlanData && coachPlanData.plan ? coachPlanData.plan : null;
+        if (!plan || !planInsightEl || !planRaceCardEl || planRaceCardEl.hidden) return;
+        if (lastInsightPlanStart === plan.plan_start) return;
+        lastInsightPlanStart = plan.plan_start;
+        if (window.__demoMode) {
+            planInsightEl.textContent = 'Your recent long runs sit right at the shape this goal needs — this week keeps the engine ticking with easy miles and one quality touch.';
+            planInsightEl.hidden = false;
+            return;
+        }
+        if (!plan.fitness) { planInsightEl.hidden = true; return; }
+        planInsightEl.textContent = 'Thinking…';
+        planInsightEl.classList.add('rgd-shimmer-text');
+        planInsightEl.hidden = false;
+        const context = {
+            race_goal: raceGoal,
+            fitness: plan.fitness,
+            race_phase: plan.race_phase || '',
+            days_to_race: plan.days_to_race,
+            trajectory_status: (plan.trajectory && plan.trajectory.status) || 'on_track',
+            trajectory_note: (plan.trajectory && plan.trajectory.note) || '',
+        };
+        try {
+            const resp = await apiCall('POST', 'workout-insight', { kind: 'plan', context });
+            const data = await resp.json();
+            if (resp.ok && data.insight) {
+                planInsightEl.textContent = data.insight;
+            } else {
+                planInsightEl.hidden = true;
+            }
+        } catch (err) {
+            planInsightEl.hidden = true;
+        } finally {
+            planInsightEl.classList.remove('rgd-shimmer-text');
+        }
     }
 
     function renderDayRow(day) {
@@ -5263,8 +5428,11 @@ document.addEventListener('DOMContentLoaded', function () {
             day.workout.type = value;
             // The workout changed — any previously generated insight is stale.
             day.workout.insight = null;
-            // Pace is derived from the workout type — recompute from pace_zones
-            const zones = coachPlanData.plan.pace_zones || {};
+            // Pace is derived from the workout type — paces ramp across the
+            // block, so use THIS day's week zone set, falling back to the
+            // plan-level zones.
+            const zones = (coachPlanData.plan.zones_by_date || {})[dateKey]
+                || coachPlanData.plan.pace_zones || {};
             if (zones[value]) day.workout.target_pace_min_per_km = zones[value];
         } else {
             day.workout[field] = value;
@@ -5367,7 +5535,8 @@ document.addEventListener('DOMContentLoaded', function () {
             day.workout = null;
             coachEditingDate = null;
         } else if (action === 'add-workout') {
-            const zones = coachPlanData.plan.pace_zones || {};
+            const zones = (coachPlanData.plan.zones_by_date || {})[dateKey]
+                || coachPlanData.plan.pace_zones || {};
             day.is_rest = false;
             day.workout = { type: 'Easy', title: 'Easy Run', description: 'Easy aerobic run.', distance_km: 5, duration_min: 35, intensity: 'easy', target_pace_min_per_km: zones['Easy'] || '6:30' };
         }
@@ -5757,7 +5926,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
                     apiCall('GET', 'metrics'),
                     apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
-                    apiCall('GET', 'weekly-mileage?weeks=12'),
+                    apiCall('GET', 'activities?mode=mileage&weeks=12'),
                 ]);
                 const metricsData = await metricsResp.json();
                 const activitiesData = await activitiesResp.json();

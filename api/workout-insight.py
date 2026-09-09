@@ -29,6 +29,11 @@ class WorkoutInsightRequest(BaseModel):
     # sits in, and the previous planned session, so the insight is written
     # for the week, not the workout in isolation.
     context: Optional[dict] = None
+    # kind == "plan" renders the one-line race-card overview insight from
+    # context (race goal + fitness + phase + trajectory) instead of a
+    # workout insight. Kept in this file so no extra serverless function
+    # is needed for the plan page line.
+    kind: str = "workout"
 
 
 # Plan workout types -> run_tag classes from the runner's actual history.
@@ -89,9 +94,56 @@ PHASE_LABELS = {
 }
 
 
+async def _plan_overview_insight(ctx: dict):
+    """One short coach line for the plan page race card (kind == "plan").
+
+    Uses the same context the plan page already has — race goal, current
+    fitness numbers, phase, and trajectory — so it is cheap to call once
+    per plan load.
+    """
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    race = ctx.get("race_goal") or {}
+    fitness = ctx.get("fitness") or {}
+    trajectory_status = ctx.get("trajectory_status") or "on_track"
+    trajectory_note = ctx.get("trajectory_note") or ""
+
+    race_label = race.get("race_name") or race.get("purpose") or "your goal race"
+    prompt = f"""You are an expert running coach. Write ONE short coach line (1-2 sentences, warm and direct — like a coach texting a club runner) for the overview of the runner's plan page.
+
+RACE: {race_label} — {race.get('purpose', '')} {race.get('distance', '') or ''}, target {race.get('time_target', '')} (goal pace {fitness.get('goal_pace', '--')}/km) on {race.get('race_date', '')}.
+
+CURRENT FITNESS (from recent runs): long-run pace {fitness.get('current_easy_pace', '--')}/km, quality pace {fitness.get('current_quality_pace', '--')}/km. The goal's quality reference is {fitness.get('goal_quality_pace', '--')}/km.
+
+PLAN: {ctx.get('race_phase', '')} phase, {ctx.get('days_to_race', '')} days to race.
+
+TRAJECTORY: {trajectory_status}. {trajectory_note}
+
+Write the line so it:
+- names the gap or the strength in ONE concrete number where useful ("your recent quality pace is 20s off the goal", "your long runs already sit at goal shape"),
+- says what this week's focus is (from the phase),
+- gives the runner one thing to trust.
+Do not invent numbers. Do not repeat the race date as filler. Keep it 1-2 sentences. Never write m/s.
+
+Return ONLY valid JSON:
+{{"insight": "..."}}"""
+
+    try:
+        result = await _call_ai(prompt, api_key)
+        insight = (result.get("insight") or "").strip()
+    except Exception:
+        insight = ""
+    if not insight:
+        return JSONResponse(status_code=500, content={"error": "Could not generate insight."})
+    return JSONResponse(content={"insight": insight})
+
+
 @app.post("/")
 async def workout_insight(body: WorkoutInsightRequest):
-    """Write the coach insight paragraph for one workout, on demand.
+    """Write the coach insight paragraph for one workout — or the plan
+    overview line when kind == "plan" — on demand.
 
     The full-block plan is generated without per-workout insight text so the
     payload stays light. Tapping a workout card calls this endpoint, which
@@ -100,6 +152,8 @@ async def workout_insight(body: WorkoutInsightRequest):
     and the runner's readiness analysis when one exists.
     """
     sess = _get_session(body.token)
+    if body.kind == "plan":
+        return await _plan_overview_insight(body.context or {})
     race_goal = sess.get("race_goal")
     email = sess.get("email", "")
     workout = body.workout or {}

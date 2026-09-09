@@ -26,6 +26,8 @@ async def onboarding(
     experience: str = Form(""),
     weekly_mileage: str = Form(""),
     mileage_unit: str = Form("km"),
+    fitness_race_distance: str = Form(""),
+    fitness_race_time: str = Form(""),
     gender: str = Form(""),
     age: str = Form(""),
 ):
@@ -47,6 +49,10 @@ async def onboarding(
         "experience": experience,
         "weekly_mileage": weekly_mileage,
         "mileage_unit": mileage_unit,
+        # Latest race result — the fitness anchor for training paces, used
+        # only as a fallback when Garmin history is sparse.
+        "fitness_race_distance": fitness_race_distance,
+        "fitness_race_time": fitness_race_time,
         "gender": gender,
         "age": age,
         "saved_at": datetime.now().isoformat(),
