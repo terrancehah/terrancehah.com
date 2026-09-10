@@ -59,15 +59,23 @@ async def schedule_plan(body: SchedulePlanRequest):
         try:
             workout = _build_running_workout(day.workout)
             upload_resp = client.upload_running_workout(workout)
-            workout_id = _extract_workout_id(upload_resp)
+            # garminconnect's client returns the raw requests.Response (not a
+            # parsed dict), so read the JSON body before extracting the id.
+            # Without this the id is never found and the workout gets uploaded
+            # but is never scheduled onto its date (no date in Garmin).
+            upload_data = upload_resp.json() if hasattr(upload_resp, "json") else upload_resp
+            workout_id = _extract_workout_id(upload_data)
             if not workout_id:
                 errors.append({"date": day.date, "error": "Garmin did not return a workout id."})
                 continue
             schedule_resp = client.schedule_workout(workout_id, day.date)
+            # Keep only the JSON body of the schedule response too, so the
+            # API response payload stays JSON-serializable.
+            schedule_data = schedule_resp.json() if hasattr(schedule_resp, "json") else schedule_resp
             scheduled.append({
                 "date": day.date,
                 "workout_id": workout_id,
-                "schedule": schedule_resp,
+                "schedule": schedule_data,
             })
         except Exception as e:
             errors.append({"date": day.date, "error": str(e)})

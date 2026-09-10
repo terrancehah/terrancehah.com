@@ -1261,9 +1261,9 @@ def _build_running_workout(workout: dict):
     target_pace_min_per_km, intensity. Maps the common session types into a
     structured RunningWorkout (warmup/main/cooldown, with a repeat group for
     interval work). Returns a RunningWorkout instance ready for
-    client.upload_running_workout(). Steps use distance/time end conditions;
-    pace targets are carried in the description for v1 (pace-zone targets can
-    be layered in later once the Garmin target shape is confirmed).
+    client.upload_running_workout(). Steps use distance/time end conditions
+    and carry a custom pace-zone target (m/s range) so the pace appears on
+    the watch during the run — not just as text in the description.
     """
     from garminconnect.workout import (
         RunningWorkout,
@@ -1279,14 +1279,35 @@ def _build_running_workout(workout: dict):
     wtype = (workout.get("type") or "Easy").strip().lower()
     title = workout.get("title") or "Run"
     description = workout.get("description") or ""
-    # Pace targets are carried in the workout description so they appear on the
-    # watch alongside the structured distance/time steps (pace-zone steps can
-    # be layered in once the Garmin target shape is confirmed).
+    # Target pace is carried in the description AND attached to the steps as
+    # a custom pace-zone target, so the watch enforces the pace during the
+    # run rather than only showing it as text.
     target_pace = workout.get("target_pace_min_per_km")
     if target_pace:
         description = f"{description} Target pace: {target_pace}/km." if description else f"Target pace: {target_pace}/km."
+    pace_sec = _pace_str_sec(target_pace)
+    pace_ms = (1000.0 / pace_sec) if pace_sec else None  # m/s for the Garmin target
     distance_km = _parse_float(workout.get("distance_km"))
     duration_min = _parse_float(workout.get("duration_min"))
+
+    # Attach a custom pace-zone target to a step. The values must live ON the
+    # step (targetValueOne/Two), not nested inside targetType — Garmin
+    # silently discards nested values, leaving a pace target with no range.
+    # valueOne is the faster bound (higher m/s), valueTwo the slower bound —
+    # Garmin's canonical order for running workouts. A small band around the
+    # target keeps the range honest (Garmin pace targets are ranges, not
+    # single values).
+    def with_pace(step, pace_ms, band=0.06):
+        if not pace_ms:
+            return step
+        step.targetType = {
+            "workoutTargetTypeId": 6,
+            "workoutTargetTypeKey": "pace.zone",
+            "displayOrder": 1,
+        }
+        step.targetValueOne = round(pace_ms * (1 + band), 4)  # faster bound
+        step.targetValueTwo = round(pace_ms * (1 - band), 4)  # slower bound
+        return step
 
     # Helper: distance-based main step (meters) or time-based fallback
     def main_step(order):
@@ -1297,25 +1318,28 @@ def _build_running_workout(workout: dict):
     if wtype in ("tempo", "threshold"):
         # 10' easy + a sustained main block + 5' easy
         steps = [
-            create_warmup_step(600.0, 1),
-            main_step(2),
-            create_cooldown_step(300.0, 3),
+            with_pace(create_warmup_step(600.0, 1), pace_ms * 0.92),
+            with_pace(main_step(2), pace_ms),
+            with_pace(create_cooldown_step(300.0, 3), pace_ms * 0.92),
         ]
     elif wtype in ("intervals", "speedwork", "speed", "interval", "fartlek"):
         # 10' easy + 6 x (2' hard / 2' recovery) + 5' easy
         repeat = create_repeat_group(
             6,
-            [create_interval_step(120.0, 1), create_recovery_step(120.0, 2)],
+            [
+                with_pace(create_interval_step(120.0, 1), pace_ms),
+                with_pace(create_recovery_step(120.0, 2), pace_ms * 0.85),
+            ],
             2,
         )
         steps = [
-            create_warmup_step(600.0, 1),
+            with_pace(create_warmup_step(600.0, 1), pace_ms * 0.92),
             repeat,
-            create_cooldown_step(300.0, 3),
+            with_pace(create_cooldown_step(300.0, 3), pace_ms * 0.92),
         ]
     else:
         # Easy / long run / recovery / default: single distance/time step
-        steps = [main_step(1)]
+        steps = [with_pace(main_step(1), pace_ms)]
 
     if duration_min:
         est_secs = int(duration_min * 60)

@@ -809,6 +809,15 @@ document.addEventListener('DOMContentLoaded', function () {
             // Cache profile data so the dashboard can render instantly on refresh
             localStorage.setItem('rgd_display_name', displayName || '');
             localStorage.setItem('rgd_profile_image_url', profileImageUrl);
+            // Restore the persisted race goal BEFORE seeding caches — the
+            // cache keys embed the goal fingerprint, so writing with a null
+            // raceGoal produces a key that never matches a later read and the
+            // cross-device seed is dead on arrival (every device falls back
+            // to the network).
+            if (data.has_race_goal && data.race_goal) {
+                raceGoal = data.race_goal;
+                localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            }
             // Pre-seed the AI insights and coach plan caches from the server's
             // persistent store so a new device renders instantly without
             // waiting for expensive AI calls. The background refresh will
@@ -825,9 +834,6 @@ document.addEventListener('DOMContentLoaded', function () {
             closeLoginModal();
             window.__demoMode = false;
             if (data.has_race_goal && data.race_goal) {
-                // Store the restored goal so the dashboard can use it
-                raceGoal = data.race_goal;
-                localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
                 // Show the reminder popup instead of going straight to the
                 // dashboard or onboarding — the user should consciously
                 // decide whether to keep their old goal.
@@ -4391,7 +4397,7 @@ document.addEventListener('DOMContentLoaded', function () {
         coachLoaded = false;
         coachPlanData = null;
         coachEditingDate = null;
-        coachScheduledDates.clear();
+        coachSyncedDates.clear();
         // Clear all cached session data so the next load starts fresh
         localStorage.removeItem('rgd_session_token');
         localStorage.removeItem('rgd_race_goal');
@@ -4419,8 +4425,6 @@ document.addEventListener('DOMContentLoaded', function () {
     const prefDaysEl = $('#rgd-pref-days');
     const prefIntensityEl = $('#rgd-pref-intensity');
     const prefDistanceEl = $('#rgd-pref-distance');
-    const schedulePlanBtn = $('#rgd-schedule-plan');
-    const scheduleStatusEl = $('#rgd-coach-schedule-status');
     const planRaceCardEl = $('#rgd-plan-race-card');
     const planRaceNameEl = $('#rgd-plan-race-name');
     const planRaceMetaEl = $('#rgd-plan-race-meta');
@@ -4450,7 +4454,29 @@ document.addEventListener('DOMContentLoaded', function () {
     let coachLoaded = false;    // whether the plan has been fetched this session
     let coachGenerating = false; // whether a generation is in flight (guards re-entry)
     let coachEditingDate = null; // the day currently in edit mode (or null)
-    const coachScheduledDates = new Set(); // dates already pushed to Garmin
+    // date -> workout fingerprint already synced to Garmin. Storing the
+    // fingerprint (not just the date) lets edited workouts be re-synced: a
+    // changed workout no longer matches its stored fingerprint, so it is
+    // sendable again within the sync window.
+    const coachSyncedDates = new Map();
+
+    // Compact fingerprint of a workout spec — any change to the session
+    // (type, distance, duration, pace, description) invalidates the sync.
+    function workoutFingerprint(w) {
+        if (!w) return '';
+        return [w.type, w.title, w.distance_km, w.duration_min, w.target_pace_min_per_km, w.description].join('|');
+    }
+
+    // Training phase for a given number of days left until race day — mirrors
+    // the backend's _phase_for_days_left boundaries so the week headings
+    // agree with what the AI was told.
+    function phaseForDaysLeft(daysLeft) {
+        if (daysLeft < 0) return 'Post-race';
+        if (daysLeft < 7) return 'Taper';
+        if (daysLeft <= 20) return 'Sharpen';
+        if (daysLeft <= 42) return 'Specificity';
+        return 'Build';
+    }
 
     // Plan page history pagination — how many days of past activities to
     // render before the current date. Starts at 2 weeks (14 days); the
@@ -5011,9 +5037,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         coachErrorEl.hidden = true;
-        scheduleStatusEl.hidden = true;
         coachCalendarEl.innerHTML = coachLoadingMarkup('Building your plan…');
-        schedulePlanBtn.hidden = true;
 
         // Demo mode uses local mocks — no API calls. A 3-second delay
         // (matching DEMO_CHART_LOADING_MS) lets the shimmer loading state
@@ -5224,13 +5248,62 @@ document.addEventListener('DOMContentLoaded', function () {
             weeks.push(week);
         }
 
-        coachCalendarEl.innerHTML = weeks.map(week => `
-            <div class="rgd-cal-week-block">
-                ${week.map(day => renderDayRow(day)).join('')}
-            </div>
-        `).join('');
+        // Each week block gets its own "Sync week" row, so the user pushes
+        // workouts week by week instead of all at once, plus a heading that
+        // names the week, its date range, and the training phase (derived
+        // from days left at the week start, mirroring the backend's phase
+        // boundaries) so the runner always knows where they are in the block.
+        const todayKey = localDateKey(today);
+        // Only the current week and the next one may be synced — beyond that
+        // the button is disabled, because the runner may still edit those
+        // workouts and should always be able to push the updated block.
+        const planStartDate = plan.plan_start ? parseDate(plan.plan_start + 'T00:00:00') : new Date(today);
+        const planStartMonday = new Date(planStartDate);
+        planStartMonday.setDate(planStartDate.getDate() - ((planStartDate.getDay() + 6) % 7));
+        const raceDateObj = plan.race_date ? parseDate(plan.race_date + 'T00:00:00') : null;
+        const dayMs = 86400000;
+
+        coachCalendarEl.innerHTML = weeks.map(week => {
+            const weekStartDate = parseDate(week[0].date + 'T00:00:00');
+            const weekOffset = Math.round((weekStartDate - planStartMonday) / dayMs / 7);
+            const inSyncWindow = weekOffset === 0 || weekOffset === 1;
+            const weekNumber = weekOffset + 1;
+            const weekLabel = weekNumber >= 1 ? `Week ${weekNumber}` : 'History';
+            const weekEndDate = new Date(weekStartDate);
+            weekEndDate.setDate(weekStartDate.getDate() + 6);
+            const rangeLabel = `${weekStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+            const daysLeft = raceDateObj ? Math.round((raceDateObj - weekStartDate) / dayMs) : null;
+            const phaseLabel = daysLeft != null ? phaseForDaysLeft(daysLeft) : null;
+            // Sendable: today/future, non-rest, with a workout, and not
+            // already synced with the current content (edits change the
+            // fingerprint, so an updated workout is sendable again).
+            const sendable = week.filter(day =>
+                day.date >= todayKey && day.plan && !day.plan.is_rest
+                && day.plan.workout
+                && coachSyncedDates.get(day.date) !== workoutFingerprint(day.plan.workout));
+            // Only the two in-window weeks get a button, and only when there
+            // is something to sync — weeks beyond the sync window show no
+            // button at all (a disabled one would just confuse the runner).
+            const showButton = inSyncWindow && sendable.length > 0;
+            return `
+                <div class="rgd-cal-week-block">
+                    <div class="rgd-cal-week-head">
+                        <span class="rgd-cal-week-title">${weekLabel}</span>
+                        ${phaseLabel ? `<span class="rgd-cal-week-phase">${phaseLabel}</span>` : ''}
+                        <span class="rgd-cal-week-range">${rangeLabel}</span>
+                    </div>
+                    ${week.map(day => renderDayRow(day)).join('')}
+                    ${showButton ? `
+                    <div class="rgd-cal-week-send">
+                        <button type="button" class="rgd-btn rgd-btn-primary rgd-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
+                            Sync
+                        </button>
+                        <span class="rgd-coach-schedule-status" hidden></span>
+                    </div>` : ''}
+                </div>
+            `;
+        }).join('');
         renderPlanRaceCard(plan);
-        schedulePlanBtn.hidden = false;
 
         // Show the "Show more" button only if there's older history beyond
         // the currently rendered past window. Determines the oldest history
@@ -5481,7 +5554,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderPlanCard(d) {
-        const scheduled = coachScheduledDates.has(d.date);
+        // "Synced" only when the exact current workout content has been
+        // pushed to Garmin — an edit invalidates the fingerprint, so the
+        // badge drops off until the updated session is synced again.
+        const synced = d.workout && coachSyncedDates.get(d.date) === workoutFingerprint(d.workout);
         const editing = coachEditingDate === d.date;
 
         if (d.is_rest || !d.workout) {
@@ -5501,7 +5577,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="rgd-cal-card rgd-cal-card--editing">
                     <div class="rgd-cal-card-top">
                         <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
-                        ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
+                        ${synced ? '<span class="rgd-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
                     <div class="rgd-plan-controls">
                         <label class="rgd-plan-control">
@@ -5530,7 +5606,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         return `
-            <div class="rgd-cal-card rgd-cal-card--suggested ${scheduled ? 'rgd-cal-card--scheduled' : ''}" draggable="true" data-action="view" data-date="${d.date}">
+            <div class="rgd-cal-card rgd-cal-card--suggested ${synced ? 'rgd-cal-card--scheduled' : ''}" draggable="true" data-action="view" data-date="${d.date}">
                 <span class="rgd-drag-handle" title="Drag to rearrange" aria-hidden="true">
                     <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
                 </span>
@@ -5541,7 +5617,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                     <div class="rgd-cal-card-row">
                         <span class="rgd-cal-card-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
-                        ${scheduled ? '<span class="rgd-plan-scheduled-badge">Scheduled</span>' : ''}
+                        ${synced ? '<span class="rgd-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
                 </div>
             </div>
@@ -5880,38 +5956,47 @@ document.addEventListener('DOMContentLoaded', function () {
         generateCoachPlan(prefs, true);
     });
 
-    schedulePlanBtn.addEventListener('click', schedulePlan);
+    // Weekly Garmin send — a button under each week block pushes that
+    // week's unscheduled workouts. Delegated on the calendar element since
+    // the calendar re-renders after every send.
+    coachCalendarEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.rgd-cal-week-send-btn');
+        if (btn) scheduleWeek(btn.dataset.weekStart, btn);
+    });
 
-    async function schedulePlan() {
+    async function scheduleWeek(weekStart, btn) {
         if (!coachPlanData || !coachPlanData.plan) return;
-        // Send only the near-term window — a full-season plan can be 20+
-        // weeks long, and the Garmin Training API sync is week-sized by
-        // design (per product scope).
         const todayKey = localDateKey(new Date());
-        const horizon = new Date();
-        horizon.setDate(horizon.getDate() + 13); // upcoming 14 days
-        const horizonKey = localDateKey(horizon);
+        const weekStartDate = parseDate(weekStart + 'T00:00:00');
+        const weekEndDate = new Date(weekStartDate);
+        weekEndDate.setDate(weekEndDate.getDate() + 6);
+        const weekEnd = localDateKey(weekEndDate);
         const days = coachPlanData.plan.days
-            .filter(d => !d.is_rest && d.workout && !coachScheduledDates.has(d.date)
-                && d.date >= todayKey && d.date <= horizonKey)
+            .filter(d => !d.is_rest && d.workout
+                && coachSyncedDates.get(d.date) !== workoutFingerprint(d.workout)
+                && d.date >= todayKey && d.date >= weekStart && d.date <= weekEnd)
             .map(d => ({ date: d.date, workout: d.workout }));
+        // Map the sent workouts by date so the synced fingerprints can be
+        // recorded from the API response.
+        const workoutByDate = {};
+        days.forEach(d => { workoutByDate[d.date] = d.workout; });
+        const statusEl = btn.nextElementSibling;
 
         if (!days.length) {
-            scheduleStatusEl.textContent = 'No unscheduled workouts to send.';
-            scheduleStatusEl.hidden = false;
+            statusEl.textContent = 'Nothing to send for this week.';
+            statusEl.hidden = false;
             return;
         }
 
-        schedulePlanBtn.disabled = true;
-        scheduleStatusEl.hidden = false;
-        scheduleStatusEl.textContent = 'Sending workouts to Garmin…';
+        btn.disabled = true;
+        statusEl.hidden = false;
+        statusEl.textContent = 'Sending week to Garmin…';
 
         // Demo mode: simulate success without touching Garmin
         if (window.__demoMode) {
-            days.forEach(d => coachScheduledDates.add(d.date));
-            scheduleStatusEl.textContent = `Sent ${days.length} workouts (demo — nothing written to Garmin).`;
-            schedulePlanBtn.disabled = false;
-            schedulePlanBtn.hidden = true;
+            days.forEach(d => coachSyncedDates.set(d.date, workoutFingerprint(d.workout)));
+            statusEl.textContent = `Sent ${days.length} workouts (demo — nothing written to Garmin).`;
+            btn.hidden = true;
             renderCoachCalendar(coachPlanData);
             return;
         }
@@ -5920,21 +6005,25 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('POST', 'schedule-plan', { days });
             const data = await resp.json();
             if (!resp.ok) {
-                scheduleStatusEl.textContent = data.error || 'Failed to schedule workouts.';
+                statusEl.textContent = data.error || 'Failed to schedule workouts.';
             } else {
-                (data.scheduled || []).forEach(s => coachScheduledDates.add(s.date));
+                (data.scheduled || []).forEach(s => {
+                    if (workoutByDate[s.date]) {
+                        coachSyncedDates.set(s.date, workoutFingerprint(workoutByDate[s.date]));
+                    }
+                });
                 const scheduledCount = (data.scheduled || []).length;
                 const errorCount = (data.errors || []).length;
-                scheduleStatusEl.textContent = errorCount
+                statusEl.textContent = errorCount
                     ? `Sent ${scheduledCount} workouts; ${errorCount} failed.`
                     : `Sent ${scheduledCount} workouts to Garmin.`;
-                if (!errorCount) schedulePlanBtn.hidden = true;
+                if (!errorCount) btn.hidden = true;
                 renderCoachCalendar(coachPlanData);
             }
         } catch (err) {
-            scheduleStatusEl.textContent = 'Network error.';
+            statusEl.textContent = 'Network error.';
         } finally {
-            schedulePlanBtn.disabled = false;
+            btn.disabled = false;
         }
     }
 

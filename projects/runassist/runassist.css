@@ -1468,8 +1468,10 @@ header.rgd-header-offset.rgd-header-collapsed {
     align-items: center;
     gap: var(--rgd-space-md);
     text-align: center;
-    padding: clamp(1.5rem, 3vw, 2.5rem) 1rem;
-    margin-top: clamp(1rem, 2vw, 2rem);
+    /* Compact spacing so the banner doesn't add a big empty band below the
+       page content (visible during loading states) */
+    padding: clamp(1rem, 2vw, 1.5rem) 1rem;
+    margin-top: clamp(0.75rem, 1.5vw, 1rem);
     border-top: 0.0625rem solid var(--rgd-border);
 }
 
@@ -3834,7 +3836,9 @@ header.rgd-header-offset.rgd-header-collapsed {
     font-family: 'Raleway', sans-serif;
     font-size: var(--rgd-text-subheading);
     color: var(--rgd-muted);
-    padding: 2rem 1rem;
+    /* Tight padding so the loading box hugs the aura + status line instead
+       of leaving a large empty band above and below it */
+    padding: 1.25rem 1rem;
     background: var(--rgd-surface);
     border: 0.0625rem dashed var(--rgd-border);
     border-radius: var(--rgd-radius);
@@ -4888,6 +4892,69 @@ header.rgd-header-offset.rgd-header-collapsed {
     border-bottom: none;
     margin-bottom: 0;
     padding-bottom: 0;
+}
+
+/* Week heading — names the block (Week 1, …), the training phase chip, and
+   the Monday–Sunday date range, so the runner always knows where they are
+   in the block without reading individual day rows. */
+.rgd-cal-week-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.6rem;
+    padding: 0.7rem 0.1rem 0.4rem;
+}
+
+.rgd-cal-week-title {
+    font-family: 'Lato', sans-serif;
+    font-weight: 700;
+    font-size: var(--rgd-text-body);
+    color: var(--rgd-navy);
+}
+
+.rgd-cal-week-phase {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    font-weight: 600;
+    color: var(--rgd-blue);
+    background: color-mix(in srgb, var(--rgd-blue) 12%, transparent);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+}
+
+.rgd-cal-week-range {
+    margin-left: auto;
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-muted);
+}
+
+/* Per-week Garmin send row — sits under each week block. Uses the primary
+   (navy) action treatment so it reads as an action, not as another passive
+   card surface, and is kept compact so the label stays short. The row
+   disappears once every day in the week is synced or in the past; weeks
+   beyond the two-week sync window keep a disabled button. */
+.rgd-cal-week-send {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0 0.25rem;
+}
+
+.rgd-cal-week-send-btn {
+    /* .rgd-btn defaults to width:100% — override so the button hugs its
+       short label instead of stretching across the whole week block. */
+    width: auto;
+    padding: 0.4rem 0.8rem;
+    font-size: var(--rgd-text-label);
+    border-radius: var(--rgd-radius-sm);
+}
+
+.rgd-cal-week-send .rgd-coach-schedule-status {
+    padding: 0.3rem 0.6rem;
+    font-size: var(--rgd-text-caption);
 }
 
 /* Date value — day number and month share one line */
