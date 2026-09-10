@@ -4017,7 +4017,12 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 .rgd-plan-fitness-toggle-summary {
-    flex: 1;
+    flex: 1 1 auto;
+    /* Flex text children default to min-width:auto (content width), which
+       forces horizontal overflow instead of wrapping — allow it to shrink
+       and wrap long tokens gracefully. */
+    min-width: 0;
+    overflow-wrap: anywhere;
     color: var(--rgd-muted);
     font-size: var(--rgd-text-label);
     text-align: right;
@@ -4109,7 +4114,10 @@ header.rgd-header-offset.rgd-header-collapsed {
 }
 
 .rgd-plan-fitness-run-name {
-    flex: 1;
+    flex: 1 1 auto;
+    /* min-width:0 lets the ellipsis actually engage — without it the flex
+       item refuses to shrink below its content and the row overflows. */
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -4134,6 +4142,43 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-plan-fitness-run:focus-visible .rgd-plan-fitness-run-arrow {
     transform: translateX(0.15rem);
     color: var(--rgd-blue);
+}
+
+/* ---- Training paces drawer: phone layout ---- */
+/* On narrow screens the single-row toggle and run rows wrap into a messy
+   right-aligned tangle. Stack them: toggle label + chevron on one line
+   with the summary on its own line below; run rows get name + arrow on
+   line 1 and date·pace on line 2. */
+@media (max-width: 30rem) {
+    .rgd-plan-fitness-toggle {
+        flex-wrap: wrap;
+        row-gap: 0.2rem;
+    }
+    .rgd-plan-fitness-toggle-label {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .rgd-plan-fitness-toggle-summary {
+        flex: 1 1 100%;
+        order: 3;
+        text-align: left;
+        font-size: var(--rgd-text-label);
+    }
+    .rgd-plan-fitness-run {
+        flex-wrap: wrap;
+        row-gap: 0.15rem;
+    }
+    .rgd-plan-fitness-run-name {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    .rgd-plan-fitness-run-meta {
+        flex: 1 1 100%;
+        font-size: var(--rgd-text-caption);
+    }
+    .rgd-plan-fitness-run-arrow {
+        align-self: center;
+    }
 }
 
 /* Flash highlight on the activities page when arriving from the drawer */

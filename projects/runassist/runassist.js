@@ -310,9 +310,14 @@ document.addEventListener('DOMContentLoaded', function () {
         $$('.rgd-page').forEach(p => p.hidden = true);
         const target = document.getElementById(`rgd-page-${page}`);
         if (target) target.hidden = false;
-        // Scroll to top of content
+        // Scroll to the top of the new page. The window is the actual scroll
+        // container (.rgd-content has overflow:clip — the page scrolls
+        // naturally), so setting content.scrollTop alone does nothing and the
+        // previous page's scroll position would carry over. Reset both so
+        // every page opens at the top.
         const content = $('#rgd-content');
         if (content) content.scrollTop = 0;
+        window.scrollTo(0, 0);
         // Position the sliding indicators behind the now-active items
         positionIndicators();
     }
@@ -5115,7 +5120,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const plan = meta ? { ...meta, days: Object.keys(daysByDate).sort().map(k => daysByDate[k]), zones_by_date: zonesByDate } : {};
                 complete = !!(meta && meta.total_plan_days && Object.keys(daysByDate).length >= meta.total_plan_days);
                 coachPlanData = { history: history || [], plan };
-                renderCoachCalendar(coachPlanData, i === 0);
+                renderCoachCalendar(coachPlanData);
                 // Stop early when the block is already complete (e.g. the
                 // server returned the full cached plan on the first call).
                 if (complete) {
@@ -5134,15 +5139,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Open the plan page — resets the past history window to 2 weeks and
-    // always leads to the current date. Called every time the user
-    // navigates to the Plan tab. If the plan is already loaded, we just
-    // re-render from the cached data (no refetch); otherwise we kick off
-    // the initial generation, which renders + scrolls to today on done.
+    // Open the plan page — resets the past history window to 2 weeks.
+    // Called every time the user navigates to the Plan tab. If the plan is
+    // already loaded, we just re-render from the cached data (no refetch);
+    // otherwise we kick off the initial generation. The page opens at the
+    // top (navigateTo resets the window scroll), led by the race card.
     function openPlanPage() {
         planPastDays = 14;
         if (coachLoaded && coachPlanData) {
-            renderCoachCalendar(coachPlanData, true);
+            renderCoachCalendar(coachPlanData);
         } else {
             generateCoachPlan(coachPrefs, false);
         }
@@ -5158,7 +5163,7 @@ document.addEventListener('DOMContentLoaded', function () {
             planShowMoreBtn.textContent = 'Loading…';
             planShowMoreBtn.disabled = true;
             planPastDays += 14;
-            renderCoachCalendar(coachPlanData, false);
+            renderCoachCalendar(coachPlanData);
             // Scroll the calendar top into view so the older weeks appear
             requestAnimationFrame(() => {
                 const firstRow = coachCalendarEl.querySelector('.rgd-cal-row');
@@ -5167,7 +5172,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function renderCoachCalendar(data, scrollToToday = true) {
+    function renderCoachCalendar(data) {
         if (!coachCalendarEl) return;
         const history = data.history || [];
         const plan = data.plan || {};
@@ -5240,17 +5245,6 @@ document.addEventListener('DOMContentLoaded', function () {
             planShowMoreBtn.hidden = !hasOlder;
             planShowMoreBtn.textContent = 'Show more';
             planShowMoreBtn.disabled = false;
-        }
-
-        // Lead to the current date — scroll today's row into the centre of
-        // the viewport so the plan always opens on today, not the top.
-        // Skipped when loading more history (the user is browsing older
-        // weeks and expects to stay near the newly added content).
-        if (scrollToToday) {
-            requestAnimationFrame(() => {
-                const todayRow = coachCalendarEl.querySelector('.rgd-cal-row--today');
-                if (todayRow) todayRow.scrollIntoView({ behavior: 'auto', block: 'center' });
-            });
         }
     }
 
