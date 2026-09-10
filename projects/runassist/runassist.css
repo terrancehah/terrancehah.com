@@ -1740,6 +1740,15 @@ header.rgd-header-offset.rgd-header-collapsed {
     align-items: stretch;
 }
 
+/* Grid tracks default to minmax(auto, 1fr) — a column cannot shrink below
+   its content's minimum width, so a wide radar square would inflate its
+   track past 50% and squeeze the goal card. min-width:0 lets both columns
+   hold their true 50/50 split (each = 50% of the content width, i.e. the
+   viewport minus the sidebar). */
+.rgd-readiness-row > * {
+    min-width: 0;
+}
+
 /* Shared card styling for both goal specifics and radar — standardized container */
 .rgd-readiness-card {
     background: var(--rgd-surface);
@@ -1938,16 +1947,27 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
 }
 
-/* Radar canvas wrapper — constrained height to match goal specifics panel */
+/* Radar canvas wrapper — the radar plot is square (Chart.js sizes the
+   hexagon by the smaller canvas dimension), so the wrap is square too.
+   Previously flex:1 stretched it tall to match the goal-specifics card,
+   leaving dead vertical space above and below the hexagon on wide-but-
+   short screens (e.g. tablet landscape). The readiness page pins a fixed
+   height instead (--full), which overrides the ratio since both
+   dimensions are then definite. */
 .rgd-radar-wrap {
     width: 100%;
-    flex: 1;
+    /* The radar plot is square — keep the wrap square at every width. A
+       min-height here would override the aspect ratio on narrow columns
+       (column < 22rem), making the wrap taller than wide and leaving the
+       hexagon with dead space above and below it. */
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    /* Center the square in the card's leftover space so the two cards'
+       backgrounds still read as balanced */
+    margin: auto 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 0; /* allow flex child to shrink */
-    /* Minimum height ensures the radar is readable even in the side-by-side layout */
-    min-height: 22rem;
     position: relative; /* anchor for radar skeleton overlay */
 }
 
