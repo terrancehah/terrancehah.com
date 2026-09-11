@@ -1784,15 +1784,17 @@ header.rgd-header-offset.rgd-header-collapsed {
     background: var(--rgd-blue);
     border: none;
     border-radius: var(--rgd-radius-sm);
-    padding: clamp(0.5rem, 2vw, 1.5rem);
+    padding: clamp(0.75rem, 2.5vw, 2rem);
     box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.25);
 }
 
 .rgd-countdown-value {
     font-family: 'Lato', sans-serif;
     font-weight: 900;
-    /* Bigger — display size for strong visual impact */
-    font-size: var(--rgd-text-display);
+    /* Bigger — display size for strong visual impact. Scales with the
+       viewport so it grows on both phone and laptop widths while staying
+       within the countdown card. */
+    font-size: clamp(2.15rem, 4.2vw, 2.6rem);
     /* Use the button primary text token so the countdown text flips to
        dark in dark mode (where --rgd-blue lightens to #6ba3d0 and white
        text would fail contrast at ~2.8:1). Matches the primary button
@@ -1803,7 +1805,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-countdown-label {
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-caption);
+    font-size: var(--rgd-text-label);
     color: rgba(255, 255, 255, 0.85);
     text-transform: lowercase;
     font-weight: 500;
@@ -2469,6 +2471,31 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-text);
     margin: 0;
 }
+
+/* CTA under the overall insight — leads to the full race-readiness chart.
+   Sized to content (not full-width) so it reads as an inline action. */
+.rgd-overall-insight-cta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: 'Raleway', sans-serif;
+    font-weight: 600;
+    font-size: var(--rgd-text-label);
+    color: var(--rgd-btn-primary-text);
+    background: var(--rgd-navy);
+    border-radius: var(--rgd-radius-sm);
+    padding: 0.55rem 1rem;
+    text-decoration: none;
+    transition: background var(--rgd-transition), transform var(--rgd-transition);
+}
+.rgd-overall-insight-cta:hover { background: var(--rgd-btn-primary-hover); }
+.rgd-overall-insight-cta:active { transform: translateY(0.0625rem); }
+.rgd-overall-insight-cta:focus-visible {
+    outline: 0.125rem solid var(--rgd-blue);
+    outline-offset: 0.125rem;
+}
+.rgd-overall-insight-cta svg { width: 0.9rem; height: 0.9rem; }
 
 /* Skeleton loading state for the overall insight — mirrors the real
    card layout (header, summary, takeaways, focus) with animated

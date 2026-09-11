@@ -3848,6 +3848,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="rgd-overall-insight-focus-label">What to focus on next</span>
                 <p class="rgd-overall-insight-focus-text">${escapeHtml(data.focus)}</p>
             </div>
+            <!-- CTA — takes the runner to the full race-readiness chart page -->
+            <a class="rgd-overall-insight-cta" href="#readiness">
+                See race readiness
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            </a>
         `;
     }
 
