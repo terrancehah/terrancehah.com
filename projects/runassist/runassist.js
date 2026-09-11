@@ -254,6 +254,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleTheme() {
         const current = document.documentElement.getAttribute('data-theme') || 'light';
         applyTheme(current === 'light' ? 'dark' : 'light');
+        // Re-resolve metric zone colours from the new theme's tokens so
+        // popups opened after the toggle use the correct palette.
+        resolveMetricZoneColors();
         // Re-render charts so label/grid colors adapt to the new theme
         if (!dashboardScreen.hidden) {
             if (lastRadarData) {
@@ -796,7 +799,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (!resp.ok) {
                 let msg = data.error || 'Authentication failed.';
-                if (data.detail) msg += ' ' + data.detail;
+                if (typeof data.detail === 'string') msg += ' ' + data.detail;
                 if (resp.status === 429) msg = 'Too many login attempts. Garmin temporarily blocked the request. Please wait 10–15 minutes and try again.';
                 authError.textContent = msg;
                 authError.hidden = false;
@@ -843,7 +846,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 showScreen(onboardScreen);
             }
         } catch (err) {
-            authError.textContent = 'Could not reach the server. Check that both servers are running (bash start-dev.sh).';
+            // User-facing copy stays plain — the dev hint (which local server
+            // to start) is logged to the console instead of shown to visitors.
+            authError.textContent = 'Could not reach Garmin. Please try again in a moment.';
+            console.warn('Login request failed. Is the local server running? (bash start-dev.sh)', err);
             authError.hidden = false;
         } finally { setButtonLoading(loginBtn, false); }
     });
@@ -1313,10 +1319,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // These fallback zones are used when age/gender are unavailable.
             min: 20, max: 80, unit: 'ml/kg/min',
             zones: [
-                { label: 'Poor', max: 35, color: '#e07070' },
-                { label: 'Fair', max: 45, color: '#e0b840' },
-                { label: 'Good', max: 55, color: '#6ba3d0' },
-                { label: 'Excellent', max: 80, color: '#5fae74' },
+                { label: 'Poor', max: 35, color: '--rgd-accent-red' },
+                { label: 'Fair', max: 45, color: '--rgd-accent-amber' },
+                { label: 'Good', max: 55, color: '--rgd-blue' },
+                { label: 'Excellent', max: 80, color: '--rgd-accent-green' },
             ],
             explanation: 'VO₂max measures the maximum volume of oxygen your body can utilize during intense exercise. Higher values indicate better aerobic capacity. Garmin classifies VO₂max using age and gender-specific tables from The Cooper Institute.',
         },
@@ -1324,11 +1330,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Poor 1-24, Low 25-49, Moderate 50-74, High 75-94, Prime 95-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Poor', max: 24, color: '#e07070' },
-                { label: 'Low', max: 49, color: '#e0b840' },
-                { label: 'Moderate', max: 74, color: '#6ba3d0' },
-                { label: 'High', max: 94, color: '#5fae74' },
-                { label: 'Prime', max: 100, color: '#9b6dd0' },
+                { label: 'Poor', max: 24, color: '--rgd-accent-red' },
+                { label: 'Low', max: 49, color: '--rgd-accent-amber' },
+                { label: 'Moderate', max: 74, color: '--rgd-blue' },
+                { label: 'High', max: 94, color: '--rgd-accent-green' },
+                { label: 'Prime', max: 100, color: '--rgd-accent-purple' },
             ],
             explanation: 'Training Readiness Score combines sleep, recovery, stress, and training load to indicate how prepared your body is for a workout. Garmin uses 5 tiers: Poor (1-24), Low (25-49), Moderate (50-74), High (75-94), and Prime (95-100).',
         },
@@ -1336,10 +1342,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Poor 0-59, Fair 60-79, Good 80-89, Excellent 90-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Poor', max: 59, color: '#e07070' },
-                { label: 'Fair', max: 79, color: '#e0b840' },
-                { label: 'Good', max: 89, color: '#6ba3d0' },
-                { label: 'Excellent', max: 100, color: '#5fae74' },
+                { label: 'Poor', max: 59, color: '--rgd-accent-red' },
+                { label: 'Fair', max: 79, color: '--rgd-accent-amber' },
+                { label: 'Good', max: 89, color: '--rgd-blue' },
+                { label: 'Excellent', max: 100, color: '--rgd-accent-green' },
             ],
             explanation: 'Sleep Score evaluates the quality and duration of your sleep based on movement, heart rate, and stress data. Garmin classifies sleep as Poor (0-59), Fair (60-79), Good (80-89), or Excellent (90-100).',
         },
@@ -1347,10 +1353,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Low 0-25, Medium 26-50, High 51-75, Very High 76-100
             min: 0, max: 100, unit: '%',
             zones: [
-                { label: 'Low', max: 25, color: '#e07070' },
-                { label: 'Medium', max: 50, color: '#e0b840' },
-                { label: 'High', max: 75, color: '#6ba3d0' },
-                { label: 'Very High', max: 100, color: '#5fae74' },
+                { label: 'Low', max: 25, color: '--rgd-accent-red' },
+                { label: 'Medium', max: 50, color: '--rgd-accent-amber' },
+                { label: 'High', max: 75, color: '--rgd-blue' },
+                { label: 'Very High', max: 100, color: '--rgd-accent-green' },
             ],
             explanation: 'Body Battery estimates your available energy reserves throughout the day, draining with activity and stress, and recharging during sleep and rest. Garmin classifies levels as Low (0-25), Medium (26-50), High (51-75), and Very High (76-100).',
         },
@@ -1361,27 +1367,27 @@ document.addEventListener('DOMContentLoaded', function () {
             // Color-coding on the card uses the Garmin status field, not these zones.
             min: 0, max: 100, unit: 'ms',
             zones: [
-                { label: 'Low', max: 20, color: '#e07070' },
-                { label: 'Fair', max: 35, color: '#e0b840' },
-                { label: 'Good', max: 50, color: '#6ba3d0' },
-                { label: 'Excellent', max: 100, color: '#5fae74' },
+                { label: 'Low', max: 20, color: '--rgd-accent-red' },
+                { label: 'Fair', max: 35, color: '--rgd-accent-amber' },
+                { label: 'Good', max: 50, color: '--rgd-blue' },
+                { label: 'Excellent', max: 100, color: '--rgd-accent-green' },
             ],
             // Garmin HRV status colors — used for card color-coding instead of zones
             statusColors: {
-                'BALANCED': '#5fae74',
-                'UNBALANCED': '#e0b840',
-                'LOW': '#e07070',
-                'POOR': '#999999',
+                'BALANCED': '--rgd-accent-green',
+                'UNBALANCED': '--rgd-accent-amber',
+                'LOW': '--rgd-accent-red',
+                'POOR': '--rgd-accent-grey',
             },
             explanation: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. Garmin uses a personal baseline to classify HRV status as Balanced, Unbalanced, Low, or Poor rather than absolute ranges, since HRV varies widely by individual.',
         },
         'Resting HR': {
             min: 30, max: 90, unit: 'bpm',
             zones: [
-                { label: 'High', max: 50, color: '#5fae74' },
-                { label: 'Good', max: 60, color: '#6ba3d0' },
-                { label: 'Fair', max: 70, color: '#e0b840' },
-                { label: 'Elevated', max: 90, color: '#e07070' },
+                { label: 'High', max: 50, color: '--rgd-accent-green' },
+                { label: 'Good', max: 60, color: '--rgd-blue' },
+                { label: 'Fair', max: 70, color: '--rgd-accent-amber' },
+                { label: 'Elevated', max: 90, color: '--rgd-accent-red' },
             ],
             explanation: 'Resting Heart Rate is your heart rate when fully at rest. Lower values generally indicate better cardiovascular fitness. A sudden increase may signal insufficient recovery or illness.',
         },
@@ -1389,30 +1395,30 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Rest 0-25, Low 26-50, Medium 51-75, High 76-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Rest', max: 25, color: '#5fae74' },
-                { label: 'Low', max: 50, color: '#6ba3d0' },
-                { label: 'Medium', max: 75, color: '#e0b840' },
-                { label: 'High', max: 100, color: '#e07070' },
+                { label: 'Rest', max: 25, color: '--rgd-accent-green' },
+                { label: 'Low', max: 50, color: '--rgd-blue' },
+                { label: 'Medium', max: 75, color: '--rgd-accent-amber' },
+                { label: 'High', max: 100, color: '--rgd-accent-red' },
             ],
             explanation: 'Stress Level is derived from HRV, heart rate, and other body signals. Garmin classifies stress as Rest (0-25), Low (26-50), Medium (51-75), and High (76-100). Lower stress levels are better for recovery.',
         },
         'Recovery': {
             min: 0, max: 72, unit: 'hrs',
             zones: [
-                { label: 'Ready', max: 6, color: '#5fae74' },
-                { label: 'Short', max: 18, color: '#6ba3d0' },
-                { label: 'Moderate', max: 36, color: '#e0b840' },
-                { label: 'Long', max: 72, color: '#e07070' },
+                { label: 'Ready', max: 6, color: '--rgd-accent-green' },
+                { label: 'Short', max: 18, color: '--rgd-blue' },
+                { label: 'Moderate', max: 36, color: '--rgd-accent-amber' },
+                { label: 'Long', max: 72, color: '--rgd-accent-red' },
             ],
             explanation: 'Recovery Time estimates how long your body needs to fully recover from recent training before the next hard effort. Shorter times indicate you are ready for more training; longer times suggest you need more rest.',
         },
         'Fitness Age': {
             min: 15, max: 80, unit: 'years',
             zones: [
-                { label: 'Young', max: 30, color: '#5fae74' },
-                { label: 'Good', max: 40, color: '#6ba3d0' },
-                { label: 'Average', max: 50, color: '#e0b840' },
-                { label: 'Older', max: 80, color: '#e07070' },
+                { label: 'Young', max: 30, color: '--rgd-accent-green' },
+                { label: 'Good', max: 40, color: '--rgd-blue' },
+                { label: 'Average', max: 50, color: '--rgd-accent-amber' },
+                { label: 'Older', max: 80, color: '--rgd-accent-red' },
             ],
             explanation: 'Fitness Age estimates your biological age based on fitness metrics like VO₂max and resting heart rate. A fitness age lower than your chronological age indicates above-average fitness for your age group.',
         },
@@ -1463,14 +1469,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const table = tables[gender] && tables[gender][ageBand];
         if (!table) return METRIC_META['VO₂max'].zones;
 
-        // Build zones array — Poor < Fair < Good < Excellent < Superior
-        return [
-            { label: 'Poor', max: table.Fair, color: '#e07070' },
-            { label: 'Fair', max: table.Good, color: '#e0b840' },
-            { label: 'Good', max: table.Excellent, color: '#6ba3d0' },
-            { label: 'Excellent', max: table.Superior, color: '#5fae74' },
-            { label: 'Superior', max: 100, color: '#9b6dd0' },
+        // Build zones array — Poor < Fair < Good < Excellent < Superior.
+        // Zone colours are CSS token names resolved against the active theme
+        // (same source as the METRIC_META fallback zones).
+        const zones = [
+            { label: 'Poor', max: table.Fair, color: '--rgd-accent-red' },
+            { label: 'Fair', max: table.Good, color: '--rgd-accent-amber' },
+            { label: 'Good', max: table.Excellent, color: '--rgd-blue' },
+            { label: 'Excellent', max: table.Superior, color: '--rgd-accent-green' },
+            { label: 'Superior', max: 100, color: '--rgd-accent-purple' },
         ];
+        return zones.map(z => ({ ...z, color: cssVar(z.color, METRIC_ZONE_FALLBACKS[z.color] || z.color) }));
     }
 
     // Get the zone color for a metric value — used to color-code the
@@ -2346,6 +2355,38 @@ document.addEventListener('DOMContentLoaded', function () {
         'Walk': cssVar('--rgd-run-cross-train', '#8a8a8a'),
         'Ruck': cssVar('--rgd-run-cross-train', '#8a8a8a'),
     };
+
+    // Metric zone colours — METRIC_META defines zones with CSS token names
+    // (--rgd-accent-*) instead of hex so the gauges and card value colours
+    // follow the active theme, same as RUN_TAG_COLOR and the radar chart.
+    // Fallbacks are the light-theme hex values; resolveMetricZoneColors()
+    // patches the zone colours in place and is re-run on theme toggle.
+    const METRIC_ZONE_FALLBACKS = {
+        '--rgd-accent-red': '#c44b4b',
+        '--rgd-accent-amber': '#d4a017',
+        '--rgd-accent-green': '#3f7b4f',
+        '--rgd-accent-purple': '#9b6dd0',
+        '--rgd-accent-grey': '#999999',
+        '--rgd-blue': '#457b9d',
+    };
+    const resolveMetricZoneColors = () => {
+        Object.values(METRIC_META).forEach(meta => {
+            (meta.zones || []).forEach(zone => {
+                if (typeof zone.color === 'string' && zone.color.startsWith('--')) {
+                    zone.color = cssVar(zone.color, METRIC_ZONE_FALLBACKS[zone.color] || zone.color);
+                }
+            });
+            if (meta.statusColors) {
+                Object.keys(meta.statusColors).forEach(key => {
+                    const color = meta.statusColors[key];
+                    if (typeof color === 'string' && color.startsWith('--')) {
+                        meta.statusColors[key] = cssVar(color, METRIC_ZONE_FALLBACKS[color] || color);
+                    }
+                });
+            }
+        });
+    };
+    resolveMetricZoneColors();
 
     function buildActivityItem(a, i) {
         const date = a.start_time ? parseDate(a.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '--';
@@ -3249,8 +3290,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (!resp.ok) {
                 showRadarSkeleton(false);
+                // Show the coach-language fallback, not the raw server error
+                // (which can contain implementation details like API keys).
+                console.warn('Insights request failed:', data.error || resp.status);
                 summaryErrors.forEach(el => {
-                    el.textContent = data.error || 'Failed to load insights.';
+                    el.textContent = 'Failed to load insights.';
                     el.hidden = false;
                 });
                 pillarsContents.forEach(el => el.hidden = true);
@@ -3271,7 +3315,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (err) {
             showRadarSkeleton(false);
             summaryErrors.forEach(el => {
-                el.textContent = 'Network error.';
+                el.textContent = 'Network error. Please try again.';
                 el.hidden = false;
             });
             pillarsContents.forEach(el => el.hidden = true);
@@ -5026,7 +5070,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function generateCoachPlan(prefs, force) {
-        // Auto-load is guarded; an explicit Save & Generate always regenerates.
+        // Auto-load is guarded; an explicit Save & Rebuild always regenerates.
         if ((coachLoaded || coachGenerating) && !force) return;
         if (prefs) {
             coachPrefs = {
@@ -5083,7 +5127,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 const resp = await apiCall('POST', 'coach-plan', body);
                 const data = await resp.json();
                 if (!resp.ok) {
-                    coachErrorEl.textContent = data.error || 'Failed to generate plan.';
+                    // Coach-language error — log the raw server message instead
+                    // of surfacing implementation details to the runner.
+                    console.warn('Coach plan request failed:', data.error || resp.status);
+                    coachErrorEl.textContent = 'Failed to build your plan.';
                     coachErrorEl.hidden = false;
                     coachCalendarEl.innerHTML = '';
                     return;
@@ -5125,7 +5172,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (force) body.force = '1';
                     const resp = await apiCall('POST', 'coach-plan', body);
                     const data = await resp.json();
-                    if (!resp.ok) throw new Error(data.error || 'Failed to generate plan.');
+                    if (!resp.ok) throw new Error('Failed to build your plan.');
                     return data;
                 }));
                 for (const data of results) {
@@ -5484,7 +5531,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!plan.fitness) { planInsightEl.hidden = true; return; }
-        planInsightEl.textContent = 'Thinking…';
+        planInsightEl.textContent = 'Working out your plan…';
         planInsightEl.classList.add('rgd-shimmer-text');
         planInsightEl.hidden = false;
         const context = {
@@ -5873,7 +5920,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const resp = await apiCall('POST', 'workout-insight', body);
             const data = await resp.json();
-            if (!resp.ok) throw new Error(data.error || 'Failed to generate insight.');
+            if (!resp.ok) throw new Error('Failed to write insight.');
             w.insight = data.insight;
         } catch (err) {
             w.insight = '';
@@ -5888,7 +5935,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (w.insight) {
             slot.innerHTML = `<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>`;
         } else {
-            slot.innerHTML = '<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight rgd-sheet-insight--error">Could not generate the insight right now. Try again later.</p>';
+            slot.innerHTML = '<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight rgd-sheet-insight--error">Could not write your insight right now. Try again later.</p>';
         }
     }
 
@@ -6005,7 +6052,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('POST', 'schedule-plan', { days });
             const data = await resp.json();
             if (!resp.ok) {
-                statusEl.textContent = data.error || 'Failed to schedule workouts.';
+                console.warn('Schedule request failed:', data.error || resp.status);
+                statusEl.textContent = 'Could not send workouts to Garmin. Please try again.';
             } else {
                 (data.scheduled || []).forEach(s => {
                     if (workoutByDate[s.date]) {
@@ -6021,7 +6069,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderCoachCalendar(coachPlanData);
             }
         } catch (err) {
-            statusEl.textContent = 'Network error.';
+            statusEl.textContent = 'Network error. Please try again.';
         } finally {
             btn.disabled = false;
         }

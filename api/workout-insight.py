@@ -213,7 +213,10 @@ async def workout_insight(body: WorkoutInsightRequest):
             top_gap = overall.get("topGap") or {}
             if overall.get("verdict"):
                 readiness_line = (
-                    "Your last readiness analysis said: "
+                    # Coach-language prompt context — the model may echo this
+                    # back to the runner, so it must not use internal terms
+                    # like "analysis" (see runassist-writing-style.md).
+                    "Your last readiness check said: "
                     f"{overall.get('verdict')} ({overall.get('score')}/10), "
                     f"top gap: {top_gap.get('label') or 'n/a'}. "
                     "If this session works that gap, call it out; otherwise keep the focus on the phase."

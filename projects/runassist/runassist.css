@@ -15,6 +15,9 @@
     --rgd-accent-green: #3f7b4f;
     --rgd-accent-amber: #d4a017;
     --rgd-accent-red: #c44b4b;
+    /* Top-tier / neutral zone hues — mid-tones that read on both themes */
+    --rgd-accent-purple: #9b6dd0;
+    --rgd-accent-grey: #999999;
     --rgd-radius: 0.75rem;
     --rgd-radius-sm: 0.5rem;
     --rgd-shadow: 0 0.0625rem 0.1875rem rgba(29, 53, 87, 0.06);
@@ -25,7 +28,7 @@
     --rgd-content-padding: clamp(1rem, 3vw, 2rem);
 
     /* ---- Type scale (fixed rem, app UI) ---- */
-    /* 5-step scale with ~1.25 ratio: caption > label > body > subheading > heading */
+    /* 6-step scale with ~1.25 ratio: caption > label > body > subheading > heading > display */
     --rgd-text-caption: 0.65rem;     /* hints, units, tiny meta */
     --rgd-text-label: 0.75rem;       /* labels, nav items, secondary text */
     --rgd-text-body: 0.875rem;       /* body text, descriptions, default */
@@ -82,6 +85,9 @@
     --rgd-accent-green: #5fae74;
     --rgd-accent-amber: #e0b840;
     --rgd-accent-red: #e07070;
+    /* Same mid-tones as light mode — they read on dark surfaces too */
+    --rgd-accent-purple: #9b6dd0;
+    --rgd-accent-grey: #999999;
     --rgd-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.2);
     --rgd-shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.25);
 
@@ -703,11 +709,12 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-header-title { color: var(--rgd-navy); transition: color 0.3s ease; }
 .rgd-header-link { color: var(--rgd-blue); transition: color 0.3s ease, background-color 0.3s ease; }
 
-/* Header dark mode overrides */
-[data-theme="dark"] .rgd-header-title { color: #a8c5e8; }
-[data-theme="dark"] .rgd-header-link { color: #8ba5be; }
-[data-theme="dark"] .rgd-header-link:hover { background: #1a2e44; }
-[data-theme="dark"] header.rgd-header-offset { background: #162234; border-bottom: 0.0625rem solid #2a3f56; }
+/* Header dark mode overrides — values come from the theme tokens so a
+   palette change stays in one place. */
+[data-theme="dark"] .rgd-header-title { color: var(--rgd-navy); }
+[data-theme="dark"] .rgd-header-link { color: var(--rgd-muted); }
+[data-theme="dark"] .rgd-header-link:hover { background: var(--rgd-light); }
+[data-theme="dark"] header.rgd-header-offset { background: var(--rgd-surface); border-bottom: 0.0625rem solid var(--rgd-border); }
 
 /* Invert social media icons in dark mode — PNGs are dark-on-transparent, */
 /* so invert+brightness makes them light-on-transparent for visibility */
@@ -722,7 +729,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Projects button — currently highlighted with light blue bg-[#c0e9fc] */
 /* In dark mode, use a darker secondary blue for the highlight */
 [data-theme="dark"] .rgd-header-link--active {
-    background: #1e3a5f !important;
+    background: var(--rgd-sky) !important;
 }
 
 .rgd-dashboard-layout {
@@ -929,12 +936,13 @@ header.rgd-header-offset.rgd-header-collapsed {
 [data-theme="light"] .rgd-theme-toggle-mobile-sun { display: block; }
 [data-theme="light"] .rgd-theme-toggle-mobile-moon { display: none; }
 
-/* Dark mode styling for the toggle itself */
+/* Dark mode styling for the toggle itself — surface/border at reduced
+   opacity, built from the theme tokens via color-mix */
 [data-theme="dark"] .rgd-theme-toggle-mobile {
-    background: rgba(22, 34, 52, 0.9);
-    border-color: rgba(42, 63, 86, 0.6);
+    background: color-mix(in srgb, var(--rgd-surface) 90%, transparent);
+    border-color: color-mix(in srgb, var(--rgd-border) 60%, transparent);
     box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
-    color: #a8c5e8;
+    color: var(--rgd-navy);
 }
 
 /* ---- Sidebar ---- */
@@ -2027,10 +2035,10 @@ header.rgd-header-offset.rgd-header-collapsed {
    vertices are randomised by JS (requestAnimationFrame) — the polygon's
    points attribute is rewritten each frame, so no CSS animation is needed. */
 
-/* "Analyzing…" label under the radar skeleton — makes the placeholder state
-   unmistakable instead of looking like a faint copy of the final chart.
-   The text inside uses the shimmer animation, so the label color is set
-   transparent by the .rgd-shimmer-text class. */
+/* "Checking your readiness…" label under the radar skeleton — makes the
+   placeholder state unmistakable instead of looking like a faint copy of
+   the final chart. The text inside uses the shimmer animation, so the
+   label color is set transparent by the .rgd-shimmer-text class. */
 .rgd-radar-skeleton-label {
     position: absolute;
     bottom: 0.5rem;
@@ -2635,7 +2643,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 /* Strengths label — green tint indicating positive aspects */
 .rgd-pillar-section-label--strengths {
     background: rgba(63, 123, 79, 0.15);
-    color: #3f7b4f;
+    color: var(--rgd-accent-green);
 }
 
 /* Gaps label — yellow/amber tint indicating areas for improvement.
@@ -2645,7 +2653,7 @@ header.rgd-header-offset.rgd-header-collapsed {
    AA 4.5:1 for small text. */
 .rgd-pillar-section-label--gaps {
     background: rgba(212, 160, 23, 0.15);
-    color: #8a6313;
+    color: var(--rgd-run-tempo);
 }
 
 /* Dark mode overrides for section labels */
@@ -2656,7 +2664,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 [data-theme="dark"] .rgd-pillar-section-label--gaps {
     background: rgba(212, 160, 23, 0.25);
-    color: #d9b24f;
+    color: var(--rgd-run-tempo);
 }
 
 /* ---- Skeleton loading state for AI insight pillars ---- */
@@ -2971,7 +2979,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-skeleton-block { display: flex; flex-direction: column; gap: var(--rgd-space-md); padding: 1rem 0; }
 
 .rgd-skeleton {
-    background: linear-gradient(90deg, var(--rgd-border) 25%, #e8eff4 50%, var(--rgd-border) 75%);
+    background: linear-gradient(90deg, var(--rgd-border) 25%, var(--rgd-light) 50%, var(--rgd-border) 75%);
     background-size: 200% 100%;
     animation: rgd-shimmer 1.5s ease-in-out infinite;
     border-radius: 0.25rem;
@@ -3682,14 +3690,14 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 /* Dark mode — dark surface background with lighter icon color */
 [data-theme="dark"] .rgd-chat-fab {
-    background: rgba(22, 34, 52, 0.9);
-    border-color: rgba(42, 63, 86, 0.6);
-    color: #a8c5e8;
+    background: color-mix(in srgb, var(--rgd-surface) 90%, transparent);
+    border-color: color-mix(in srgb, var(--rgd-border) 60%, transparent);
+    color: var(--rgd-navy);
     box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .rgd-chat-fab:hover {
-    color: #c8ddf0;
+    color: var(--rgd-text);
     box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.5);
 }
 

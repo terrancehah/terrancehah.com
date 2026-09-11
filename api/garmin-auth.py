@@ -56,9 +56,11 @@ async def garmin_auth(body: GarminAuthRequest):
             "detail": "Check your internet connection and try again."
         })
     except Exception as e:
+        # Log the raw exception for debugging, but keep the user-facing
+        # message plain — tracebacks are not runner-facing copy.
+        print(f"garmin-auth unexpected error: {e}")
         return JSONResponse(status_code=500, content={
-            "error": "Something went wrong.",
-            "detail": str(e)
+            "error": "Could not reach Garmin. Please try again in a few minutes."
         })
 
     # Create a session — store OAuth tokens (NOT the password) for lazy
