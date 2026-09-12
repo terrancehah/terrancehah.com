@@ -470,6 +470,11 @@
     outline: none;
     width: 100%;
     box-sizing: border-box;
+    /* Some engines (Firefox/Safari) give input[type=date] a large intrinsic
+       min-width; min-width:0 + max-width:100% stops it ever exceeding the
+       field/container it sits in. */
+    min-width: 0;
+    max-width: 100%;
 }
 
 .pacey-input:focus {
@@ -2888,21 +2893,21 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Tag color variants — each workout type uses a tokenized colour so
    dark mode overrides are handled by the token, not per-tag rules. */
-.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 15%, transparent); color: var(--pacey-run-lsd); }
-.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 15%, transparent); color: var(--pacey-run-easy); }
-.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 15%, transparent); color: var(--pacey-run-speedwork); }
-.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 15%, transparent); color: var(--pacey-run-tempo); }
-.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 15%, transparent); color: var(--pacey-run-warmup); }
-.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 15%, transparent); color: var(--pacey-run-cross-train); }
+.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 28%, transparent); color: var(--pacey-run-lsd); }
+.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 28%, transparent); color: var(--pacey-run-easy); }
+.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 28%, transparent); color: var(--pacey-run-speedwork); }
+.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 28%, transparent); color: var(--pacey-run-tempo); }
+.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 28%, transparent); color: var(--pacey-run-warmup); }
+.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 28%, transparent); color: var(--pacey-run-cross-train); }
 
 /* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
    Text colour is already handled by the dark-mode token overrides. */
-[data-theme="dark"] .pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 25%, transparent); }
-[data-theme="dark"] .pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 25%, transparent); }
-[data-theme="dark"] .pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 25%, transparent); }
-[data-theme="dark"] .pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 25%, transparent); }
-[data-theme="dark"] .pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 25%, transparent); }
-[data-theme="dark"] .pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 25%, transparent); }
+[data-theme="dark"] .pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 38%, transparent); }
+[data-theme="dark"] .pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 38%, transparent); }
+[data-theme="dark"] .pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 38%, transparent); }
+[data-theme="dark"] .pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 38%, transparent); }
+[data-theme="dark"] .pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 38%, transparent); }
+[data-theme="dark"] .pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 38%, transparent); }
 
 .pacey-activity-meta {
     display: flex;
@@ -4500,6 +4505,11 @@ header.pacey-header-offset.pacey-header-collapsed {
     outline: none;
     width: 100%;
     box-sizing: border-box;
+    /* Some engines (Firefox/Safari) give input[type=date] a large intrinsic
+       min-width; min-width:0 + max-width:100% stops it ever exceeding the
+       field/container it sits in. */
+    min-width: 0;
+    max-width: 100%;
 }
 
 .pacey-plan-control input:focus,

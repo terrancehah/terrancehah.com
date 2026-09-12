@@ -243,10 +243,18 @@
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12), 0 0.4rem 0.6rem rgba(0, 0, 0, 0.16);
 }
 
-/* Past runs read as slightly older stock: a touch duller paper. */
+/* Past runs read as old history: greyer, flatter stock and muted ink so
+   they recede against the live/suggested sessions. */
 #pacey-content .pacey-cal-card--past {
-    background-color: var(--pinboard-paper-2);
+    background-color: #e6e2d7;
+    background-image: none;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08), 0 0.25rem 0.4rem rgba(0, 0, 0, 0.1);
 }
+#pacey-content .pacey-cal-card--past .pacey-cal-card-title,
+#pacey-content .pacey-cal-card--past .pacey-cal-card-meta,
+#pacey-content .pacey-cal-card--past .pacey-cal-card-desc,
+#pacey-content .pacey-cal-card--past .pacey-cal-card-pace { color: #8a867f; }
+#pacey-content .pacey-cal-card--past .pacey-run-tag { filter: saturate(0.45); opacity: 0.8; }
 
 /* Rest days are not cards: just the word sitting on the cork, so the board
    stays uncluttered. */
@@ -257,13 +265,13 @@
     box-shadow: none;
 }
 
-/* Suggested (actionable) workouts are the "to-do" slips: pinned paper
-   with a faint edge. The pin marks them as things to do, not history.
-   The pin sits inside the card, a little below the top edge (matching the
-   other pinned sheets) rather than straddling the edge. */
+/* Suggested (actionable) workouts are the "to-do" slips. They carry a
+   stronger blue tint than the past runs so the eye lands on what still
+   needs doing, and keep a blue pushpin. */
 #pacey-content .pacey-cal-card--suggested {
-    background-color: var(--pinboard-paper);
-    border: 1px solid var(--pinboard-line);
+    background-color: var(--pinboard-note-blue);
+    background-image: none;
+    border: 1px solid #9dc0dd;
     transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
 }
 #pacey-content .pacey-cal-card--suggested::before {

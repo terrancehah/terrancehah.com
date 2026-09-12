@@ -1480,10 +1480,17 @@ def _fitness_samples(history: list[dict]) -> tuple:
         if not pace_ms or pace_ms <= 0:
             continue
         sec = 1000 / pace_ms
-        if tag in ("Easy", "Recovery", "Warmup", "LSD"):
-            easy.append({"sec": sec, "run": a})
-        elif tag in ("Speedwork", "Tempo Long"):
+        # Quality = the classifier's hard sessions; everything else counts as
+        # easy. This must cover _classify_run's FULL output domain
+        # (Run / Warmup / Tempo Long / LSD / Speedwork / Easy). Previously the
+        # easy bucket only accepted Easy/Recovery/Warmup/LSD, so a run tagged
+        # "Run" (emitted whenever the activity carries no speed data) was
+        # dropped from BOTH buckets and surfaced in the UI as
+        # "no recent easy/quality runs — goal-based reference only".
+        if tag in ("Speedwork", "Tempo Long"):
             fast.append({"sec": sec, "run": a})
+        else:
+            easy.append({"sec": sec, "run": a})
     return easy, fast
 
 
