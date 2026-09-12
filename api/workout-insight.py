@@ -215,7 +215,7 @@ async def workout_insight(body: WorkoutInsightRequest):
                 readiness_line = (
                     # Coach-language prompt context — the model may echo this
                     # back to the runner, so it must not use internal terms
-                    # like "analysis" (see runassist-writing-style.md).
+                    # like "analysis" (see pacey-writing-style.md).
                     "Your last readiness check said: "
                     f"{overall.get('verdict')} ({overall.get('score')}/10), "
                     f"top gap: {top_gap.get('label') or 'n/a'}. "

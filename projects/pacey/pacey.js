@@ -1,4 +1,4 @@
-// RunAssist — full rewrite.
+// Pacey — full rewrite.
 // Single-page dashboard: metric tiles, column chart, calendar,
 // activity history, AI radar, AI summary. Collapsible sidebar.
 
@@ -7,49 +7,49 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // Config
     // =========================================================================
-    const API_BASE = '/projects/runassist/api';
+    const API_BASE = '/projects/pacey/api';
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
 
     // Screens — login is now a modal, not a full screen
-    const loginModal = $('#rgd-login-modal');
-    const loginModalClose = $('#rgd-login-modal-close');
-    const onboardScreen = $('#rgd-onboarding-screen');
-    const onboardFitnessScreen = $('#rgd-onboarding-fitness-screen');
-    const onboardPlanScreen = $('#rgd-onboarding-plan-screen');
-    const dashboardScreen = $('#rgd-dashboard-screen');
-    const overlay = $('#rgd-overlay');
-    const overlayText = $('#rgd-overlay-text');
+    const loginModal = $('#pacey-login-modal');
+    const loginModalClose = $('#pacey-login-modal-close');
+    const onboardScreen = $('#pacey-onboarding-screen');
+    const onboardFitnessScreen = $('#pacey-onboarding-fitness-screen');
+    const onboardPlanScreen = $('#pacey-onboarding-plan-screen');
+    const dashboardScreen = $('#pacey-dashboard-screen');
+    const overlay = $('#pacey-overlay');
+    const overlayText = $('#pacey-overlay-text');
 
     // Login
-    const loginForm = $('#rgd-login-form');
-    const loginBtn = $('#rgd-login-btn');
-    const authError = $('#rgd-auth-error');
+    const loginForm = $('#pacey-login-form');
+    const loginBtn = $('#pacey-login-btn');
+    const authError = $('#pacey-auth-error');
 
     // Onboarding
-    const onboardForm = $('#rgd-onboard-form');
-    const onboardBtn = $('#rgd-onboard-btn');
-    const onboardFitnessForm = $('#rgd-onboard-fitness-form');
-    const onboardFitnessBtn = $('#rgd-onboard-fitness-btn');
-    const onboardPlanForm = $('#rgd-onboard-plan-form');
-    const onboardPlanBtn = $('#rgd-onboard-plan-btn');
+    const onboardForm = $('#pacey-onboard-form');
+    const onboardBtn = $('#pacey-onboard-btn');
+    const onboardFitnessForm = $('#pacey-onboard-fitness-form');
+    const onboardFitnessBtn = $('#pacey-onboard-fitness-btn');
+    const onboardPlanForm = $('#pacey-onboard-plan-form');
+    const onboardPlanBtn = $('#pacey-onboard-plan-btn');
 
     // Dashboard
-    const greetingEl = $('#rgd-greeting');
-    const avatarEl = $('#rgd-sidebar-avatar');
+    const greetingEl = $('#pacey-greeting');
+    const avatarEl = $('#pacey-sidebar-avatar');
     let profileImageUrl = ''; // Garmin profile image URL (empty in demo mode)
-    const sidebarGoalEl = $('#rgd-sidebar-goal');
-    const sidebarToggle = $('#rgd-sidebar-toggle');
-    const sidebar = $('#rgd-sidebar');
-    const dashboardLayout = document.querySelector('.rgd-dashboard-layout');
-    const settingsBtn = $('#rgd-settings-btn');
-    const themeToggle = $('#rgd-theme-toggle');
-    const demoBanner = $('#rgd-demo-banner');
-    const metricsGrid = $('#rgd-metrics-grid');
-    const activitiesList = $('#rgd-activities-list');
-    const activitiesFull = $('#rgd-activities-full');
-    const calendarEl = $('#rgd-calendar');
+    const sidebarGoalEl = $('#pacey-sidebar-goal');
+    const sidebarToggle = $('#pacey-sidebar-toggle');
+    const sidebar = $('#pacey-sidebar');
+    const dashboardLayout = document.querySelector('.pacey-dashboard-layout');
+    const settingsBtn = $('#pacey-settings-btn');
+    const themeToggle = $('#pacey-theme-toggle');
+    const demoBanner = $('#pacey-demo-banner');
+    const metricsGrid = $('#pacey-metrics-grid');
+    const activitiesList = $('#pacey-activities-list');
+    const activitiesFull = $('#pacey-activities-full');
+    const calendarEl = $('#pacey-calendar');
     // Remove old legend references — radar now uses clickable labels with tooltips
     // const dimensionLegends removed; labels are interactive on the chart itself
 
@@ -58,9 +58,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let radarLabels = [];   // dimension names, set when chart renders
     // Pillars content appears on both overview and readiness pages — use class
     // selectors so both instances stay in sync (no skeleton placeholders anymore)
-    const pillarsContents = $$('.rgd-pillars-content');
-    const summaryErrors = $$('.rgd-summary-error');
-    const refreshAnalysisBtn = $('#rgd-refresh-analysis');
+    const pillarsContents = $$('.pacey-pillars-content');
+    const summaryErrors = $$('.pacey-summary-error');
+    const refreshAnalysisBtn = $('#pacey-refresh-analysis');
 
     // Store all activities for show-all toggle
     let allActivities = [];
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Rotating loading messages — cycles through motivational phrases while data loads.
-    // The overlay text is wrapped in a .rgd-shimmer-text span so the shimmer
+    // The overlay text is wrapped in a .pacey-shimmer-text span so the shimmer
     // animation persists even as the text content rotates.
     const LOADING_MESSAGES = [
         'Loading your training data…',
@@ -149,11 +149,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Update the shimmer text inside the overlay — preserves the span element
     // so the CSS animation isn't interrupted on each message rotation.
     function setOverlayText(text) {
-        const shimmer = overlayText.querySelector('.rgd-shimmer-text');
+        const shimmer = overlayText.querySelector('.pacey-shimmer-text');
         if (shimmer) {
             shimmer.textContent = text;
         } else {
-            overlayText.innerHTML = `<span class="rgd-shimmer-text">${escapeHtml(text)}</span>`;
+            overlayText.innerHTML = `<span class="pacey-shimmer-text">${escapeHtml(text)}</span>`;
         }
     }
 
@@ -174,8 +174,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (loadingMsgTimer) { clearInterval(loadingMsgTimer); loadingMsgTimer = null; }
     }
     function setButtonLoading(btn, loading) {
-        const t = btn.querySelector('.rgd-btn-text');
-        const s = btn.querySelector('.rgd-btn-spinner');
+        const t = btn.querySelector('.pacey-btn-text');
+        const s = btn.querySelector('.pacey-btn-spinner');
         if (t) t.hidden = loading;
         if (s) s.hidden = !loading;
         btn.disabled = loading;
@@ -197,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function () {
         loginModalTrigger = document.activeElement;
         loginModal.hidden = false;
         // Focus the email input after the modal is visible
-        const emailInput = $('#rgd-email');
+        const emailInput = $('#pacey-email');
         if (emailInput) emailInput.focus();
     }
     function closeLoginModal() {
@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
 
     // Sidebar toggle — collapse/expand the sidebar (slim version keeps toggle visible)
-    const headerEl = document.querySelector('header.rgd-header-offset');
+    const headerEl = document.querySelector('header.pacey-header-offset');
     sidebarToggle.addEventListener('click', () => {
         const isCollapsed = sidebar.classList.toggle('collapsed');
         // Update the dashboard layout offset to match sidebar state
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Update header offset to match sidebar state
         if (headerEl) {
-            headerEl.classList.toggle('rgd-header-collapsed', isCollapsed);
+            headerEl.classList.toggle('pacey-header-collapsed', isCollapsed);
         }
         // Update title
         sidebarToggle.title = isCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
@@ -241,13 +241,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // so the indicator tracks smoothly with the collapsing items rather
         // than lagging behind, then re-enable after.
         if (navIndicator) {
-            navIndicator.classList.remove('rgd-indicator-ready');
+            navIndicator.classList.remove('pacey-indicator-ready');
             // Track the nav width during the CSS transition (0.2s)
             const trackInterval = setInterval(() => positionIndicators(), 16);
             setTimeout(() => {
                 clearInterval(trackInterval);
                 positionIndicators();
-                navIndicator.classList.add('rgd-indicator-ready');
+                navIndicator.classList.add('pacey-indicator-ready');
             }, 250);
         }
     });
@@ -258,10 +258,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('rgd_theme', theme);
+        localStorage.setItem('pacey_theme', theme);
         themeToggle.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
         // Update the label to show the current mode name
-        const labelEl = $('#rgd-theme-label');
+        const labelEl = $('#pacey-theme-label');
         if (labelEl) labelEl.textContent = theme === 'dark' ? 'Dark' : 'Light';
     }
 
@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function () {
     themeToggle.addEventListener('click', toggleTheme);
 
     // Mobile theme toggle — same behaviour, floating button on small screens
-    const mobileThemeToggle = $('#rgd-theme-toggle-mobile');
+    const mobileThemeToggle = $('#pacey-theme-toggle-mobile');
     if (mobileThemeToggle) {
         mobileThemeToggle.addEventListener('click', toggleTheme);
     }
@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return (hour >= 19 || hour < 7) ? 'dark' : 'light';
     }
 
-    const savedTheme = localStorage.getItem('rgd_theme');
+    const savedTheme = localStorage.getItem('pacey_theme');
     applyTheme(savedTheme || getAutoTheme());
 
     // Hash-based page routing
@@ -318,22 +318,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function navigateTo(page) {
         // Update active nav (sidebar items + bottom tab bar items)
-        $$('.rgd-nav-item').forEach(item => {
+        $$('.pacey-nav-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('href') === `#${page}`);
         });
-        $$('.rgd-tab-item').forEach(item => {
+        $$('.pacey-tab-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('href') === `#${page}`);
         });
         // Show/hide pages
-        $$('.rgd-page').forEach(p => p.hidden = true);
-        const target = document.getElementById(`rgd-page-${page}`);
+        $$('.pacey-page').forEach(p => p.hidden = true);
+        const target = document.getElementById(`pacey-page-${page}`);
         if (target) target.hidden = false;
         // Scroll to the top of the new page. The window is the actual scroll
-        // container (.rgd-content has overflow:clip — the page scrolls
+        // container (.pacey-content has overflow:clip — the page scrolls
         // naturally), so setting content.scrollTop alone does nothing and the
         // previous page's scroll position would carry over. Reset both so
         // every page opens at the top.
-        const content = $('#rgd-content');
+        const content = $('#pacey-content');
         if (content) content.scrollTop = 0;
         window.scrollTo(0, 0);
         // Position the sliding indicators behind the now-active items
@@ -343,15 +343,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Sliding indicators — frosted/tinted backgrounds that animate their
     // position to sit behind whichever nav item or tab is active.
     // On first render the indicators jump without transition; after that
-    // the .rgd-indicator-ready class enables smooth sliding.
-    const tabIndicator = $('#rgd-tab-indicator');
-    const navIndicator = $('#rgd-nav-indicator');
+    // the .pacey-indicator-ready class enables smooth sliding.
+    const tabIndicator = $('#pacey-tab-indicator');
+    const navIndicator = $('#pacey-nav-indicator');
     let indicatorsReady = false;
 
     function positionIndicators() {
         // Mobile tab bar indicator — match the active tab item's rect
         if (tabIndicator) {
-            const activeTab = document.querySelector('.rgd-tab-item.active');
+            const activeTab = document.querySelector('.pacey-tab-item.active');
             if (activeTab) {
                 const tabRect = activeTab.getBoundingClientRect();
                 const barRect = activeTab.parentElement.getBoundingClientRect();
@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Sidebar nav indicator — match the active nav item's rect
         if (navIndicator) {
-            const activeNav = document.querySelector('.rgd-nav-item.active');
+            const activeNav = document.querySelector('.pacey-nav-item.active');
             if (activeNav) {
                 const navRect = activeNav.getBoundingClientRect();
                 const parentRect = activeNav.parentElement.getBoundingClientRect();
@@ -377,8 +377,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // doesn't slide in from the top-left on initial load
         if (!indicatorsReady) {
             requestAnimationFrame(() => {
-                tabIndicator?.classList.add('rgd-indicator-ready');
-                navIndicator?.classList.add('rgd-indicator-ready');
+                tabIndicator?.classList.add('pacey-indicator-ready');
+                navIndicator?.classList.add('pacey-indicator-ready');
                 indicatorsReady = true;
             });
         }
@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // is already active, the hash doesn't change so hashchange never fires.
     // This click listener detects that case and scrolls to the top of the
     // page so the user can quickly get back to the start of a long page.
-    $$('.rgd-tab-item[href]').forEach(item => {
+    $$('.pacey-tab-item[href]').forEach(item => {
         item.addEventListener('click', (e) => {
             const targetPage = item.getAttribute('href').replace('#', '');
             const currentPage = getPageFromHash();
@@ -452,7 +452,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Demo banner slim — shrink to the compact pill once the user has
         // scrolled away from the top, and expand back when they return.
         //
-        // This used to key off #rgd-content's rect.top (i.e. the banner
+        // This used to key off #pacey-content's rect.top (i.e. the banner
         // reaching its sticky position). That worked while the site header
         // sat above the content, because the content only reached the top
         // after scrolling past the header. The header has since been removed
@@ -463,13 +463,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reading the banner's own rect is still avoided: its height changes
         // when it shrinks, which shifts the content below it and can cause an
         // expand/shrink flicker loop.
-        const banner = $('#rgd-demo-banner');
+        const banner = $('#pacey-demo-banner');
         if (banner && !banner.hidden) {
-            const isSlim = banner.classList.contains('rgd-demo-banner--slim');
+            const isSlim = banner.classList.contains('pacey-demo-banner--slim');
             if (!isSlim && currentY > 64) {
-                banner.classList.add('rgd-demo-banner--slim');
+                banner.classList.add('pacey-demo-banner--slim');
             } else if (isSlim && currentY < 16) {
-                banner.classList.remove('rgd-demo-banner--slim');
+                banner.classList.remove('pacey-demo-banner--slim');
             }
         }
 
@@ -559,8 +559,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // updateScrollDirection based on whether the banner has reached its
     // sticky position at the top of the viewport, not on scroll direction.
     function applyScrollDirection(hide) {
-        const tabbar = $('#rgd-tabbar');
-        if (tabbar) tabbar.classList.toggle('rgd-tabbar--hidden', hide);
+        const tabbar = $('#pacey-tabbar');
+        if (tabbar) tabbar.classList.toggle('pacey-tabbar--hidden', hide);
     }
 
     window.addEventListener('scroll', () => {
@@ -772,11 +772,11 @@ document.addEventListener('DOMContentLoaded', function () {
             gender: 'male',
             age: '30',
         };
-        localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
-        localStorage.setItem('rgd_session_token', 'demo');
+        localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+        localStorage.setItem('pacey_session_token', 'demo');
         window.__demoMode = true;
         // Show demo CTAs across all pages
-        const demoCta = $('#rgd-demo-cta');
+        const demoCta = $('#pacey-demo-cta');
         if (demoCta) demoCta.hidden = false;
         showDashboard();
     }
@@ -789,8 +789,8 @@ document.addEventListener('DOMContentLoaded', function () {
         e.preventDefault();
         authError.hidden = true;
         setButtonLoading(loginBtn, true);
-        const email = $('#rgd-email').value.trim();
-        const password = $('#rgd-password').value;
+        const email = $('#pacey-email').value.trim();
+        const password = $('#pacey-password').value;
         try {
             const resp = await fetch(`${API_BASE}/garmin-auth`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -808,10 +808,10 @@ document.addEventListener('DOMContentLoaded', function () {
             sessionToken = data.session_token;
             displayName = data.display_name;
             profileImageUrl = data.profile_image_url || '';
-            localStorage.setItem('rgd_session_token', sessionToken);
+            localStorage.setItem('pacey_session_token', sessionToken);
             // Cache profile data so the dashboard can render instantly on refresh
-            localStorage.setItem('rgd_display_name', displayName || '');
-            localStorage.setItem('rgd_profile_image_url', profileImageUrl);
+            localStorage.setItem('pacey_display_name', displayName || '');
+            localStorage.setItem('pacey_profile_image_url', profileImageUrl);
             // Restore the persisted race goal BEFORE seeding caches — the
             // cache keys embed the goal fingerprint, so writing with a null
             // raceGoal produces a key that never matches a later read and the
@@ -819,7 +819,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // to the network).
             if (data.has_race_goal && data.race_goal) {
                 raceGoal = data.race_goal;
-                localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+                localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             }
             // Pre-seed the AI insights and coach plan caches from the server's
             // persistent store so a new device renders instantly without
@@ -860,41 +860,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Build the onboarding POST body from the race-goal form fields.
     function buildOnboardingBody() {
-        const h = $('#rgd-time-h').value || '0';
-        const m = $('#rgd-time-m').value || '00';
-        const s = $('#rgd-time-s').value || '00';
+        const h = $('#pacey-time-h').value || '0';
+        const m = $('#pacey-time-m').value || '00';
+        const s = $('#pacey-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
         return {
-            race_name: $('#rgd-race-name').value.trim(),
-            purpose: $('#rgd-purpose').value,
-            distance: $('#rgd-purpose').value,
+            race_name: $('#pacey-race-name').value.trim(),
+            purpose: $('#pacey-purpose').value,
+            distance: $('#pacey-purpose').value,
             time_target: timeTarget,
-            race_date: $('#rgd-race-date').value,
-            weekly_mileage: $('#rgd-mileage').value,
-            mileage_unit: $('#rgd-mileage-unit').value,
-            gender: $('#rgd-gender').value,
-            age: $('#rgd-age').value,
+            race_date: $('#pacey-race-date').value,
+            weekly_mileage: $('#pacey-mileage').value,
+            mileage_unit: $('#pacey-mileage-unit').value,
+            gender: $('#pacey-gender').value,
+            age: $('#pacey-age').value,
         };
     }
 
     onboardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        $$('.rgd-input.error').forEach(el => el.classList.remove('error'));
-        $$('.rgd-field-error').forEach(el => el.hidden = true);
+        $$('.pacey-input.error').forEach(el => el.classList.remove('error'));
+        $$('.pacey-field-error').forEach(el => el.hidden = true);
 
-        const h = $('#rgd-time-h').value || '0';
-        const m = $('#rgd-time-m').value || '00';
-        const s = $('#rgd-time-s').value || '00';
+        const h = $('#pacey-time-h').value || '0';
+        const m = $('#pacey-time-m').value || '00';
+        const s = $('#pacey-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
 
         const required = [
-            { id: 'rgd-race-name', val: $('#rgd-race-name').value.trim() },
-            { id: 'rgd-purpose', val: $('#rgd-purpose').value },
-            { id: 'rgd-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
-            { id: 'rgd-race-date', val: $('#rgd-race-date').value },
-            { id: 'rgd-mileage', val: $('#rgd-mileage').value },
-            { id: 'rgd-gender', val: $('#rgd-gender').value },
-            { id: 'rgd-age', val: $('#rgd-age').value },
+            { id: 'pacey-race-name', val: $('#pacey-race-name').value.trim() },
+            { id: 'pacey-purpose', val: $('#pacey-purpose').value },
+            { id: 'pacey-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
+            { id: 'pacey-race-date', val: $('#pacey-race-date').value },
+            { id: 'pacey-mileage', val: $('#pacey-mileage').value },
+            { id: 'pacey-gender', val: $('#pacey-gender').value },
+            { id: 'pacey-age', val: $('#pacey-age').value },
         ];
 
         let hasError = false;
@@ -902,14 +902,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!f.val) {
                 const el = document.getElementById(f.id);
                 if (el) el.classList.add('error');
-                const fg = el && el.closest('.rgd-field');
-                if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
-                if (f.id === 'rgd-time-h') {
-                    ['rgd-time-h','rgd-time-m','rgd-time-s'].forEach(id => {
+                const fg = el && el.closest('.pacey-field');
+                if (fg) { const er = fg.querySelector('.pacey-field-error'); if (er) er.hidden = false; }
+                if (f.id === 'pacey-time-h') {
+                    ['pacey-time-h','pacey-time-m','pacey-time-s'].forEach(id => {
                         const inp = document.getElementById(id); if (inp) inp.classList.add('error');
                     });
-                    const dpErr = document.querySelector('#rgd-duration-picker').nextElementSibling;
-                    if (dpErr && dpErr.classList.contains('rgd-field-error')) dpErr.hidden = false;
+                    const dpErr = document.querySelector('#pacey-duration-picker').nextElementSibling;
+                    if (dpErr && dpErr.classList.contains('pacey-field-error')) dpErr.hidden = false;
                 }
                 hasError = true;
             }
@@ -923,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             raceGoal = data.goal;
-            localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Proceed to Step 3 — latest race result (current fitness)
             showScreen(onboardFitnessScreen);
         } catch (err) { alert('Network error. Please try again.'); }
@@ -968,10 +968,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // "You completed your latest race of Half Marathon in 1:48:00, which
     //  converts to 5:07/km pace."
     function updateFitnessSummary() {
-        const el = $('#rgd-fitness-summary');
+        const el = $('#pacey-fitness-summary');
         if (!el) return;
-        const type = $('#rgd-fitness-distance').value;
-        const totalSec = readDurationSeconds('#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s');
+        const type = $('#pacey-fitness-distance').value;
+        const totalSec = readDurationSeconds('#pacey-fitness-time-h', '#pacey-fitness-time-m', '#pacey-fitness-time-s');
         if (!type || !totalSec) { el.hidden = true; el.textContent = ''; return; }
         const time = formatRaceTime(totalSec);
         const km = RACE_TYPE_KM[type];
@@ -981,7 +981,7 @@ document.addEventListener('DOMContentLoaded', function () {
         el.hidden = false;
     }
 
-    ['#rgd-fitness-distance', '#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s'].forEach(sel => {
+    ['#pacey-fitness-distance', '#pacey-fitness-time-h', '#pacey-fitness-time-m', '#pacey-fitness-time-s'].forEach(sel => {
         const el = $(sel);
         if (el) { el.addEventListener('input', updateFitnessSummary); el.addEventListener('change', updateFitnessSummary); }
     });
@@ -990,22 +990,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // goal with the fitness fields, then proceeds to planning preferences.
     onboardFitnessForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        $$('.rgd-input.error').forEach(el => el.classList.remove('error'));
-        $$('.rgd-field-error').forEach(el => el.hidden = true);
+        $$('.pacey-input.error').forEach(el => el.classList.remove('error'));
+        $$('.pacey-field-error').forEach(el => el.hidden = true);
 
-        const raceType = $('#rgd-fitness-distance').value;
-        const totalSec = readDurationSeconds('#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s');
+        const raceType = $('#pacey-fitness-distance').value;
+        const totalSec = readDurationSeconds('#pacey-fitness-time-h', '#pacey-fitness-time-m', '#pacey-fitness-time-s');
         // A race type and a non-zero time are both required.
         const checks = [
-            { el: $('#rgd-fitness-distance'), bad: !raceType },
-            { el: $('#rgd-fitness-time-m'), bad: !totalSec },
+            { el: $('#pacey-fitness-distance'), bad: !raceType },
+            { el: $('#pacey-fitness-time-m'), bad: !totalSec },
         ];
         let hasError = false;
         for (const c of checks) {
             if (!c.bad) continue;
             if (c.el) c.el.classList.add('error');
-            const fg = c.el && c.el.closest('.rgd-field');
-            if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
+            const fg = c.el && c.el.closest('.pacey-field');
+            if (fg) { const er = fg.querySelector('.pacey-field-error'); if (er) er.hidden = false; }
             hasError = true;
         }
         if (hasError) return;
@@ -1019,7 +1019,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             raceGoal = data.goal;
-            localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Proceed to Step 4 — planning preferences
             showScreen(onboardPlanScreen);
         } catch (err) { alert('Network error. Please try again.'); }
@@ -1032,9 +1032,9 @@ document.addEventListener('DOMContentLoaded', function () {
     onboardPlanForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const prefs = {
-            days_per_week: Number($('#rgd-onboard-pref-days').value) || 3,
-            intensity: $('#rgd-onboard-pref-intensity').value || 'moderate',
-            distance_adj: DISTANCE_ADJ[Number($('#rgd-onboard-pref-distance').value)] || 'keep',
+            days_per_week: Number($('#pacey-onboard-pref-days').value) || 3,
+            intensity: $('#pacey-onboard-pref-intensity').value || 'moderate',
+            distance_adj: DISTANCE_ADJ[Number($('#pacey-onboard-pref-distance').value)] || 'keep',
         };
         coachPrefs = prefs;
         writeCoachPrefs(prefs);
@@ -1053,12 +1053,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!avatarEl) return;
         if (profileImageUrl) {
             // Try loading the profile image; on error, fall back to initials
-            avatarEl.innerHTML = `<img src="${profileImageUrl}" alt="${displayName || 'Runner'}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><span class="rgd-avatar-initials" style="display:none">${getInitials(displayName)}</span>`;
+            avatarEl.innerHTML = `<img src="${profileImageUrl}" alt="${displayName || 'Runner'}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><span class="pacey-avatar-initials" style="display:none">${getInitials(displayName)}</span>`;
         } else {
             // No profile image — show initials (or runner icon in demo mode)
             const initials = getInitials(displayName);
             if (initials && !window.__demoMode) {
-                avatarEl.innerHTML = `<span class="rgd-avatar-initials">${initials}</span>`;
+                avatarEl.innerHTML = `<span class="pacey-avatar-initials">${initials}</span>`;
             } else {
                 // Demo mode or no name — use the Lucide "user" icon as the
                 // profile placeholder (cleaner than a hand-drawn runner figure)
@@ -1086,12 +1086,12 @@ document.addEventListener('DOMContentLoaded', function () {
         demoBanner.hidden = !window.__demoMode;
         // Show "Connect Garmin" footer CTA only in demo mode — hide it
         // for real Garmin sessions so users don't see a redundant prompt
-        const demoCta = $('#rgd-demo-cta');
+        const demoCta = $('#pacey-demo-cta');
         if (demoCta) demoCta.hidden = !window.__demoMode;
 
         // Load race goal from localStorage if not already set
         if (!raceGoal) {
-            const saved = localStorage.getItem('rgd_race_goal');
+            const saved = localStorage.getItem('pacey_race_goal');
             if (saved) {
                 try { raceGoal = JSON.parse(saved); } catch (e) {}
             }
@@ -1115,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Render the Race Goal panel with key metrics + countdown
     function renderGoalSpecifics(goal) {
-        const grid = $('#rgd-goal-specifics-grid');
+        const grid = $('#pacey-goal-specifics-grid');
         if (!grid) return;
 
         // Compute countdown days to race date
@@ -1164,18 +1164,18 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
 
         grid.innerHTML = stats.map(s => `
-            <div class="rgd-goal-stat${s.fullWidth ? ' rgd-goal-stat--full' : ''}">
-                <span class="rgd-goal-stat-label">${s.label}</span>
-                <div class="rgd-goal-stat-value-row">
-                    <span class="rgd-goal-stat-value">${s.value}</span>
-                    ${s.unit ? `<span class="rgd-goal-stat-unit">${s.unit}</span>` : ''}
+            <div class="pacey-goal-stat${s.fullWidth ? ' pacey-goal-stat--full' : ''}">
+                <span class="pacey-goal-stat-label">${s.label}</span>
+                <div class="pacey-goal-stat-value-row">
+                    <span class="pacey-goal-stat-value">${s.value}</span>
+                    ${s.unit ? `<span class="pacey-goal-stat-unit">${s.unit}</span>` : ''}
                 </div>
             </div>
         `).join('');
 
         // Populate the countdown highlight in the top-right corner
-        const countdownValueEl = $('#rgd-countdown-value');
-        const countdownLabelEl = $('#rgd-countdown-label');
+        const countdownValueEl = $('#pacey-countdown-value');
+        const countdownLabelEl = $('#pacey-countdown-label');
         if (countdownValueEl) countdownValueEl.textContent = countdownDays;
         if (countdownLabelEl) countdownLabelEl.textContent = countdownDays === 1 ? 'day to go' : 'days to go';
     }
@@ -1195,7 +1195,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCalendar(mockActs);
             // Hide the "Load more" button in demo mode — all 20 mock
             // activities are already shown
-            const loadMoreBtn = $('#rgd-load-more-activities');
+            const loadMoreBtn = $('#pacey-load-more-activities');
             if (loadMoreBtn) loadMoreBtn.hidden = true;
             // Charts + pillars load after a simulated 3s delay in demo mode
             setDemoChartsLoading(true);
@@ -1285,7 +1285,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderPaceDistribution(acts);
                 renderHrPaceScatter(acts);
                 // Show "Load more" button if we got a full page (more may exist)
-                const loadMoreBtn = $('#rgd-load-more-activities');
+                const loadMoreBtn = $('#pacey-load-more-activities');
                 if (loadMoreBtn) {
                     loadMoreBtn.hidden = acts.length < ACTIVITIES_PAGE_SIZE;
                     loadMoreBtn.textContent = 'Load more';
@@ -1321,7 +1321,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function loadMoreActivities() {
         if (isLoadingMore) return;
         isLoadingMore = true;
-        const loadMoreBtn = $('#rgd-load-more-activities');
+        const loadMoreBtn = $('#pacey-load-more-activities');
         if (loadMoreBtn) {
             loadMoreBtn.textContent = 'Loading…';
             loadMoreBtn.disabled = true;
@@ -1388,10 +1388,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // These fallback zones are used when age/gender are unavailable.
             min: 20, max: 80, unit: 'ml/kg/min',
             zones: [
-                { label: 'Poor', max: 35, color: '--rgd-accent-red' },
-                { label: 'Fair', max: 45, color: '--rgd-accent-amber' },
-                { label: 'Good', max: 55, color: '--rgd-blue' },
-                { label: 'Excellent', max: 80, color: '--rgd-accent-green' },
+                { label: 'Poor', max: 35, color: '--pacey-accent-red' },
+                { label: 'Fair', max: 45, color: '--pacey-accent-amber' },
+                { label: 'Good', max: 55, color: '--pacey-blue' },
+                { label: 'Excellent', max: 80, color: '--pacey-accent-green' },
             ],
             explanation: 'VO₂max measures the maximum volume of oxygen your body can utilize during intense exercise. Higher values indicate better aerobic capacity. Garmin classifies VO₂max using age and gender-specific tables from The Cooper Institute.',
         },
@@ -1399,11 +1399,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Poor 1-24, Low 25-49, Moderate 50-74, High 75-94, Prime 95-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Poor', max: 24, color: '--rgd-accent-red' },
-                { label: 'Low', max: 49, color: '--rgd-accent-amber' },
-                { label: 'Moderate', max: 74, color: '--rgd-blue' },
-                { label: 'High', max: 94, color: '--rgd-accent-green' },
-                { label: 'Prime', max: 100, color: '--rgd-accent-purple' },
+                { label: 'Poor', max: 24, color: '--pacey-accent-red' },
+                { label: 'Low', max: 49, color: '--pacey-accent-amber' },
+                { label: 'Moderate', max: 74, color: '--pacey-blue' },
+                { label: 'High', max: 94, color: '--pacey-accent-green' },
+                { label: 'Prime', max: 100, color: '--pacey-accent-purple' },
             ],
             explanation: 'Training Readiness Score combines sleep, recovery, stress, and training load to indicate how prepared your body is for a workout. Garmin uses 5 tiers: Poor (1-24), Low (25-49), Moderate (50-74), High (75-94), and Prime (95-100).',
         },
@@ -1411,10 +1411,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Poor 0-59, Fair 60-79, Good 80-89, Excellent 90-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Poor', max: 59, color: '--rgd-accent-red' },
-                { label: 'Fair', max: 79, color: '--rgd-accent-amber' },
-                { label: 'Good', max: 89, color: '--rgd-blue' },
-                { label: 'Excellent', max: 100, color: '--rgd-accent-green' },
+                { label: 'Poor', max: 59, color: '--pacey-accent-red' },
+                { label: 'Fair', max: 79, color: '--pacey-accent-amber' },
+                { label: 'Good', max: 89, color: '--pacey-blue' },
+                { label: 'Excellent', max: 100, color: '--pacey-accent-green' },
             ],
             explanation: 'Sleep Score evaluates the quality and duration of your sleep based on movement, heart rate, and stress data. Garmin classifies sleep as Poor (0-59), Fair (60-79), Good (80-89), or Excellent (90-100).',
         },
@@ -1422,10 +1422,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Low 0-25, Medium 26-50, High 51-75, Very High 76-100
             min: 0, max: 100, unit: '%',
             zones: [
-                { label: 'Low', max: 25, color: '--rgd-accent-red' },
-                { label: 'Medium', max: 50, color: '--rgd-accent-amber' },
-                { label: 'High', max: 75, color: '--rgd-blue' },
-                { label: 'Very High', max: 100, color: '--rgd-accent-green' },
+                { label: 'Low', max: 25, color: '--pacey-accent-red' },
+                { label: 'Medium', max: 50, color: '--pacey-accent-amber' },
+                { label: 'High', max: 75, color: '--pacey-blue' },
+                { label: 'Very High', max: 100, color: '--pacey-accent-green' },
             ],
             explanation: 'Body Battery estimates your available energy reserves throughout the day, draining with activity and stress, and recharging during sleep and rest. Garmin classifies levels as Low (0-25), Medium (26-50), High (51-75), and Very High (76-100).',
         },
@@ -1436,27 +1436,27 @@ document.addEventListener('DOMContentLoaded', function () {
             // Color-coding on the card uses the Garmin status field, not these zones.
             min: 0, max: 100, unit: 'ms',
             zones: [
-                { label: 'Low', max: 20, color: '--rgd-accent-red' },
-                { label: 'Fair', max: 35, color: '--rgd-accent-amber' },
-                { label: 'Good', max: 50, color: '--rgd-blue' },
-                { label: 'Excellent', max: 100, color: '--rgd-accent-green' },
+                { label: 'Low', max: 20, color: '--pacey-accent-red' },
+                { label: 'Fair', max: 35, color: '--pacey-accent-amber' },
+                { label: 'Good', max: 50, color: '--pacey-blue' },
+                { label: 'Excellent', max: 100, color: '--pacey-accent-green' },
             ],
             // Garmin HRV status colors — used for card color-coding instead of zones
             statusColors: {
-                'BALANCED': '--rgd-accent-green',
-                'UNBALANCED': '--rgd-accent-amber',
-                'LOW': '--rgd-accent-red',
-                'POOR': '--rgd-accent-grey',
+                'BALANCED': '--pacey-accent-green',
+                'UNBALANCED': '--pacey-accent-amber',
+                'LOW': '--pacey-accent-red',
+                'POOR': '--pacey-accent-grey',
             },
             explanation: 'Heart Rate Variability (HRV) measures the variation in time between heartbeats. Garmin uses a personal baseline to classify HRV status as Balanced, Unbalanced, Low, or Poor rather than absolute ranges, since HRV varies widely by individual.',
         },
         'Resting HR': {
             min: 30, max: 90, unit: 'bpm',
             zones: [
-                { label: 'High', max: 50, color: '--rgd-accent-green' },
-                { label: 'Good', max: 60, color: '--rgd-blue' },
-                { label: 'Fair', max: 70, color: '--rgd-accent-amber' },
-                { label: 'Elevated', max: 90, color: '--rgd-accent-red' },
+                { label: 'High', max: 50, color: '--pacey-accent-green' },
+                { label: 'Good', max: 60, color: '--pacey-blue' },
+                { label: 'Fair', max: 70, color: '--pacey-accent-amber' },
+                { label: 'Elevated', max: 90, color: '--pacey-accent-red' },
             ],
             explanation: 'Resting Heart Rate is your heart rate when fully at rest. Lower values generally indicate better cardiovascular fitness. A sudden increase may signal insufficient recovery or illness.',
         },
@@ -1464,30 +1464,30 @@ document.addEventListener('DOMContentLoaded', function () {
             // Garmin official: Rest 0-25, Low 26-50, Medium 51-75, High 76-100
             min: 0, max: 100, unit: '/100',
             zones: [
-                { label: 'Rest', max: 25, color: '--rgd-accent-green' },
-                { label: 'Low', max: 50, color: '--rgd-blue' },
-                { label: 'Medium', max: 75, color: '--rgd-accent-amber' },
-                { label: 'High', max: 100, color: '--rgd-accent-red' },
+                { label: 'Rest', max: 25, color: '--pacey-accent-green' },
+                { label: 'Low', max: 50, color: '--pacey-blue' },
+                { label: 'Medium', max: 75, color: '--pacey-accent-amber' },
+                { label: 'High', max: 100, color: '--pacey-accent-red' },
             ],
             explanation: 'Stress Level is derived from HRV, heart rate, and other body signals. Garmin classifies stress as Rest (0-25), Low (26-50), Medium (51-75), and High (76-100). Lower stress levels are better for recovery.',
         },
         'Recovery': {
             min: 0, max: 72, unit: 'hrs',
             zones: [
-                { label: 'Ready', max: 6, color: '--rgd-accent-green' },
-                { label: 'Short', max: 18, color: '--rgd-blue' },
-                { label: 'Moderate', max: 36, color: '--rgd-accent-amber' },
-                { label: 'Long', max: 72, color: '--rgd-accent-red' },
+                { label: 'Ready', max: 6, color: '--pacey-accent-green' },
+                { label: 'Short', max: 18, color: '--pacey-blue' },
+                { label: 'Moderate', max: 36, color: '--pacey-accent-amber' },
+                { label: 'Long', max: 72, color: '--pacey-accent-red' },
             ],
             explanation: 'Recovery Time estimates how long your body needs to fully recover from recent training before the next hard effort. Shorter times indicate you are ready for more training; longer times suggest you need more rest.',
         },
         'Fitness Age': {
             min: 15, max: 80, unit: 'years',
             zones: [
-                { label: 'Young', max: 30, color: '--rgd-accent-green' },
-                { label: 'Good', max: 40, color: '--rgd-blue' },
-                { label: 'Average', max: 50, color: '--rgd-accent-amber' },
-                { label: 'Older', max: 80, color: '--rgd-accent-red' },
+                { label: 'Young', max: 30, color: '--pacey-accent-green' },
+                { label: 'Good', max: 40, color: '--pacey-blue' },
+                { label: 'Average', max: 50, color: '--pacey-accent-amber' },
+                { label: 'Older', max: 80, color: '--pacey-accent-red' },
             ],
             explanation: 'Fitness Age estimates your biological age based on fitness metrics like VO₂max and resting heart rate. A fitness age lower than your chronological age indicates above-average fitness for your age group.',
         },
@@ -1542,11 +1542,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Zone colours are CSS token names resolved against the active theme
         // (same source as the METRIC_META fallback zones).
         const zones = [
-            { label: 'Poor', max: table.Fair, color: '--rgd-accent-red' },
-            { label: 'Fair', max: table.Good, color: '--rgd-accent-amber' },
-            { label: 'Good', max: table.Excellent, color: '--rgd-blue' },
-            { label: 'Excellent', max: table.Superior, color: '--rgd-accent-green' },
-            { label: 'Superior', max: 100, color: '--rgd-accent-purple' },
+            { label: 'Poor', max: table.Fair, color: '--pacey-accent-red' },
+            { label: 'Fair', max: table.Good, color: '--pacey-accent-amber' },
+            { label: 'Good', max: table.Excellent, color: '--pacey-blue' },
+            { label: 'Excellent', max: table.Superior, color: '--pacey-accent-green' },
+            { label: 'Superior', max: 100, color: '--pacey-accent-purple' },
         ];
         return zones.map(z => ({ ...z, color: cssVar(z.color, METRIC_ZONE_FALLBACKS[z.color] || z.color) }));
     }
@@ -1586,7 +1586,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Format: "Last Garmin sync: today, 3:45 PM" or
         //         "Last Garmin sync: yesterday, 9:30 AM" or
         //         "Last Garmin sync: Aug 15, 9:30 AM"
-        const metricsDateEl = $('#rgd-metrics-date');
+        const metricsDateEl = $('#pacey-metrics-date');
         if (metricsDateEl && m.metrics_date) {
             const dataDate = new Date(m.metrics_date + 'T00:00:00');
             const today = new Date();
@@ -1630,7 +1630,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Number of primary vitals shown on mobile before the Show More button
         const MOBILE_PRIMARY_VITALS = 4;
         // Render primary tiles as direct grid children, then wrap extra tiles
-        // in a collapsible container (.rgd-metrics-extra > .rgd-metrics-extra-inner).
+        // in a collapsible container (.pacey-metrics-extra > .pacey-metrics-extra-inner).
         // On desktop, both wrappers use display:contents so all tiles flow in
         // the parent grid as before. On mobile, the outer wrapper animates its
         // grid-template-rows from 0fr to 1fr for a smooth expand/collapse.
@@ -1641,41 +1641,41 @@ document.addEventListener('DOMContentLoaded', function () {
             const color = getMetricZoneColor(t.label, t.value);
             const valueStyle = color ? `style="color: ${color};"` : '';
             return `
-            <div class="rgd-metric-tile" data-metric-label="${t.label}"
+            <div class="pacey-metric-tile" data-metric-label="${t.label}"
                  role="button" tabindex="0"
                  aria-label="${t.label}: ${t.value}${t.unit ? ' ' + t.unit : ''}. Select for details.">
-                <div class="rgd-metric-top">
-                    <span class="rgd-metric-icon">${METRIC_ICONS[t.label] || ''}</span>
-                    <span class="rgd-metric-label">${t.label}</span>
+                <div class="pacey-metric-top">
+                    <span class="pacey-metric-icon">${METRIC_ICONS[t.label] || ''}</span>
+                    <span class="pacey-metric-label">${t.label}</span>
                 </div>
-                <div class="rgd-metric-value-row">
-                    <span class="rgd-metric-value" ${valueStyle}>${t.value}</span>
-                    ${t.unit ? `<span class="rgd-metric-unit">${t.unit}</span>` : ''}
+                <div class="pacey-metric-value-row">
+                    <span class="pacey-metric-value" ${valueStyle}>${t.value}</span>
+                    ${t.unit ? `<span class="pacey-metric-unit">${t.unit}</span>` : ''}
                 </div>
             </div>`;
         };
 
         metricsGrid.innerHTML =
             primaryTiles.map(renderTile).join('') +
-            `<div class="rgd-metrics-extra"><div class="rgd-metrics-extra-inner">` +
+            `<div class="pacey-metrics-extra"><div class="pacey-metrics-extra-inner">` +
             extraTiles.map(renderTile).join('') +
             `</div></div>`;
 
         // Chevron disclosure toggle — mobile only. Toggles the --expanded
         // class on the grid to reveal/hide the extra tiles. Updates
         // aria-expanded for screen reader state and swaps the label text.
-        const vitalsToggle = $('#rgd-vitals-show-more');
+        const vitalsToggle = $('#pacey-vitals-show-more');
         if (vitalsToggle) {
             // Check if we're on a mobile viewport (matches the CSS breakpoint)
             const isMobile = window.matchMedia('(max-width: 30rem)').matches;
             vitalsToggle.hidden = !isMobile;
             // Reset to collapsed state on each render
-            metricsGrid.classList.remove('rgd-metrics-grid--expanded');
+            metricsGrid.classList.remove('pacey-metrics-grid--expanded');
             vitalsToggle.setAttribute('aria-expanded', 'false');
-            const toggleLabel = vitalsToggle.querySelector('.rgd-vitals-toggle-label');
+            const toggleLabel = vitalsToggle.querySelector('.pacey-vitals-toggle-label');
             if (toggleLabel) toggleLabel.textContent = 'More vitals';
             vitalsToggle.onclick = () => {
-                const expanded = metricsGrid.classList.toggle('rgd-metrics-grid--expanded');
+                const expanded = metricsGrid.classList.toggle('pacey-metrics-grid--expanded');
                 vitalsToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
                 if (toggleLabel) toggleLabel.textContent = expanded ? 'Fewer vitals' : 'More vitals';
             };
@@ -1683,10 +1683,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Attach click + keyboard handlers to each metric tile for the popup.
         // Keyboard: Enter and Space both trigger the same popup as a click.
-        metricsGrid.querySelectorAll('.rgd-metric-tile').forEach(tile => {
+        metricsGrid.querySelectorAll('.pacey-metric-tile').forEach(tile => {
             const openTile = () => {
                 const label = tile.getAttribute('data-metric-label');
-                const valueEl = tile.querySelector('.rgd-metric-value');
+                const valueEl = tile.querySelector('.pacey-metric-value');
                 const value = valueEl ? parseFloat(valueEl.textContent) : null;
                 openMetricPopup(label, isNaN(value) ? null : value);
             };
@@ -1704,9 +1704,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Metric detail popup — gauge bar with color-coded zones and explanation
     // =========================================================================
 
-    const metricPopup = $('#rgd-metric-popup');
-    const metricPopupContent = $('#rgd-metric-popup-content');
-    const metricPopupClose = $('#rgd-metric-popup-close');
+    const metricPopup = $('#pacey-metric-popup');
+    const metricPopupContent = $('#pacey-metric-popup-content');
+    const metricPopupClose = $('#pacey-metric-popup-close');
 
     // Close popup on close button click, overlay click, or Escape key.
     // Focus management: move focus to the close button when the popup opens,
@@ -1783,9 +1783,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Build the zone legend items
         const zoneLegend = zones.map(z => `
-            <div class="rgd-gauge-legend-item${activeZone && activeZone.label === z.label ? ' rgd-gauge-legend-item--active' : ''}">
-                <span class="rgd-gauge-legend-dot" style="background:${z.color}"></span>
-                <span class="rgd-gauge-legend-text">${z.label}</span>
+            <div class="pacey-gauge-legend-item${activeZone && activeZone.label === z.label ? ' pacey-gauge-legend-item--active' : ''}">
+                <span class="pacey-gauge-legend-dot" style="background:${z.color}"></span>
+                <span class="pacey-gauge-legend-text">${z.label}</span>
             </div>
         `).join('');
 
@@ -1797,34 +1797,34 @@ document.addEventListener('DOMContentLoaded', function () {
               zoneSegments.find(zs => zs.label === hrvActiveZone.label).widthPct / 2
             : valuePct;
         const gaugeBar = `
-            <div class="rgd-gauge-bar">
+            <div class="pacey-gauge-bar">
                 ${zoneSegments.map(zs => `
-                    <div class="rgd-gauge-segment" style="left:${zs.leftPct}%; width:${zs.widthPct}%; background:${zs.color};"></div>
+                    <div class="pacey-gauge-segment" style="left:${zs.leftPct}%; width:${zs.widthPct}%; background:${zs.color};"></div>
                 `).join('')}
-                ${markerPct !== null ? `<div class="rgd-gauge-marker" style="left:${markerPct}%;"></div>` : ''}
+                ${markerPct !== null ? `<div class="pacey-gauge-marker" style="left:${markerPct}%;"></div>` : ''}
             </div>
-            <div class="rgd-gauge-scale">
-                <span class="rgd-gauge-scale-min">${meta.min}</span>
-                <span class="rgd-gauge-scale-max">${meta.max} ${meta.unit}</span>
+            <div class="pacey-gauge-scale">
+                <span class="pacey-gauge-scale-min">${meta.min}</span>
+                <span class="pacey-gauge-scale-max">${meta.max} ${meta.unit}</span>
             </div>
         `;
 
         // Assemble the full popup content
         metricPopupContent.innerHTML = `
-            <div class="rgd-metric-popup-header">
-                <span class="rgd-metric-popup-icon">${METRIC_ICONS[label] || ''}</span>
-                <h3 class="rgd-metric-popup-title">${label}</h3>
+            <div class="pacey-metric-popup-header">
+                <span class="pacey-metric-popup-icon">${METRIC_ICONS[label] || ''}</span>
+                <h3 class="pacey-metric-popup-title">${label}</h3>
             </div>
-            <div class="rgd-metric-popup-value-row">
-                <span class="rgd-metric-popup-value">${currentValue !== null ? currentValue : '--'}</span>
-                <span class="rgd-metric-popup-unit">${meta.unit}</span>
-                ${activeZone ? `<span class="rgd-metric-popup-zone" style="background:${activeZone.color}">${activeZone.label}</span>` : ''}
+            <div class="pacey-metric-popup-value-row">
+                <span class="pacey-metric-popup-value">${currentValue !== null ? currentValue : '--'}</span>
+                <span class="pacey-metric-popup-unit">${meta.unit}</span>
+                ${activeZone ? `<span class="pacey-metric-popup-zone" style="background:${activeZone.color}">${activeZone.label}</span>` : ''}
             </div>
-            <div class="rgd-gauge-section">
+            <div class="pacey-gauge-section">
                 ${gaugeBar}
-                <div class="rgd-gauge-legend">${zoneLegend}</div>
+                <div class="pacey-gauge-legend">${zoneLegend}</div>
             </div>
-            <p class="rgd-metric-popup-explanation">${meta.explanation}</p>
+            <p class="pacey-metric-popup-explanation">${meta.explanation}</p>
         `;
 
         // Store the element that triggered this popup so we can return
@@ -1841,8 +1841,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // behaviour as the metric popup: close button, overlay click, or Escape.
     // =========================================================================
 
-    const scoreModal = $('#rgd-score-modal');
-    const scoreModalClose = $('#rgd-score-modal-close');
+    const scoreModal = $('#pacey-score-modal');
+    const scoreModalClose = $('#pacey-score-modal-close');
     let scoreModalTrigger = null;
 
     function openScoreModal() {
@@ -1871,15 +1871,15 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Escape' && !scoreModal.hidden) closeScoreModal();
     });
     // Wire up every scoring info button (overview section + readiness page) to the modal
-    document.querySelectorAll('.rgd-score-info-btn').forEach(btn => {
+    document.querySelectorAll('.pacey-score-info-btn').forEach(btn => {
         btn.addEventListener('click', openScoreModal);
     });
 
     // Dimensions explainer modal — explains the six radar dimensions.
     // Mirrors the scoring guide modal's open/close behaviour so both info
     // modals respond to the close button, overlay click, and Escape key.
-    const dimensionModal = $('#rgd-dimension-modal');
-    const dimensionModalClose = $('#rgd-dimension-modal-close');
+    const dimensionModal = $('#pacey-dimension-modal');
+    const dimensionModalClose = $('#pacey-dimension-modal-close');
     let dimensionModalTrigger = null;
 
     function openDimensionModal() {
@@ -1908,7 +1908,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.key === 'Escape' && !dimensionModal.hidden) closeDimensionModal();
     });
     // Wire up every dimensions info button to the modal
-    document.querySelectorAll('.rgd-dimension-info-btn').forEach(btn => {
+    document.querySelectorAll('.pacey-dimension-info-btn').forEach(btn => {
         btn.addEventListener('click', openDimensionModal);
     });
 
@@ -1936,13 +1936,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function pinboardChartFonts(canvas) {
         const style = getComputedStyle(canvas);
         return {
-            heading: style.getPropertyValue('--rgd-chart-heading-font').trim() || 'Raleway',
-            body: style.getPropertyValue('--rgd-chart-body-font').trim() || 'Lato',
+            heading: style.getPropertyValue('--pacey-chart-heading-font').trim() || 'Raleway',
+            body: style.getPropertyValue('--pacey-chart-body-font').trim() || 'Lato',
         };
     }
 
     function renderMileageChart(weekData) {
-        const canvas = document.getElementById('rgd-mileage-chart');
+        const canvas = document.getElementById('pacey-mileage-chart');
         if (!canvas) return;
         if (mileageChart) mileageChart.destroy();
         // Store week data for theme-change re-render
@@ -1981,11 +1981,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Read the chart colours from the canvas so they follow the surface the
         // chart actually sits on (paper) rather than the app's root theme
-        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--pacey-border').trim() || '#dce8f2';
         // Tooltip colors — adapt to theme
-        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         // Flag so the stagger only plays on the initial render, not on
@@ -2091,7 +2091,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Update card title
         const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-        const cardTitle = calendarEl.closest('.rgd-chart-card')?.querySelector('.rgd-card-title');
+        const cardTitle = calendarEl.closest('.pacey-chart-card')?.querySelector('.pacey-card-title');
         if (cardTitle) cardTitle.textContent = monthName;
 
         // Collect every run for each day of the current month, keeping each
@@ -2117,16 +2117,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Header row
         const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-        let html = '<div class="rgd-calendar-header">';
+        let html = '<div class="pacey-calendar-header">';
         dayNames.forEach(d => { html += `<span>${d}</span>`; });
-        html += '</div><div class="rgd-calendar-grid">';
+        html += '</div><div class="pacey-calendar-grid">';
 
         // First day offset (0 = Sunday)
         const firstDay = new Date(year, month, 1).getDay();
 
         // Empty cells before 1st
         for (let i = 0; i < firstDay; i++) {
-            html += '<span class="rgd-calendar-dot empty"></span>';
+            html += '<span class="pacey-calendar-dot empty"></span>';
         }
 
         // Day dots — coloured by run type (solid) or split when a day has
@@ -2136,7 +2136,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const runs = dayRuns[day];
             const isToday = day === today;
 
-            let cls = 'rgd-calendar-dot';
+            let cls = 'pacey-calendar-dot';
             let style = '';
             if (runs) {
                 cls += ' has-runs';
@@ -2164,7 +2164,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Wire click handlers on dots that have runs — show a tooltip
         // listing the day's runs (display-only, standardized styling).
-        calendarEl.querySelectorAll('.rgd-calendar-dot.has-runs').forEach(dot => {
+        calendarEl.querySelectorAll('.pacey-calendar-dot.has-runs').forEach(dot => {
             dot.addEventListener('click', (e) => {
                 e.stopPropagation();
                 showCalendarTooltip(e.currentTarget, dayRuns, monthName);
@@ -2174,7 +2174,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Calendar day tooltip — shown when a dot is clicked. Lists the runs
     // on that day (display-only, no navigation). Reuses a single DOM
-    // element and the shared .rgd-chart-tooltip styling so it matches the
+    // element and the shared .pacey-chart-tooltip styling so it matches the
     // radar chart tooltip design.
     let calendarTooltipEl = null;
     let calendarTooltipDismissBound = false;
@@ -2186,7 +2186,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reuse a single tooltip element across clicks
         if (!calendarTooltipEl) {
             calendarTooltipEl = document.createElement('div');
-            calendarTooltipEl.className = 'rgd-chart-tooltip rgd-calendar-tooltip';
+            calendarTooltipEl.className = 'pacey-chart-tooltip pacey-calendar-tooltip';
             document.body.appendChild(calendarTooltipEl);
         }
 
@@ -2197,7 +2197,7 @@ document.addEventListener('DOMContentLoaded', function () {
             document.addEventListener('click', (e) => {
                 if (!calendarTooltipEl) return;
                 if (calendarTooltipEl.contains(e.target)) return;
-                if (e.target && e.target.classList && e.target.classList.contains('rgd-calendar-dot')) return;
+                if (e.target && e.target.classList && e.target.classList.contains('pacey-calendar-dot')) return;
                 calendarTooltipEl.style.opacity = 0;
             }, true);
             window.addEventListener('scroll', () => {
@@ -2210,15 +2210,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const monthShort = monthName.split(' ')[0];
         calendarTooltipEl.innerHTML = `
-            <div class="rgd-calendar-tooltip-date">${monthShort} ${day}</div>
+            <div class="pacey-calendar-tooltip-date">${monthShort} ${day}</div>
             ${runs.map(r => {
                 const color = RUN_TAG_COLOR[r.tag] || RUN_TAG_COLOR['Easy'];
                 const meta = `${r.distance} km · ${r.pace}/km${r.hr ? ' · ' + r.hr + ' bpm' : ''}`;
                 return `
-                    <div class="rgd-calendar-tooltip-run">
-                        <span class="rgd-calendar-tooltip-run-dot" style="background:${color}"></span>
-                        <span class="rgd-calendar-tooltip-run-name">${escapeHtml(r.name)}</span>
-                        <span class="rgd-calendar-tooltip-run-meta">${meta}</span>
+                    <div class="pacey-calendar-tooltip-run">
+                        <span class="pacey-calendar-tooltip-run-dot" style="background:${color}"></span>
+                        <span class="pacey-calendar-tooltip-run-name">${escapeHtml(r.name)}</span>
+                        <span class="pacey-calendar-tooltip-run-meta">${meta}</span>
                     </div>
                 `;
             }).join('')}
@@ -2245,7 +2245,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // showMonthHeader: when true, renders the month name header above each group;
     //   false on the overview so the 5 activities appear as a flat list
     function buildActivityListHtml(activities, showMonthTotal = false, showMonthHeader = true) {
-        if (!activities.length) return '<p class="rgd-metric-label">No activities found.</p>';
+        if (!activities.length) return '<p class="pacey-metric-label">No activities found.</p>';
 
         // Group activities by month (YYYY-MM key) preserving original order
         const groups = [];
@@ -2265,9 +2265,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Build HTML with optional month headers between groups.
         // Month headers + totals only shown on the full activities page.
         return groups.map(group => `
-            ${showMonthHeader ? `<div class="rgd-activity-month-header">
-                <span class="rgd-activity-month-name">${group.month} ${group.year}</span>
-                ${showMonthTotal ? `<span class="rgd-activity-month-total">${Math.round(group.totalKm)} km</span>` : ''}
+            ${showMonthHeader ? `<div class="pacey-activity-month-header">
+                <span class="pacey-activity-month-name">${group.month} ${group.year}</span>
+                ${showMonthTotal ? `<span class="pacey-activity-month-total">${Math.round(group.totalKm)} km</span>` : ''}
             </div>` : ''}
             ${group.activities.map(({ activity, originalIndex }) => buildActivityItem(activity, originalIndex)).join('')}
         `).join('');
@@ -2277,8 +2277,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Filter out non-running activities (hiking, cycling, etc.) — only show runs
         const runningOnly = activities.filter(isRunningActivity);
         if (!runningOnly.length) {
-            activitiesList.innerHTML = '<p class="rgd-metric-label">No recent activities found.</p>';
-            if (activitiesFull) activitiesFull.innerHTML = '<p class="rgd-metric-label">No activities found.</p>';
+            activitiesList.innerHTML = '<p class="pacey-metric-label">No recent activities found.</p>';
+            if (activitiesFull) activitiesFull.innerHTML = '<p class="pacey-metric-label">No activities found.</p>';
             return;
         }
 
@@ -2299,10 +2299,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Attach click + keyboard handlers to all activity headers within a container.
-    // Toggles the .open class on the parent .rgd-activity-item and updates
+    // Toggles the .open class on the parent .pacey-activity-item and updates
     // aria-expanded so screen readers announce the expanded/collapsed state.
     function attachActivityHeaderHandlers(container) {
-        container.querySelectorAll('.rgd-activity-header').forEach(header => {
+        container.querySelectorAll('.pacey-activity-header').forEach(header => {
             const toggleActivity = () => {
                 const item = header.parentElement;
                 const isOpen = item.classList.toggle('open');
@@ -2402,56 +2402,56 @@ document.addEventListener('DOMContentLoaded', function () {
     // Run type → CSS class. Non-running tags use a neutral grey style so
     // they're visually distinct from run-specific tags.
     const RUN_TAG_CLASS = {
-        'Run': 'rgd-run-tag--easy',
-        'Warmup': 'rgd-run-tag--warmup',
-        'Tempo Long': 'rgd-run-tag--tempo-long',
-        'LSD': 'rgd-run-tag--lsd',
-        'Speedwork': 'rgd-run-tag--speedwork',
-        'Easy': 'rgd-run-tag--easy',
-        'Strength': 'rgd-run-tag--cross-train',
-        'HIIT': 'rgd-run-tag--cross-train',
-        'Cardio': 'rgd-run-tag--cross-train',
-        'Hike': 'rgd-run-tag--cross-train',
-        'Walk': 'rgd-run-tag--cross-train',
-        'Ruck': 'rgd-run-tag--cross-train',
+        'Run': 'pacey-run-tag--easy',
+        'Warmup': 'pacey-run-tag--warmup',
+        'Tempo Long': 'pacey-run-tag--tempo-long',
+        'LSD': 'pacey-run-tag--lsd',
+        'Speedwork': 'pacey-run-tag--speedwork',
+        'Easy': 'pacey-run-tag--easy',
+        'Strength': 'pacey-run-tag--cross-train',
+        'HIIT': 'pacey-run-tag--cross-train',
+        'Cardio': 'pacey-run-tag--cross-train',
+        'Hike': 'pacey-run-tag--cross-train',
+        'Walk': 'pacey-run-tag--cross-train',
+        'Ruck': 'pacey-run-tag--cross-train',
     };
 
     // Run type → dot fill colour. Reads the tokenised CSS custom properties
-    // (--rgd-run-*) so calendar dots match the run-tag colours and respect
+    // (--pacey-run-*) so calendar dots match the run-tag colours and respect
     // dark mode automatically. Falls back to hardcoded hex if the token is
     // missing (e.g. older browsers without CSS variable support).
-    // Resolve against #rgd-content (the pinboard scope) so the paper-context
+    // Resolve against #pacey-content (the pinboard scope) so the paper-context
     // token values are picked up on the dashboard.
     const cssVar = (name, fallback) =>
-        getComputedStyle(document.getElementById('rgd-content') || document.documentElement).getPropertyValue(name).trim() || fallback;
+        getComputedStyle(document.getElementById('pacey-content') || document.documentElement).getPropertyValue(name).trim() || fallback;
     const RUN_TAG_COLOR = {
-        'Run': cssVar('--rgd-run-easy', '#388e8e'),
-        'Easy': cssVar('--rgd-run-easy', '#388e8e'),
-        'Warmup': cssVar('--rgd-run-warmup', '#7a7a7a'),
-        'Tempo Long': cssVar('--rgd-run-tempo', '#8a6313'),
-        'LSD': cssVar('--rgd-run-lsd', '#5d6db0'),
-        'Speedwork': cssVar('--rgd-run-speedwork', '#c44b4b'),
+        'Run': cssVar('--pacey-run-easy', '#388e8e'),
+        'Easy': cssVar('--pacey-run-easy', '#388e8e'),
+        'Warmup': cssVar('--pacey-run-warmup', '#7a7a7a'),
+        'Tempo Long': cssVar('--pacey-run-tempo', '#8a6313'),
+        'LSD': cssVar('--pacey-run-lsd', '#5d6db0'),
+        'Speedwork': cssVar('--pacey-run-speedwork', '#c44b4b'),
         // Non-running activities share a neutral colour
-        'Strength': cssVar('--rgd-run-cross-train', '#8a8a8a'),
-        'HIIT': cssVar('--rgd-run-cross-train', '#8a8a8a'),
-        'Cardio': cssVar('--rgd-run-cross-train', '#8a8a8a'),
-        'Hike': cssVar('--rgd-run-cross-train', '#8a8a8a'),
-        'Walk': cssVar('--rgd-run-cross-train', '#8a8a8a'),
-        'Ruck': cssVar('--rgd-run-cross-train', '#8a8a8a'),
+        'Strength': cssVar('--pacey-run-cross-train', '#8a8a8a'),
+        'HIIT': cssVar('--pacey-run-cross-train', '#8a8a8a'),
+        'Cardio': cssVar('--pacey-run-cross-train', '#8a8a8a'),
+        'Hike': cssVar('--pacey-run-cross-train', '#8a8a8a'),
+        'Walk': cssVar('--pacey-run-cross-train', '#8a8a8a'),
+        'Ruck': cssVar('--pacey-run-cross-train', '#8a8a8a'),
     };
 
     // Metric zone colours — METRIC_META defines zones with CSS token names
-    // (--rgd-accent-*) instead of hex so the gauges and card value colours
+    // (--pacey-accent-*) instead of hex so the gauges and card value colours
     // follow the active theme, same as RUN_TAG_COLOR and the radar chart.
     // Fallbacks are the light-theme hex values; resolveMetricZoneColors()
     // patches the zone colours in place and is re-run on theme toggle.
     const METRIC_ZONE_FALLBACKS = {
-        '--rgd-accent-red': '#c44b4b',
-        '--rgd-accent-amber': '#d4a017',
-        '--rgd-accent-green': '#3f7b4f',
-        '--rgd-accent-purple': '#9b6dd0',
-        '--rgd-accent-grey': '#999999',
-        '--rgd-blue': '#457b9d',
+        '--pacey-accent-red': '#c44b4b',
+        '--pacey-accent-amber': '#d4a017',
+        '--pacey-accent-green': '#3f7b4f',
+        '--pacey-accent-purple': '#9b6dd0',
+        '--pacey-accent-grey': '#999999',
+        '--pacey-blue': '#457b9d',
     };
     const resolveMetricZoneColors = () => {
         // cssVar now resolves against the pinboard paper context, so the metric
@@ -2487,64 +2487,64 @@ document.addEventListener('DOMContentLoaded', function () {
         const runTagLabel = a.run_tag || 'Easy';
         const runTag = {
             label: runTagLabel,
-            className: RUN_TAG_CLASS[runTagLabel] || 'rgd-run-tag--easy',
+            className: RUN_TAG_CLASS[runTagLabel] || 'pacey-run-tag--easy',
         };
 
         return `
-            <div class="rgd-activity-item" data-index="${i}" data-activity-id="${a.id != null ? a.id : ''}">
-                <div class="rgd-activity-header" role="button" tabindex="0" aria-expanded="false"
+            <div class="pacey-activity-item" data-index="${i}" data-activity-id="${a.id != null ? a.id : ''}">
+                <div class="pacey-activity-header" role="button" tabindex="0" aria-expanded="false"
                      aria-label="${escapeHtml(a.name)} on ${date}, ${a.distance} km at ${pace} per km. Select to expand details.">
-                    <div class="rgd-activity-summary">
-                        <div class="rgd-activity-icon">${iconSvg}</div>
-                        <span class="rgd-activity-name">${escapeHtml(a.name)}</span>
-                        <span class="rgd-activity-date">${date}</span>
-                        <span class="rgd-run-tag ${runTag.className}">${runTag.label}</span>
+                    <div class="pacey-activity-summary">
+                        <div class="pacey-activity-icon">${iconSvg}</div>
+                        <span class="pacey-activity-name">${escapeHtml(a.name)}</span>
+                        <span class="pacey-activity-date">${date}</span>
+                        <span class="pacey-run-tag ${runTag.className}">${runTag.label}</span>
                     </div>
-                    <div class="rgd-activity-meta">
-                        <div class="rgd-activity-stat">
-                            <span class="rgd-activity-stat-value">${a.distance}</span>
-                            <span class="rgd-activity-stat-label">km</span>
+                    <div class="pacey-activity-meta">
+                        <div class="pacey-activity-stat">
+                            <span class="pacey-activity-stat-value">${a.distance}</span>
+                            <span class="pacey-activity-stat-label">km</span>
                         </div>
-                        <div class="rgd-activity-stat">
-                            <span class="rgd-activity-stat-value">${pace}</span>
-                            <span class="rgd-activity-stat-label">/km pace</span>
+                        <div class="pacey-activity-stat">
+                            <span class="pacey-activity-stat-value">${pace}</span>
+                            <span class="pacey-activity-stat-label">/km pace</span>
                         </div>
-                        <div class="rgd-activity-stat">
-                            <span class="rgd-activity-stat-value">${hr}</span>
-                            <span class="rgd-activity-stat-label">avg HR</span>
+                        <div class="pacey-activity-stat">
+                            <span class="pacey-activity-stat-value">${hr}</span>
+                            <span class="pacey-activity-stat-label">avg HR</span>
                         </div>
-                        <div class="rgd-activity-stat">
-                            <span class="rgd-activity-stat-value">${ascent}</span>
-                            <span class="rgd-activity-stat-label">ascent</span>
+                        <div class="pacey-activity-stat">
+                            <span class="pacey-activity-stat-value">${ascent}</span>
+                            <span class="pacey-activity-stat-label">ascent</span>
                         </div>
                     </div>
-                    <svg class="rgd-activity-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    <svg class="pacey-activity-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
-                <div class="rgd-activity-detail">
-                    <div class="rgd-activity-detail-grid">
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Duration</span>
-                            <span class="rgd-activity-detail-value">${formatDuration(a.duration)}</span>
+                <div class="pacey-activity-detail">
+                    <div class="pacey-activity-detail-grid">
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Duration</span>
+                            <span class="pacey-activity-detail-value">${formatDuration(a.duration)}</span>
                         </div>
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Elapsed</span>
-                            <span class="rgd-activity-detail-value">${elapsed}</span>
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Elapsed</span>
+                            <span class="pacey-activity-detail-value">${elapsed}</span>
                         </div>
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Calories</span>
-                            <span class="rgd-activity-detail-value">${a.calories || '--'}</span>
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Calories</span>
+                            <span class="pacey-activity-detail-value">${a.calories || '--'}</span>
                         </div>
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Max HR</span>
-                            <span class="rgd-activity-detail-value">${a.max_hr ? a.max_hr + ' bpm' : '--'}</span>
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Max HR</span>
+                            <span class="pacey-activity-detail-value">${a.max_hr ? a.max_hr + ' bpm' : '--'}</span>
                         </div>
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Cadence</span>
-                            <span class="rgd-activity-detail-value">${cadence}</span>
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Cadence</span>
+                            <span class="pacey-activity-detail-value">${cadence}</span>
                         </div>
-                        <div class="rgd-activity-detail-item">
-                            <span class="rgd-activity-detail-label">Ascent</span>
-                            <span class="rgd-activity-detail-value">${ascent}</span>
+                        <div class="pacey-activity-detail-item">
+                            <span class="pacey-activity-detail-label">Ascent</span>
+                            <span class="pacey-activity-detail-value">${ascent}</span>
                         </div>
                     </div>
                 </div>
@@ -2589,7 +2589,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function renderPaceDistribution(activities) {
-        const canvas = document.getElementById('rgd-pace-distribution-chart');
+        const canvas = document.getElementById('pacey-pace-distribution-chart');
         if (!canvas || !activities.length) return;
         if (paceDistChart) paceDistChart.destroy();
         // Store activities for theme-change re-render
@@ -2658,16 +2658,16 @@ document.addEventListener('DOMContentLoaded', function () {
         ];
 
         // Read colours from the canvas so labels follow the paper surface
-        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--pacey-border').trim() || '#dce8f2';
         // Standardized theme-aware tooltip colours — shared with the weekly
         // mileage, HR vs pace, and calendar tooltips so all charts match.
-        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         // Update the card title to reflect the number of activities analysed
-        const paceTitleEl = canvas.closest('.rgd-chart-card')?.querySelector('.rgd-card-title');
+        const paceTitleEl = canvas.closest('.pacey-chart-card')?.querySelector('.pacey-card-title');
         if (paceTitleEl) paceTitleEl.textContent = `Pace Distribution Over Last ${runs.length} Activities`;
 
         paceDistChart = new Chart(canvas, {
@@ -2730,7 +2730,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
 
     function renderHrPaceScatter(activities) {
-        const canvas = document.getElementById('rgd-hr-pace-scatter');
+        const canvas = document.getElementById('pacey-hr-pace-scatter');
         if (!canvas || !activities.length) return;
         if (hrPaceScatter) hrPaceScatter.destroy();
         // Store activities for theme-change re-render
@@ -2784,11 +2784,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Read colours from the canvas so labels follow the paper surface
-        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--pacey-border').trim() || '#dce8f2';
         // Standardized theme-aware tooltip colours — shared across all charts
-        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         hrPaceScatter = new Chart(canvas, {
@@ -2894,12 +2894,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return `rgba(${r}, ${g}, ${b}, 0.7)`;
     };
     const RADAR_COLORS = [
-        radarHex('--rgd-run-speedwork', '#c44b4b'),  // lactate threshold — red
-        radarHex('--rgd-accent-green', '#3f7b4f'),   // aerobic endurance — green
-        radarHex('--rgd-run-tempo', '#8a6313'),      // running economy — amber
-        radarHex('--rgd-run-lsd', '#5d6db0'),        // strength/durability — purple
-        radarHex('--rgd-blue', '#457b9d'),           // vo2max/speed — blue
-        radarHex('--rgd-run-easy', '#388e8e'),       // fatigue resistance — teal
+        radarHex('--pacey-run-speedwork', '#c44b4b'),  // lactate threshold — red
+        radarHex('--pacey-accent-green', '#3f7b4f'),   // aerobic endurance — green
+        radarHex('--pacey-run-tempo', '#8a6313'),      // running economy — amber
+        radarHex('--pacey-run-lsd', '#5d6db0'),        // strength/durability — purple
+        radarHex('--pacey-blue', '#457b9d'),           // vo2max/speed — blue
+        radarHex('--pacey-run-easy', '#388e8e'),       // fatigue resistance — teal
     ];
     const RADAR_KEYS = [
         'lactate_threshold', 'aerobic_endurance', 'running_economy',
@@ -2918,11 +2918,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // doesn't reliably trigger the external tooltip handler when enabled:false.
     // dimIndex is the radar dimension index to show in the tooltip.
     function showRadarHtmlTooltip(chart, canvasX, canvasY, dimIndex) {
-        let tooltipEl = document.getElementById('rgd-radar-tooltip');
+        let tooltipEl = document.getElementById('pacey-radar-tooltip');
         if (!tooltipEl) {
             tooltipEl = document.createElement('div');
-            tooltipEl.id = 'rgd-radar-tooltip';
-            tooltipEl.className = 'rgd-radar-tooltip';
+            tooltipEl.id = 'pacey-radar-tooltip';
+            tooltipEl.className = 'pacey-radar-tooltip';
             document.body.appendChild(tooltipEl);
         }
 
@@ -2930,27 +2930,27 @@ document.addEventListener('DOMContentLoaded', function () {
         const score = radarValues10[dimIndex] !== undefined ? radarValues10[dimIndex] : '--';
 
         tooltipEl.innerHTML = `
-            <a class="rgd-radar-tooltip-link" href="#" data-pillar-index="${dimIndex}">
+            <a class="pacey-radar-tooltip-link" href="#" data-pillar-index="${dimIndex}">
                 ${escapeHtml(dimName)}
             </a>
-            <span class="rgd-radar-tooltip-score">${score}/10</span>
+            <span class="pacey-radar-tooltip-score">${score}/10</span>
         `;
 
         // Wire up the link click — same as in the external handler
-        const link = tooltipEl.querySelector('.rgd-radar-tooltip-link');
+        const link = tooltipEl.querySelector('.pacey-radar-tooltip-link');
         if (link) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 const idx = parseInt(link.getAttribute('data-pillar-index'));
-                const visiblePage = document.querySelector('.rgd-page:not([hidden])');
+                const visiblePage = document.querySelector('.pacey-page:not([hidden])');
                 if (!visiblePage) return;
                 const pillar = visiblePage.querySelector(
-                    `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                    `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`
                 );
                 if (pillar) {
                     pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    pillar.classList.add('rgd-pillar-highlight');
-                    setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                    pillar.classList.add('pacey-pillar-highlight');
+                    setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
                 }
                 tooltipEl.style.opacity = 0;
             });
@@ -2989,13 +2989,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function radarExternalTooltipHandler(context) {
         const { chart, tooltip } = context;
         // Tooltip element — shared across all radar canvases, created once
-        let tooltipEl = document.getElementById('rgd-radar-tooltip');
+        let tooltipEl = document.getElementById('pacey-radar-tooltip');
 
         // Create the tooltip container on first use
         if (!tooltipEl) {
             tooltipEl = document.createElement('div');
-            tooltipEl.id = 'rgd-radar-tooltip';
-            tooltipEl.className = 'rgd-radar-tooltip';
+            tooltipEl.id = 'pacey-radar-tooltip';
+            tooltipEl.className = 'pacey-radar-tooltip';
             document.body.appendChild(tooltipEl);
 
             // Pin the tooltip when the mouse enters it — this prevents
@@ -3027,32 +3027,32 @@ document.addEventListener('DOMContentLoaded', function () {
             const score = dp.raw;
 
             tooltipEl.innerHTML = `
-                <a class="rgd-radar-tooltip-link" href="#readiness" data-pillar-index="${dimIndex}">
+                <a class="pacey-radar-tooltip-link" href="#readiness" data-pillar-index="${dimIndex}">
                     ${escapeHtml(dimName)}
                 </a>
-                <span class="rgd-radar-tooltip-score">${score}/10</span>
+                <span class="pacey-radar-tooltip-score">${score}/10</span>
             `;
 
             // Wire up the link click — scroll to the corresponding pillar card
             // within the currently visible page's pillars container.
             // Uses data-pillar-index attribute to find the right card.
-            const link = tooltipEl.querySelector('.rgd-radar-tooltip-link');
+            const link = tooltipEl.querySelector('.pacey-radar-tooltip-link');
             if (link) {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     const idx = parseInt(link.getAttribute('data-pillar-index'));
                     // Find the pillar card on the currently visible page —
                     // query within the visible page's pillars container only
-                    const visiblePage = document.querySelector('.rgd-page:not([hidden])');
+                    const visiblePage = document.querySelector('.pacey-page:not([hidden])');
                     if (!visiblePage) return;
                     const pillar = visiblePage.querySelector(
-                        `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                        `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`
                     );
                     if (pillar) {
                         pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         // Briefly highlight the card so the user notices it
-                        pillar.classList.add('rgd-pillar-highlight');
-                        setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                        pillar.classList.add('pacey-pillar-highlight');
+                        setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
                     }
                     // Hide the tooltip after clicking the link
                     tooltipEl.style.opacity = 0;
@@ -3117,19 +3117,19 @@ document.addEventListener('DOMContentLoaded', function () {
         radarCharts = [];
 
         // Create a Chart instance for each radar canvas (overview + readiness)
-        const canvases = document.querySelectorAll('.rgd-radar-chart');
+        const canvases = document.querySelectorAll('.pacey-radar-chart');
         canvases.forEach(canvas => {
             // Reset the loaded class so the canvas starts at opacity 0,
             // then add it after the chart is created to trigger the fade-in
-            canvas.classList.remove('rgd-radar-loaded');
+            canvas.classList.remove('pacey-radar-loaded');
             // Read colours from the canvas so the radar follows the surface it
             // sits on (paper on the overview, app surface on Readiness)
-            const cssNavy = getComputedStyle(canvas).getPropertyValue('--rgd-navy').trim() || '#1d3557';
-            const cssMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-            const cssBlue = getComputedStyle(canvas).getPropertyValue('--rgd-blue').trim() || '#457b9d';
+            const cssNavy = getComputedStyle(canvas).getPropertyValue('--pacey-navy').trim() || '#1d3557';
+            const cssMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+            const cssBlue = getComputedStyle(canvas).getPropertyValue('--pacey-blue').trim() || '#457b9d';
             // Tooltip background — use surface color so it adapts to theme
-            const cssSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-            const cssText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
+            const cssSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
+            const cssText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
             // On narrow screens (phone), use a smaller point label font to prevent clipping.
@@ -3237,7 +3237,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // happens before we add the loaded class, so the transition fires.
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    canvas.classList.add('rgd-radar-loaded');
+                    canvas.classList.add('pacey-radar-loaded');
                 });
             });
         });
@@ -3250,8 +3250,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // is scoped by session token so different users never cross-pollute.
     // =========================================================================
 
-    const METRICS_CACHE_KEY = 'rgd_metrics_cache';
-    const MILEAGE_CACHE_KEY = 'rgd_mileage_cache';
+    const METRICS_CACHE_KEY = 'pacey_metrics_cache';
+    const MILEAGE_CACHE_KEY = 'pacey_mileage_cache';
     // 1-hour TTL — Garmin data changes on watch sync, not in real time, so
     // an hour of reuse is safe. After TTL, the cache is still shown (stale)
     // while a fresh fetch is triggered (revalidate).
@@ -3299,7 +3299,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Cache keyed by session token + race goal hash, 24-hour TTL
     // =========================================================================
 
-    const AI_CACHE_KEY = 'rgd_ai_radar_cache_v2';
+    const AI_CACHE_KEY = 'pacey_ai_radar_cache_v2';
     const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     // Build a deterministic cache key from the session token and race goal
@@ -3424,30 +3424,30 @@ document.addEventListener('DOMContentLoaded', function () {
     function showRadarSkeleton(show) {
         // Toggle the skeleton overlays FIRST so a failure in the chart
         // teardown below can never leave the radar area blank.
-        document.querySelectorAll('.rgd-radar-skeleton').forEach(el => {
+        document.querySelectorAll('.pacey-radar-skeleton').forEach(el => {
             // A previous hide may never have completed its transition — the
             // skeleton sat inside a display:none page (e.g. the readiness
             // page during the initial overview load), so transitionend never
             // fired and its listener + fade-out class are still attached.
             // Remove that stale handler now, or it would fire at the end of
             // this show's fade-in and re-hide the skeleton.
-            if (el._rgdFadeHandler) {
-                el.removeEventListener('transitionend', el._rgdFadeHandler);
-                el._rgdFadeHandler = null;
+            if (el._paceyFadeHandler) {
+                el.removeEventListener('transitionend', el._paceyFadeHandler);
+                el._paceyFadeHandler = null;
             }
             if (show) {
-                el.classList.remove('rgd-fade-out');
+                el.classList.remove('pacey-fade-out');
                 el.hidden = false;
             } else {
-                el.classList.add('rgd-fade-out');
+                el.classList.add('pacey-fade-out');
                 const onFadeEnd = () => {
                     el.hidden = true;
-                    el.classList.remove('rgd-fade-out');
+                    el.classList.remove('pacey-fade-out');
                     el.removeEventListener('transitionend', onFadeEnd);
-                    el._rgdFadeHandler = null;
+                    el._paceyFadeHandler = null;
                     clearTimeout(fadeTimer);
                 };
-                el._rgdFadeHandler = onFadeEnd;
+                el._paceyFadeHandler = onFadeEnd;
                 // Fallback: transitionend may never fire inside a hidden
                 // container — force-hide after the fade window either way,
                 // so no stale fade-out state survives for the next show.
@@ -3463,8 +3463,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 radarCharts = [];
                 // Reset the canvas opacity so it can fade in again when the
                 // new chart is created
-                document.querySelectorAll('.rgd-radar-chart').forEach(canvas => {
-                    canvas.classList.remove('rgd-radar-loaded');
+                document.querySelectorAll('.pacey-radar-chart').forEach(canvas => {
+                    canvas.classList.remove('pacey-radar-loaded');
                 });
                 startRadarMorph();
             } catch (err) {
@@ -3497,9 +3497,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function startRadarMorph() {
         if (radarMorphRaf !== null) return; // already running
         radarMorphStates = [];
-        document.querySelectorAll('.rgd-radar-skeleton').forEach(skel => {
-            const poly = skel.querySelector('.rgd-radar-morph');
-            const dots = Array.from(skel.querySelectorAll('.rgd-radar-morph-dot'));
+        document.querySelectorAll('.pacey-radar-skeleton').forEach(skel => {
+            const poly = skel.querySelector('.pacey-radar-morph');
+            const dots = Array.from(skel.querySelectorAll('.pacey-radar-morph-dot'));
             if (!poly) return;
             const radii = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
             const targets = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
@@ -3582,12 +3582,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Read colours from the mileage canvas so the loading charts match the
         // paper surface they render on (falls back to root if it is missing)
-        const loadingSource = document.getElementById('rgd-mileage-chart') || document.documentElement;
-        const chartMuted = getComputedStyle(loadingSource).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(loadingSource).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        const loadingSource = document.getElementById('pacey-mileage-chart') || document.documentElement;
+        const chartMuted = getComputedStyle(loadingSource).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(loadingSource).getPropertyValue('--pacey-border').trim() || '#dce8f2';
 
         // --- Mileage chart: 12 randomised bars ---
-        const mileageCanvas = document.getElementById('rgd-mileage-chart');
+        const mileageCanvas = document.getElementById('pacey-mileage-chart');
         if (mileageCanvas) {
             if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
             const mileageLabels = Array.from({ length: 12 }, (_, i) => {
@@ -3636,7 +3636,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // --- Pace distribution chart: 5 randomised bars ---
-        const paceCanvas = document.getElementById('rgd-pace-distribution-chart');
+        const paceCanvas = document.getElementById('pacey-pace-distribution-chart');
         if (paceCanvas) {
             if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
             const paceLabels = ['', '', '', '', ''];
@@ -3680,7 +3680,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // --- HR vs pace scatter: 15 randomised dots ---
-        const hrCanvas = document.getElementById('rgd-hr-pace-scatter');
+        const hrCanvas = document.getElementById('pacey-hr-pace-scatter');
         if (hrCanvas) {
             if (hrPaceScatter) { hrPaceScatter.destroy(); hrPaceScatter = null; }
             const scatterData = Array.from({ length: 15 }, () => ({
@@ -3799,16 +3799,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // card down when it loads.
     function showPillarsSkeleton() {
         const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
-            <div class="rgd-pillar-card rgd-pillar-card--skeleton">
-                <div class="rgd-pillar-header">
-                    <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
-                    <span class="rgd-pillar-name">${name}</span>
-                    <span class="rgd-pillar-score rgd-skeleton-text"></span>
+            <div class="pacey-pillar-card pacey-pillar-card--skeleton">
+                <div class="pacey-pillar-header">
+                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                    <span class="pacey-pillar-name">${name}</span>
+                    <span class="pacey-pillar-score pacey-skeleton-text"></span>
                 </div>
-                <div class="rgd-skeleton-lines">
-                    <div class="rgd-skeleton-line"></div>
-                    <div class="rgd-skeleton-line"></div>
-                    <div class="rgd-skeleton-line rgd-skeleton-line--short"></div>
+                <div class="pacey-skeleton-lines">
+                    <div class="pacey-skeleton-line"></div>
+                    <div class="pacey-skeleton-line"></div>
+                    <div class="pacey-skeleton-line pacey-skeleton-line--short"></div>
                 </div>
             </div>
         `).join('');
@@ -3822,8 +3822,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // The Big Picture — the coach's top-level synthesized assessment
     // =========================================================================
 
-    const overallInsightEl = $('#rgd-overall-insight');
-    const overallInsightSkeleton = $('#rgd-overall-insight-skeleton');
+    const overallInsightEl = $('#pacey-overall-insight');
+    const overallInsightSkeleton = $('#pacey-overall-insight-skeleton');
 
     // Derive an overall insight from pillars data when a dedicated overall
     // insight isn't available from the API. Computes the average score,
@@ -3914,36 +3914,36 @@ document.addEventListener('DOMContentLoaded', function () {
         const gap = data.topGap || { label: '', note: '' };
 
         // Score color — matches the AI score scale used in the dimension modal
-        const scoreColor = data.score >= 8 ? 'var(--rgd-accent-green)'
-            : data.score >= 7 ? 'var(--rgd-accent-green)'
-            : data.score >= 6 ? 'var(--rgd-accent-amber)'
-            : data.score >= 5 ? 'var(--rgd-accent-amber)'
-            : 'var(--rgd-accent-red)';
+        const scoreColor = data.score >= 8 ? 'var(--pacey-accent-green)'
+            : data.score >= 7 ? 'var(--pacey-accent-green)'
+            : data.score >= 6 ? 'var(--pacey-accent-amber)'
+            : data.score >= 5 ? 'var(--pacey-accent-amber)'
+            : 'var(--pacey-accent-red)';
 
         overallInsightEl.innerHTML = `
-            <div class="rgd-overall-insight-header">
-                <div class="rgd-overall-insight-verdict">${escapeHtml(data.verdict)}</div>
-                <div class="rgd-overall-insight-score" style="color: ${scoreColor};">${data.score}<span class="rgd-overall-insight-score-max">/10</span></div>
+            <div class="pacey-overall-insight-header">
+                <div class="pacey-overall-insight-verdict">${escapeHtml(data.verdict)}</div>
+                <div class="pacey-overall-insight-score" style="color: ${scoreColor};">${data.score}<span class="pacey-overall-insight-score-max">/10</span></div>
             </div>
-            <p class="rgd-overall-insight-summary">${escapeHtml(data.summary)}</p>
-            <div class="rgd-overall-insight-takeaways">
-                <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--strength">
-                    <span class="rgd-overall-insight-takeaway-label">Top strength</span>
-                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(strength.label)}</span>
-                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(strength.note)}</p>
+            <p class="pacey-overall-insight-summary">${escapeHtml(data.summary)}</p>
+            <div class="pacey-overall-insight-takeaways">
+                <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--strength">
+                    <span class="pacey-overall-insight-takeaway-label">Top strength</span>
+                    <span class="pacey-overall-insight-takeaway-name">${escapeHtml(strength.label)}</span>
+                    <p class="pacey-overall-insight-takeaway-note">${escapeHtml(strength.note)}</p>
                 </div>
-                <div class="rgd-overall-insight-takeaway rgd-overall-insight-takeaway--gap">
-                    <span class="rgd-overall-insight-takeaway-label">Biggest gap</span>
-                    <span class="rgd-overall-insight-takeaway-name">${escapeHtml(gap.label)}</span>
-                    <p class="rgd-overall-insight-takeaway-note">${escapeHtml(gap.note)}</p>
+                <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--gap">
+                    <span class="pacey-overall-insight-takeaway-label">Biggest gap</span>
+                    <span class="pacey-overall-insight-takeaway-name">${escapeHtml(gap.label)}</span>
+                    <p class="pacey-overall-insight-takeaway-note">${escapeHtml(gap.note)}</p>
                 </div>
             </div>
-            <div class="rgd-overall-insight-focus">
-                <span class="rgd-overall-insight-focus-label">What to focus on next</span>
-                <p class="rgd-overall-insight-focus-text">${escapeHtml(data.focus)}</p>
+            <div class="pacey-overall-insight-focus">
+                <span class="pacey-overall-insight-focus-label">What to focus on next</span>
+                <p class="pacey-overall-insight-focus-text">${escapeHtml(data.focus)}</p>
             </div>
             <!-- CTA — takes the runner to the full race-readiness chart page -->
-            <a class="rgd-overall-insight-cta" href="#readiness">
+            <a class="pacey-overall-insight-cta" href="#readiness">
                 See race readiness
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
             </a>
@@ -3966,18 +3966,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const overviewHtml = dims.map((d, i) => {
             // Colour-code the mark like a coach's rating — same scale as the
             // overall score. The "/10" stays quiet and inherits its own colour.
-            const scoreColor = d.score >= 7 ? 'var(--rgd-accent-green)'
-                : d.score >= 5 ? 'var(--rgd-accent-amber)'
-                : 'var(--rgd-accent-red)';
+            const scoreColor = d.score >= 7 ? 'var(--pacey-accent-green)'
+                : d.score >= 5 ? 'var(--pacey-accent-amber)'
+                : 'var(--pacey-accent-red)';
             return `
-            <div class="rgd-pillar-card rgd-pillar-card--summary" data-pillar-index="${i}">
-                <div class="rgd-pillar-header">
-                    <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
-                    <span class="rgd-pillar-name">${escapeHtml(d.name)}</span>
-                    <span class="rgd-pillar-score" style="color:${scoreColor}">${d.score}<span class="rgd-pillar-score-max">/10</span></span>
+            <div class="pacey-pillar-card pacey-pillar-card--summary" data-pillar-index="${i}">
+                <div class="pacey-pillar-header">
+                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                    <span class="pacey-pillar-name">${escapeHtml(d.name)}</span>
+                    <span class="pacey-pillar-score" style="color:${scoreColor}">${d.score}<span class="pacey-pillar-score-max">/10</span></span>
                 </div>
-                <p class="rgd-pillar-summary">${escapeHtml(d.summary || '')}</p>
-                <span class="rgd-pillar-view-details">View details →</span>
+                <p class="pacey-pillar-summary">${escapeHtml(d.summary || '')}</p>
+                <span class="pacey-pillar-view-details">View details →</span>
             </div>
         `;
         }).join('');
@@ -3985,19 +3985,19 @@ document.addEventListener('DOMContentLoaded', function () {
         // Readiness page: full breakdown with strengths and gaps, each
         // referencing specific data from the runner's activities.
         const insightsHtml = dims.map((d, i) => `
-            <div class="rgd-pillar-card" data-pillar-index="${i}">
-                <div class="rgd-pillar-header">
-                    <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
-                    <span class="rgd-pillar-name">${escapeHtml(d.name)}</span>
-                    <span class="rgd-pillar-score">${d.score}/10</span>
+            <div class="pacey-pillar-card" data-pillar-index="${i}">
+                <div class="pacey-pillar-header">
+                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                    <span class="pacey-pillar-name">${escapeHtml(d.name)}</span>
+                    <span class="pacey-pillar-score">${d.score}/10</span>
                 </div>
-                <div class="rgd-pillar-section rgd-pillar-section--strengths">
-                    <span class="rgd-pillar-section-label rgd-pillar-section-label--strengths">Strengths</span>
-                    <p class="rgd-pillar-note">${escapeHtml(d.strengths || '')}</p>
+                <div class="pacey-pillar-section pacey-pillar-section--strengths">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--strengths">Strengths</span>
+                    <p class="pacey-pillar-note">${escapeHtml(d.strengths || '')}</p>
                 </div>
-                <div class="rgd-pillar-section rgd-pillar-section--gaps">
-                    <span class="rgd-pillar-section-label rgd-pillar-section-label--gaps">Gaps</span>
-                    <p class="rgd-pillar-note">${escapeHtml(d.gaps || '')}</p>
+                <div class="pacey-pillar-section pacey-pillar-section--gaps">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--gaps">Gaps</span>
+                    <p class="pacey-pillar-note">${escapeHtml(d.gaps || '')}</p>
                 </div>
             </div>
         `).join('');
@@ -4005,8 +4005,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fill each pillars-content container with the appropriate HTML.
         // The first container is on the overview page, the second on the
         // readiness page — determined by which page element contains them.
-        const overviewPage = document.getElementById('rgd-page-overview');
-        const readinessPage = document.getElementById('rgd-page-readiness');
+        const overviewPage = document.getElementById('pacey-page-overview');
+        const readinessPage = document.getElementById('pacey-page-readiness');
         pillarsContents.forEach(el => {
             if (overviewPage && overviewPage.contains(el)) {
                 el.innerHTML = overviewHtml;
@@ -4022,7 +4022,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // a card navigates to the readiness page and scrolls the matching
         // pillar card into view with a brief highlight pulse
         if (overviewPage) {
-            overviewPage.querySelectorAll('.rgd-pillar-card--summary').forEach(card => {
+            overviewPage.querySelectorAll('.pacey-pillar-card--summary').forEach(card => {
                 card.addEventListener('click', () => {
                     const idx = card.getAttribute('data-pillar-index');
                     // Navigate to the readiness page via hash routing
@@ -4031,12 +4031,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     // page is shown — short delay to allow the page to unhide
                     setTimeout(() => {
                         const pillar = readinessPage.querySelector(
-                            `.rgd-pillars-content .rgd-pillar-card[data-pillar-index="${idx}"]`
+                            `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`
                         );
                         if (pillar) {
                             pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            pillar.classList.add('rgd-pillar-highlight');
-                            setTimeout(() => pillar.classList.remove('rgd-pillar-highlight'), 2000);
+                            pillar.classList.add('pacey-pillar-highlight');
+                            setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
                         }
                     }, 100);
                 });
@@ -4057,10 +4057,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // back to the onboarding screen. Submits to the same /api/onboarding endpoint.
     // =========================================================================
 
-    const editGoalPopup = $('#rgd-edit-goal-popup');
-    const editGoalClose = $('#rgd-edit-goal-close');
-    const editGoalForm = $('#rgd-edit-goal-form');
-    const editGoalBtn = $('#rgd-edit-goal-btn');
+    const editGoalPopup = $('#pacey-edit-goal-popup');
+    const editGoalClose = $('#pacey-edit-goal-close');
+    const editGoalForm = $('#pacey-edit-goal-form');
+    const editGoalBtn = $('#pacey-edit-goal-btn');
     let editGoalTrigger = null;
 
     // Open the edit-goal popup — pre-fills the form with the current race goal
@@ -4071,18 +4071,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Pre-fill the form with current goal values
         if (raceGoal) {
-            $('#rgd-edit-race-name').value = raceGoal.race_name || '';
-            $('#rgd-edit-purpose').value = raceGoal.purpose || '';
+            $('#pacey-edit-race-name').value = raceGoal.race_name || '';
+            $('#pacey-edit-purpose').value = raceGoal.purpose || '';
             // Parse time target "HH:MM:SS" into separate fields
             const parts = (raceGoal.time_target || '00:00:00').split(':');
-            $('#rgd-edit-time-h').value = parts[0] || '0';
-            $('#rgd-edit-time-m').value = parts[1] || '00';
-            $('#rgd-edit-time-s').value = parts[2] || '00';
-            $('#rgd-edit-race-date').value = raceGoal.race_date || '';
-            $('#rgd-edit-mileage').value = raceGoal.weekly_mileage || '';
-            $('#rgd-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
-            $('#rgd-edit-gender').value = raceGoal.gender || '';
-            $('#rgd-edit-age').value = raceGoal.age || '';
+            $('#pacey-edit-time-h').value = parts[0] || '0';
+            $('#pacey-edit-time-m').value = parts[1] || '00';
+            $('#pacey-edit-time-s').value = parts[2] || '00';
+            $('#pacey-edit-race-date').value = raceGoal.race_date || '';
+            $('#pacey-edit-mileage').value = raceGoal.weekly_mileage || '';
+            $('#pacey-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
+            $('#pacey-edit-gender').value = raceGoal.gender || '';
+            $('#pacey-edit-age').value = raceGoal.age || '';
         }
         editGoalPopup.hidden = false;
         editGoalClose.focus();
@@ -4091,11 +4091,11 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeEditGoalPopup() {
         editGoalPopup.hidden = true;
         // Clear any error states
-        $$('.rgd-input.error').forEach(el => {
+        $$('.pacey-input.error').forEach(el => {
             // Only clear errors within the edit-goal form
             if (editGoalForm.contains(el)) el.classList.remove('error');
         });
-        $$('.rgd-field-error').forEach(el => {
+        $$('.pacey-field-error').forEach(el => {
             if (editGoalForm.contains(el)) el.hidden = true;
         });
         if (editGoalTrigger) editGoalTrigger.focus();
@@ -4105,25 +4105,25 @@ document.addEventListener('DOMContentLoaded', function () {
     editGoalForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         // Clear previous error states within this form only
-        $$('.rgd-input.error').forEach(el => {
+        $$('.pacey-input.error').forEach(el => {
             if (editGoalForm.contains(el)) el.classList.remove('error');
         });
-        $$('.rgd-field-error').forEach(el => {
+        $$('.pacey-field-error').forEach(el => {
             if (editGoalForm.contains(el)) el.hidden = true;
         });
 
-        const h = $('#rgd-edit-time-h').value || '0';
-        const m = $('#rgd-edit-time-m').value || '00';
-        const s = $('#rgd-edit-time-s').value || '00';
+        const h = $('#pacey-edit-time-h').value || '0';
+        const m = $('#pacey-edit-time-m').value || '00';
+        const s = $('#pacey-edit-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
 
         const required = [
-            { id: 'rgd-edit-purpose', val: $('#rgd-edit-purpose').value },
-            { id: 'rgd-edit-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
-            { id: 'rgd-edit-race-date', val: $('#rgd-edit-race-date').value },
-            { id: 'rgd-edit-mileage', val: $('#rgd-edit-mileage').value },
-            { id: 'rgd-edit-gender', val: $('#rgd-edit-gender').value },
-            { id: 'rgd-edit-age', val: $('#rgd-edit-age').value },
+            { id: 'pacey-edit-purpose', val: $('#pacey-edit-purpose').value },
+            { id: 'pacey-edit-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
+            { id: 'pacey-edit-race-date', val: $('#pacey-edit-race-date').value },
+            { id: 'pacey-edit-mileage', val: $('#pacey-edit-mileage').value },
+            { id: 'pacey-edit-gender', val: $('#pacey-edit-gender').value },
+            { id: 'pacey-edit-age', val: $('#pacey-edit-age').value },
         ];
 
         let hasError = false;
@@ -4131,14 +4131,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!f.val) {
                 const el = document.getElementById(f.id);
                 if (el) el.classList.add('error');
-                const fg = el && el.closest('.rgd-field');
-                if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
-                if (f.id === 'rgd-edit-time-h') {
-                    ['rgd-edit-time-h','rgd-edit-time-m','rgd-edit-time-s'].forEach(id => {
+                const fg = el && el.closest('.pacey-field');
+                if (fg) { const er = fg.querySelector('.pacey-field-error'); if (er) er.hidden = false; }
+                if (f.id === 'pacey-edit-time-h') {
+                    ['pacey-edit-time-h','pacey-edit-time-m','pacey-edit-time-s'].forEach(id => {
                         const inp = document.getElementById(id); if (inp) inp.classList.add('error');
                     });
-                    const dpErr = document.querySelector('#rgd-edit-duration-picker').nextElementSibling;
-                    if (dpErr && dpErr.classList.contains('rgd-field-error')) dpErr.hidden = false;
+                    const dpErr = document.querySelector('#pacey-edit-duration-picker').nextElementSibling;
+                    if (dpErr && dpErr.classList.contains('pacey-field-error')) dpErr.hidden = false;
                 }
                 hasError = true;
             }
@@ -4147,19 +4147,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         setButtonLoading(editGoalBtn, true);
         const body = {
-            race_name: $('#rgd-edit-race-name').value,
-            purpose: $('#rgd-edit-purpose').value,
-            distance: $('#rgd-edit-purpose').value,
+            race_name: $('#pacey-edit-race-name').value,
+            purpose: $('#pacey-edit-purpose').value,
+            distance: $('#pacey-edit-purpose').value,
             time_target: timeTarget,
-            race_date: $('#rgd-edit-race-date').value,
-            weekly_mileage: $('#rgd-edit-mileage').value,
-            mileage_unit: $('#rgd-edit-mileage-unit').value,
+            race_date: $('#pacey-edit-race-date').value,
+            weekly_mileage: $('#pacey-edit-mileage').value,
+            mileage_unit: $('#pacey-edit-mileage-unit').value,
             // The latest race result now lives in its own onboarding step, so
             // carry the stored values through unchanged when editing the goal.
             fitness_race_distance: (raceGoal && raceGoal.fitness_race_distance) || '',
             fitness_race_time: (raceGoal && raceGoal.fitness_race_time) || '',
-            gender: $('#rgd-edit-gender').value,
-            age: $('#rgd-edit-age').value,
+            gender: $('#pacey-edit-gender').value,
+            age: $('#pacey-edit-age').value,
         };
         try {
             // In demo mode, save locally without an API call
@@ -4171,7 +4171,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
                 raceGoal = data.goal;
             }
-            localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Goal changed — cached AI insights are no longer valid
             clearAICache();
             // Clear stored chart data so stale values aren't re-rendered
@@ -4206,9 +4206,9 @@ document.addEventListener('DOMContentLoaded', function () {
         openEditGoalPopup();
     }
 
-    $('#rgd-reset-goal-btn').addEventListener('click', editGoal);
+    $('#pacey-reset-goal-btn').addEventListener('click', editGoal);
     // Settings popup edit-goal button — shown only on mobile
-    const settingsResetGoalBtn = $('#rgd-settings-reset-goal-btn');
+    const settingsResetGoalBtn = $('#pacey-settings-reset-goal-btn');
     if (settingsResetGoalBtn) settingsResetGoalBtn.addEventListener('click', editGoal);
 
     // =========================================================================
@@ -4217,12 +4217,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // existing goal, edit it, or start fresh with the onboarding flow.
     // =========================================================================
 
-    const goalReminderPopup = $('#rgd-goal-reminder-popup');
-    const goalReminderClose = $('#rgd-goal-reminder-close');
-    const goalReminderKeep = $('#rgd-goal-reminder-keep');
-    const goalReminderEdit = $('#rgd-goal-reminder-edit');
-    const goalReminderNew = $('#rgd-goal-reminder-new');
-    const goalReminderSummary = $('#rgd-goal-reminder-summary');
+    const goalReminderPopup = $('#pacey-goal-reminder-popup');
+    const goalReminderClose = $('#pacey-goal-reminder-close');
+    const goalReminderKeep = $('#pacey-goal-reminder-keep');
+    const goalReminderEdit = $('#pacey-goal-reminder-edit');
+    const goalReminderNew = $('#pacey-goal-reminder-new');
+    const goalReminderSummary = $('#pacey-goal-reminder-summary');
     let goalReminderTrigger = null;
 
     // Populate the summary card with the saved race goal details and show
@@ -4250,9 +4250,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         goalReminderSummary.innerHTML = rows.map(([label, value]) => `
-            <div class="rgd-goal-reminder-summary-row">
-                <span class="rgd-goal-reminder-summary-label">${escapeHtml(label)}</span>
-                <span class="rgd-goal-reminder-summary-value">${escapeHtml(String(value))}</span>
+            <div class="pacey-goal-reminder-summary-row">
+                <span class="pacey-goal-reminder-summary-label">${escapeHtml(label)}</span>
+                <span class="pacey-goal-reminder-summary-value">${escapeHtml(String(value))}</span>
             </div>
         `).join('');
 
@@ -4287,7 +4287,7 @@ document.addEventListener('DOMContentLoaded', function () {
     goalReminderNew.addEventListener('click', () => {
         closeGoalReminderPopup();
         raceGoal = null;
-        localStorage.removeItem('rgd_race_goal');
+        localStorage.removeItem('pacey_race_goal');
         clearAICache();
         clearCoachCache();
         showScreen(onboardScreen);
@@ -4312,9 +4312,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // Settings popup — shows Garmin account details, language (disabled), logout
     // =========================================================================
-    const settingsPopup = $('#rgd-settings-popup');
-    const settingsPopupClose = $('#rgd-settings-popup-close');
-    const settingsLogoutBtn = $('#rgd-settings-logout-btn');
+    const settingsPopup = $('#pacey-settings-popup');
+    const settingsPopupClose = $('#pacey-settings-popup-close');
+    const settingsLogoutBtn = $('#pacey-settings-logout-btn');
 
     async function openSettingsPopup(trigger) {
         if (sessionToken && sessionToken !== 'demo') {
@@ -4323,44 +4323,44 @@ document.addEventListener('DOMContentLoaded', function () {
                 const resp = await apiCall('GET', 'check-session');
                 const data = await resp.json();
                 if (data.valid) {
-                    $('#rgd-settings-name').textContent = data.full_name || data.display_name || '--';
-                    $('#rgd-settings-email').textContent = data.email || '--';
-                    $('#rgd-settings-device').textContent = data.device_name || '--';
+                    $('#pacey-settings-name').textContent = data.full_name || data.display_name || '--';
+                    $('#pacey-settings-email').textContent = data.email || '--';
+                    $('#pacey-settings-device').textContent = data.device_name || '--';
                 }
             } catch (e) {
                 // Fallback to cached data
-                $('#rgd-settings-name').textContent = displayName || '--';
-                $('#rgd-settings-email').textContent = '--';
-                $('#rgd-settings-device').textContent = '--';
+                $('#pacey-settings-name').textContent = displayName || '--';
+                $('#pacey-settings-email').textContent = '--';
+                $('#pacey-settings-device').textContent = '--';
             }
             // Real session — show disconnect button
             settingsLogoutBtn.textContent = 'Disconnect Garmin';
-            settingsLogoutBtn.className = 'rgd-btn rgd-btn-danger';
+            settingsLogoutBtn.className = 'pacey-btn pacey-btn-danger';
         } else {
             // Demo mode — show placeholder + connect button. Assign a
             // realistic Garmin device (Forerunner 165) rather than a
             // "Demo Device" label so the settings read naturally.
-            $('#rgd-settings-name').textContent = 'Demo Runner';
-            $('#rgd-settings-email').textContent = 'demo@example.com';
-            $('#rgd-settings-device').textContent = 'Forerunner 165';
+            $('#pacey-settings-name').textContent = 'Demo Runner';
+            $('#pacey-settings-email').textContent = 'demo@example.com';
+            $('#pacey-settings-device').textContent = 'Forerunner 165';
             settingsLogoutBtn.textContent = 'Connect Garmin';
-            settingsLogoutBtn.className = 'rgd-btn rgd-btn-primary';
+            settingsLogoutBtn.className = 'pacey-btn pacey-btn-primary';
         }
 
         // Populate the mobile profile section — mirrors the sidebar's
         // avatar, display name, race goal, and edit button. Only visible
         // on mobile where the sidebar is hidden.
-        const settingsAvatar = $('#rgd-settings-avatar');
-        const settingsProfileName = $('#rgd-settings-profile-name');
-        const settingsProfileGoal = $('#rgd-settings-profile-goal');
+        const settingsAvatar = $('#pacey-settings-avatar');
+        const settingsProfileName = $('#pacey-settings-profile-name');
+        const settingsProfileGoal = $('#pacey-settings-profile-goal');
         if (settingsAvatar) {
             // Copy the same avatar content as the sidebar
             if (profileImageUrl) {
-                settingsAvatar.innerHTML = `<img src="${profileImageUrl}" alt="${displayName || 'Runner'}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><span class="rgd-avatar-initials" style="display:none">${getInitials(displayName)}</span>`;
+                settingsAvatar.innerHTML = `<img src="${profileImageUrl}" alt="${displayName || 'Runner'}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/><span class="pacey-avatar-initials" style="display:none">${getInitials(displayName)}</span>`;
             } else {
                 const initials = getInitials(displayName);
                 if (initials && !window.__demoMode) {
-                    settingsAvatar.innerHTML = `<span class="rgd-avatar-initials">${initials}</span>`;
+                    settingsAvatar.innerHTML = `<span class="pacey-avatar-initials">${initials}</span>`;
                 } else {
                     // Lucide "user" icon — profile placeholder
                     settingsAvatar.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
@@ -4406,7 +4406,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (settingsPopup.hidden) return;
         if (settingsPopup.contains(e.target)) return;
         if (settingsBtn.contains(e.target)) return;
-        const tabBtn = document.getElementById('rgd-tab-settings');
+        const tabBtn = document.getElementById('pacey-tab-settings');
         if (tabBtn && tabBtn.contains(e.target)) return;
         closeSettingsPopup();
     });
@@ -4424,16 +4424,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // AI chat floating button + popup — currently locked as "coming soon"
     // =========================================================================
 
-    const chatFab = $('#rgd-chat-fab');
-    const chatPopup = $('#rgd-chat-popup');
-    const chatPopupClose = $('#rgd-chat-popup-close');
+    const chatFab = $('#pacey-chat-fab');
+    const chatPopup = $('#pacey-chat-popup');
+    const chatPopupClose = $('#pacey-chat-popup-close');
     let chatPopupOpen = false;
 
     // Open the chat popup — hides the FAB and expands the popup from the
     // button's position using CSS transform animation
     function openChatPopup() {
-        chatFab.classList.add('rgd-chat-fab--hidden');
-        chatPopup.classList.add('rgd-chat-popup--open');
+        chatFab.classList.add('pacey-chat-fab--hidden');
+        chatPopup.classList.add('pacey-chat-popup--open');
         chatPopupOpen = true;
         // Focus the close button after the expand animation settles
         setTimeout(() => chatPopupClose.focus(), 300);
@@ -4442,11 +4442,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Close the chat popup — collapses back toward the FAB, then shows
     // the FAB again after the animation completes
     function closeChatPopup() {
-        chatPopup.classList.remove('rgd-chat-popup--open');
+        chatPopup.classList.remove('pacey-chat-popup--open');
         chatPopupOpen = false;
         // Show the FAB after the collapse animation finishes
         setTimeout(() => {
-            chatFab.classList.remove('rgd-chat-fab--hidden');
+            chatFab.classList.remove('pacey-chat-fab--hidden');
             chatFab.focus();
         }, 200);
     }
@@ -4489,7 +4489,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Mobile tab bar settings button — mirrors the sidebar settings button,
     // including the toggle behaviour (a second tap closes the panel).
-    const tabSettingsBtn = $('#rgd-tab-settings');
+    const tabSettingsBtn = $('#pacey-tab-settings');
     if (tabSettingsBtn) {
         tabSettingsBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -4499,9 +4499,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Demo CTA buttons — open the login modal to connect Garmin
-    const demoBannerCta = $('#rgd-demo-banner-cta');
-    const demoBannerSlimCta = $('#rgd-demo-banner-slim-cta');
-    const demoPageCtaBtn = $('#rgd-demo-cta-btn');
+    const demoBannerCta = $('#pacey-demo-banner-cta');
+    const demoBannerSlimCta = $('#pacey-demo-banner-slim-cta');
+    const demoPageCtaBtn = $('#pacey-demo-cta-btn');
     if (demoBannerCta) demoBannerCta.addEventListener('click', openLoginModal);
     // Slim pill "Connect" link — same behaviour as the full banner CTA
     if (demoBannerSlimCta) demoBannerSlimCta.addEventListener('click', openLoginModal);
@@ -4510,11 +4510,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // "Show more" button on the overview page — navigates to the full
     // activities page and scrolls to the top so users land on the most
     // recent activities first. On desktop the body is the scroll
-    // container (.rgd-content has overflow:clip, not auto), so we use
+    // container (.pacey-content has overflow:clip, not auto), so we use
     // window.scrollTo rather than scrollIntoView on a child element.
     // A short setTimeout lets the hashchange → navigateTo() run first
     // so the activities page is visible before we scroll.
-    const showMoreActivitiesBtn = $('#rgd-show-more-activities');
+    const showMoreActivitiesBtn = $('#pacey-show-more-activities');
     if (showMoreActivitiesBtn) {
         showMoreActivitiesBtn.addEventListener('click', () => {
             window.location.hash = 'activities';
@@ -4526,7 +4526,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // "Load more" button on the activities page — fetches the next batch
     // of activities from the API and appends them to the list
-    const loadMoreActivitiesBtn = $('#rgd-load-more-activities');
+    const loadMoreActivitiesBtn = $('#pacey-load-more-activities');
     if (loadMoreActivitiesBtn) {
         loadMoreActivitiesBtn.addEventListener('click', loadMoreActivities);
     }
@@ -4535,13 +4535,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // radar canvas or the tooltip itself — matches the behavior the user
     // expects from the previous canvas tooltip which stayed until clicking away
     document.addEventListener('click', (e) => {
-        const tooltipEl = document.getElementById('rgd-radar-tooltip');
+        const tooltipEl = document.getElementById('pacey-radar-tooltip');
         if (!tooltipEl || tooltipEl.style.opacity === '0') return;
         // If the click was inside the tooltip (e.g. on the link), don't dismiss
         if (tooltipEl.contains(e.target)) return;
         // If the click was on a radar canvas, don't dismiss — the chart's
         // own click handler will update the tooltip
-        if (e.target.classList && e.target.classList.contains('rgd-radar-chart')) return;
+        if (e.target.classList && e.target.classList.contains('pacey-radar-chart')) return;
         // Otherwise hide the tooltip
         tooltipEl.style.opacity = 0;
     });
@@ -4565,10 +4565,10 @@ document.addEventListener('DOMContentLoaded', function () {
         coachEditingDate = null;
         coachSyncedDates.clear();
         // Clear all cached session data so the next load starts fresh
-        localStorage.removeItem('rgd_session_token');
-        localStorage.removeItem('rgd_race_goal');
-        localStorage.removeItem('rgd_display_name');
-        localStorage.removeItem('rgd_profile_image_url');
+        localStorage.removeItem('pacey_session_token');
+        localStorage.removeItem('pacey_race_goal');
+        localStorage.removeItem('pacey_display_name');
+        localStorage.removeItem('pacey_profile_image_url');
         clearAICache(); // clear cached AI insights when logging out
         clearCoachCache(); // clear cached coach plan when logging out
         clearSWRCaches(); // clear cached metrics + mileage when logging out
@@ -4581,39 +4581,39 @@ document.addEventListener('DOMContentLoaded', function () {
     // Coach Plan — study the last 2 weeks, propose + customise + schedule a week
     // =========================================================================
 
-    const coachCalendarEl = $('#rgd-coach-calendar');
-    const coachErrorEl = $('#rgd-coach-error');
-    const planEditBtn = $('#rgd-plan-edit-btn');
-    const planPrefsModal = $('#rgd-plan-prefs-modal');
-    const planPrefsModalClose = $('#rgd-plan-prefs-close');
-    const planPrefsCancelBtn = $('#rgd-plan-prefs-cancel');
-    const planPrefsForm = $('#rgd-plan-prefs-form');
-    const prefDaysEl = $('#rgd-pref-days');
-    const prefIntensityEl = $('#rgd-pref-intensity');
-    const prefDistanceEl = $('#rgd-pref-distance');
-    const planRaceCardEl = $('#rgd-plan-race-card');
-    const planRaceNameEl = $('#rgd-plan-race-name');
-    const planRaceMetaEl = $('#rgd-plan-race-meta');
-    const planFitnessEl = $('#rgd-plan-fitness');
-    const planFitnessToggle = $('#rgd-plan-fitness-toggle');
-    const planFitnessSummaryEl = $('#rgd-plan-fitness-summary');
-    const planFitnessBody = $('#rgd-plan-fitness-body');
-    const planPaceEasyRangeEl = $('#rgd-pace-easy-range');
-    const planPaceFastRangeEl = $('#rgd-pace-fast-range');
-    const planPaceEasyNoteEl = $('#rgd-pace-easy-note');
-    const planPaceFastNoteEl = $('#rgd-pace-fast-note');
-    const planPaceEasyRunsEl = $('#rgd-pace-easy-runs');
-    const planPaceFastRunsEl = $('#rgd-pace-fast-runs');
-    const planInsightEl = $('#rgd-plan-insight');
-    const planTrajectoryEl = $('#rgd-plan-trajectory');
-    const coachBuildStatusEl = $('#rgd-coach-build-status');
-    const workoutSheet = $('#rgd-workout-sheet');
-    const workoutSheetClose = $('#rgd-workout-sheet-close');
-    const workoutSheetBody = $('#rgd-workout-sheet-body');
+    const coachCalendarEl = $('#pacey-coach-calendar');
+    const coachErrorEl = $('#pacey-coach-error');
+    const planEditBtn = $('#pacey-plan-edit-btn');
+    const planPrefsModal = $('#pacey-plan-prefs-modal');
+    const planPrefsModalClose = $('#pacey-plan-prefs-close');
+    const planPrefsCancelBtn = $('#pacey-plan-prefs-cancel');
+    const planPrefsForm = $('#pacey-plan-prefs-form');
+    const prefDaysEl = $('#pacey-pref-days');
+    const prefIntensityEl = $('#pacey-pref-intensity');
+    const prefDistanceEl = $('#pacey-pref-distance');
+    const planRaceCardEl = $('#pacey-plan-race-card');
+    const planRaceNameEl = $('#pacey-plan-race-name');
+    const planRaceMetaEl = $('#pacey-plan-race-meta');
+    const planFitnessEl = $('#pacey-plan-fitness');
+    const planFitnessToggle = $('#pacey-plan-fitness-toggle');
+    const planFitnessSummaryEl = $('#pacey-plan-fitness-summary');
+    const planFitnessBody = $('#pacey-plan-fitness-body');
+    const planPaceEasyRangeEl = $('#pacey-pace-easy-range');
+    const planPaceFastRangeEl = $('#pacey-pace-fast-range');
+    const planPaceEasyNoteEl = $('#pacey-pace-easy-note');
+    const planPaceFastNoteEl = $('#pacey-pace-fast-note');
+    const planPaceEasyRunsEl = $('#pacey-pace-easy-runs');
+    const planPaceFastRunsEl = $('#pacey-pace-fast-runs');
+    const planInsightEl = $('#pacey-plan-insight');
+    const planTrajectoryEl = $('#pacey-plan-trajectory');
+    const coachBuildStatusEl = $('#pacey-coach-build-status');
+    const workoutSheet = $('#pacey-workout-sheet');
+    const workoutSheetClose = $('#pacey-workout-sheet-close');
+    const workoutSheetBody = $('#pacey-workout-sheet-body');
 
     // v2: the trajectory/race-card payload changed shape — old cached plans
     // carry stale verdict text, so the key is bumped to ignore them.
-    const COACH_CACHE_KEY = 'rgd_coach_plan_cache_v2';
+    const COACH_CACHE_KEY = 'pacey_coach_plan_cache_v2';
     const COACH_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
     let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }
@@ -4649,22 +4649,22 @@ document.addEventListener('DOMContentLoaded', function () {
     // "Show more" button extends this by 14 days per click. Reset to 14
     // every time the plan page is opened so it always leads to today.
     let planPastDays = 14;
-    const planShowMoreBtn = $('#rgd-plan-show-more');
+    const planShowMoreBtn = $('#pacey-plan-show-more');
 
     const WORKOUT_TYPES = ['Easy', 'Recovery', 'Long Run', 'Tempo', 'Intervals', 'Speedwork'];
 
     // Suggested workouts reuse the run-tag colour scheme, but saturated
     const WORKOUT_TAG_CLASS = {
-        'Easy': 'rgd-run-tag--easy',
-        'Recovery': 'rgd-run-tag--easy',
-        'Long Run': 'rgd-run-tag--lsd',
-        'Tempo': 'rgd-run-tag--tempo-long',
-        'Intervals': 'rgd-run-tag--speedwork',
-        'Speedwork': 'rgd-run-tag--speedwork',
+        'Easy': 'pacey-run-tag--easy',
+        'Recovery': 'pacey-run-tag--easy',
+        'Long Run': 'pacey-run-tag--lsd',
+        'Tempo': 'pacey-run-tag--tempo-long',
+        'Intervals': 'pacey-run-tag--speedwork',
+        'Speedwork': 'pacey-run-tag--speedwork',
     };
 
     // Plan-level preferences — persisted so they stay the same until changed
-    const COACH_PREFS_KEY = 'rgd_coach_prefs';
+    const COACH_PREFS_KEY = 'pacey_coach_prefs';
     function readCoachPrefs() {
         try {
             const raw = localStorage.getItem(COACH_PREFS_KEY);
@@ -5179,14 +5179,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Loading skeleton for the plan page — a light aura revolving around
     // the loading container's border (motion-primitive effect, adapted to
-    // the RunAssist palette), with the status line below.
+    // the Pacey palette), with the status line below.
     function coachLoadingMarkup(text) {
         return `
-            <div class="rgd-coach-loading rgd-coach-loading--plan" role="status" aria-label="Loading plan">
-                <div class="rgd-plan-skeleton-border">
-                    <div class="rgd-plan-skeleton-glow"></div>
+            <div class="pacey-coach-loading pacey-coach-loading--plan" role="status" aria-label="Loading plan">
+                <div class="pacey-plan-skeleton-border">
+                    <div class="pacey-plan-skeleton-glow"></div>
                 </div>
-                <span class="rgd-shimmer-text">${text}</span>
+                <span class="pacey-shimmer-text">${text}</span>
             </div>
         `;
     }
@@ -5359,7 +5359,7 @@ document.addEventListener('DOMContentLoaded', function () {
             renderCoachCalendar(coachPlanData);
             // Scroll the calendar top into view so the older weeks appear
             requestAnimationFrame(() => {
-                const firstRow = coachCalendarEl.querySelector('.rgd-cal-row');
+                const firstRow = coachCalendarEl.querySelector('.pacey-cal-row');
                 if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
@@ -5455,19 +5455,19 @@ document.addEventListener('DOMContentLoaded', function () {
             // button at all (a disabled one would just confuse the runner).
             const showButton = inSyncWindow && sendable.length > 0;
             return `
-                <div class="rgd-cal-week-block">
-                    <div class="rgd-cal-week-head">
-                        <span class="rgd-cal-week-title">${weekLabel}</span>
-                        ${phaseLabel ? `<span class="rgd-cal-week-phase">${phaseLabel}</span>` : ''}
-                        <span class="rgd-cal-week-range">${rangeLabel}</span>
+                <div class="pacey-cal-week-block">
+                    <div class="pacey-cal-week-head">
+                        <span class="pacey-cal-week-title">${weekLabel}</span>
+                        ${phaseLabel ? `<span class="pacey-cal-week-phase">${phaseLabel}</span>` : ''}
+                        <span class="pacey-cal-week-range">${rangeLabel}</span>
                     </div>
                     ${week.map(day => renderDayRow(day)).join('')}
                     ${showButton ? `
-                    <div class="rgd-cal-week-send">
-                        <button type="button" class="rgd-btn rgd-btn-primary rgd-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
+                    <div class="pacey-cal-week-send">
+                        <button type="button" class="pacey-btn pacey-btn-primary pacey-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
                             Sync to Garmin
                         </button>
-                        <span class="rgd-coach-schedule-status" hidden></span>
+                        <span class="pacey-coach-schedule-status" hidden></span>
                     </div>` : ''}
                 </div>
             `;
@@ -5562,12 +5562,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const id = r.id != null ? r.id : '';
             return `
                 <li>
-                    <button class="rgd-plan-fitness-run" type="button" data-activity-id="${escapeHtml(String(id))}"
+                    <button class="pacey-plan-fitness-run" type="button" data-activity-id="${escapeHtml(String(id))}"
                             aria-label="View ${escapeHtml(r.name || 'Run')} in activities">
-                        <span class="rgd-plan-fitness-run-date">${date}</span>
-                        <span class="rgd-plan-fitness-run-name">${escapeHtml(r.name || 'Run')}</span>
-                        <span class="rgd-plan-fitness-run-meta">${dist}${dist ? ' · ' : ''}${pace}/km</span>
-                        <svg class="rgd-plan-fitness-run-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+                        <span class="pacey-plan-fitness-run-date">${date}</span>
+                        <span class="pacey-plan-fitness-run-name">${escapeHtml(r.name || 'Run')}</span>
+                        <span class="pacey-plan-fitness-run-meta">${dist}${dist ? ' · ' : ''}${pace}/km</span>
+                        <svg class="pacey-plan-fitness-run-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
                     </button>
                 </li>
             `;
@@ -5583,12 +5583,12 @@ document.addEventListener('DOMContentLoaded', function () {
         let attempts = 0;
         const iv = setInterval(() => {
             attempts++;
-            const el = document.querySelector(`.rgd-activity-item[data-activity-id="${CSS.escape(String(activityId))}"]`);
+            const el = document.querySelector(`.pacey-activity-item[data-activity-id="${CSS.escape(String(activityId))}"]`);
             if (el) {
                 clearInterval(iv);
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('rgd-activity-item--flash');
-                setTimeout(() => el.classList.remove('rgd-activity-item--flash'), 2000);
+                el.classList.add('pacey-activity-item--flash');
+                setTimeout(() => el.classList.remove('pacey-activity-item--flash'), 2000);
             } else if (attempts > 20) {
                 clearInterval(iv);
             }
@@ -5605,7 +5605,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (planFitnessEl) {
         planFitnessEl.addEventListener('click', (e) => {
-            const btn = e.target.closest('.rgd-plan-fitness-run');
+            const btn = e.target.closest('.pacey-plan-fitness-run');
             if (btn) navigateToActivity(btn.getAttribute('data-activity-id'));
         });
     }
@@ -5619,12 +5619,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!t || !t.status) { planTrajectoryEl.hidden = true; return; }
         const labels = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan' };
         const drift = t.status === 'behind' || t.status === 'ahead';
-        planTrajectoryEl.className = `rgd-plan-trajectory rgd-plan-trajectory--${t.status}`;
+        planTrajectoryEl.className = `pacey-plan-trajectory pacey-plan-trajectory--${t.status}`;
         planTrajectoryEl.innerHTML = `
-            <span class="rgd-plan-trajectory-dot"></span>
-            <span class="rgd-plan-trajectory-label">${labels[t.status] || 'On track'}</span>
-            <span class="rgd-plan-trajectory-note">${escapeHtml(t.note || '')}</span>
-            ${drift ? '<button class="rgd-btn rgd-btn-secondary rgd-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
+            <span class="pacey-plan-trajectory-dot"></span>
+            <span class="pacey-plan-trajectory-label">${labels[t.status] || 'On track'}</span>
+            <span class="pacey-plan-trajectory-note">${escapeHtml(t.note || '')}</span>
+            ${drift ? '<button class="pacey-btn pacey-btn-secondary pacey-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
         `;
         planTrajectoryEl.hidden = false;
     }
@@ -5633,7 +5633,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // regeneration).
     if (planTrajectoryEl) {
         planTrajectoryEl.addEventListener('click', (e) => {
-            if (e.target.closest('.rgd-plan-trajectory-rebuild')) {
+            if (e.target.closest('.pacey-plan-trajectory-rebuild')) {
                 generateCoachPlan(coachPrefs, true);
             }
         });
@@ -5654,7 +5654,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (!plan.fitness) { planInsightEl.hidden = true; return; }
         planInsightEl.textContent = 'Working out your plan…';
-        planInsightEl.classList.add('rgd-shimmer-text');
+        planInsightEl.classList.add('pacey-shimmer-text');
         planInsightEl.hidden = false;
         const context = {
             race_goal: raceGoal,
@@ -5675,7 +5675,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (err) {
             planInsightEl.hidden = true;
         } finally {
-            planInsightEl.classList.remove('rgd-shimmer-text');
+            planInsightEl.classList.remove('pacey-shimmer-text');
         }
     }
 
@@ -5693,30 +5693,30 @@ document.addEventListener('DOMContentLoaded', function () {
         if (day.plan) cards.push(renderPlanCard(day.plan));
 
         return `
-            <div class="rgd-cal-row ${isToday ? 'rgd-cal-row--today' : ''} ${isPast ? 'rgd-cal-row--past' : ''}" data-date="${day.date}">
-                <div class="rgd-cal-date">
-                    <span class="rgd-cal-date-dow">${dow}</span>
-                    <span class="rgd-cal-date-value">
-                        <span class="rgd-cal-date-num">${dayNum}</span>
-                        <span class="rgd-cal-date-month">${monthShort}</span>
+            <div class="pacey-cal-row ${isToday ? 'pacey-cal-row--today' : ''} ${isPast ? 'pacey-cal-row--past' : ''}" data-date="${day.date}">
+                <div class="pacey-cal-date">
+                    <span class="pacey-cal-date-dow">${dow}</span>
+                    <span class="pacey-cal-date-value">
+                        <span class="pacey-cal-date-num">${dayNum}</span>
+                        <span class="pacey-cal-date-month">${monthShort}</span>
                     </span>
                 </div>
-                <div class="rgd-cal-cards">${cards.join('')}</div>
+                <div class="pacey-cal-cards">${cards.join('')}</div>
             </div>
         `;
     }
 
     function renderHistoryCard(r) {
         const pace = formatPace(r.avg_pace);
-        const tagClass = RUN_TAG_CLASS[r.run_tag] || 'rgd-run-tag--easy';
+        const tagClass = RUN_TAG_CLASS[r.run_tag] || 'pacey-run-tag--easy';
         return `
-            <div class="rgd-cal-card rgd-cal-card--past">
-                <div class="rgd-cal-card-title-row">
-                    <span class="rgd-cal-card-title">${escapeHtml(r.name || 'Run')}</span>
-                    <span class="rgd-run-tag ${tagClass}">${escapeHtml(r.run_tag || 'Easy')}</span>
+            <div class="pacey-cal-card pacey-cal-card--past">
+                <div class="pacey-cal-card-title-row">
+                    <span class="pacey-cal-card-title">${escapeHtml(r.name || 'Run')}</span>
+                    <span class="pacey-run-tag ${tagClass}">${escapeHtml(r.run_tag || 'Easy')}</span>
                 </div>
-                <div class="rgd-cal-card-row">
-                    <span class="rgd-cal-card-meta">${r.distance} km · ${pace}/km</span>
+                <div class="pacey-cal-card-row">
+                    <span class="pacey-cal-card-meta">${r.distance} km · ${pace}/km</span>
                 </div>
             </div>
         `;
@@ -5731,62 +5731,62 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (d.is_rest || !d.workout) {
             return `
-                <div class="rgd-cal-card rgd-cal-card--rest">
-                    <span class="rgd-cal-rest-label">Rest</span>
+                <div class="pacey-cal-card pacey-cal-card--rest">
+                    <span class="pacey-cal-rest-label">Rest</span>
                 </div>
             `;
         }
 
         const w = d.workout;
         const pace = w.target_pace_min_per_km || '--';
-        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'rgd-run-tag--easy';
+        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'pacey-run-tag--easy';
 
         if (editing) {
             return `
-                <div class="rgd-cal-card rgd-cal-card--editing">
-                    <div class="rgd-cal-card-top">
-                        <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
-                        ${synced ? '<span class="rgd-plan-scheduled-badge">Synced</span>' : ''}
+                <div class="pacey-cal-card pacey-cal-card--editing">
+                    <div class="pacey-cal-card-top">
+                        <span class="pacey-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                        ${synced ? '<span class="pacey-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
-                    <div class="rgd-plan-controls">
-                        <label class="rgd-plan-control">
-                            <span class="rgd-plan-control-label">Type</span>
+                    <div class="pacey-plan-controls">
+                        <label class="pacey-plan-control">
+                            <span class="pacey-plan-control-label">Type</span>
                             <select data-field="type" data-date="${d.date}">
                                 ${WORKOUT_TYPES.map(t => `<option ${t === w.type ? 'selected' : ''}>${t}</option>`).join('')}
                             </select>
                         </label>
-                        <label class="rgd-plan-control">
-                            <span class="rgd-plan-control-label">Distance (km)</span>
+                        <label class="pacey-plan-control">
+                            <span class="pacey-plan-control-label">Distance (km)</span>
                             <input type="number" data-field="distance_km" data-date="${d.date}" value="${w.distance_km ?? ''}" min="0" step="0.5">
                         </label>
-                        <label class="rgd-plan-control">
-                            <span class="rgd-plan-control-label">Duration (min)</span>
+                        <label class="pacey-plan-control">
+                            <span class="pacey-plan-control-label">Duration (min)</span>
                             <input type="number" data-field="duration_min" data-date="${d.date}" value="${w.duration_min ?? ''}" min="0" step="5">
                         </label>
                     </div>
-                    <p class="rgd-cal-card-pace">Target pace: ${pace}/km</p>
-                    <p class="rgd-cal-card-desc">${escapeHtml(w.description || '')}</p>
-                    <div class="rgd-cal-card-actions">
-                        <button class="rgd-cal-save-btn" type="button" data-action="save" data-date="${d.date}">Done</button>
-                        <button class="rgd-cal-rest-toggle" type="button" data-action="mark-rest" data-date="${d.date}">Rest day</button>
+                    <p class="pacey-cal-card-pace">Target pace: ${pace}/km</p>
+                    <p class="pacey-cal-card-desc">${escapeHtml(w.description || '')}</p>
+                    <div class="pacey-cal-card-actions">
+                        <button class="pacey-cal-save-btn" type="button" data-action="save" data-date="${d.date}">Done</button>
+                        <button class="pacey-cal-rest-toggle" type="button" data-action="mark-rest" data-date="${d.date}">Rest day</button>
                     </div>
                 </div>
             `;
         }
 
         return `
-            <div class="rgd-cal-card rgd-cal-card--suggested ${synced ? 'rgd-cal-card--scheduled' : ''}" draggable="true" data-action="view" data-date="${d.date}">
-                <span class="rgd-drag-handle" title="Drag to rearrange" aria-hidden="true">
+            <div class="pacey-cal-card pacey-cal-card--suggested ${synced ? 'pacey-cal-card--scheduled' : ''}" draggable="true" data-action="view" data-date="${d.date}">
+                <span class="pacey-drag-handle" title="Drag to rearrange" aria-hidden="true">
                     <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="4" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="4" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="4" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/></svg>
                 </span>
-                <div class="rgd-cal-card-body">
-                    <div class="rgd-cal-card-title-row">
-                        <span class="rgd-cal-card-title">${escapeHtml(w.title || w.type)}</span>
-                        <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                <div class="pacey-cal-card-body">
+                    <div class="pacey-cal-card-title-row">
+                        <span class="pacey-cal-card-title">${escapeHtml(w.title || w.type)}</span>
+                        <span class="pacey-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
                     </div>
-                    <div class="rgd-cal-card-row">
-                        <span class="rgd-cal-card-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
-                        ${synced ? '<span class="rgd-plan-scheduled-badge">Synced</span>' : ''}
+                    <div class="pacey-cal-card-row">
+                        <span class="pacey-cal-card-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
+                        ${synced ? '<span class="pacey-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
                 </div>
             </div>
@@ -5831,38 +5831,38 @@ document.addEventListener('DOMContentLoaded', function () {
     let coachLastDragEnd = 0;
 
     coachCalendarEl.addEventListener('dragstart', (e) => {
-        const card = e.target.closest('.rgd-cal-card[draggable="true"]');
+        const card = e.target.closest('.pacey-cal-card[draggable="true"]');
         if (!card) return;
         dragDate = card.getAttribute('data-date');
-        card.classList.add('rgd-cal-card--dragging');
+        card.classList.add('pacey-cal-card--dragging');
         e.dataTransfer.effectAllowed = 'move';
         try { e.dataTransfer.setData('text/plain', dragDate); } catch (err) {}
     });
 
     coachCalendarEl.addEventListener('dragend', (e) => {
-        const card = e.target.closest('.rgd-cal-card');
-        if (card) card.classList.remove('rgd-cal-card--dragging');
+        const card = e.target.closest('.pacey-cal-card');
+        if (card) card.classList.remove('pacey-cal-card--dragging');
         coachLastDragEnd = Date.now();
         dragDate = null;
     });
 
     coachCalendarEl.addEventListener('dragover', (e) => {
-        const row = e.target.closest('.rgd-cal-row');
+        const row = e.target.closest('.pacey-cal-row');
         if (!row || !dragDate) return;
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        row.classList.add('rgd-cal-row--drop-target');
+        row.classList.add('pacey-cal-row--drop-target');
     });
 
     coachCalendarEl.addEventListener('dragleave', (e) => {
-        const row = e.target.closest('.rgd-cal-row');
-        if (row) row.classList.remove('rgd-cal-row--drop-target');
+        const row = e.target.closest('.pacey-cal-row');
+        if (row) row.classList.remove('pacey-cal-row--drop-target');
     });
 
     coachCalendarEl.addEventListener('drop', (e) => {
-        const row = e.target.closest('.rgd-cal-row');
+        const row = e.target.closest('.pacey-cal-row');
         if (!row) return;
-        row.classList.remove('rgd-cal-row--drop-target');
+        row.classList.remove('pacey-cal-row--drop-target');
         const targetDate = row.getAttribute('data-date');
         const sourceDate = dragDate || e.dataTransfer.getData('text/plain');
         if (sourceDate && targetDate) moveWorkout(sourceDate, targetDate);
@@ -5929,7 +5929,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!day || !day.workout) return;
         const w = day.workout;
         const pace = w.target_pace_min_per_km || '--';
-        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'rgd-run-tag--easy';
+        const tagClass = WORKOUT_TAG_CLASS[w.type] || 'pacey-run-tag--easy';
         const sheetDate = parseDate(dateKey + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 
         // Build a numbered procedure: top-level steps get a step number, steps
@@ -5939,56 +5939,56 @@ document.addEventListener('DOMContentLoaded', function () {
         const steps = w.steps || [];
         let stepNum = 0;
         const stepsHtml = steps.map(s => {
-            const paceHtml = s.pace ? `<span class="rgd-sheet-step-pace">${escapeHtml(s.pace)}/km</span>` : '';
+            const paceHtml = s.pace ? `<span class="pacey-sheet-step-pace">${escapeHtml(s.pace)}/km</span>` : '';
             if (s.level === 1) {
-                return `<div class="rgd-sheet-step rgd-sheet-step--sub"><span class="rgd-sheet-step-type">↳ ${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
+                return `<div class="pacey-sheet-step pacey-sheet-step--sub"><span class="pacey-sheet-step-type">↳ ${escapeHtml(s.type || 'Run')}</span><span class="pacey-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
             }
             stepNum += 1;
             const isRepeat = s.type === 'Repeat';
-            return `<div class="rgd-sheet-step ${isRepeat ? 'rgd-sheet-step--repeat' : ''}"><span class="rgd-sheet-step-num">${stepNum}</span><span class="rgd-sheet-step-type">${escapeHtml(s.type || 'Run')}</span><span class="rgd-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
+            return `<div class="pacey-sheet-step ${isRepeat ? 'pacey-sheet-step--repeat' : ''}"><span class="pacey-sheet-step-num">${stepNum}</span><span class="pacey-sheet-step-type">${escapeHtml(s.type || 'Run')}</span><span class="pacey-sheet-step-detail">${escapeHtml(s.detail || '')}</span>${paceHtml}</div>`;
         }).join('');
 
         // Workout description — the short 1-2 sentence intent summary that
         // is also sent to Garmin as the workout description. Shown before
         // the AI coach insight so the runner sees the session purpose first.
         const descriptionHtml = w.description ? `
-            <div class="rgd-sheet-section">
-                <span class="rgd-sheet-section-title">Description</span>
-                <p class="rgd-sheet-description">${escapeHtml(w.description)}</p>
+            <div class="pacey-sheet-section">
+                <span class="pacey-sheet-section-title">Description</span>
+                <p class="pacey-sheet-description">${escapeHtml(w.description)}</p>
             </div>` : '';
 
         // Coach insight is lazy: the full-block plan carries no insight text,
         // so the sheet shows a placeholder and fills it on demand from
         // /api/workout-insight (canned text in demo mode).
         const insightHtml = `
-            <div class="rgd-sheet-section" id="rgd-sheet-insight-slot">
-                <span class="rgd-sheet-section-title">Coach insight</span>
+            <div class="pacey-sheet-section" id="pacey-sheet-insight-slot">
+                <span class="pacey-sheet-section-title">Coach insight</span>
                 ${w.insight
-                    ? `<p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>`
-                    : '<p class="rgd-sheet-insight rgd-sheet-insight--loading"><span class="rgd-shimmer-text">Writing your insight…</span></p>'}
+                    ? `<p class="pacey-sheet-insight">${escapeHtml(w.insight)}</p>`
+                    : '<p class="pacey-sheet-insight pacey-sheet-insight--loading"><span class="pacey-shimmer-text">Writing your insight…</span></p>'}
             </div>`;
 
         workoutSheetBody.innerHTML = `
-            <div class="rgd-sheet-header">
-                <h3 class="rgd-sheet-title">${escapeHtml(w.title || w.type)}</h3>
-                <span class="rgd-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+            <div class="pacey-sheet-header">
+                <h3 class="pacey-sheet-title">${escapeHtml(w.title || w.type)}</h3>
+                <span class="pacey-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
             </div>
-            <div class="rgd-sheet-meta">
-                ${w.distance_km ? `<span class="rgd-sheet-meta-item"><strong>${w.distance_km}</strong> km</span>` : ''}
-                ${w.duration_min ? `<span class="rgd-sheet-meta-item"><strong>${w.duration_min}</strong> min</span>` : ''}
-                <span class="rgd-sheet-meta-item"><strong>${pace}</strong>/km</span>
-                <span class="rgd-sheet-meta-item">${sheetDate}</span>
+            <div class="pacey-sheet-meta">
+                ${w.distance_km ? `<span class="pacey-sheet-meta-item"><strong>${w.distance_km}</strong> km</span>` : ''}
+                ${w.duration_min ? `<span class="pacey-sheet-meta-item"><strong>${w.duration_min}</strong> min</span>` : ''}
+                <span class="pacey-sheet-meta-item"><strong>${pace}</strong>/km</span>
+                <span class="pacey-sheet-meta-item">${sheetDate}</span>
             </div>
             ${descriptionHtml}
             ${insightHtml}
-            ${stepsHtml ? `<div class="rgd-sheet-section"><span class="rgd-sheet-section-title">Workout breakdown</span><div class="rgd-sheet-steps">${stepsHtml}</div></div>` : ''}
+            ${stepsHtml ? `<div class="pacey-sheet-section"><span class="pacey-sheet-section-title">Workout breakdown</span><div class="pacey-sheet-steps">${stepsHtml}</div></div>` : ''}
         `;
         workoutSheet.hidden = false;
         // Fill the insight slot when the plan did not carry one.
         if (!w.insight) loadWorkoutInsight(dateKey, w);
         // Force reflow so the initial transform applies before the slide-up
         void workoutSheet.offsetHeight;
-        workoutSheet.classList.add('rgd-sheet-overlay--open');
+        workoutSheet.classList.add('pacey-sheet-overlay--open');
         workoutSheetClose.focus();
     }
 
@@ -6052,21 +6052,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Swap the placeholder insight section for the real text (or an error).
     function renderSheetInsight(w) {
-        const slot = document.getElementById('rgd-sheet-insight-slot');
+        const slot = document.getElementById('pacey-sheet-insight-slot');
         if (!slot) return;
         if (w.insight) {
-            slot.innerHTML = `<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight">${escapeHtml(w.insight)}</p>`;
+            slot.innerHTML = `<span class="pacey-sheet-section-title">Coach insight</span><p class="pacey-sheet-insight">${escapeHtml(w.insight)}</p>`;
         } else {
-            slot.innerHTML = '<span class="rgd-sheet-section-title">Coach insight</span><p class="rgd-sheet-insight rgd-sheet-insight--error">Could not write your insight right now. Try again later.</p>';
+            slot.innerHTML = '<span class="pacey-sheet-section-title">Coach insight</span><p class="pacey-sheet-insight pacey-sheet-insight--error">Could not write your insight right now. Try again later.</p>';
         }
     }
 
     function closeWorkoutSheet() {
-        workoutSheet.classList.remove('rgd-sheet-overlay--open');
+        workoutSheet.classList.remove('pacey-sheet-overlay--open');
         // Wait for the exit animation before hiding — listen on the sheet
         // element since both the slide-down (mobile) and scale-out (desktop)
         // transitions happen there via transform
-        const sheet = workoutSheet.querySelector('.rgd-workout-sheet');
+        const sheet = workoutSheet.querySelector('.pacey-workout-sheet');
         const onEnd = () => {
             workoutSheet.hidden = true;
             sheet.removeEventListener('transitionend', onEnd);
@@ -6129,7 +6129,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // week's unscheduled workouts. Delegated on the calendar element since
     // the calendar re-renders after every send.
     coachCalendarEl.addEventListener('click', (e) => {
-        const btn = e.target.closest('.rgd-cal-week-send-btn');
+        const btn = e.target.closest('.pacey-cal-week-send-btn');
         if (btn) scheduleWeek(btn.dataset.weekStart, btn);
     });
 
@@ -6207,17 +6207,17 @@ document.addEventListener('DOMContentLoaded', function () {
     // Restore session or default to demo mode
     // =========================================================================
 
-    const savedToken = localStorage.getItem('rgd_session_token');
+    const savedToken = localStorage.getItem('pacey_session_token');
     if (savedToken && savedToken !== 'demo') {
         // Real Garmin session — restore cached profile data for instant render
         sessionToken = savedToken;
-        displayName = localStorage.getItem('rgd_display_name') || 'Runner';
-        profileImageUrl = localStorage.getItem('rgd_profile_image_url') || '';
-        const cachedRaceGoal = localStorage.getItem('rgd_race_goal');
+        displayName = localStorage.getItem('pacey_display_name') || 'Runner';
+        profileImageUrl = localStorage.getItem('pacey_profile_image_url') || '';
+        const cachedRaceGoal = localStorage.getItem('pacey_race_goal');
         const hasCachedRaceGoal = cachedRaceGoal && cachedRaceGoal !== 'null';
         window.__demoMode = false;
         // Hide demo CTAs since we have a real session
-        const demoCta = $('#rgd-demo-cta');
+        const demoCta = $('#pacey-demo-cta');
         if (demoCta) demoCta.hidden = true;
 
         // Show dashboard immediately from cached data — no flash of demo mode
@@ -6237,8 +6237,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 displayName = data.display_name || displayName;
                 profileImageUrl = data.profile_image_url || profileImageUrl;
                 // Update cache with latest profile data
-                localStorage.setItem('rgd_display_name', displayName);
-                localStorage.setItem('rgd_profile_image_url', profileImageUrl);
+                localStorage.setItem('pacey_display_name', displayName);
+                localStorage.setItem('pacey_profile_image_url', profileImageUrl);
                 // Refresh avatar + greeting in case the data changed
                 greetingEl.textContent = displayName;
                 updateAvatar();
@@ -6250,7 +6250,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (!raceGoal) {
                         // Server has a goal but frontend doesn't — restore it
                         raceGoal = data.race_goal;
-                        localStorage.setItem('rgd_race_goal', JSON.stringify(raceGoal));
+                        localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
                         showDashboard();
                     }
                     // If both have the goal, stay on the dashboard — no change needed
@@ -6273,9 +6273,9 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 // Session expired — clear cache and fall back to demo mode
                 sessionToken = '';
-                localStorage.removeItem('rgd_session_token');
-                localStorage.removeItem('rgd_display_name');
-                localStorage.removeItem('rgd_profile_image_url');
+                localStorage.removeItem('pacey_session_token');
+                localStorage.removeItem('pacey_display_name');
+                localStorage.removeItem('pacey_profile_image_url');
                 clearSWRCaches();
                 clearAICache();
                 clearCoachCache();

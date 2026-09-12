@@ -2,23 +2,23 @@
    PINBOARD THEME — PLAN PAGE EXTENSION
    ---------------------------------------------------------------------
    Extends the "training notes pinned to a corkboard" theme (defined inline
-   in index.html as <style id="rgd-pinboard-theme">) to the Plan page
-   (#rgd-page-plan), which lives inside #rgd-content. The shared theme
-   already covers the board, the section title and the generic .rgd-btn
+   in index.html as <style id="pacey-pinboard-theme">) to the Plan page
+   (#pacey-page-plan), which lives inside #pacey-content. The shared theme
+   already covers the board, the section title and the generic .pacey-btn
    chrome; this file fills the gaps the Plan page renders — the race
    status card, the training-paces drawer, the trajectory row, the
    calendar scaffolding and its activity/workout cards, plus the loading
    and status rows.
 
-   Every selector is scoped under #rgd-content. Night-board overrides use
-   the shell condition html[data-theme="dark"]:has(#rgd-dashboard-screen:
+   Every selector is scoped under #pacey-content. Night-board overrides use
+   the shell condition html[data-theme="dark"]:has(#pacey-dashboard-screen:
    not([hidden])). Revert = delete this file and its <link>; nothing else
    changes. Tokens are inherited from the inline block — never redefined.
 
    IMPORTANT CONTRAST NOTE: the app paints several Plan surfaces with
-   var(--rgd-bg) (e.g. .rgd-cal-card--past, .rgd-cal-card--rest). The
-   theme does NOT remap --rgd-bg, so in dark mode those surfaces stay
-   dark while --rgd-text / --rgd-navy become the very dark --pinboard-ink
+   var(--pacey-bg) (e.g. .pacey-cal-card--past, .pacey-cal-card--rest). The
+   theme does NOT remap --pacey-bg, so in dark mode those surfaces stay
+   dark while --pacey-text / --pacey-navy become the very dark --pinboard-ink
    — i.e. dark ink on a dark background. Every such surface below is
    given the (always light) paper background so its ink stays readable.
    ===================================================================== */
@@ -29,7 +29,7 @@
    advice). Given the shared paper treatment (paper + grain + irregular
    radius + drop shadow) and pinned to the board with a red pushpin.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-plan-race-card {
+#pacey-content .pacey-plan-race-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -42,7 +42,7 @@
 
 /* Pushpin — centred at the top edge so it reads as holding the sheet,
    sitting above the (left-aligned) race name rather than on it. */
-#rgd-content .rgd-plan-race-card::before {
+#pacey-content .pacey-plan-race-card::before {
     content: "";
     position: absolute;
     top: 0.55rem;
@@ -57,17 +57,17 @@
 }
 
 /* Race name reads as the sheet's handwritten heading; meta as copy. */
-#rgd-content .rgd-plan-race-name {
+#pacey-content .pacey-plan-race-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.45rem;
     letter-spacing: 0;
 }
-#rgd-content .rgd-plan-race-meta {
+#pacey-content .pacey-plan-race-meta {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
-#rgd-content .rgd-plan-insight {
+#pacey-content .pacey-plan-insight {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
@@ -80,7 +80,7 @@
    --------------------------------------------------------------------- */
 /* A sticky note rather than a dashed index card: flat blue post-it with
    the usual soft note shadow and a slight tilt. */
-#rgd-content .rgd-plan-fitness {
+#pacey-content .pacey-plan-fitness {
     background-color: var(--pinboard-note-blue);
     background-image: none;
     border: none;
@@ -91,39 +91,39 @@
 
 /* The toggle header blends into the note so the whole drawer reads as one
    post-it, with just a hairline under the header. */
-#rgd-content .rgd-plan-fitness-toggle {
+#pacey-content .pacey-plan-fitness-toggle {
     font-family: var(--font-fuzzy);
     background: transparent;
     border-radius: 2px 2px 0 0;
     border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
-#rgd-content .rgd-plan-fitness-toggle:hover { background: rgba(255, 255, 255, 0.35); }
+#pacey-content .pacey-plan-fitness-toggle:hover { background: rgba(255, 255, 255, 0.35); }
 
-#rgd-content .rgd-plan-fitness-toggle-label {
+#pacey-content .pacey-plan-fitness-toggle-label {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.15rem;
     letter-spacing: 0;
 }
-#rgd-content .rgd-plan-fitness-group-label {
+#pacey-content .pacey-plan-fitness-group-label {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.05rem;
     letter-spacing: 0;
     text-transform: none;
 }
-#rgd-content .rgd-plan-fitness-note {
+#pacey-content .pacey-plan-fitness-note {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
-#rgd-content .rgd-plan-fitness-run-name {
+#pacey-content .pacey-plan-fitness-run-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.05rem;
     letter-spacing: 0;
 }
-#rgd-content .rgd-plan-fitness-run-date,
-#rgd-content .rgd-plan-fitness-run-meta {
+#pacey-content .pacey-plan-fitness-run-date,
+#pacey-content .pacey-plan-fitness-run-meta {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
@@ -132,7 +132,7 @@
    distance/pace details below it. The arrow is pinned to the right edge and
    spans both lines. (Grid, so the row can never wrap the arrow onto its own
    line.) */
-#rgd-content .rgd-plan-fitness-run {
+#pacey-content .pacey-plan-fitness-run {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas:
@@ -142,10 +142,10 @@
     column-gap: 0.5rem;
     row-gap: 0.1rem;
 }
-#rgd-content .rgd-plan-fitness-run-name { grid-area: name; }
-#rgd-content .rgd-plan-fitness-run-date { grid-area: date; }
-#rgd-content .rgd-plan-fitness-run-meta { grid-area: meta; }
-#rgd-content .rgd-plan-fitness-run-arrow {
+#pacey-content .pacey-plan-fitness-run-name { grid-area: name; }
+#pacey-content .pacey-plan-fitness-run-date { grid-area: date; }
+#pacey-content .pacey-plan-fitness-run-meta { grid-area: meta; }
+#pacey-content .pacey-plan-fitness-run-arrow {
     grid-area: arrow;
     justify-self: end;
     align-self: center;
@@ -156,10 +156,10 @@
 /* ---------------------------------------------------------------------
    3. TRAJECTORY STATUS ROW — dot + label + note inside the race sheet
    Already on paper, so the app's accent colours read fine; only the
-   fonts change. The rebuild button inherits the shared .rgd-btn paper
+   fonts change. The rebuild button inherits the shared .pacey-btn paper
    treatment and just picks up the handwriting face.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-plan-trajectory-label {
+#pacey-content .pacey-plan-trajectory-label {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.1rem;
@@ -170,14 +170,14 @@
        The coloured dot still carries the status at a glance. */
     color: var(--pinboard-ink);
 }
-#rgd-content .rgd-plan-trajectory--on_track .rgd-plan-trajectory-label { color: #245a33; }
-#rgd-content .rgd-plan-trajectory--behind .rgd-plan-trajectory-label { color: #8a3a1e; }
-#rgd-content .rgd-plan-trajectory--ahead .rgd-plan-trajectory-label { color: #1f5a7a; }
-#rgd-content .rgd-plan-trajectory-note {
+#pacey-content .pacey-plan-trajectory--on_track .pacey-plan-trajectory-label { color: #245a33; }
+#pacey-content .pacey-plan-trajectory--behind .pacey-plan-trajectory-label { color: #8a3a1e; }
+#pacey-content .pacey-plan-trajectory--ahead .pacey-plan-trajectory-label { color: #1f5a7a; }
+#pacey-content .pacey-plan-trajectory-note {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
-#rgd-content .rgd-plan-trajectory-rebuild {
+#pacey-content .pacey-plan-trajectory-rebuild {
     font-family: var(--font-fuzzy);
     border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
     box-shadow: 0 0.2rem 0.4rem rgba(0, 0, 0, 0.22);
@@ -187,22 +187,22 @@
    4. CALENDAR SCAFFOLDING — week blocks, week heads, day rows, dates
    These sit directly on the cork, so no paper/tilt here (the vertical
    agenda rhythm is preserved). Only the type and the text colour on the
-   night board are touched. .rgd-cal-row / .rgd-cal-date stay as layout.
+   night board are touched. .pacey-cal-row / .pacey-cal-date stay as layout.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-cal-week-block {
+#pacey-content .pacey-cal-week-block {
     border-bottom-color: color-mix(in srgb, var(--pinboard-line) 80%, transparent);
 }
-#rgd-content .rgd-cal-week-head {
+#pacey-content .pacey-cal-week-head {
     padding-top: 0.9rem;
 }
-#rgd-content .rgd-cal-week-title {
+#pacey-content .pacey-cal-week-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.35rem;
     letter-spacing: 0;
 }
 /* Phase tag styled as a pill, matching the run-type tags on the cards. */
-#rgd-content .rgd-cal-week-phase {
+#pacey-content .pacey-cal-week-phase {
     font-family: var(--font-fuzzy);
     font-weight: 600;
     font-size: 0.65rem;
@@ -215,12 +215,12 @@
     box-shadow: none;
 }
 /* Week date range picks up the handwriting face too. */
-#rgd-content .rgd-cal-week-range {
+#pacey-content .pacey-cal-week-range {
     font-family: var(--font-fuzzy);
     font-weight: 600;
 }
-#rgd-content .rgd-cal-date-dow,
-#rgd-content .rgd-cal-date-month {
+#pacey-content .pacey-cal-date-dow,
+#pacey-content .pacey-cal-date-month {
     font-family: var(--font-fuzzy);
     font-weight: 600;
 }
@@ -229,10 +229,10 @@
    5. CALENDAR CARDS — activity & workout sheets
    The base card, the "past" and "rest" variants, the editing form and
    the "suggested" workout all get the paper treatment. Crucially this
-   replaces the var(--rgd-bg) fills the app uses for past/rest, which are
+   replaces the var(--pacey-bg) fills the app uses for past/rest, which are
    dark at night and would otherwise leave dark ink on a dark card.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-cal-card {
+#pacey-content .pacey-cal-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -244,13 +244,13 @@
 }
 
 /* Past runs read as slightly older stock: a touch duller paper. */
-#rgd-content .rgd-cal-card--past {
+#pacey-content .pacey-cal-card--past {
     background-color: var(--pinboard-paper-2);
 }
 
 /* Rest days are not cards: just the word sitting on the cork, so the board
    stays uncluttered. */
-#rgd-content .rgd-cal-card--rest {
+#pacey-content .pacey-cal-card--rest {
     background-color: transparent;
     background-image: none;
     border: none;
@@ -261,12 +261,12 @@
    with a faint edge. The pin marks them as things to do, not history.
    The pin sits inside the card, a little below the top edge (matching the
    other pinned sheets) rather than straddling the edge. */
-#rgd-content .rgd-cal-card--suggested {
+#pacey-content .pacey-cal-card--suggested {
     background-color: var(--pinboard-paper);
     border: 1px solid var(--pinboard-line);
     transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
 }
-#rgd-content .rgd-cal-card--suggested::before {
+#pacey-content .pacey-cal-card--suggested::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -279,38 +279,38 @@
     box-shadow: 0 0.15rem 0.22rem rgba(0, 0, 0, 0.4);
     z-index: 4;
 }
-#rgd-content .rgd-cal-card--suggested:hover {
+#pacey-content .pacey-cal-card--suggested:hover {
     transform: translateY(-0.15rem);
     box-shadow: var(--pinboard-shadow-hover);
 }
 
 /* Synced workouts keep the app's green edge, re-declared here so it wins
    over the suggested rule above (equal specificity, later in the file). */
-#rgd-content .rgd-cal-card--scheduled {
-    border-color: var(--rgd-accent-green);
+#pacey-content .pacey-cal-card--scheduled {
+    border-color: var(--pacey-accent-green);
 }
 
 /* Editing variant — the same sheet with a blue "in progress" edge. */
-#rgd-content .rgd-cal-card--editing {
+#pacey-content .pacey-cal-card--editing {
     background-color: var(--pinboard-paper);
-    border: 1px solid var(--rgd-blue);
+    border: 1px solid var(--pacey-blue);
 }
 
 /* Card copy: titles are headings (Caveat), meta/desc are copy (Fuzzy). */
-#rgd-content .rgd-cal-card-title {
+#pacey-content .pacey-cal-card-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.15rem;
     letter-spacing: 0;
 }
-#rgd-content .rgd-cal-card-meta,
-#rgd-content .rgd-cal-card-meta--suggested,
-#rgd-content .rgd-cal-card-desc,
-#rgd-content .rgd-cal-card-pace {
+#pacey-content .pacey-cal-card-meta,
+#pacey-content .pacey-cal-card-meta--suggested,
+#pacey-content .pacey-cal-card-desc,
+#pacey-content .pacey-cal-card-pace {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
-#rgd-content .rgd-cal-rest-label {
+#pacey-content .pacey-cal-rest-label {
     font-family: var(--font-caveat);
     font-weight: 600;
     font-size: 1rem;
@@ -318,33 +318,33 @@
     text-transform: none;
     color: var(--pinboard-muted);
 }
-#rgd-content .rgd-drag-handle {
+#pacey-content .pacey-drag-handle {
     color: var(--pinboard-muted);
 }
 
 /* Editing card's tag/badge row — laid out so the type tag and the
    "Synced" badge sit cleanly on one line. */
-#rgd-content .rgd-cal-card-top {
+#pacey-content .pacey-cal-card-top {
     display: flex;
     align-items: center;
-    gap: var(--rgd-space-sm);
+    gap: var(--pacey-space-sm);
 }
 /* Synced badge: white on the remapped green, so it reads on paper in
    both themes. */
-#rgd-content .rgd-plan-scheduled-badge {
+#pacey-content .pacey-plan-scheduled-badge {
     color: #ffffff;
-    background: var(--rgd-accent-green);
+    background: var(--pacey-accent-green);
     border-radius: 2px 6px 3px 7px / 7px 3px 6px 2px;
 }
 
-/* Editing-form fields: the app fills inputs with var(--rgd-bg) (dark at
+/* Editing-form fields: the app fills inputs with var(--pacey-bg) (dark at
    night) under ink text — swap to the paper tints so they stay legible. */
-#rgd-content .rgd-plan-control-label {
+#pacey-content .pacey-plan-control-label {
     font-family: var(--font-fuzzy);
     font-weight: 600;
 }
-#rgd-content .rgd-plan-control input,
-#rgd-content .rgd-plan-control select {
+#pacey-content .pacey-plan-control input,
+#pacey-content .pacey-plan-control select {
     font-family: var(--font-fuzzy);
     background: var(--pinboard-paper-2);
     color: var(--pinboard-ink);
@@ -355,14 +355,14 @@
 /* ---------------------------------------------------------------------
    6. BUTTONS — edit, weekly send, save, rest toggle
    Small paper chips that match the board. The weekly send button is the
-   app's primary (navy) action; inside #rgd-content its text is white via
+   app's primary (navy) action; inside #pacey-content its text is white via
    the theme, so it stays readable — but the app's light hover fill would
    wash out that white text at night, so dark mode gets its own hover.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-plan-edit-btn,
-#rgd-content .rgd-cal-save-btn,
-#rgd-content .rgd-cal-rest-toggle,
-#rgd-content .rgd-cal-week-send-btn {
+#pacey-content .pacey-plan-edit-btn,
+#pacey-content .pacey-cal-save-btn,
+#pacey-content .pacey-cal-rest-toggle,
+#pacey-content .pacey-cal-week-send-btn {
     font-family: var(--font-fuzzy);
     border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
     box-shadow: 0 0.15rem 0.3rem rgba(0, 0, 0, 0.18);
@@ -370,18 +370,18 @@
 
 /* The edit button sits on the cork in the section title row, so give it a
    paper chip (the app's blue-on-transparent vanishes on the night board). */
-#rgd-content .rgd-plan-edit-btn {
+#pacey-content .pacey-plan-edit-btn {
     background: var(--pinboard-paper-2);
     color: var(--pinboard-ink);
     border-color: var(--pinboard-line);
 }
-#rgd-content .rgd-plan-edit-btn:hover {
+#pacey-content .pacey-plan-edit-btn:hover {
     background: var(--pinboard-note-blue);
     border-color: var(--pinboard-pin-blue);
     color: var(--pinboard-ink);
 }
 
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-send-btn:hover {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-week-send-btn:hover {
     /* Keep the primary button dark at night so its white label holds. */
     background: #3a332a;
 }
@@ -394,25 +394,25 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    so they get night-board colours; the error stays a legible alert, not
    a pinned note.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-coach-loading {
+#pacey-content .pacey-coach-loading {
     font-family: var(--font-fuzzy);
     color: var(--pinboard-ink);
 }
-#rgd-content .rgd-coach-build-status {
+#pacey-content .pacey-coach-build-status {
     font-family: var(--font-fuzzy);
     font-weight: 400;
 }
 
 /* Error: a soft red alert card that clears contrast on the cork in both
    themes (the app's translucent red tint would disappear at night). */
-#rgd-content .rgd-coach-error {
+#pacey-content .pacey-coach-error {
     font-family: var(--font-fuzzy);
     color: #7d2222;
     background: #f2d9d6;
     border-left: 0.1875rem solid #a83b3b;
 }
 /* Schedule status: a soft green alert, same reasoning. */
-#rgd-content .rgd-coach-schedule-status {
+#pacey-content .pacey-coach-schedule-status {
     font-family: var(--font-fuzzy);
     color: #245a34;
     background: #dceadb;
@@ -422,24 +422,24 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
 /* ---------------------------------------------------------------------
    8. NIGHT BOARD — text that sits on the cork (not on paper)
    Calendar scaffolding and the build-status line live directly on the
-   dark cork at night, but the theme maps --rgd-navy/--rgd-muted to dark
+   dark cork at night, but the theme maps --pacey-navy/--pacey-muted to dark
    ink. Brighten just those elements. The "today" row carries its own
    light paper tint, so its date ink stays dark — hence the :not().
    --------------------------------------------------------------------- */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-title,
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-range,
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-rest-label,
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-coach-build-status {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-week-title,
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-week-range,
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-rest-label,
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-coach-build-status {
     color: #e8dfca;
 }
 /* Phase pill on the dark board: light text on a translucent light tint. */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-phase {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-week-phase {
     color: #cfe0ea;
     background: rgba(207, 224, 234, 0.16);
 }
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-row:not(.rgd-cal-row--today) .rgd-cal-date-dow,
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-row:not(.rgd-cal-row--today) .rgd-cal-date-num,
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-row:not(.rgd-cal-row--today) .rgd-cal-date-month {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-row:not(.pacey-cal-row--today) .pacey-cal-date-dow,
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-row:not(.pacey-cal-row--today) .pacey-cal-date-num,
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-cal-row:not(.pacey-cal-row--today) .pacey-cal-date-month {
     color: #e8dfca;
 }
 
@@ -447,5 +447,5 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    9. REDUCED MOTION — no hover lift on the suggested workout slips.
    --------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-    #rgd-content .rgd-cal-card--suggested:hover { transform: none; }
+    #pacey-content .pacey-cal-card--suggested:hover { transform: none; }
 }

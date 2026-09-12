@@ -1,6 +1,6 @@
 /* =====================================================================
    PINBOARD THEME — Activities page additions
-   Complements the scoped <style id="rgd-pinboard-theme"> block in
+   Complements the scoped <style id="pacey-pinboard-theme"> block in
    index.html. Only the classes that appear on the FULL activities page
    (month grouping, expanded detail rows, chevron) are covered here —
    the shared paper card, name/date/stats and section title already live
@@ -11,7 +11,7 @@
 /* --- Month separator: a small handwritten label on the board, sitting
    between the paper strips. Text-only (no card) so it stays subtle; a
    faint dashed rule lets the months read as sections. --- */
-#rgd-content .rgd-activity-month-header {
+#pacey-content .pacey-activity-month-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -21,9 +21,9 @@
     border-bottom: 1px dashed color-mix(in srgb, var(--pinboard-ink) 22%, transparent);
 }
 /* The first month needs no extra headroom above it */
-#rgd-content .rgd-activity-month-header:first-child { margin-top: 0; }
+#pacey-content .pacey-activity-month-header:first-child { margin-top: 0; }
 
-#rgd-content .rgd-activity-month-name {
+#pacey-content .pacey-activity-month-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.5rem;
@@ -33,7 +33,7 @@
     color: var(--pinboard-ink);
 }
 
-#rgd-content .rgd-activity-month-total {
+#pacey-content .pacey-activity-month-total {
     font-family: var(--font-fuzzy);
     font-weight: 400;
     font-size: 0.95rem;
@@ -44,7 +44,7 @@
    both themes, so no dark override is needed for these. Labels are
    handwriting (Fuzzy Bubbles); values keep the same face for consistency
    but use full ink for readability. --- */
-#rgd-content .rgd-activity-detail-label {
+#pacey-content .pacey-activity-detail-label {
     font-family: var(--font-fuzzy);
     font-weight: 400;
     font-size: 0.72rem;
@@ -53,7 +53,7 @@
     color: var(--pinboard-muted);
 }
 
-#rgd-content .rgd-activity-detail-value {
+#pacey-content .pacey-activity-detail-value {
     font-family: var(--font-fuzzy);
     font-weight: 400;
     font-size: 0.95rem;
@@ -62,16 +62,16 @@
 
 /* --- Chevron: a small icon on the paper card. Muted ink clears contrast
    on the cream paper in both light and dark (the paper stays light). --- */
-#rgd-content .rgd-activity-chevron {
+#pacey-content .pacey-activity-chevron {
     color: var(--pinboard-muted);
     transition: transform 0.18s ease-out, color 0.18s ease-out;
 }
-#rgd-content .rgd-activity-header:hover .rgd-activity-chevron { color: var(--pinboard-ink); }
+#pacey-content .pacey-activity-header:hover .pacey-activity-chevron { color: var(--pinboard-ink); }
 
 /* --- Night board: the month label sits directly on the dark cork, so it
    needs light ink (same approach the shared theme uses for cork text). --- */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-activity-month-name { color: #e8dfca; }
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-activity-month-total { color: #b3a98f; }
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-activity-month-header {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-activity-month-name { color: #e8dfca; }
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-activity-month-total { color: #b3a98f; }
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-activity-month-header {
     border-bottom-color: color-mix(in srgb, #e8dfca 22%, transparent);
 }

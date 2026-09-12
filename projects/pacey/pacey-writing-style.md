@@ -1,6 +1,6 @@
-# RunAssist — Writing Style Guide
+# Pacey — Writing Style Guide
 
-All user-facing text in RunAssist follows these rules. The app speaks as a
+All user-facing text in Pacey follows these rules. The app speaks as a
 calm, measured running coach — not as a system, pipeline, or AI product.
 
 ## Voice

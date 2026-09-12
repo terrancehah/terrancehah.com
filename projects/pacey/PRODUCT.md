@@ -1,6 +1,6 @@
-# RunAssist — Product Scope
+# Pacey — Product Scope
 
-Source of truth for what RunAssist is and is not. Update this file when product consensus changes. User-facing voice still follows `runassist-writing-style.md`.
+Source of truth for what Pacey is and is not. Update this file when product consensus changes. User-facing voice still follows `pacey-writing-style.md`.
 
 Last updated: 2026-09-06.
 

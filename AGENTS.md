@@ -12,13 +12,13 @@ This is a static HTML/CSS/vanilla JS personal website (terrancehah.com), deploye
 - Python API in `api/` (Vercel serverless functions)
 - No npm build step (`package.json` build script is `echo No build step`)
 
-## RunAssist product
+## Pacey product
 
-RunAssist lives in `projects/runassist/` with APIs under `api/` (`coach-plan.py`, `radar.py`, `garmin-auth.py`, etc.).
+Pacey lives in `projects/pacey/` with APIs under `api/` (`coach-plan.py`, `radar.py`, `garmin-auth.py`, etc.).
 
-**Product scope (source of truth):** `projects/runassist/PRODUCT.md`
+**Product scope (source of truth):** `projects/pacey/PRODUCT.md`
 
-**Voice:** `projects/runassist/runassist-writing-style.md`
+**Voice:** `projects/pacey/pacey-writing-style.md`
 
 Consensus: marathon pre-race companion. Diagnosis is six-area fitness vs the typed goal time. Plan is the full remaining block to race day (not one week). No in-run coaching. Do not treat unofficial Garmin email+password as the long-term auth path.
 

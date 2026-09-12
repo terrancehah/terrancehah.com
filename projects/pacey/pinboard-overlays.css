@@ -2,18 +2,18 @@
    PINBOARD OVERLAYS — Account panel + coach chat
    ---------------------------------------------------------------------
    Extends the Pacey paper theme to the two floating overlays that live
-   outside #rgd-content: the Account/Settings panel and the chat FAB +
+   outside #pacey-content: the Account/Settings panel and the chat FAB +
    popup. Both are paper in BOTH themes (the paper never darkens), so the
-   --rgd-* tokens are remapped on the card itself. That way every existing
-   descendant rule that uses var(--rgd-navy/muted/blue/...) resolves to
+   --pacey-* tokens are remapped on the card itself. That way every existing
+   descendant rule that uses var(--pacey-navy/muted/blue/...) resolves to
    dark ink on light paper instead of flipping to light-on-light at night.
 
    Revert = delete this file and its <link>; nothing else changes.
    ===================================================================== */
 
 /* --- Shared paper sheet + pushpin ------------------------------------ */
-.rgd-settings-popup-card,
-.rgd-chat-popup-card {
+.pacey-settings-popup-card,
+.pacey-chat-popup-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -23,26 +23,26 @@
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
     box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
     /* Pin the paper-context palette so descendants stay dark-on-light */
-    --rgd-surface: var(--pinboard-paper);
-    --rgd-text: var(--pinboard-ink);
-    --rgd-navy: var(--pinboard-ink);
-    --rgd-border: var(--pinboard-line);
-    --rgd-muted: var(--pinboard-muted);
-    --rgd-light: var(--pinboard-paper-2);
-    --rgd-sky: var(--pinboard-note-blue);
-    --rgd-blue: #2a5169;
-    --rgd-accent-green: #2f6a3f;
-    --rgd-accent-amber: #7a5810;
-    --rgd-accent-red: #a83b3b;
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-border: var(--pinboard-line);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-light: var(--pinboard-paper-2);
+    --pacey-sky: var(--pinboard-note-blue);
+    --pacey-blue: #2a5169;
+    --pacey-accent-green: #2f6a3f;
+    --pacey-accent-amber: #7a5810;
+    --pacey-accent-red: #a83b3b;
     /* A primary button inside the panel sits on the (dark) remapped navy, so
        its label must stay white in both themes */
-    --rgd-btn-primary-text: #ffffff;
+    --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
 
 /* Pushpin holding each sheet to the board */
-.rgd-settings-popup-card::before,
-.rgd-chat-popup-card::before {
+.pacey-settings-popup-card::before,
+.pacey-chat-popup-card::before {
     content: "";
     position: absolute;
     top: 0.7rem;
@@ -57,8 +57,8 @@
 }
 
 /* --- Headings, rules and close buttons -------------------------------- */
-.rgd-settings-popup-title,
-.rgd-chat-popup-title {
+.pacey-settings-popup-title,
+.pacey-chat-popup-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.45rem;
@@ -66,54 +66,54 @@
     color: var(--pinboard-ink);
 }
 /* Extra top padding leaves room for the pin above the heading */
-.rgd-settings-popup-header,
-.rgd-chat-popup-header {
+.pacey-settings-popup-header,
+.pacey-chat-popup-header {
     padding-top: 1.15rem;
     border-bottom-color: var(--pinboard-line);
 }
-.rgd-settings-popup-footer { border-top-color: var(--pinboard-line); }
-.rgd-settings-profile { border-bottom-color: var(--pinboard-line); }
+.pacey-settings-popup-footer { border-top-color: var(--pinboard-line); }
+.pacey-settings-profile { border-bottom-color: var(--pinboard-line); }
 
-.rgd-settings-popup-close,
-.rgd-chat-popup-card .rgd-modal-close {
+.pacey-settings-popup-close,
+.pacey-chat-popup-card .pacey-modal-close {
     color: var(--pinboard-muted);
     border-radius: 0.5rem;
 }
-.rgd-settings-popup-close:hover,
-.rgd-chat-popup-card .rgd-modal-close:hover {
+.pacey-settings-popup-close:hover,
+.pacey-chat-popup-card .pacey-modal-close:hover {
     color: var(--pinboard-ink);
     background: var(--pinboard-paper-2);
 }
 
 /* --- Fields: labels in the handwriting face, values in ink ------------ */
-.rgd-settings-field-label { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
-.rgd-settings-field-value { color: var(--pinboard-ink); }
-.rgd-settings-field-hint { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
-.rgd-settings-select {
+.pacey-settings-field-label { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+.pacey-settings-field-value { color: var(--pinboard-ink); }
+.pacey-settings-field-hint { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+.pacey-settings-select {
     background: var(--pinboard-paper-2);
     color: var(--pinboard-ink);
     border-color: var(--pinboard-line);
     border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
 }
-.rgd-settings-profile-name {
+.pacey-settings-profile-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.35rem;
     color: var(--pinboard-ink);
 }
-.rgd-settings-profile-goal { font-family: var(--font-fuzzy); color: #2a5169; }
+.pacey-settings-profile-goal { font-family: var(--font-fuzzy); color: #2a5169; }
 
 /* Site section (the app's link back to terrancehah.com) */
-.rgd-settings-site { border-top-color: var(--pinboard-line); }
-.rgd-settings-site-links a { font-family: var(--font-fuzzy); color: #2a5169; }
-.rgd-settings-site-socials img { border-radius: 5px; }
+.pacey-settings-site { border-top-color: var(--pinboard-line); }
+.pacey-settings-site-links a { font-family: var(--font-fuzzy); color: #2a5169; }
+.pacey-settings-site-socials img { border-radius: 5px; }
 
 /* Destructive action stays clearly destructive, but sits on the paper */
-.rgd-btn-danger { color: #a83b3b; background: rgba(168, 59, 59, 0.12); }
-.rgd-btn-danger:hover { background: rgba(168, 59, 59, 0.2); }
+.pacey-btn-danger { color: #a83b3b; background: rgba(168, 59, 59, 0.12); }
+.pacey-btn-danger:hover { background: rgba(168, 59, 59, 0.2); }
 
 /* --- Chat FAB — a small cork note pinned to the board ---------------- */
-.rgd-chat-fab {
+.pacey-chat-fab {
     background-color: var(--pinboard-cork-edge);
     color: #2b2620;
     border: 1px solid rgba(0, 0, 0, 0.12);
@@ -125,7 +125,7 @@
     transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, color 0.18s ease-out, opacity 0.2s ease;
 }
 /* The pushpin holding the note to the board */
-.rgd-chat-fab::before {
+.pacey-chat-fab::before {
     content: "";
     position: absolute;
     top: 0.2rem;
@@ -138,29 +138,29 @@
     box-shadow: 0 0.12rem 0.18rem rgba(0, 0, 0, 0.4);
     z-index: 2;
 }
-.rgd-chat-fab:hover {
+.pacey-chat-fab:hover {
     color: #10201a;
     box-shadow: var(--pinboard-shadow-hover);
     transform: rotate(-1deg) translateY(-0.15rem);
 }
-.rgd-chat-fab:active { transform: rotate(-4deg) scale(0.94); }
+.pacey-chat-fab:active { transform: rotate(-4deg) scale(0.94); }
 /* The cork tone flips with the theme, so the icon flips with it */
-[data-theme="dark"] .rgd-chat-fab {
+[data-theme="dark"] .pacey-chat-fab {
     color: #f1ede4;
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 0.5rem 0.85rem rgba(0, 0, 0, 0.45);
 }
-[data-theme="dark"] .rgd-chat-fab:hover { color: #ffffff; }
+[data-theme="dark"] .pacey-chat-fab:hover { color: #ffffff; }
 
 /* --- Chat popup copy ------------------------------------------------- */
-.rgd-chat-coming-soon { color: var(--pinboard-muted); }
-.rgd-chat-coming-soon-title {
+.pacey-chat-coming-soon { color: var(--pinboard-muted); }
+.pacey-chat-coming-soon-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.6rem;
     color: var(--pinboard-ink);
 }
-.rgd-chat-coming-soon-text {
+.pacey-chat-coming-soon-text {
     font-family: var(--font-fuzzy);
     font-size: 1rem;
     color: var(--pinboard-muted);
@@ -168,16 +168,16 @@
 
 /* --- Reduced motion: no tilt/lift, keep the resting angle ------------- */
 @media (prefers-reduced-motion: reduce) {
-    .rgd-chat-fab:hover,
-    .rgd-chat-fab:active { transform: rotate(-4deg); }
+    .pacey-chat-fab:hover,
+    .pacey-chat-fab:active { transform: rotate(-4deg); }
 }
 
 /* =====================================================================
    METRIC DETAIL MODAL — a light-blue post-it, matching the vitals card
-   Scoped to #rgd-metric-popup so the scoring/dimension modals (which
-   reuse .rgd-metric-popup-card) keep their own look.
+   Scoped to #pacey-metric-popup so the scoring/dimension modals (which
+   reuse .pacey-metric-popup-card) keep their own look.
    ===================================================================== */
-#rgd-metric-popup .rgd-metric-popup-card {
+#pacey-metric-popup .pacey-metric-popup-card {
     position: relative;
     background-color: var(--pinboard-note-blue);
     background-image: none;
@@ -185,18 +185,18 @@
     border-radius: 2px;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
     /* Paper-context palette: the note stays light in both themes */
-    --rgd-surface: var(--pinboard-paper);
-    --rgd-text: var(--pinboard-ink);
-    --rgd-navy: var(--pinboard-ink);
-    --rgd-border: var(--pinboard-line);
-    --rgd-muted: var(--pinboard-muted);
-    --rgd-light: var(--pinboard-paper-2);
-    --rgd-blue: #2a5169;
-    --rgd-btn-primary-text: #ffffff;
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-border: var(--pinboard-line);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-light: var(--pinboard-paper-2);
+    --pacey-blue: #2a5169;
+    --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
 /* Pushpin, same treatment as the other pinned sheets */
-#rgd-metric-popup .rgd-metric-popup-card::before {
+#pacey-metric-popup .pacey-metric-popup-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -210,55 +210,55 @@
     z-index: 4;
 }
 /* Heading + copy in the handwriting faces */
-#rgd-metric-popup .rgd-metric-popup-header { margin-top: 0.35rem; }
-#rgd-metric-popup .rgd-metric-popup-title {
+#pacey-metric-popup .pacey-metric-popup-header { margin-top: 0.35rem; }
+#pacey-metric-popup .pacey-metric-popup-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.5rem;
     letter-spacing: 0;
     color: var(--pinboard-ink);
 }
-#rgd-metric-popup .rgd-metric-popup-icon { color: #2a5169; }
+#pacey-metric-popup .pacey-metric-popup-icon { color: #2a5169; }
 /* The number stays in the readable sans, matching the vitals card */
-#rgd-metric-popup .rgd-metric-popup-value {
+#pacey-metric-popup .pacey-metric-popup-value {
     font-family: 'Lato', sans-serif;
     color: var(--pinboard-ink);
 }
-#rgd-metric-popup .rgd-metric-popup-unit { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
-#rgd-metric-popup .rgd-metric-popup-zone {
+#pacey-metric-popup .pacey-metric-popup-unit { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-metric-popup .pacey-metric-popup-zone {
     font-family: var(--font-fuzzy);
     border-radius: 999px;
     color: #ffffff;
 }
-#rgd-metric-popup .rgd-metric-popup-explanation {
+#pacey-metric-popup .pacey-metric-popup-explanation {
     font-family: var(--font-fuzzy);
     font-size: 1rem;
     color: var(--pinboard-muted);
 }
 
 /* Gauge — a thin marker bar, echoing the thin bar under each vitals number */
-#rgd-metric-popup .rgd-gauge-bar {
+#pacey-metric-popup .pacey-gauge-bar {
     height: 0.5rem;
     border-radius: 999px;
     background: rgba(0, 0, 0, 0.08);
     overflow: hidden;
 }
-#rgd-metric-popup .rgd-gauge-segment { opacity: 0.9; }
-#rgd-metric-popup .rgd-gauge-marker {
+#pacey-metric-popup .pacey-gauge-segment { opacity: 0.9; }
+#pacey-metric-popup .pacey-gauge-marker {
     top: -0.2rem;
     bottom: -0.2rem;
     width: 0.15rem;
     background: var(--pinboard-ink);
     box-shadow: 0 0 0 0.1rem var(--pinboard-note-blue);
 }
-#rgd-metric-popup .rgd-gauge-scale-min,
-#rgd-metric-popup .rgd-gauge-scale-max { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
-#rgd-metric-popup .rgd-gauge-legend-item { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
-#rgd-metric-popup .rgd-gauge-legend-item--active { color: var(--pinboard-ink); }
-#rgd-metric-popup .rgd-gauge-legend-text { font-family: var(--font-fuzzy); color: inherit; }
-#rgd-metric-popup .rgd-gauge-legend-dot { border-radius: 3px; }
-#rgd-metric-popup .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
-#rgd-metric-popup .rgd-modal-close:hover { color: var(--pinboard-ink); background: rgba(255, 255, 255, 0.45); }
+#pacey-metric-popup .pacey-gauge-scale-min,
+#pacey-metric-popup .pacey-gauge-scale-max { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-metric-popup .pacey-gauge-legend-item { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-metric-popup .pacey-gauge-legend-item--active { color: var(--pinboard-ink); }
+#pacey-metric-popup .pacey-gauge-legend-text { font-family: var(--font-fuzzy); color: inherit; }
+#pacey-metric-popup .pacey-gauge-legend-dot { border-radius: 3px; }
+#pacey-metric-popup .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-metric-popup .pacey-modal-close:hover { color: var(--pinboard-ink); background: rgba(255, 255, 255, 0.45); }
 
 /* =====================================================================
    INFO MODALS — "How scores work" + the six-areas explainer
@@ -266,8 +266,8 @@
    cream paper treatment with a blue pushpin (the metric modal above keeps
    its blue post-it). Scoped per-modal so nothing else shifts.
    ===================================================================== */
-#rgd-score-modal .rgd-metric-popup-card,
-#rgd-dimension-modal .rgd-metric-popup-card {
+#pacey-score-modal .pacey-metric-popup-card,
+#pacey-dimension-modal .pacey-metric-popup-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -276,18 +276,18 @@
     border: none;
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
     box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
-    --rgd-surface: var(--pinboard-paper);
-    --rgd-text: var(--pinboard-ink);
-    --rgd-navy: var(--pinboard-ink);
-    --rgd-border: var(--pinboard-line);
-    --rgd-muted: var(--pinboard-muted);
-    --rgd-light: var(--pinboard-paper-2);
-    --rgd-blue: #2a5169;
-    --rgd-btn-primary-text: #ffffff;
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-border: var(--pinboard-line);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-light: var(--pinboard-paper-2);
+    --pacey-blue: #2a5169;
+    --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
-#rgd-score-modal .rgd-metric-popup-card::before,
-#rgd-dimension-modal .rgd-metric-popup-card::before {
+#pacey-score-modal .pacey-metric-popup-card::before,
+#pacey-dimension-modal .pacey-metric-popup-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -300,59 +300,59 @@
     box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
     z-index: 4;
 }
-#rgd-score-modal .rgd-metric-popup-header,
-#rgd-dimension-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
-#rgd-score-modal .rgd-metric-popup-title,
-#rgd-dimension-modal .rgd-metric-popup-title {
+#pacey-score-modal .pacey-metric-popup-header,
+#pacey-dimension-modal .pacey-metric-popup-header { margin-top: 0.35rem; }
+#pacey-score-modal .pacey-metric-popup-title,
+#pacey-dimension-modal .pacey-metric-popup-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.5rem;
     letter-spacing: 0;
     color: var(--pinboard-ink);
 }
-#rgd-score-modal .rgd-metric-popup-icon,
-#rgd-dimension-modal .rgd-metric-popup-icon { color: #2a5169; }
-#rgd-score-modal .rgd-metric-popup-explanation,
-#rgd-dimension-modal .rgd-metric-popup-explanation {
+#pacey-score-modal .pacey-metric-popup-icon,
+#pacey-dimension-modal .pacey-metric-popup-icon { color: #2a5169; }
+#pacey-score-modal .pacey-metric-popup-explanation,
+#pacey-dimension-modal .pacey-metric-popup-explanation {
     font-family: var(--font-fuzzy);
     font-size: 1rem;
     color: var(--pinboard-muted);
 }
-#rgd-score-modal .rgd-modal-close,
-#rgd-dimension-modal .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
-#rgd-score-modal .rgd-modal-close:hover,
-#rgd-dimension-modal .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+#pacey-score-modal .pacey-modal-close,
+#pacey-dimension-modal .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-score-modal .pacey-modal-close:hover,
+#pacey-dimension-modal .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
 
 /* Score tiers — the range in Caveat, the description in Fuzzy */
-#rgd-score-modal .rgd-score-tier { font-family: var(--font-fuzzy); }
-#rgd-score-modal .rgd-score-tier-range {
+#pacey-score-modal .pacey-score-tier { font-family: var(--font-fuzzy); }
+#pacey-score-modal .pacey-score-tier-range {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.15rem;
     color: var(--pinboard-ink);
 }
-#rgd-score-modal .rgd-score-tier-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-score-modal .pacey-score-tier-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
 
 /* Six-areas explainer rows */
-#rgd-dimension-modal .rgd-dimension-explainer-name {
+#pacey-dimension-modal .pacey-dimension-explainer-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 1.2rem;
     color: var(--pinboard-ink);
 }
-#rgd-dimension-modal .rgd-dimension-explainer-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-dimension-modal .pacey-dimension-explainer-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
 /* Drop the coloured dot beside each area name — the label carries it */
-#rgd-dimension-modal .rgd-dimension-explainer-dot { display: none; }
+#pacey-dimension-modal .pacey-dimension-explainer-dot { display: none; }
 
 /* =====================================================================
    REMAINING MODALS + SHEETS — same pinned-paper language so the whole app
-   is consistent. Form modals also get a paper input fill via --rgd-bg.
+   is consistent. Form modals also get a paper input fill via --pacey-bg.
    ===================================================================== */
-#rgd-plan-prefs-modal .rgd-metric-popup-card,
-#rgd-edit-goal-popup .rgd-edit-goal-card,
-#rgd-goal-reminder-popup .rgd-goal-reminder-card,
-#rgd-workout-sheet .rgd-workout-sheet,
-#rgd-login-modal .rgd-auth-card {
+#pacey-plan-prefs-modal .pacey-metric-popup-card,
+#pacey-edit-goal-popup .pacey-edit-goal-card,
+#pacey-goal-reminder-popup .pacey-goal-reminder-card,
+#pacey-workout-sheet .pacey-workout-sheet,
+#pacey-login-modal .pacey-auth-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -362,26 +362,26 @@
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
     box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
     /* Paper-context palette (the sheet stays light in both themes) */
-    --rgd-surface: var(--pinboard-paper);
-    --rgd-bg: var(--pinboard-paper-2);
-    --rgd-text: var(--pinboard-ink);
-    --rgd-navy: var(--pinboard-ink);
-    --rgd-border: var(--pinboard-line);
-    --rgd-muted: var(--pinboard-muted);
-    --rgd-light: var(--pinboard-paper-2);
-    --rgd-blue: #2a5169;
-    --rgd-accent-green: #2f6a3f;
-    --rgd-accent-amber: #7a5810;
-    --rgd-accent-red: #a83b3b;
-    --rgd-btn-primary-text: #ffffff;
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-bg: var(--pinboard-paper-2);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-border: var(--pinboard-line);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-light: var(--pinboard-paper-2);
+    --pacey-blue: #2a5169;
+    --pacey-accent-green: #2f6a3f;
+    --pacey-accent-amber: #7a5810;
+    --pacey-accent-red: #a83b3b;
+    --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
 /* Pushpin on each sheet */
-#rgd-plan-prefs-modal .rgd-metric-popup-card::before,
-#rgd-edit-goal-popup .rgd-edit-goal-card::before,
-#rgd-goal-reminder-popup .rgd-goal-reminder-card::before,
-#rgd-workout-sheet .rgd-workout-sheet::before,
-#rgd-login-modal .rgd-auth-card::before {
+#pacey-plan-prefs-modal .pacey-metric-popup-card::before,
+#pacey-edit-goal-popup .pacey-edit-goal-card::before,
+#pacey-goal-reminder-popup .pacey-goal-reminder-card::before,
+#pacey-workout-sheet .pacey-workout-sheet::before,
+#pacey-login-modal .pacey-auth-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -395,55 +395,55 @@
     z-index: 4;
 }
 /* Headings on those sheets use the handwriting faces */
-#rgd-edit-goal-popup .rgd-edit-goal-title,
-#rgd-goal-reminder-popup .rgd-goal-reminder-title,
-#rgd-plan-prefs-modal .rgd-metric-popup-title,
-#rgd-login-modal .rgd-auth-title {
+#pacey-edit-goal-popup .pacey-edit-goal-title,
+#pacey-goal-reminder-popup .pacey-goal-reminder-title,
+#pacey-plan-prefs-modal .pacey-metric-popup-title,
+#pacey-login-modal .pacey-auth-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     letter-spacing: 0;
     color: var(--pinboard-ink);
 }
-#rgd-plan-prefs-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
-#rgd-plan-prefs-modal .rgd-metric-popup-icon { color: #2a5169; }
+#pacey-plan-prefs-modal .pacey-metric-popup-header { margin-top: 0.35rem; }
+#pacey-plan-prefs-modal .pacey-metric-popup-icon { color: #2a5169; }
 /* Labels and copy in Fuzzy */
-#rgd-plan-prefs-modal .rgd-plan-pref-label,
-#rgd-edit-goal-popup .rgd-label,
-#rgd-login-modal .rgd-label,
-#rgd-goal-reminder-popup .rgd-goal-reminder-body,
-#rgd-workout-sheet .rgd-sheet-description { font-family: var(--font-fuzzy); }
+#pacey-plan-prefs-modal .pacey-plan-pref-label,
+#pacey-edit-goal-popup .pacey-label,
+#pacey-login-modal .pacey-label,
+#pacey-goal-reminder-popup .pacey-goal-reminder-body,
+#pacey-workout-sheet .pacey-sheet-description { font-family: var(--font-fuzzy); }
 /* Workout sheet heading + section labels */
-#rgd-workout-sheet .rgd-sheet-title {
+#pacey-workout-sheet .pacey-sheet-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     letter-spacing: 0;
     color: var(--pinboard-ink);
 }
-#rgd-workout-sheet .rgd-sheet-section-title { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#pacey-workout-sheet .pacey-sheet-section-title { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
 /* Close buttons */
-#rgd-plan-prefs-modal .rgd-modal-close,
-#rgd-edit-goal-popup .rgd-modal-close,
-#rgd-goal-reminder-popup .rgd-modal-close,
-#rgd-workout-sheet .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
-#rgd-plan-prefs-modal .rgd-modal-close:hover,
-#rgd-edit-goal-popup .rgd-modal-close:hover,
-#rgd-goal-reminder-popup .rgd-modal-close:hover,
-#rgd-workout-sheet .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+#pacey-plan-prefs-modal .pacey-modal-close,
+#pacey-edit-goal-popup .pacey-modal-close,
+#pacey-goal-reminder-popup .pacey-modal-close,
+#pacey-workout-sheet .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-plan-prefs-modal .pacey-modal-close:hover,
+#pacey-edit-goal-popup .pacey-modal-close:hover,
+#pacey-goal-reminder-popup .pacey-modal-close:hover,
+#pacey-workout-sheet .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
 
 /* =====================================================================
    ONBOARDING / AUTH FINISHING PASS
    ===================================================================== */
 
 /* Brand lockup on the login card: Pacey mark + wordmark, no eyebrow pill */
-.rgd-auth-brand {
+.pacey-auth-brand {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.6rem;
     margin-bottom: 0.9rem;
 }
-.rgd-auth-brand .rgd-card-logo { margin-bottom: 0; width: 44px; height: 44px; }
-.rgd-auth-brand-name {
+.pacey-auth-brand .pacey-card-logo { margin-bottom: 0; width: 44px; height: 44px; }
+.pacey-auth-brand-name {
     font-family: var(--font-caveat);
     font-weight: 700;
     font-size: 2rem;
@@ -453,14 +453,14 @@
 
 /* iOS zooms the whole page when a focused field is under 16px. Pin every
    form control to 1rem so tapping email/password/number never zooms. */
-.rgd-input,
-.rgd-select,
-.rgd-duration-input { font-size: 1rem; }
+.pacey-input,
+.pacey-select,
+.pacey-duration-input { font-size: 1rem; }
 
 /* Onboarding cards join the pinned-paper family */
-#rgd-onboarding-screen .rgd-onboard-card,
-#rgd-onboarding-fitness-screen .rgd-onboard-card,
-#rgd-onboarding-plan-screen .rgd-onboard-card {
+#pacey-onboarding-screen .pacey-onboard-card,
+#pacey-onboarding-fitness-screen .pacey-onboard-card,
+#pacey-onboarding-plan-screen .pacey-onboard-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -469,44 +469,44 @@
     border: none;
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
     box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
-    --rgd-surface: var(--pinboard-paper);
-    --rgd-bg: var(--pinboard-paper-2);
-    --rgd-text: var(--pinboard-ink);
-    --rgd-navy: var(--pinboard-ink);
-    --rgd-border: var(--pinboard-line);
-    --rgd-muted: var(--pinboard-muted);
-    --rgd-light: var(--pinboard-paper-2);
-    --rgd-blue: #2a5169;
-    --rgd-btn-primary-text: #ffffff;
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-bg: var(--pinboard-paper-2);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-border: var(--pinboard-line);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-light: var(--pinboard-paper-2);
+    --pacey-blue: #2a5169;
+    --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
 /* Onboarding headings + copy in the handwriting faces */
-.rgd-onboard-title { font-family: var(--font-caveat); font-weight: 700; letter-spacing: 0; }
-.rgd-onboard-card .rgd-onboard-subtitle,
-.rgd-onboard-card .rgd-onboard-desc,
-.rgd-onboard-card .rgd-label,
-.rgd-onboard-card .rgd-hint,
-.rgd-onboard-card .rgd-field-error,
-.rgd-onboard-card .rgd-eyebrow { font-family: var(--font-fuzzy); }
+.pacey-onboard-title { font-family: var(--font-caveat); font-weight: 700; letter-spacing: 0; }
+.pacey-onboard-card .pacey-onboard-subtitle,
+.pacey-onboard-card .pacey-onboard-desc,
+.pacey-onboard-card .pacey-label,
+.pacey-onboard-card .pacey-hint,
+.pacey-onboard-card .pacey-field-error,
+.pacey-onboard-card .pacey-eyebrow { font-family: var(--font-fuzzy); }
 
 /* Larger titles on the welcome-back and edit-goal cards */
-#rgd-goal-reminder-popup .rgd-goal-reminder-title,
-#rgd-edit-goal-popup .rgd-edit-goal-title { font-size: 1.5rem; }
-#rgd-goal-reminder-popup .rgd-goal-reminder-intro,
-#rgd-goal-reminder-popup .rgd-goal-reminder-summary-row,
-#rgd-goal-reminder-popup .rgd-goal-reminder-question { font-family: var(--font-fuzzy); }
+#pacey-goal-reminder-popup .pacey-goal-reminder-title,
+#pacey-edit-goal-popup .pacey-edit-goal-title { font-size: 1.5rem; }
+#pacey-goal-reminder-popup .pacey-goal-reminder-intro,
+#pacey-goal-reminder-popup .pacey-goal-reminder-summary-row,
+#pacey-goal-reminder-popup .pacey-goal-reminder-question { font-family: var(--font-fuzzy); }
 
 /* Race goal modal: no internal vertical scroll, and a tighter rhythm so the
    form fits even a small phone viewport (down to ~667px) without one. */
-#rgd-edit-goal-popup .rgd-edit-goal-card { max-height: none; overflow-y: visible; }
-#rgd-edit-goal-popup .rgd-edit-goal-form { padding: 0.7rem; gap: 0.45rem; }
-#rgd-edit-goal-popup .rgd-edit-goal-header { padding: 0.6rem 0.8rem; }
-#rgd-edit-goal-popup .rgd-input { padding: 0.5em 0.7em; }
-#rgd-edit-goal-popup .rgd-label { line-height: 1.2; }
-#rgd-edit-goal-popup .rgd-btn { padding: 0.55rem 1rem; }
+#pacey-edit-goal-popup .pacey-edit-goal-card { max-height: none; overflow-y: visible; }
+#pacey-edit-goal-popup .pacey-edit-goal-form { padding: 0.7rem; gap: 0.45rem; }
+#pacey-edit-goal-popup .pacey-edit-goal-header { padding: 0.6rem 0.8rem; }
+#pacey-edit-goal-popup .pacey-input { padding: 0.5em 0.7em; }
+#pacey-edit-goal-popup .pacey-label { line-height: 1.2; }
+#pacey-edit-goal-popup .pacey-btn { padding: 0.55rem 1rem; }
 
 /* Live sentence under the race-result inputs */
-.rgd-race-result-summary {
+.pacey-race-result-summary {
     margin: 0;
     padding: 0.7rem 0.85rem;
     background: var(--pinboard-note-blue);

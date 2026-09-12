@@ -13,7 +13,7 @@
             "destination": "/api/analyse"
         },
         {
-            "source": "/projects/runassist/api/(.*)",
+            "source": "/projects/pacey/api/(.*)",
             "destination": "/api/$1"
         }
     ]

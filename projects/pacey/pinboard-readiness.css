@@ -2,15 +2,15 @@
    PINBOARD THEME — READINESS PAGE EXTENSION
    ---------------------------------------------------------------------
    Extends the "training notes pinned to a corkboard" theme (defined inline
-   in index.html as <style id="rgd-pinboard-theme">) to the Readiness page
-   (#rgd-page-readiness), which lives inside #rgd-content. The shared theme
+   in index.html as <style id="pacey-pinboard-theme">) to the Readiness page
+   (#pacey-page-readiness), which lives inside #pacey-content. The shared theme
    already covers the section titles, the readiness/radar card and the
    pillar-card chrome; this file only fills the gaps that the readiness
    variant renders (Strengths/Gaps blocks, info buttons, radar skeleton,
    error/status rows).
 
-   Every selector is scoped under #rgd-content. Night-board overrides use
-   the shell condition html[data-theme="dark"]:has(#rgd-dashboard-screen:
+   Every selector is scoped under #pacey-content. Night-board overrides use
+   the shell condition html[data-theme="dark"]:has(#pacey-dashboard-screen:
    not([hidden])). Revert = delete this file and its <link>; nothing else
    changes. Tokens are inherited from the inline block — never redefined.
    ===================================================================== */
@@ -28,7 +28,7 @@
 
 /* Section wrapper: a simple stacked block, no background of its own so
    the text reads directly on the post-it paper. */
-#rgd-content .rgd-pillar-section {
+#pacey-content .pacey-pillar-section {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
@@ -36,13 +36,13 @@
 
 /* Strengths / Gaps wrappers carry no fill — they are plain notes on the
    post-it, not their own cards. Declared explicitly to document intent. */
-#rgd-content .rgd-pillar-section--strengths,
-#rgd-content .rgd-pillar-section--gaps {
+#pacey-content .pacey-pillar-section--strengths,
+#pacey-content .pacey-pillar-section--gaps {
     background: none;
 }
 
 /* Label badge: handwritten label to match the rest of the board copy. */
-#rgd-content .rgd-pillar-section-label {
+#pacey-content .pacey-pillar-section-label {
     font-family: var(--font-fuzzy);
     font-weight: 700;
     letter-spacing: 0.03em;
@@ -50,13 +50,13 @@
 
 /* Strengths — subtle green tint + dark green text that clears contrast
    on the light blue post-it. */
-#rgd-content .rgd-pillar-section-label--strengths {
+#pacey-content .pacey-pillar-section-label--strengths {
     background: rgba(47, 106, 63, 0.16);
     color: #275a34;
 }
 
 /* Gaps — subtle amber tint + dark amber text (actionable, not alarming). */
-#rgd-content .rgd-pillar-section-label--gaps {
+#pacey-content .pacey-pillar-section-label--gaps {
     background: rgba(122, 88, 16, 0.18);
     color: #5f410b;
 }
@@ -64,11 +64,11 @@
 /* Night board: the post-it is still light, so keep the SAME dark label
    colours. This deliberately overrides the app's light-green dark-mode
    Strengths rule, which assumed a dark card. */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-pillar-section-label--strengths {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-pillar-section-label--strengths {
     background: rgba(47, 106, 63, 0.18);
     color: #275a34;
 }
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-pillar-section-label--gaps {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-pillar-section-label--gaps {
     background: rgba(122, 88, 16, 0.2);
     color: #5f410b;
 }
@@ -80,7 +80,7 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    the post-it shadow (hoisted to a custom property) and append a growing
    blue ring so the two never fight.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-pillar-card {
+#pacey-content .pacey-pillar-card {
     /* The post-it drop shadow, reused by the pulse keyframes below. */
     --pinboard-postit-shadow:
         0 1px 1px rgba(0, 0, 0, 0.14),
@@ -88,75 +88,75 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
         inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
 }
 
-@keyframes rgd-pinboard-pillar-pulse {
+@keyframes pacey-pinboard-pillar-pulse {
     0%   { box-shadow: var(--pinboard-postit-shadow), 0 0 0 0 rgba(47, 111, 176, 0.45); }
     50%  { box-shadow: var(--pinboard-postit-shadow), 0 0 0 0.4rem rgba(47, 111, 176, 0.22); }
     100% { box-shadow: var(--pinboard-postit-shadow), 0 0 0 0 rgba(47, 111, 176, 0); }
 }
 
-#rgd-content .rgd-pillar-card.rgd-pillar-highlight {
-    animation: rgd-pinboard-pillar-pulse 1s ease-out 2;
+#pacey-content .pacey-pillar-card.pacey-pillar-highlight {
+    animation: pacey-pinboard-pillar-pulse 1s ease-out 2;
 }
 
 /* ---------------------------------------------------------------------
    3. INFO BUTTONS — small icon buttons in the section titles
    These sit on the cork (not on a paper card). The app CSS gives both a
-   circular chip filled with --rgd-surface, which inside #rgd-content
+   circular chip filled with --pacey-surface, which inside #pacey-content
    resolves to the (always light) pinboard paper. We keep that paper chip
    in BOTH themes — a light disc reads clearly against the dark cork at
    night and against the tan cork by day — and pin the glyph to dark ink
    so it stays legible on the light disc.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-dimension-info-btn,
-#rgd-content .rgd-score-info-btn {
+#pacey-content .pacey-dimension-info-btn,
+#pacey-content .pacey-score-info-btn {
     background: var(--pinboard-paper);
     border-color: var(--pinboard-line);
     color: var(--pinboard-ink);
     box-shadow: 0 0.1rem 0.22rem rgba(0, 0, 0, 0.22);
 }
 
-#rgd-content .rgd-dimension-info-btn:hover,
-#rgd-content .rgd-score-info-btn:hover {
+#pacey-content .pacey-dimension-info-btn:hover,
+#pacey-content .pacey-score-info-btn:hover {
     background: var(--pinboard-paper-2);
     border-color: var(--pinboard-pin-blue);
     color: var(--pinboard-pin-blue);
 }
 
 /* ---------------------------------------------------------------------
-   4. TAP HINT — "Select a label for details." inside .rgd-section-sub
-   It sits on the cork. The app colours it with --rgd-blue, which is dark
+   4. TAP HINT — "Select a label for details." inside .pacey-section-sub
+   It sits on the cork. The app colours it with --pacey-blue, which is dark
    and vanishes on the night board; brighten it for dark mode only.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-tap-hint {
+#pacey-content .pacey-tap-hint {
     font-family: var(--font-fuzzy);
     font-weight: 600;
 }
 
 /* Only the hint that sits directly on the cork (inside a section subtitle)
    needs brightening. The overview's copy of this hint lives inside a paper
-   card (.rgd-readiness-card-sub) and must stay dark on that light paper. */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-section-sub .rgd-tap-hint {
+   card (.pacey-readiness-card-sub) and must stay dark on that light paper. */
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-section-sub .pacey-tap-hint {
     color: #a7c9e6;
 }
 
 /* ---------------------------------------------------------------------
    5. RADAR — paper card with the radar plot + loading skeleton
-   The skeleton grid lines use var(--rgd-border) and the vertex dots use
-   var(--rgd-blue); both are remapped inside #rgd-content to paper-safe
+   The skeleton grid lines use var(--pacey-border) and the vertex dots use
+   var(--pacey-blue); both are remapped inside #pacey-content to paper-safe
    values, so they already read on the (always light) paper in both
    themes. Only two things need attention: the label font, and the
    shimmer sweep, which the app forces to white in dark mode — invisible
    on light paper — so we put it back to ink.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-radar-skeleton-label {
+#pacey-content .pacey-radar-skeleton-label {
     font-family: var(--font-fuzzy);
     letter-spacing: 0.01em;
 }
 
 /* Shimmer sweep must stay dark on the light paper card, even at night. */
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-shimmer-text {
-    --rgd-shimmer-base: var(--pinboard-muted);
-    --rgd-shimmer-sweep: var(--pinboard-ink);
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-shimmer-text {
+    --pacey-shimmer-base: var(--pinboard-muted);
+    --pacey-shimmer-sweep: var(--pinboard-ink);
 }
 
 /* ---------------------------------------------------------------------
@@ -165,25 +165,25 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    rather than a table, plus an error line that stays a plain, legible
    message (never a note) in both themes.
    --------------------------------------------------------------------- */
-#rgd-content .rgd-pillars-grid,
-#rgd-content .rgd-pillars-content {
+#pacey-content .pacey-pillars-grid,
+#pacey-content .pacey-pillars-content {
     gap: clamp(1.4rem, 3vw, 2.4rem);
 }
 
 /* Error message: keep it as copy, not a pinned note. Darken the light
    red for the night board so it still clears contrast on the cork. */
-#rgd-content .rgd-summary-error {
+#pacey-content .pacey-summary-error {
     font-family: var(--font-fuzzy);
 }
 
-html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-summary-error {
+html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-summary-error {
     color: #e6a3a3;
     background: rgba(200, 90, 90, 0.14);
 }
 
-/* Refresh button inherits the shared .rgd-btn paper treatment; only the
+/* Refresh button inherits the shared .pacey-btn paper treatment; only the
    handwriting font is added here. */
-#rgd-content .rgd-refresh-btn {
+#pacey-content .pacey-refresh-btn {
     font-family: var(--font-fuzzy);
 }
 
@@ -191,5 +191,5 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    7. Reduced motion — no pulse for the pillar highlight.
    --------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-    #rgd-content .rgd-pillar-card.rgd-pillar-highlight { animation: none; }
+    #pacey-content .pacey-pillar-card.pacey-pillar-highlight { animation: none; }
 }
