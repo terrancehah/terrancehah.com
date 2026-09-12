@@ -65,7 +65,7 @@
         --pinboard-paper-2: #f1e9d7;
         --pinboard-line: #ddd0b6;
         --pinboard-ink: #2b2620;
-        --pinboard-muted: #6d6250;
+        --pinboard-muted: #5f5546;
         --pinboard-note-blue: #cfe3f1;
         --pinboard-note-blue-2: #bcd8ec;
         --pinboard-note-yellow: #f6e6a4;
@@ -94,7 +94,7 @@
         --pinboard-paper-2: #c3baa8;
         --pinboard-line: #a89d88;
         --pinboard-ink: #241f19;
-        --pinboard-muted: #554e40;
+        --pinboard-muted: #4a4438;
         --pinboard-note-blue: #d6e4ee;
         --pinboard-note-blue-2: #c9dce9;
         --pinboard-note-yellow: #e8db9e;
@@ -108,22 +108,22 @@
     }
 
     /* --- The board itself: whole app sits on cork while Overview is on --- */
-    html:has(#rgd-page-overview:not([hidden])) body { background: var(--pinboard-cork); }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-main {
+    html:has(#rgd-dashboard-screen:not([hidden])) body { background: var(--pinboard-cork); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-main {
         background-color: var(--pinboard-cork);
         background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
         background-size: 220px 220px, 80px 80px;
         background-blend-mode: soft-light, multiply;
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-content { background: transparent; }
-    html:has(#rgd-page-overview:not([hidden])) header.rgd-header-offset {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-content { background: transparent; }
+    html:has(#rgd-dashboard-screen:not([hidden])) header.rgd-header-offset {
         background-color: var(--pinboard-cork-edge);
         background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
         background-size: 220px 220px, 80px 80px;
         background-blend-mode: soft-light, multiply;
         border-bottom: 1px solid rgba(0, 0, 0, 0.18);
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar {
         background-color: var(--pinboard-cork-edge);
         background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
         background-size: 220px 220px, 80px 80px;
@@ -136,32 +136,32 @@
        so the buttons stay legible whether a light paper card or the dark cork
        is behind them. (The glass is the contrast anchor; the icons never need
        to adapt per-pixel.) */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-tabbar {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tabbar {
         background: rgba(248, 242, 228, 0.62);
         backdrop-filter: blur(20px) saturate(150%);
         -webkit-backdrop-filter: blur(20px) saturate(150%);
         border-color: rgba(255, 255, 255, 0.45);
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-tab-item { color: #4a4235; }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-tab-item.active { color: #1d3557; }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.62); }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-tabbar {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #4a4235; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #1d3557; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.62); }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tabbar {
         background: rgba(26, 20, 15, 0.74);
         border-color: rgba(255, 255, 255, 0.16);
     }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-tab-item { color: #cfd8cf; }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-tab-item.active { color: #f2e9d7; }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.16); }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #cfd8cf; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #f2e9d7; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.16); }
 
     /* Chart fonts — inherited by the canvases inside the overview. Kept as
        literal stacks (not var() refs) because Chart.js reads them at runtime. */
-    html:has(#rgd-page-overview:not([hidden])) {
+    html:has(#rgd-dashboard-screen:not([hidden])) {
         --rgd-chart-heading-font: 'Fuzzy Bubbles', 'Caveat', cursive;
         --rgd-chart-body-font: 'Fuzzy Bubbles', 'Caveat', cursive;
     }
 
     /* --- Paper surface: the overview content reads as sheets on the board --- */
-    #rgd-page-overview {
+    #rgd-content {
         --rgd-surface: var(--pinboard-paper);
         --rgd-text: var(--pinboard-ink);
         --rgd-navy: var(--pinboard-ink);
@@ -173,29 +173,29 @@
            their light-mode values even in dark mode. Values are darkened
            slightly from the app's defaults so they clear 4.5:1 on paper and
            post-its (the app's originals are tuned for white, not cream). */
-        --rgd-blue: #2f5a78;
+        --rgd-blue: #2a5169;
         --rgd-accent-green: #2f6a3f;
         --rgd-accent-amber: #7a5810;
         --rgd-accent-red: #a83b3b;
-        --rgd-run-easy: #1f5555;
+        --rgd-run-easy: #174545;
         --rgd-run-lsd: #33417a;
-        --rgd-run-tempo: #6b4a0e;
-        --rgd-run-speedwork: #8f3232;
-        --rgd-run-warmup: #4f4f4f;
-        --rgd-run-cross-train: #4f4f4f;
+        --rgd-run-tempo: #5f410b;
+        --rgd-run-speedwork: #7d2a2a;
+        --rgd-run-warmup: #3f3f3f;
+        --rgd-run-cross-train: #3f3f3f;
         --rgd-btn-primary-text: #ffffff;
         color: var(--pinboard-ink);
     }
 
     /* Shared paper treatment — a faint grain so the sheets read as paper
        rather than flat rectangles */
-    #rgd-page-overview .rgd-readiness-card,
-    #rgd-page-overview .rgd-chart-card,
-    #rgd-page-overview .rgd-overall-insight,
-    #rgd-page-overview .rgd-overall-insight-skeleton,
-    #rgd-page-overview .rgd-activity-item,
-    #rgd-page-overview .rgd-pillar-card,
-    #rgd-page-overview .rgd-content-header {
+    #rgd-content .rgd-readiness-card,
+    #rgd-content .rgd-chart-card,
+    #rgd-content .rgd-overall-insight,
+    #rgd-content .rgd-overall-insight-skeleton,
+    #rgd-content .rgd-activity-item,
+    #rgd-content .rgd-pillar-card,
+    #rgd-content .rgd-content-header {
         position: relative;
         background-color: var(--pinboard-paper);
         background-image: var(--pinboard-paper-noise);
@@ -207,13 +207,13 @@
         transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
     }
     /* Masthead sheet gets breathing room inside the paper */
-    #rgd-page-overview .rgd-content-header { padding: 1.4rem 1.6rem; }
+    #rgd-content .rgd-content-header { padding: 1.4rem 1.6rem; }
 
     /* --- Pushpins and washi tape (pseudo-elements, no extra markup) --- */
     /* Pins sit well in from the edge so they don't look like they would
        tear the corner off */
-    #rgd-page-overview .rgd-readiness-card::before,
-    #rgd-page-overview .rgd-pillar-card::before {
+    #rgd-content .rgd-readiness-card::before,
+    #rgd-content .rgd-pillar-card::before {
         content: "";
         position: absolute;
         top: 0.85rem;
@@ -227,18 +227,18 @@
         z-index: 4;
     }
     /* Alternate pin colour so the board looks hand-assembled */
-    #rgd-page-overview .rgd-readiness-row > .rgd-readiness-card:nth-child(2)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
-    #rgd-page-overview .rgd-pillar-card:nth-child(3n)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(2)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
+    #rgd-content .rgd-pillar-card:nth-child(3n)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
 
     /* --- Washi tape (pseudo-elements, no extra markup). Layouts vary from
        card to card so the board looks hand-assembled. Where two strips
        appear they always sit on opposite corners or opposite sides. --- */
-    #rgd-page-overview .rgd-overall-insight::after,
-    #rgd-page-overview .rgd-overall-insight::before,
-    #rgd-page-overview .rgd-chart-card::after,
-    #rgd-page-overview .rgd-chart-card::before,
-    #rgd-page-overview .rgd-content-header::before,
-    #rgd-page-overview .rgd-content-header::after {
+    #rgd-content .rgd-overall-insight::after,
+    #rgd-content .rgd-overall-insight::before,
+    #rgd-content .rgd-chart-card::after,
+    #rgd-content .rgd-chart-card::before,
+    #rgd-content .rgd-content-header::before,
+    #rgd-content .rgd-content-header::after {
         content: "";
         position: absolute;
         width: 4rem;
@@ -252,30 +252,30 @@
     }
     /* Horizontal strips only. Each card gets one or two; when there are two
        they sit on opposite corners. */
-    #rgd-page-overview .rgd-overall-insight::after,
-    #rgd-page-overview .rgd-chart-card::after,
-    #rgd-page-overview .rgd-content-header::before { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
-    #rgd-page-overview .rgd-overall-insight::before,
-    #rgd-page-overview .rgd-chart-card::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+    #rgd-content .rgd-overall-insight::after,
+    #rgd-content .rgd-chart-card::after,
+    #rgd-content .rgd-content-header::before { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-overall-insight::before,
+    #rgd-content .rgd-chart-card::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
 
     /* Pace card — two horizontals on opposite corners (top-left + bottom-right) */
-    #rgd-page-overview .rgd-chart-card--equal:nth-child(1)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
-    #rgd-page-overview .rgd-chart-card--equal:nth-child(1)::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(1)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(1)::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
     /* HR card — two horizontals on opposite corners (top-right + bottom-left) */
-    #rgd-page-overview .rgd-chart-card--equal:nth-child(2)::after { top: -0.65rem; left: auto; right: 1.4rem; transform: rotate(5deg); }
-    #rgd-page-overview .rgd-chart-card--equal:nth-child(2)::before { bottom: -0.6rem; right: auto; left: 1.4rem; transform: rotate(-6deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(2)::after { top: -0.65rem; left: auto; right: 1.4rem; transform: rotate(5deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(2)::before { bottom: -0.6rem; right: auto; left: 1.4rem; transform: rotate(-6deg); }
     /* Mileage card — a single horizontal strip */
-    #rgd-page-overview .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
-    #rgd-page-overview .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::before { content: none; }
+    #rgd-content .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::before { content: none; }
     /* Calendar card — a single horizontal strip */
-    #rgd-page-overview .rgd-chart-card--calendar::after { top: -0.65rem; left: 1.4rem; transform: rotate(-5deg); }
-    #rgd-page-overview .rgd-chart-card--calendar::before { content: none; }
+    #rgd-content .rgd-chart-card--calendar::after { top: -0.65rem; left: 1.4rem; transform: rotate(-5deg); }
+    #rgd-content .rgd-chart-card--calendar::before { content: none; }
 
     /* Masthead — two horizontals on opposite corners */
-    #rgd-page-overview .rgd-content-header::after { top: auto; left: auto; bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+    #rgd-content .rgd-content-header::after { top: auto; left: auto; bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
 
     /* --- Post-it notes: vitals, pillars and the limiter --- */
-    #rgd-page-overview .rgd-metric-tile {
+    #rgd-content .rgd-metric-tile {
         position: relative;
         background-color: var(--pinboard-note-blue);
         background-image: none;
@@ -286,20 +286,20 @@
         transform: rotate(var(--tilt));
         transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
     }
-    #rgd-page-overview .rgd-metric-tile:nth-child(2n) { --tilt: 0.8deg; background-color: var(--pinboard-note-blue-2); }
-    #rgd-page-overview .rgd-metric-tile:nth-child(3n) { --tilt: -0.4deg; }
-    #rgd-page-overview .rgd-metric-tile:nth-child(5n) { --tilt: 1.1deg; background-color: var(--pinboard-note-blue); }
-    #rgd-page-overview .rgd-metric-tile:hover,
-    #rgd-page-overview .rgd-pillar-card:hover,
-    #rgd-page-overview .rgd-readiness-card:hover,
-    #rgd-page-overview .rgd-chart-card:hover,
-    #rgd-page-overview .rgd-activity-item:hover {
+    #rgd-content .rgd-metric-tile:nth-child(2n) { --tilt: 0.8deg; background-color: var(--pinboard-note-blue-2); }
+    #rgd-content .rgd-metric-tile:nth-child(3n) { --tilt: -0.4deg; }
+    #rgd-content .rgd-metric-tile:nth-child(5n) { --tilt: 1.1deg; background-color: var(--pinboard-note-blue); }
+    #rgd-content .rgd-metric-tile:hover,
+    #rgd-content .rgd-pillar-card:hover,
+    #rgd-content .rgd-readiness-card:hover,
+    #rgd-content .rgd-chart-card:hover,
+    #rgd-content .rgd-activity-item:hover {
         transform: rotate(0deg) translateY(-0.4rem);
         box-shadow: var(--pinboard-shadow-hover), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
         z-index: 6;
     }
     /* The limiter / biggest gap is the one yellow note on the board */
-    #rgd-page-overview .rgd-overall-insight-takeaway--gap {
+    #rgd-content .rgd-overall-insight-takeaway--gap {
         background-color: var(--pinboard-note-yellow);
         background-image: none;
         border-radius: 1px;
@@ -308,7 +308,7 @@
         transform: rotate(var(--tilt));
         padding: 0.75rem 0.85rem;
     }
-    #rgd-page-overview .rgd-overall-insight-takeaway--strength {
+    #rgd-content .rgd-overall-insight-takeaway--strength {
         background-color: var(--pinboard-note-blue);
         background-image: none;
         border-radius: 1px;
@@ -318,7 +318,7 @@
         padding: 0.75rem 0.85rem;
     }
     /* Pillars are post-its too, with pins from the rule above */
-    #rgd-page-overview .rgd-pillar-card {
+    #rgd-content .rgd-pillar-card {
         background-color: var(--pinboard-note-blue);
         background-image: none;
         border-radius: 1px;
@@ -326,33 +326,33 @@
         --tilt: -0.6deg;
         transform: rotate(var(--tilt));
     }
-    #rgd-page-overview .rgd-pillar-card:nth-child(2n) { --tilt: 0.7deg; background-color: var(--pinboard-note-blue-2); }
-    #rgd-page-overview .rgd-pillar-card:nth-child(3n) { --tilt: -0.2deg; }
+    #rgd-content .rgd-pillar-card:nth-child(2n) { --tilt: 0.7deg; background-color: var(--pinboard-note-blue-2); }
+    #rgd-content .rgd-pillar-card:nth-child(3n) { --tilt: -0.2deg; }
 
     /* Slight scatter for the pinned sheets */
-    #rgd-page-overview .rgd-readiness-row > .rgd-readiness-card:nth-child(1) { --tilt: -0.5deg; transform: rotate(var(--tilt)); }
-    #rgd-page-overview .rgd-readiness-row > .rgd-readiness-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
-    #rgd-page-overview .rgd-charts-row > .rgd-chart-card:nth-child(1) { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
-    #rgd-page-overview .rgd-charts-row > .rgd-chart-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
-    #rgd-page-overview .rgd-activity-item { --tilt: -0.25deg; transform: rotate(var(--tilt)); }
-    #rgd-page-overview .rgd-activity-item:nth-child(2n) { --tilt: 0.3deg; }
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(1) { --tilt: -0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-charts-row > .rgd-chart-card:nth-child(1) { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-charts-row > .rgd-chart-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-activity-item { --tilt: -0.25deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-activity-item:nth-child(2n) { --tilt: 0.3deg; }
 
     /* --- Handwriting: Caveat for headings, Fuzzy Bubbles for copy --- */
-    #rgd-page-overview .rgd-project-title,
-    #rgd-page-overview .rgd-section-title,
-    #rgd-page-overview .rgd-card-title,
-    #rgd-page-overview .rgd-readiness-card-title,
-    #rgd-page-overview .rgd-overall-insight-verdict,
-    #rgd-page-overview .rgd-overall-insight-takeaway-name,
-    #rgd-page-overview .rgd-overall-insight-focus-label,
-    #rgd-page-overview .rgd-pillar-name {
+    #rgd-content .rgd-project-title,
+    #rgd-content .rgd-section-title,
+    #rgd-content .rgd-card-title,
+    #rgd-content .rgd-readiness-card-title,
+    #rgd-content .rgd-overall-insight-verdict,
+    #rgd-content .rgd-overall-insight-takeaway-name,
+    #rgd-content .rgd-overall-insight-focus-label,
+    #rgd-content .rgd-pillar-name {
         font-family: var(--font-caveat);
         font-weight: 700;
         letter-spacing: 0;
     }
-    #rgd-page-overview .rgd-project-title { font-size: clamp(2rem, 4vw, 2.8rem); }
+    #rgd-content .rgd-project-title { font-size: clamp(2rem, 4vw, 2.8rem); }
     /* Section title: a long hand-sketched underline tucked close to the text */
-    #rgd-page-overview .rgd-section-title {
+    #rgd-content .rgd-section-title {
         position: relative;
         font-size: 1.75rem;
         color: var(--pinboard-ink);
@@ -360,11 +360,11 @@
     }
     /* The underline lives on the text span, so it follows the text length
        rather than a fixed width */
-    #rgd-page-overview .rgd-section-title-text {
+    #rgd-content .rgd-section-title-text {
         position: relative;
         display: inline-block;
     }
-    #rgd-page-overview .rgd-section-title-text::after {
+    #rgd-content .rgd-section-title-text::after {
         content: "";
         position: absolute;
         left: 0;
@@ -380,75 +380,75 @@
     }
     /* Per-section variation — the line runs a little long or short (±10%) and
        tilts a touch, so no two titles look stamped from the same die */
-    #rgd-page-overview > section:nth-of-type(1) .rgd-section-title-text::after { transform: scaleX(1.06) rotate(-1.1deg); }
-    #rgd-page-overview > section:nth-of-type(2) .rgd-section-title-text::after { transform: scaleX(0.93) rotate(0.9deg); }
-    #rgd-page-overview > section:nth-of-type(3) .rgd-section-title-text::after { transform: scaleX(1.02) rotate(-0.6deg); }
-    #rgd-page-overview > section:nth-of-type(4) .rgd-section-title-text::after { transform: scaleX(0.9) rotate(1.4deg); }
-    #rgd-page-overview > section:nth-of-type(5) .rgd-section-title-text::after { transform: scaleX(1.08) rotate(-0.8deg); }
-    #rgd-page-overview > section:nth-of-type(6) .rgd-section-title-text::after { transform: scaleX(0.96) rotate(1deg); }
-    #rgd-page-overview .rgd-card-title,
-    #rgd-page-overview .rgd-readiness-card-title { font-size: 1.4rem; }
-    #rgd-page-overview .rgd-overall-insight-takeaway-name { font-size: 1.5rem; }
-    #rgd-page-overview .rgd-overall-insight-verdict { font-size: 1.3rem; }
-    #rgd-page-overview .rgd-overall-insight-focus-label { font-size: 1.15rem; }
-    #rgd-page-overview .rgd-pillar-name { font-size: 1.3rem; }
+    #rgd-content .rgd-page > section:nth-of-type(1) .rgd-section-title-text::after { transform: scaleX(1.06) rotate(-1.1deg); }
+    #rgd-content .rgd-page > section:nth-of-type(2) .rgd-section-title-text::after { transform: scaleX(0.93) rotate(0.9deg); }
+    #rgd-content .rgd-page > section:nth-of-type(3) .rgd-section-title-text::after { transform: scaleX(1.02) rotate(-0.6deg); }
+    #rgd-content .rgd-page > section:nth-of-type(4) .rgd-section-title-text::after { transform: scaleX(0.9) rotate(1.4deg); }
+    #rgd-content .rgd-page > section:nth-of-type(5) .rgd-section-title-text::after { transform: scaleX(1.08) rotate(-0.8deg); }
+    #rgd-content .rgd-page > section:nth-of-type(6) .rgd-section-title-text::after { transform: scaleX(0.96) rotate(1deg); }
+    #rgd-content .rgd-card-title,
+    #rgd-content .rgd-readiness-card-title { font-size: 1.4rem; }
+    #rgd-content .rgd-overall-insight-takeaway-name { font-size: 1.5rem; }
+    #rgd-content .rgd-overall-insight-verdict { font-size: 1.3rem; }
+    #rgd-content .rgd-overall-insight-focus-label { font-size: 1.15rem; }
+    #rgd-content .rgd-pillar-name { font-size: 1.3rem; }
 
     /* Coach copy, labels and data — Fuzzy Bubbles */
-    #rgd-page-overview .rgd-project-intro,
-    #rgd-page-overview .rgd-section-sub,
-    #rgd-page-overview .rgd-readiness-card-sub,
-    #rgd-page-overview .rgd-card-sub,
-    #rgd-page-overview .rgd-goal-stat-label,
-    #rgd-page-overview .rgd-goal-stat-value,
-    #rgd-page-overview .rgd-metric-label,
-    #rgd-page-overview .rgd-metric-value,
-    #rgd-page-overview .rgd-metric-unit,
-    #rgd-page-overview .rgd-overall-insight-summary,
-    #rgd-page-overview .rgd-overall-insight-takeaway-note,
-    #rgd-page-overview .rgd-overall-insight-focus-text,
-    #rgd-page-overview .rgd-overall-insight-cta,
-    #rgd-page-overview .rgd-activity-name,
-    #rgd-page-overview .rgd-activity-date,
-    #rgd-page-overview .rgd-activity-stat-value,
-    #rgd-page-overview .rgd-activity-stat-label,
-    #rgd-page-overview .rgd-pillar-summary,
-    #rgd-page-overview .rgd-pillar-note,
-    #rgd-page-overview .rgd-pillar-view-details { font-family: var(--font-fuzzy); }
+    #rgd-content .rgd-project-intro,
+    #rgd-content .rgd-section-sub,
+    #rgd-content .rgd-readiness-card-sub,
+    #rgd-content .rgd-card-sub,
+    #rgd-content .rgd-goal-stat-label,
+    #rgd-content .rgd-goal-stat-value,
+    #rgd-content .rgd-metric-label,
+    #rgd-content .rgd-metric-value,
+    #rgd-content .rgd-metric-unit,
+    #rgd-content .rgd-overall-insight-summary,
+    #rgd-content .rgd-overall-insight-takeaway-note,
+    #rgd-content .rgd-overall-insight-focus-text,
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-activity-name,
+    #rgd-content .rgd-activity-date,
+    #rgd-content .rgd-activity-stat-value,
+    #rgd-content .rgd-activity-stat-label,
+    #rgd-content .rgd-pillar-summary,
+    #rgd-content .rgd-pillar-note,
+    #rgd-content .rgd-pillar-view-details { font-family: var(--font-fuzzy); }
 
-    #rgd-page-overview .rgd-project-intro,
-    #rgd-page-overview .rgd-overall-insight-summary,
-    #rgd-page-overview .rgd-overall-insight-takeaway-note,
-    #rgd-page-overview .rgd-overall-insight-focus-text,
-    #rgd-page-overview .rgd-card-sub,
-    #rgd-page-overview .rgd-readiness-card-sub,
-    #rgd-page-overview .rgd-section-sub,
-    #rgd-page-overview .rgd-pillar-summary,
-    #rgd-page-overview .rgd-pillar-note { font-size: 1.02rem; line-height: 1.5; }
+    #rgd-content .rgd-project-intro,
+    #rgd-content .rgd-overall-insight-summary,
+    #rgd-content .rgd-overall-insight-takeaway-note,
+    #rgd-content .rgd-overall-insight-focus-text,
+    #rgd-content .rgd-card-sub,
+    #rgd-content .rgd-readiness-card-sub,
+    #rgd-content .rgd-section-sub,
+    #rgd-content .rgd-pillar-summary,
+    #rgd-content .rgd-pillar-note { font-size: 1.02rem; line-height: 1.5; }
 
     /* Scores and the countdown read as handwritten coaching marks */
-    #rgd-page-overview .rgd-pillar-score,
-    #rgd-page-overview .rgd-overall-insight-score { font-family: var(--font-fuzzy); font-weight: 400; }
-    #rgd-page-overview .rgd-pillar-score { font-size: 1.6rem; }
-    #rgd-page-overview .rgd-overall-insight-score { font-size: 1.7rem; }
+    #rgd-content .rgd-pillar-score,
+    #rgd-content .rgd-overall-insight-score { font-family: var(--font-fuzzy); font-weight: 400; }
+    #rgd-content .rgd-pillar-score { font-size: 1.6rem; }
+    #rgd-content .rgd-overall-insight-score { font-size: 1.7rem; }
     /* The "/10" sits quieter than the mark itself */
-    #rgd-page-overview .rgd-pillar-score-max,
-    #rgd-page-overview .rgd-overall-insight-score-max {
+    #rgd-content .rgd-pillar-score-max,
+    #rgd-content .rgd-overall-insight-score-max {
         font-family: var(--font-fuzzy);
         font-size: 0.95rem;
         font-weight: 400;
         color: var(--pinboard-muted);
     }
     /* Countdown */
-    #rgd-page-overview .rgd-countdown-value,
-    #rgd-page-overview .rgd-countdown-label { font-family: var(--font-fuzzy); font-weight: 400; }
+    #rgd-content .rgd-countdown-value,
+    #rgd-content .rgd-countdown-label { font-family: var(--font-fuzzy); font-weight: 400; }
 
     /* --- Countdown: a blue tag pinned to the Race Goal sheet --- */
-    #rgd-page-overview .rgd-countdown-highlight {
+    #rgd-content .rgd-countdown-highlight {
         border-radius: 2px 6px 3px 8px / 8px 3px 6px 2px;
         box-shadow: 0 0.35rem 0.6rem rgba(0, 0, 0, 0.28);
         transform: rotate(1.2deg);
     }
-    #rgd-page-overview .rgd-countdown-highlight::before {
+    #rgd-content .rgd-countdown-highlight::before {
         content: "";
         position: absolute;
         top: 0.35rem;
@@ -462,29 +462,29 @@
     }
 
     /* --- Buttons and small chrome adopt the paper look --- */
-    #rgd-page-overview .rgd-overall-insight-cta,
-    #rgd-page-overview .rgd-btn {
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-btn {
         border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
         box-shadow: 0 0.2rem 0.4rem rgba(0, 0, 0, 0.22);
     }
 
     /* --- Subtle movement on interactive controls --- */
-    #rgd-page-overview .rgd-overall-insight-cta,
-    #rgd-page-overview .rgd-show-more-btn,
-    #rgd-page-overview .rgd-pillar-view-details,
-    #rgd-page-overview .rgd-btn {
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-show-more-btn,
+    #rgd-content .rgd-pillar-view-details,
+    #rgd-content .rgd-btn {
         transition: transform 0.18s ease-out, background 0.18s ease-out, box-shadow 0.18s ease-out;
     }
-    #rgd-page-overview .rgd-overall-insight-cta:hover { transform: translateY(-0.15rem); }
-    #rgd-page-overview .rgd-show-more-btn:hover { transform: translateY(-0.12rem); }
+    #rgd-content .rgd-overall-insight-cta:hover { transform: translateY(-0.15rem); }
+    #rgd-content .rgd-show-more-btn:hover { transform: translateY(-0.12rem); }
     /* "View details" slides right when its note is hovered */
-    #rgd-page-overview .rgd-pillar-card:hover .rgd-pillar-view-details { transform: translateX(0.3rem); }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-btn:hover,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-cta:hover { transform: translateY(-0.12rem); }
+    #rgd-content .rgd-pillar-card:hover .rgd-pillar-view-details { transform: translateX(0.3rem); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn:hover,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-cta:hover { transform: translateY(-0.12rem); }
 
     /* --- Demo banner (sticky, outside the page container, so scoped via
        html:has): a pinned sticky note that stays at the top of the board --- */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner {
         background-color: var(--pinboard-note-yellow);
         background-image: none;
         border: none;
@@ -493,7 +493,7 @@
         transform: rotate(-0.3deg);
         overflow: visible;
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner::before {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner::before {
         content: "";
         position: absolute;
         top: 0.4rem;
@@ -506,87 +506,93 @@
         box-shadow: 0 0.15rem 0.22rem rgba(0, 0, 0, 0.4);
         z-index: 5;
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-text,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-cta,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-slim { font-family: var(--font-fuzzy); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-cta,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim { font-family: var(--font-fuzzy); }
 
     /* --- Footer CTA (also outside the page container) --- */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-text,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-btn { font-family: var(--font-fuzzy); }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-text { font-size: 1.05rem; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn { font-family: var(--font-fuzzy); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { font-size: 1.05rem; }
 
     /* --- Sidebar (shared shell) adopts the handwriting while Overview is on --- */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-nav-label,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar-greeting,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar-goal,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar-theme-label,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar-settings-label {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-nav-label,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-greeting,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-goal,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-theme-label,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-settings-label {
         font-family: var(--font-fuzzy);
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-nav-label { font-size: 0.9rem; }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-sidebar-greeting { font-size: 1rem; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-nav-label { font-size: 0.9rem; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-greeting { font-size: 1rem; }
 
     /* --- Top site header bar (shared shell) --- */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-header-title {
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-title {
         font-family: var(--font-caveat);
         font-weight: 700;
     }
-    html:has(#rgd-page-overview:not([hidden])) .rgd-header-link { font-family: var(--font-fuzzy); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { font-family: var(--font-fuzzy); }
 
     /* --- Charts: give the row noticeably more air --- */
-    #rgd-page-overview .rgd-charts-row { gap: clamp(1.6rem, 3.5vw, 2.8rem); }
+    #rgd-content .rgd-charts-row { gap: clamp(1.6rem, 3.5vw, 2.8rem); }
 
     /* --- Motion: no tilt on hover when the user prefers reduced motion --- */
     @media (prefers-reduced-motion: reduce) {
-        #rgd-page-overview .rgd-metric-tile:hover,
-        #rgd-page-overview .rgd-pillar-card:hover,
-        #rgd-page-overview .rgd-readiness-card:hover,
-        #rgd-page-overview .rgd-chart-card:hover,
-        #rgd-page-overview .rgd-activity-item:hover { transform: rotate(var(--tilt, 0deg)); }
-        #rgd-page-overview .rgd-overall-insight-cta:hover,
-        #rgd-page-overview .rgd-show-more-btn:hover,
-        #rgd-page-overview .rgd-pillar-card:hover .rgd-pillar-view-details,
-        html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-btn:hover { transform: none; }
+        #rgd-content .rgd-metric-tile:hover,
+        #rgd-content .rgd-pillar-card:hover,
+        #rgd-content .rgd-readiness-card:hover,
+        #rgd-content .rgd-chart-card:hover,
+        #rgd-content .rgd-activity-item:hover { transform: rotate(var(--tilt, 0deg)); }
+        #rgd-content .rgd-overall-insight-cta:hover,
+        #rgd-content .rgd-show-more-btn:hover,
+        #rgd-content .rgd-pillar-card:hover .rgd-pillar-view-details,
+        html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn:hover { transform: none; }
     }
 
     /* --- Mobile: same treatment, scaled down --- */
     @media (max-width: 48rem) {
-        #rgd-page-overview .rgd-readiness-card::before,
-        #rgd-page-overview .rgd-pillar-card::before { width: 0.7rem; height: 0.7rem; top: 0.6rem; margin-left: -0.35rem; }
-        #rgd-page-overview .rgd-overall-insight::after,
-        #rgd-page-overview .rgd-chart-card::after,
-        #rgd-page-overview .rgd-content-header::before,
-        #rgd-page-overview .rgd-overall-insight::before,
-        #rgd-page-overview .rgd-chart-card::before,
-        #rgd-page-overview .rgd-content-header::after { width: 3rem; height: 1.05rem; }
-        #rgd-page-overview .rgd-section-title { font-size: 1.55rem; }
-        #rgd-page-overview .rgd-metric-tile { --tilt: -0.6deg; }
-        #rgd-page-overview .rgd-metric-tile:nth-child(2n) { --tilt: 0.6deg; }
+        #rgd-content .rgd-readiness-card::before,
+        #rgd-content .rgd-pillar-card::before { width: 0.7rem; height: 0.7rem; top: 0.6rem; margin-left: -0.35rem; }
+        #rgd-content .rgd-overall-insight::after,
+        #rgd-content .rgd-chart-card::after,
+        #rgd-content .rgd-content-header::before,
+        #rgd-content .rgd-overall-insight::before,
+        #rgd-content .rgd-chart-card::before,
+        #rgd-content .rgd-content-header::after { width: 3rem; height: 1.05rem; }
+        #rgd-content .rgd-section-title { font-size: 1.55rem; }
+        #rgd-content .rgd-metric-tile { --tilt: -0.6deg; }
+        #rgd-content .rgd-metric-tile:nth-child(2n) { --tilt: 0.6deg; }
     }
 
     /* --- Night board: text that sits on the cork (not on paper) needs to be
        light, otherwise the dark ink disappears against the dark board.
        The score info button is excluded — it carries its own paper chip. --- */
-    [data-theme="dark"] #rgd-page-overview .rgd-section-title,
-    [data-theme="dark"] #rgd-page-overview .rgd-section-sub,
-    [data-theme="dark"] #rgd-page-overview .rgd-metrics-date,
-    [data-theme="dark"] #rgd-page-overview .rgd-vitals-toggle,
-    [data-theme="dark"] #rgd-page-overview .rgd-card-title--with-action { color: #e8dfca; }
+    [data-theme="dark"] #rgd-content .rgd-section-title,
+    [data-theme="dark"] #rgd-content .rgd-section-sub,
+    [data-theme="dark"] #rgd-content .rgd-metrics-date,
+    [data-theme="dark"] #rgd-content .rgd-vitals-toggle,
+    [data-theme="dark"] #rgd-content .rgd-card-title--with-action { color: #e8dfca; }
     /* Site header sits on cork too */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-header-link { color: #2f5a78; }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-header-title { color: #f2e9d7; }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-header-link { color: #d9e4dc; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { color: #2f5a78; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-title { color: #f2e9d7; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { color: #d9e4dc; }
     /* Footer note sits on cork */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-text { color: #4a4235; }
-    html[data-theme="dark"]:has(#rgd-page-overview:not([hidden])) .rgd-demo-cta-text { color: #c3cfd8; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #4a4235; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #c3cfd8; }
     /* Sticky demo note is a light gold in both themes, so its copy stays dark.
        The "Connect Garmin" button is deliberately left alone so it keeps its
        own blue background with white text. */
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-text,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-slim,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-slim-cta,
-    html:has(#rgd-page-overview:not([hidden])) .rgd-demo-banner-icon { color: var(--pinboard-ink); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim-cta,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-icon { color: var(--pinboard-ink); }
     </style>
+    <!-- Per-page pinboard extensions. Kept in separate files so each page's
+         styling stays self-contained and easy to revert independently. They
+         load after the shared theme above, so they win on equal specificity. -->
+    <link href="/projects/runassist/pinboard-activities.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-readiness.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-plan.css" rel="stylesheet">
 </head>
 
 <body class="m-0 relative h-full bg-white overflow-x-hidden">
@@ -1235,7 +1241,7 @@
                     <!-- ========== PAGE: Activities ========== -->
                     <div class="rgd-page" id="rgd-page-activities" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">All Activities</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">All Activities</span></h2>
                             <div class="rgd-activities-list" id="rgd-activities-full"></div>
                             <button class="rgd-btn rgd-btn-secondary rgd-show-more-btn" id="rgd-load-more-activities" hidden>Loading…</button>
                         </section>
@@ -1244,7 +1250,7 @@
                     <!-- ========== PAGE: Readiness ========== -->
                     <div class="rgd-page" id="rgd-page-readiness" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Race Readiness
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Race Readiness</span>
                                 <!-- Info button — opens the modal explaining what each of the six dimensions means -->
                                 <button class="rgd-dimension-info-btn" type="button" aria-label="What the six areas mean" title="What the six areas mean">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -1287,7 +1293,7 @@
                             </div>
                             <!-- What to Work On — the six full pillar cards (strengths/gaps)
                                  live below the radar on this page -->
-                            <h2 class="rgd-section-title">What to Work On
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">What to Work On</span>
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
                                 <button class="rgd-score-info-btn" type="button" aria-label="How scores work" title="How scores work">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -1303,7 +1309,7 @@
                     <!-- ========== PAGE: Plan ========== -->
                     <div class="rgd-page" id="rgd-page-plan" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Training Plan
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Training Plan</span>
                                 <!-- Edit button — opens the plan preferences modal -->
                                 <button class="rgd-plan-edit-btn" id="rgd-plan-edit-btn" type="button" title="Customize plan">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

@@ -2351,8 +2351,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // (--rgd-run-*) so calendar dots match the run-tag colours and respect
     // dark mode automatically. Falls back to hardcoded hex if the token is
     // missing (e.g. older browsers without CSS variable support).
+    // Resolve against #rgd-content (the pinboard scope) so the paper-context
+    // token values are picked up on the dashboard.
     const cssVar = (name, fallback) =>
-        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+        getComputedStyle(document.getElementById('rgd-content') || document.documentElement).getPropertyValue(name).trim() || fallback;
     const RUN_TAG_COLOR = {
         'Run': cssVar('--rgd-run-easy', '#388e8e'),
         'Easy': cssVar('--rgd-run-easy', '#388e8e'),
@@ -2383,21 +2385,19 @@ document.addEventListener('DOMContentLoaded', function () {
         '--rgd-blue': '#457b9d',
     };
     const resolveMetricZoneColors = () => {
-        // Resolve against the overview paper context so the metric marks stay
-        // dark-on-light even in dark mode (the post-its stay light there)
-        const source = document.getElementById('rgd-page-overview') || document.documentElement;
-        const read = (name, fallback) => getComputedStyle(source).getPropertyValue(name).trim() || fallback;
+        // cssVar now resolves against the pinboard paper context, so the metric
+        // marks stay dark-on-light even in dark mode (the post-its stay light).
         Object.values(METRIC_META).forEach(meta => {
             (meta.zones || []).forEach(zone => {
                 if (typeof zone.color === 'string' && zone.color.startsWith('--')) {
-                    zone.color = read(zone.color, METRIC_ZONE_FALLBACKS[zone.color] || zone.color);
+                    zone.color = cssVar(zone.color, METRIC_ZONE_FALLBACKS[zone.color] || zone.color);
                 }
             });
             if (meta.statusColors) {
                 Object.keys(meta.statusColors).forEach(key => {
                     const color = meta.statusColors[key];
                     if (typeof color === 'string' && color.startsWith('--')) {
-                        meta.statusColors[key] = read(color, METRIC_ZONE_FALLBACKS[color] || color);
+                        meta.statusColors[key] = cssVar(color, METRIC_ZONE_FALLBACKS[color] || color);
                     }
                 });
             }
