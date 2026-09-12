@@ -1,0 +1,431 @@
+/* =====================================================================
+   PINBOARD OVERLAYS — Account panel + coach chat
+   ---------------------------------------------------------------------
+   Extends the Pacey paper theme to the two floating overlays that live
+   outside #rgd-content: the Account/Settings panel and the chat FAB +
+   popup. Both are paper in BOTH themes (the paper never darkens), so the
+   --rgd-* tokens are remapped on the card itself. That way every existing
+   descendant rule that uses var(--rgd-navy/muted/blue/...) resolves to
+   dark ink on light paper instead of flipping to light-on-light at night.
+
+   Revert = delete this file and its <link>; nothing else changes.
+   ===================================================================== */
+
+/* --- Shared paper sheet + pushpin ------------------------------------ */
+.rgd-settings-popup-card,
+.rgd-chat-popup-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    /* Pin the paper-context palette so descendants stay dark-on-light */
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-sky: var(--pinboard-note-blue);
+    --rgd-blue: #2a5169;
+    --rgd-accent-green: #2f6a3f;
+    --rgd-accent-amber: #7a5810;
+    --rgd-accent-red: #a83b3b;
+    /* A primary button inside the panel sits on the (dark) remapped navy, so
+       its label must stay white in both themes */
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+
+/* Pushpin holding each sheet to the board */
+.rgd-settings-popup-card::before,
+.rgd-chat-popup-card::before {
+    content: "";
+    position: absolute;
+    top: 0.7rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+
+/* --- Headings, rules and close buttons -------------------------------- */
+.rgd-settings-popup-title,
+.rgd-chat-popup-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.45rem;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+/* Extra top padding leaves room for the pin above the heading */
+.rgd-settings-popup-header,
+.rgd-chat-popup-header {
+    padding-top: 1.15rem;
+    border-bottom-color: var(--pinboard-line);
+}
+.rgd-settings-popup-footer { border-top-color: var(--pinboard-line); }
+.rgd-settings-profile { border-bottom-color: var(--pinboard-line); }
+
+.rgd-settings-popup-close,
+.rgd-chat-popup-card .rgd-modal-close {
+    color: var(--pinboard-muted);
+    border-radius: 0.5rem;
+}
+.rgd-settings-popup-close:hover,
+.rgd-chat-popup-card .rgd-modal-close:hover {
+    color: var(--pinboard-ink);
+    background: var(--pinboard-paper-2);
+}
+
+/* --- Fields: labels in the handwriting face, values in ink ------------ */
+.rgd-settings-field-label { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+.rgd-settings-field-value { color: var(--pinboard-ink); }
+.rgd-settings-field-hint { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+.rgd-settings-select {
+    background: var(--pinboard-paper-2);
+    color: var(--pinboard-ink);
+    border-color: var(--pinboard-line);
+    border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
+}
+.rgd-settings-profile-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--pinboard-ink);
+}
+.rgd-settings-profile-goal { font-family: var(--font-fuzzy); color: #2a5169; }
+
+/* Site section (the app's link back to terrancehah.com) */
+.rgd-settings-site { border-top-color: var(--pinboard-line); }
+.rgd-settings-site-links a { font-family: var(--font-fuzzy); color: #2a5169; }
+.rgd-settings-site-socials img { border-radius: 5px; }
+
+/* Destructive action stays clearly destructive, but sits on the paper */
+.rgd-btn-danger { color: #a83b3b; background: rgba(168, 59, 59, 0.12); }
+.rgd-btn-danger:hover { background: rgba(168, 59, 59, 0.2); }
+
+/* --- Chat FAB — a small cork note pinned to the board ---------------- */
+.rgd-chat-fab {
+    background-color: var(--pinboard-cork-edge);
+    color: #2b2620;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 30% 36% 32% 38% / 36% 32% 38% 30%;
+    /* Nudge the icon down so the pin above it doesn't crowd the glyph */
+    padding-top: 0.3rem;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.16), 0 0.5rem 0.8rem rgba(0, 0, 0, 0.24);
+    transform: rotate(-4deg);
+    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out, color 0.18s ease-out, opacity 0.2s ease;
+}
+/* The pushpin holding the note to the board */
+.rgd-chat-fab::before {
+    content: "";
+    position: absolute;
+    top: 0.2rem;
+    left: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-left: -0.25rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.12rem 0.18rem rgba(0, 0, 0, 0.4);
+    z-index: 2;
+}
+.rgd-chat-fab:hover {
+    color: #10201a;
+    box-shadow: var(--pinboard-shadow-hover);
+    transform: rotate(-1deg) translateY(-0.15rem);
+}
+.rgd-chat-fab:active { transform: rotate(-4deg) scale(0.94); }
+/* The cork tone flips with the theme, so the icon flips with it */
+[data-theme="dark"] .rgd-chat-fab {
+    color: #f1ede4;
+    border-color: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 0.5rem 0.85rem rgba(0, 0, 0, 0.45);
+}
+[data-theme="dark"] .rgd-chat-fab:hover { color: #ffffff; }
+
+/* --- Chat popup copy ------------------------------------------------- */
+.rgd-chat-coming-soon { color: var(--pinboard-muted); }
+.rgd-chat-coming-soon-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.6rem;
+    color: var(--pinboard-ink);
+}
+.rgd-chat-coming-soon-text {
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+
+/* --- Reduced motion: no tilt/lift, keep the resting angle ------------- */
+@media (prefers-reduced-motion: reduce) {
+    .rgd-chat-fab:hover,
+    .rgd-chat-fab:active { transform: rotate(-4deg); }
+}
+
+/* =====================================================================
+   METRIC DETAIL MODAL — a light-blue post-it, matching the vitals card
+   Scoped to #rgd-metric-popup so the scoring/dimension modals (which
+   reuse .rgd-metric-popup-card) keep their own look.
+   ===================================================================== */
+#rgd-metric-popup .rgd-metric-popup-card {
+    position: relative;
+    background-color: var(--pinboard-note-blue);
+    background-image: none;
+    border: none;
+    border-radius: 2px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
+    /* Paper-context palette: the note stays light in both themes */
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+/* Pushpin, same treatment as the other pinned sheets */
+#rgd-metric-popup .rgd-metric-popup-card::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+/* Heading + copy in the handwriting faces */
+#rgd-metric-popup .rgd-metric-popup-header { margin-top: 0.35rem; }
+#rgd-metric-popup .rgd-metric-popup-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-metric-popup .rgd-metric-popup-icon { color: #2a5169; }
+/* The number stays in the readable sans, matching the vitals card */
+#rgd-metric-popup .rgd-metric-popup-value {
+    font-family: 'Lato', sans-serif;
+    color: var(--pinboard-ink);
+}
+#rgd-metric-popup .rgd-metric-popup-unit { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#rgd-metric-popup .rgd-metric-popup-zone {
+    font-family: var(--font-fuzzy);
+    border-radius: 999px;
+    color: #ffffff;
+}
+#rgd-metric-popup .rgd-metric-popup-explanation {
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+
+/* Gauge — a thin marker bar, echoing the thin bar under each vitals number */
+#rgd-metric-popup .rgd-gauge-bar {
+    height: 0.5rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+}
+#rgd-metric-popup .rgd-gauge-segment { opacity: 0.9; }
+#rgd-metric-popup .rgd-gauge-marker {
+    top: -0.2rem;
+    bottom: -0.2rem;
+    width: 0.15rem;
+    background: var(--pinboard-ink);
+    box-shadow: 0 0 0 0.1rem var(--pinboard-note-blue);
+}
+#rgd-metric-popup .rgd-gauge-scale-min,
+#rgd-metric-popup .rgd-gauge-scale-max { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#rgd-metric-popup .rgd-gauge-legend-item { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+#rgd-metric-popup .rgd-gauge-legend-item--active { color: var(--pinboard-ink); }
+#rgd-metric-popup .rgd-gauge-legend-text { font-family: var(--font-fuzzy); color: inherit; }
+#rgd-metric-popup .rgd-gauge-legend-dot { border-radius: 3px; }
+#rgd-metric-popup .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#rgd-metric-popup .rgd-modal-close:hover { color: var(--pinboard-ink); background: rgba(255, 255, 255, 0.45); }
+
+/* =====================================================================
+   INFO MODALS — "How scores work" + the six-areas explainer
+   These are explanatory sheets rather than metric cards, so they get the
+   cream paper treatment with a blue pushpin (the metric modal above keeps
+   its blue post-it). Scoped per-modal so nothing else shifts.
+   ===================================================================== */
+#rgd-score-modal .rgd-metric-popup-card,
+#rgd-dimension-modal .rgd-metric-popup-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-metric-popup-card::before,
+#rgd-dimension-modal .rgd-metric-popup-card::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+#rgd-score-modal .rgd-metric-popup-header,
+#rgd-dimension-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
+#rgd-score-modal .rgd-metric-popup-title,
+#rgd-dimension-modal .rgd-metric-popup-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-metric-popup-icon,
+#rgd-dimension-modal .rgd-metric-popup-icon { color: #2a5169; }
+#rgd-score-modal .rgd-metric-popup-explanation,
+#rgd-dimension-modal .rgd-metric-popup-explanation {
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+#rgd-score-modal .rgd-modal-close,
+#rgd-dimension-modal .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#rgd-score-modal .rgd-modal-close:hover,
+#rgd-dimension-modal .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+
+/* Score tiers — the range in Caveat, the description in Fuzzy */
+#rgd-score-modal .rgd-score-tier { font-family: var(--font-fuzzy); }
+#rgd-score-modal .rgd-score-tier-range {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-score-tier-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+
+/* Six-areas explainer rows */
+#rgd-dimension-modal .rgd-dimension-explainer-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--pinboard-ink);
+}
+#rgd-dimension-modal .rgd-dimension-explainer-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+/* Drop the coloured dot beside each area name — the label carries it */
+#rgd-dimension-modal .rgd-dimension-explainer-dot { display: none; }
+
+/* =====================================================================
+   REMAINING MODALS + SHEETS — same pinned-paper language so the whole app
+   is consistent. Form modals also get a paper input fill via --rgd-bg.
+   ===================================================================== */
+#rgd-plan-prefs-modal .rgd-metric-popup-card,
+#rgd-edit-goal-popup .rgd-edit-goal-card,
+#rgd-goal-reminder-popup .rgd-goal-reminder-card,
+#rgd-workout-sheet .rgd-workout-sheet,
+#rgd-login-modal .rgd-auth-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    /* Paper-context palette (the sheet stays light in both themes) */
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-bg: var(--pinboard-paper-2);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-accent-green: #2f6a3f;
+    --rgd-accent-amber: #7a5810;
+    --rgd-accent-red: #a83b3b;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+/* Pushpin on each sheet */
+#rgd-plan-prefs-modal .rgd-metric-popup-card::before,
+#rgd-edit-goal-popup .rgd-edit-goal-card::before,
+#rgd-goal-reminder-popup .rgd-goal-reminder-card::before,
+#rgd-workout-sheet .rgd-workout-sheet::before,
+#rgd-login-modal .rgd-auth-card::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+/* Headings on those sheets use the handwriting faces */
+#rgd-edit-goal-popup .rgd-edit-goal-title,
+#rgd-goal-reminder-popup .rgd-goal-reminder-title,
+#rgd-plan-prefs-modal .rgd-metric-popup-title,
+#rgd-login-modal .rgd-auth-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-plan-prefs-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
+#rgd-plan-prefs-modal .rgd-metric-popup-icon { color: #2a5169; }
+/* Labels and copy in Fuzzy */
+#rgd-plan-prefs-modal .rgd-plan-pref-label,
+#rgd-edit-goal-popup .rgd-label,
+#rgd-login-modal .rgd-label,
+#rgd-goal-reminder-popup .rgd-goal-reminder-body,
+#rgd-workout-sheet .rgd-sheet-description { font-family: var(--font-fuzzy); }
+/* Workout sheet heading + section labels */
+#rgd-workout-sheet .rgd-sheet-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-workout-sheet .rgd-sheet-section-title { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+/* Close buttons */
+#rgd-plan-prefs-modal .rgd-modal-close,
+#rgd-edit-goal-popup .rgd-modal-close,
+#rgd-goal-reminder-popup .rgd-modal-close,
+#rgd-workout-sheet .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#rgd-plan-prefs-modal .rgd-modal-close:hover,
+#rgd-edit-goal-popup .rgd-modal-close:hover,
+#rgd-goal-reminder-popup .rgd-modal-close:hover,
+#rgd-workout-sheet .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }

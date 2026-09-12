@@ -434,42 +434,27 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentY = window.scrollY;
         const delta = currentY - lastScrollY;
 
-        // Demo banner slim — shrink only when the banner has reached its
-        // sticky position at the top of the viewport. The banner is
-        // position:sticky with top: clamp(1rem, 2vw, 1.5rem).
+        // Demo banner slim — shrink to the compact pill once the user has
+        // scrolled away from the top, and expand back when they return.
         //
-        // CRITICAL: we must NOT read the banner's own getBoundingClientRect
-        // for the threshold. When the banner shrinks to a pill, its height
-        // decreases, which shifts the content below it, which changes the
-        // banner's rect.top, which can cross back past the exit threshold,
-        // which expands the banner, which shifts content back, which
-        // crosses the enter threshold again — an infinite flicker loop.
-        // No amount of hysteresis on the banner's rect.top fixes this
-        // because the signal (rect.top) is coupled to the action (shrink).
+        // This used to key off #rgd-content's rect.top (i.e. the banner
+        // reaching its sticky position). That worked while the site header
+        // sat above the content, because the content only reached the top
+        // after scrolling past the header. The header has since been removed
+        // for the Pacey app, so the content now starts at the very top of the
+        // page and that signal is permanently true — the banner shrank on
+        // load and never expanded. The scroll offset is the right signal now.
         //
-        // Instead, we read the CONTENT container's rect.top — a stable
-        // signal that does NOT change when the banner shrinks. The banner
-        // is the first child inside .rgd-content, so the banner's natural
-        // top = contentRect.top + contentPaddingTop. The banner sticks
-        // when this natural top <= the sticky top offset. With content
-        // padding of clamp(1rem, 3vw, 2rem) (16-32px) and sticky top of
-        // clamp(1rem, 2vw, 1.5rem) (16-24px), the banner sticks when
-        // contentRect.top reaches roughly 0 to -8px. Using contentRect.top
-        // <= 0 as the enter threshold covers the full clamp range.
-        //
-        // Hysteresis (40px gap) prevents edge-case flicker at the boundary,
-        // though the signal is already stable so this is just insurance.
+        // Reading the banner's own rect is still avoided: its height changes
+        // when it shrinks, which shifts the content below it and can cause an
+        // expand/shrink flicker loop.
         const banner = $('#rgd-demo-banner');
         if (banner && !banner.hidden) {
-            const content = $('#rgd-content');
-            if (content) {
-                const contentTop = content.getBoundingClientRect().top;
-                const isSlim = banner.classList.contains('rgd-demo-banner--slim');
-                if (!isSlim && contentTop <= 0) {
-                    banner.classList.add('rgd-demo-banner--slim');
-                } else if (isSlim && contentTop > 40) {
-                    banner.classList.remove('rgd-demo-banner--slim');
-                }
+            const isSlim = banner.classList.contains('rgd-demo-banner--slim');
+            if (!isSlim && currentY > 64) {
+                banner.classList.add('rgd-demo-banner--slim');
+            } else if (isSlim && currentY < 16) {
+                banner.classList.remove('rgd-demo-banner--slim');
             }
         }
 
@@ -1861,12 +1846,24 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Date(String(s).replace(' ', 'T'));
     }
 
+    // Pinboard theme helper — charts rendered inside the overview inherit the
+    // handwriting faces from the scoped theme (via CSS custom properties on the
+    // canvas); charts elsewhere fall back to the app's Raleway/Lato.
+    function pinboardChartFonts(canvas) {
+        const style = getComputedStyle(canvas);
+        return {
+            heading: style.getPropertyValue('--rgd-chart-heading-font').trim() || 'Raleway',
+            body: style.getPropertyValue('--rgd-chart-body-font').trim() || 'Lato',
+        };
+    }
+
     function renderMileageChart(weekData) {
         const canvas = document.getElementById('rgd-mileage-chart');
         if (!canvas) return;
         if (mileageChart) mileageChart.destroy();
         // Store week data for theme-change re-render
         lastMileageWeeks = weekData;
+        const chartFonts = pinboardChartFonts(canvas);
 
         // weekData is an array of {week_start, mileage_km, run_count} from the backend
         // Build chart values and date objects from the pre-grouped weekly data
@@ -1898,12 +1895,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        // Read theme-aware colors from CSS variables for chart text and tooltip
-        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Read the chart colours from the canvas so they follow the surface the
+        // chart actually sits on (paper) rather than the app's root theme
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
         // Tooltip colors — adapt to theme
-        const chartSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         // Flag so the stagger only plays on the initial render, not on
@@ -1950,8 +1948,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         bodyColor: chartText,
                         borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
                         borderWidth: 1,
-                        titleFont: { family: 'Raleway', size: 12 },
-                        bodyFont: { family: 'Lato', size: 14 },
+                        titleFont: { family: chartFonts.heading, size: 12 },
+                        bodyFont: { family: chartFonts.body, size: 14 },
                         // Standardized tooltip properties — shared across all
                         // Chart.js tooltips so they look identical regardless
                         // of chart type (bar, scatter, etc.)
@@ -1981,14 +1979,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     y: {
                         beginAtZero: true,
                         max: Math.ceil(maxVal / stepSize) * stepSize,
-                        title: { display: true, text: 'km', font: { family: 'Raleway', size: 11 }, color: chartMuted },
-                        ticks: { stepSize, font: { family: 'Raleway', size: 10 }, color: chartMuted, callback: v => Math.round(v) },
+                        title: { display: true, text: 'km', font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
+                        ticks: { stepSize, font: { family: chartFonts.heading, size: 13 }, color: chartMuted, callback: v => Math.round(v) },
                         grid: { color: chartGridColor }
                     },
                     x: {
                         // autoSkip: false ensures all month labels are always shown,
                         // even when the chart container is narrow on certain screen sizes
-                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted, maxRotation: 0, autoSkip: false },
+                        ticks: { font: { family: chartFonts.heading, size: 13 }, color: chartMuted, maxRotation: 0, autoSkip: false },
                         grid: { display: false }
                     }
                 }
@@ -2338,8 +2336,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // (--rgd-run-*) so calendar dots match the run-tag colours and respect
     // dark mode automatically. Falls back to hardcoded hex if the token is
     // missing (e.g. older browsers without CSS variable support).
+    // Resolve against #rgd-content (the pinboard scope) so the paper-context
+    // token values are picked up on the dashboard.
     const cssVar = (name, fallback) =>
-        getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+        getComputedStyle(document.getElementById('rgd-content') || document.documentElement).getPropertyValue(name).trim() || fallback;
     const RUN_TAG_COLOR = {
         'Run': cssVar('--rgd-run-easy', '#388e8e'),
         'Easy': cssVar('--rgd-run-easy', '#388e8e'),
@@ -2370,6 +2370,8 @@ document.addEventListener('DOMContentLoaded', function () {
         '--rgd-blue': '#457b9d',
     };
     const resolveMetricZoneColors = () => {
+        // cssVar now resolves against the pinboard paper context, so the metric
+        // marks stay dark-on-light even in dark mode (the post-its stay light).
         Object.values(METRIC_META).forEach(meta => {
             (meta.zones || []).forEach(zone => {
                 if (typeof zone.color === 'string' && zone.color.startsWith('--')) {
@@ -2508,6 +2510,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (paceDistChart) paceDistChart.destroy();
         // Store activities for theme-change re-render
         lastPaceDistActivities = activities;
+        const chartFonts = pinboardChartFonts(canvas);
 
         // Filter: only running activities, exclude warmup (<2km) and non-running types
         const runs = activities.filter(a => isRunningActivity(a) && (a.distance || 0) >= 2);
@@ -2570,12 +2573,13 @@ document.addEventListener('DOMContentLoaded', function () {
             'rgba(69, 123, 157, 0.8)',   // 5th — slowest, blue
         ];
 
-        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Read colours from the canvas so labels follow the paper surface
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
         // Standardized theme-aware tooltip colours — shared with the weekly
         // mileage, HR vs pace, and calendar tooltips so all charts match.
-        const chartSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         // Update the card title to reflect the number of activities analysed
@@ -2607,8 +2611,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         bodyColor: chartText,
                         borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
                         borderWidth: 1,
-                        titleFont: { family: 'Raleway', size: 12 },
-                        bodyFont: { family: 'Lato', size: 14 },
+                        titleFont: { family: chartFonts.heading, size: 12 },
+                        bodyFont: { family: chartFonts.body, size: 14 },
                         displayColors: false,
                         padding: 8,
                         cornerRadius: 6,
@@ -2622,13 +2626,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 scales: {
                     x: {
-                        title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
-                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted }
+                        title: { display: true, text: 'Pace (min/km)', font: { family: chartFonts.heading, size: 11 }, color: chartMuted },
+                        ticks: { font: { family: chartFonts.heading, size: 10 }, color: chartMuted }
                     },
                     y: {
                         beginAtZero: true,
-                        title: { display: true, text: 'Total Distance (km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
-                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted, callback: v => Math.round(v) },
+                        title: { display: true, text: 'Total Distance (km)', font: { family: chartFonts.heading, size: 11 }, color: chartMuted },
+                        ticks: { font: { family: chartFonts.heading, size: 10 }, color: chartMuted, callback: v => Math.round(v) },
                         grid: { color: chartGridColor }
                     }
                 }
@@ -2647,6 +2651,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (hrPaceScatter) hrPaceScatter.destroy();
         // Store activities for theme-change re-render
         lastHrPaceActivities = activities;
+        const chartFonts = pinboardChartFonts(canvas);
 
         // Filter to runs only: exclude non-running types (hiking etc.), warmup runs (<2km),
         // and require both pace + HR data, within the last 12 weeks
@@ -2694,11 +2699,12 @@ document.addEventListener('DOMContentLoaded', function () {
             pointBorders.push(`rgba(${r_col}, ${g_col}, ${b_col}, 1)`);
         });
 
-        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Read colours from the canvas so labels follow the paper surface
+        const chartMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(canvas).getPropertyValue('--rgd-border').trim() || '#dce8f2';
         // Standardized theme-aware tooltip colours — shared across all charts
-        const chartSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-        const chartText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+        const chartSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+        const chartText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
         const chartIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
         hrPaceScatter = new Chart(canvas, {
@@ -2725,8 +2731,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         bodyColor: chartText,
                         borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
                         borderWidth: 1,
-                        titleFont: { family: 'Raleway', size: 12 },
-                        bodyFont: { family: 'Lato', size: 14 },
+                        titleFont: { family: chartFonts.heading, size: 12 },
+                        bodyFont: { family: chartFonts.body, size: 14 },
                         displayColors: false,
                         padding: 8,
                         cornerRadius: 6,
@@ -2746,15 +2752,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         // directional hints at each end. Chart.js renders
                         // the title array as stacked lines, and align:
                         // 'center' keeps it centered under the axis.
-                        title: { display: true, text: 'Pace (min/km)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
-                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                        title: { display: true, text: 'Pace (min/km)', font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
+                        ticks: { font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
                         grid: { color: chartGridColor },
                         // Reverse so faster paces (lower min/km) are on the left
                         reverse: true,
                     },
                     y: {
-                        title: { display: true, text: 'Avg Heart Rate (bpm)', font: { family: 'Raleway', size: 11 }, color: chartMuted },
-                        ticks: { font: { family: 'Raleway', size: 10 }, color: chartMuted },
+                        title: { display: true, text: 'Avg Heart Rate (bpm)', font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
+                        ticks: { font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
                         grid: { color: chartGridColor }
                     }
                 }
@@ -3032,19 +3038,21 @@ document.addEventListener('DOMContentLoaded', function () {
             // Reset the loaded class so the canvas starts at opacity 0,
             // then add it after the chart is created to trigger the fade-in
             canvas.classList.remove('rgd-radar-loaded');
-            // Read theme-aware colors from CSS variables for chart text and tooltip
-            const cssNavy = getComputedStyle(document.documentElement).getPropertyValue('--rgd-navy').trim() || '#1d3557';
-            const cssMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-            const cssBlue = getComputedStyle(document.documentElement).getPropertyValue('--rgd-blue').trim() || '#457b9d';
+            // Read colours from the canvas so the radar follows the surface it
+            // sits on (paper on the overview, app surface on Readiness)
+            const cssNavy = getComputedStyle(canvas).getPropertyValue('--rgd-navy').trim() || '#1d3557';
+            const cssMuted = getComputedStyle(canvas).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+            const cssBlue = getComputedStyle(canvas).getPropertyValue('--rgd-blue').trim() || '#457b9d';
             // Tooltip background — use surface color so it adapts to theme
-            const cssSurface = getComputedStyle(document.documentElement).getPropertyValue('--rgd-surface').trim() || '#ffffff';
-            const cssText = getComputedStyle(document.documentElement).getPropertyValue('--rgd-text').trim() || '#1d3557';
+            const cssSurface = getComputedStyle(canvas).getPropertyValue('--rgd-surface').trim() || '#ffffff';
+            const cssText = getComputedStyle(canvas).getPropertyValue('--rgd-text').trim() || '#1d3557';
             const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
             // On narrow screens (phone), use a smaller point label font to prevent clipping.
             // The canvas width determines whether we're in a compact layout.
             const isNarrow = canvas.clientWidth < 320;
             const pointLabelFontSize = isNarrow ? 11 : 13;
+            const chartFonts = pinboardChartFonts(canvas);
 
             radarCharts.push(new Chart(canvas, {
                 type: 'radar',
@@ -3080,7 +3088,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             // Hide tick number labels — only show grid lines
                             ticks: { display: false, stepSize: 2 },
                             pointLabels: {
-                                font: { size: pointLabelFontSize, family: 'Raleway', weight: '600' },
+                                font: { size: pointLabelFontSize, family: chartFonts.heading, weight: '600' },
                                 color: cssNavy,
                                 // Center-align multi-line labels so each line
                                 // is centered at its position around the radar
@@ -3488,9 +3496,11 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        // Read theme-aware colors shared by all loading charts
-        const chartMuted = getComputedStyle(document.documentElement).getPropertyValue('--rgd-muted').trim() || '#5a7184';
-        const chartGridColor = getComputedStyle(document.documentElement).getPropertyValue('--rgd-border').trim() || '#dce8f2';
+        // Read colours from the mileage canvas so the loading charts match the
+        // paper surface they render on (falls back to root if it is missing)
+        const loadingSource = document.getElementById('rgd-mileage-chart') || document.documentElement;
+        const chartMuted = getComputedStyle(loadingSource).getPropertyValue('--rgd-muted').trim() || '#5a7184';
+        const chartGridColor = getComputedStyle(loadingSource).getPropertyValue('--rgd-border').trim() || '#dce8f2';
 
         // --- Mileage chart: 12 randomised bars ---
         const mileageCanvas = document.getElementById('rgd-mileage-chart');
@@ -3869,17 +3879,24 @@ document.addEventListener('DOMContentLoaded', function () {
         // Overview page: quick summary only — no concrete data references.
         // Cards are clickable and navigate to the full insight on the
         // readiness page, scrolling to the corresponding pillar card.
-        const overviewHtml = dims.map((d, i) => `
+        const overviewHtml = dims.map((d, i) => {
+            // Colour-code the mark like a coach's rating — same scale as the
+            // overall score. The "/10" stays quiet and inherits its own colour.
+            const scoreColor = d.score >= 7 ? 'var(--rgd-accent-green)'
+                : d.score >= 5 ? 'var(--rgd-accent-amber)'
+                : 'var(--rgd-accent-red)';
+            return `
             <div class="rgd-pillar-card rgd-pillar-card--summary" data-pillar-index="${i}">
                 <div class="rgd-pillar-header">
                     <span class="rgd-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
                     <span class="rgd-pillar-name">${escapeHtml(d.name)}</span>
-                    <span class="rgd-pillar-score">${d.score}/10</span>
+                    <span class="rgd-pillar-score" style="color:${scoreColor}">${d.score}<span class="rgd-pillar-score-max">/10</span></span>
                 </div>
                 <p class="rgd-pillar-summary">${escapeHtml(d.summary || '')}</p>
                 <span class="rgd-pillar-view-details">View details →</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
         // Readiness page: full breakdown with strengths and gaps, each
         // referencing specific data from the runner's activities.
@@ -4215,7 +4232,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const settingsPopupClose = $('#rgd-settings-popup-close');
     const settingsLogoutBtn = $('#rgd-settings-logout-btn');
 
-    async function openSettingsPopup() {
+    async function openSettingsPopup(trigger) {
         if (sessionToken && sessionToken !== 'demo') {
             // Populate account details from the latest check-session data
             try {
@@ -4277,7 +4294,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Focus management: store the triggering element and move focus
         // to the close button so keyboard users can dismiss the popup
-        settingsPopupTrigger = settingsBtn;
+        settingsPopupTrigger = trigger || settingsBtn;
         settingsPopup.hidden = false;
         settingsPopupClose.focus();
     }
@@ -4289,11 +4306,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let settingsPopupTrigger = null;
-    settingsBtn.addEventListener('click', openSettingsPopup);
+
+    // The settings button toggles the panel: open when closed, close when it
+    // is already open (so a second tap dismisses it).
+    settingsBtn.addEventListener('click', () => {
+        if (settingsPopup.hidden) openSettingsPopup(settingsBtn);
+        else closeSettingsPopup();
+    });
     settingsPopupClose.addEventListener('click', closeSettingsPopup);
-    // Close when clicking outside the popup
-    settingsPopup.addEventListener('click', (e) => {
-        if (e.target === settingsPopup) closeSettingsPopup();
+    // Close when clicking anywhere outside the panel. The popup element is
+    // only as large as the card (it is not a full-screen overlay), so this
+    // needs a document-level listener rather than a click on the popup. The
+    // two trigger buttons are exempt so their own click can toggle.
+    document.addEventListener('click', (e) => {
+        if (settingsPopup.hidden) return;
+        if (settingsPopup.contains(e.target)) return;
+        if (settingsBtn.contains(e.target)) return;
+        const tabBtn = document.getElementById('rgd-tab-settings');
+        if (tabBtn && tabBtn.contains(e.target)) return;
+        closeSettingsPopup();
     });
     // Close on Escape key — matches the login modal and metric popup behavior
     document.addEventListener('keydown', (e) => {
@@ -4372,12 +4403,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Mobile tab bar settings button — mirrors the sidebar settings button
+    // Mobile tab bar settings button — mirrors the sidebar settings button,
+    // including the toggle behaviour (a second tap closes the panel).
     const tabSettingsBtn = $('#rgd-tab-settings');
     if (tabSettingsBtn) {
         tabSettingsBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            openSettingsPopup();
+            if (settingsPopup.hidden) openSettingsPopup(tabSettingsBtn);
+            else closeSettingsPopup();
         });
     }
 
@@ -5348,7 +5381,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${showButton ? `
                     <div class="rgd-cal-week-send">
                         <button type="button" class="rgd-btn rgd-btn-primary rgd-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
-                            Sync
+                            Sync to Garmin
                         </button>
                         <span class="rgd-coach-schedule-status" hidden></span>
                     </div>` : ''}

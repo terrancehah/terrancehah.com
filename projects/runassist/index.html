@@ -6,14 +6,19 @@
     <link href="/styles/output.css" rel="stylesheet">
     <link href="/styles/style.css" type="text/css" rel="stylesheet">
     <link href="/projects/runassist/runassist.css" type="text/css" rel="stylesheet">
-    <link rel="icon" href="/resources/TH-logo.png" type="image/x-icon">
-    <meta property="og:title" content="RunAssist - Terrance's Playground">
-    <meta property="og:description" content="Track your training progress toward your race goal with Garmin data and AI-powered insights.">
-    <meta property="og:image" content="https://terrancehah.com/resources/TH-logo.png">
+    <link rel="icon" href="/resources/pacey-icon-32.png" type="image/png">
+    <link rel="apple-touch-icon" href="/resources/pacey-icon-180.png">
+    <meta property="og:title" content="Pacey — Marathon Race Readiness">
+    <meta property="og:description" content="Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.">
+    <meta property="og:image" content="https://terrancehah.com/resources/pacey-og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://terrancehah.com/projects/runassist/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://terrancehah.com/resources/pacey-og.png">
 
-    <title>RunAssist - Terrance's Playground</title>
+    <title>Pacey — Marathon Race Readiness</title>
     <!-- Preconnect to Google Fonts origins — establishes the connection
          early so the font CSS and font files download without delay.
          Saves ~470ms on LCP (300ms gstatic + 170ms googleapis). -->
@@ -30,6 +35,10 @@
          site pages but not by RunAssist, so excluding it saves ~15-20KB
          of font data and an unnecessary render-blocking request. -->
     <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,300;0,400;0,700;0,900;1,100;1,300;1,400;1,700;1,900&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <!-- TEMPORARY pinboard experiment — Caveat (headings) + Fuzzy Bubbles
+         (coach copy and labels). Only used by the scoped overview theme
+         below; remove alongside the #rgd-pinboard-theme block to revert. -->
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Fuzzy+Bubbles&display=swap" rel="stylesheet">
     <!-- Chart.js — deferred so it doesn't block initial render.
          The dashboard JS waits for DOMContentLoaded before using Chart,
          so deferring this script is safe and saves ~1,830ms of
@@ -44,42 +53,699 @@
     window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
     </script>
     <script defer src="/_vercel/speed-insights/script.js"></script>
+
+    <!-- =====================================================================
+         TEMPORARY PINBOARD THEME — "training notes pinned to a corkboard"
+         Scoped to the Overview page via html:has, so every other page is
+         untouched. To revert: delete this <style> block and the handwriting
+         font links above. No markup or assets are required — the cork and
+         paper grain are inline SVG noise data URIs.
+         ===================================================================== -->
+    <style id="rgd-pinboard-theme">
+    /* --- Board palette (new tokens; the app's blue stays as the accent) --- */
+    :root {
+        --pinboard-cork: #efe3c9;
+        --pinboard-cork-edge: #e3d3b3;
+        --pinboard-paper: #f8f2e4;
+        --pinboard-paper-2: #f1e9d7;
+        --pinboard-line: #ddd0b6;
+        --pinboard-ink: #2b2620;
+        --pinboard-muted: #5f5546;
+        --pinboard-note-blue: #cfe3f1;
+        --pinboard-note-blue-2: #bcd8ec;
+        --pinboard-note-yellow: #f6e6a4;
+        --pinboard-tape: rgba(255, 255, 255, 0.5);
+        --pinboard-pin: #b83b2e;
+        --pinboard-pin-blue: #2f6fb0;
+        --pinboard-underline: #b6503a;
+        /* Handwriting faces — Caveat for headings, Fuzzy Bubbles for copy */
+        --font-caveat: 'Caveat', cursive;
+        --font-fuzzy: 'Fuzzy Bubbles', 'Caveat', cursive;
+        /* Cork: a coarse grain layer plus a fine speckle layer, blended over
+           a light base to read as pressed cork rather than flat tan. */
+        --pinboard-cork-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23c)' opacity='0.55'/%3E%3C/svg%3E");
+        --pinboard-cork-fine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23f)' opacity='0.4'/%3E%3C/svg%3E");
+        --pinboard-paper-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23p)' opacity='0.06'/%3E%3C/svg%3E");
+        /* Hand-sketched underline for the section titles — one strong stroke */
+        --pinboard-sketch-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14' viewBox='0 0 240 14'%3E%3Cpath d='M5 8 C 70 5.5, 150 9.5, 235 7' fill='none' stroke='%23b6503a' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+        --pinboard-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.7rem rgba(0, 0, 0, 0.16), 0 1.4rem 1.8rem rgba(0, 0, 0, 0.12);
+        --pinboard-shadow-hover: 0 2px 3px rgba(0, 0, 0, 0.18), 0 1rem 1.2rem rgba(0, 0, 0, 0.22), 0 2.4rem 2.8rem rgba(0, 0, 0, 0.18);
+    }
+    /* Night board — same materials with the lights off */
+    [data-theme="dark"] {
+        --pinboard-cork: #3a2f26;
+        --pinboard-cork-edge: #2a221b;
+        --pinboard-paper: #cec6b6;
+        --pinboard-paper-2: #c3baa8;
+        --pinboard-line: #a89d88;
+        --pinboard-ink: #241f19;
+        --pinboard-muted: #4a4438;
+        --pinboard-note-blue: #d6e4ee;
+        --pinboard-note-blue-2: #c9dce9;
+        --pinboard-note-yellow: #e8db9e;
+        --pinboard-tape: rgba(255, 255, 255, 0.28);
+        --pinboard-pin: #8f2f24;
+        --pinboard-pin-blue: #2a5d92;
+        --pinboard-underline: #d98b74;
+        --pinboard-sketch-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14' viewBox='0 0 240 14'%3E%3Cpath d='M5 8 C 70 5.5, 150 9.5, 235 7' fill='none' stroke='%23d98b74' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+        --pinboard-shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 0.5rem 0.8rem rgba(0, 0, 0, 0.45), 0 1.4rem 1.8rem rgba(0, 0, 0, 0.4);
+        --pinboard-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 1rem 1.4rem rgba(0, 0, 0, 0.5), 0 2.4rem 3rem rgba(0, 0, 0, 0.45);
+    }
+
+    /* --- The board itself: whole app sits on cork while Overview is on --- */
+    html:has(#rgd-dashboard-screen:not([hidden])) body { background: var(--pinboard-cork); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-main {
+        background-color: var(--pinboard-cork);
+        background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
+        background-size: 220px 220px, 80px 80px;
+        background-blend-mode: soft-light, multiply;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-content { background: transparent; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar {
+        background-color: var(--pinboard-cork-edge);
+        background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
+        background-size: 220px 220px, 80px 80px;
+        background-blend-mode: soft-light, multiply;
+        border-right: 1px solid rgba(0, 0, 0, 0.18);
+        /* Sidebar sits above the content, so it casts a shadow to the right */
+        box-shadow: 0.5rem 0 1rem -0.5rem rgba(0, 0, 0, 0.45);
+    }
+    /* Floating tab bar — a more opaque frosted glass with fixed icon colours,
+       so the buttons stay legible whether a light paper card or the dark cork
+       is behind them. (The glass is the contrast anchor; the icons never need
+       to adapt per-pixel.) */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tabbar {
+        background: rgba(248, 242, 228, 0.62);
+        backdrop-filter: blur(20px) saturate(150%);
+        -webkit-backdrop-filter: blur(20px) saturate(150%);
+        border-color: rgba(255, 255, 255, 0.45);
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #4a4235; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #1d3557; }
+    /* The active tab is marked with a hand-drawn red ring (below), so the
+       frosted pill indicator is hidden — it stays in the DOM because the
+       scroll/route code still positions it, but it no longer paints. */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator {
+        background: none;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tabbar {
+        background: rgba(26, 20, 15, 0.74);
+        border-color: rgba(255, 255, 255, 0.16);
+    }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #cfd8cf; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #f2e9d7; }
+
+    /* --- Hand-drawn selection ring on the active floating-tab button ---
+       A red pencil ring, sketched in (stroke-dashoffset) when the tab
+       becomes active. Because the ring lives on the .active element, moving
+       the selection replays the draw automatically. */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-sketch {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2.9rem;
+        height: 2.9rem;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        overflow: visible;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-sketch-path {
+        fill: none;
+        stroke: #c0392b;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active .rgd-tab-sketch-path {
+        animation: rgd-tab-sketch-draw 0.45s ease-out forwards;
+    }
+    @keyframes rgd-tab-sketch-draw {
+        from { stroke-dashoffset: 100; }
+        to { stroke-dashoffset: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active .rgd-tab-sketch-path {
+            animation: none;
+            stroke-dashoffset: 0;
+        }
+    }
+
+    /* Chart fonts — inherited by the canvases inside the overview. Kept as
+       literal stacks (not var() refs) because Chart.js reads them at runtime. */
+    html:has(#rgd-dashboard-screen:not([hidden])) {
+        --rgd-chart-heading-font: 'Fuzzy Bubbles', 'Caveat', cursive;
+        --rgd-chart-body-font: 'Fuzzy Bubbles', 'Caveat', cursive;
+    }
+
+    /* --- Paper surface: the overview content reads as sheets on the board --- */
+    #rgd-content {
+        --rgd-surface: var(--pinboard-paper);
+        --rgd-text: var(--pinboard-ink);
+        --rgd-navy: var(--pinboard-ink);
+        --rgd-border: var(--pinboard-line);
+        --rgd-muted: var(--pinboard-muted);
+        --rgd-light: var(--pinboard-paper-2);
+        --rgd-sky: var(--pinboard-note-blue);
+        /* The paper stays light in both themes, so accents used on it keep
+           their light-mode values even in dark mode. Values are darkened
+           slightly from the app's defaults so they clear 4.5:1 on paper and
+           post-its (the app's originals are tuned for white, not cream). */
+        --rgd-blue: #2a5169;
+        --rgd-accent-green: #2f6a3f;
+        --rgd-accent-amber: #7a5810;
+        --rgd-accent-red: #a83b3b;
+        --rgd-run-easy: #174545;
+        --rgd-run-lsd: #33417a;
+        --rgd-run-tempo: #5f410b;
+        --rgd-run-speedwork: #7d2a2a;
+        --rgd-run-warmup: #3f3f3f;
+        --rgd-run-cross-train: #3f3f3f;
+        --rgd-btn-primary-text: #ffffff;
+        color: var(--pinboard-ink);
+    }
+
+    /* Shared paper treatment — a faint grain so the sheets read as paper
+       rather than flat rectangles */
+    #rgd-content .rgd-readiness-card,
+    #rgd-content .rgd-chart-card,
+    #rgd-content .rgd-overall-insight,
+    #rgd-content .rgd-overall-insight-skeleton,
+    #rgd-content .rgd-activity-item,
+    #rgd-content .rgd-pillar-card,
+    #rgd-content .rgd-content-header {
+        position: relative;
+        background-color: var(--pinboard-paper);
+        background-image: var(--pinboard-paper-noise);
+        background-size: 140px 140px;
+        background-repeat: repeat;
+        border: none;
+        border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+        box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+        transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+    /* Masthead sheet gets breathing room inside the paper */
+    #rgd-content .rgd-content-header { padding: 1.4rem 1.6rem; }
+
+    /* --- Pushpins and washi tape (pseudo-elements, no extra markup) --- */
+    /* Pins sit well in from the edge so they don't look like they would
+       tear the corner off */
+    #rgd-content .rgd-readiness-card::before,
+    #rgd-content .rgd-pillar-card::before {
+        content: "";
+        position: absolute;
+        top: 0.85rem;
+        left: 50%;
+        width: 0.85rem;
+        height: 0.85rem;
+        margin-left: -0.425rem;
+        border-radius: 50%;
+        background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+        box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+        z-index: 4;
+    }
+    /* Alternate pin colour so the board looks hand-assembled */
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(2)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
+    #rgd-content .rgd-pillar-card:nth-child(3n)::before { background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%); }
+
+    /* The readiness page's radar card is taped rather than pinned, so it
+       reads like a chart clipped to the board. (The six-area cards below it
+       keep their pins.) */
+    #rgd-page-readiness .rgd-readiness-card::before { content: none; }
+    #rgd-page-readiness .rgd-readiness-card::after {
+        content: "";
+        position: absolute;
+        top: -0.6rem;
+        left: 50%;
+        width: 4.6rem;
+        height: 1.35rem;
+        transform: translateX(-50%) rotate(-2.5deg);
+        background: var(--pinboard-tape);
+        border-left: 1px dashed rgba(255, 255, 255, 0.65);
+        border-right: 1px dashed rgba(255, 255, 255, 0.65);
+        box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.12);
+        opacity: 0.9;
+        z-index: 4;
+    }
+
+    /* Six-area cards: the coloured dot beside the title is dropped — the
+       score's colour already carries the status */
+    #rgd-content .rgd-pillar-dot { display: none; }
+
+    /* --- Washi tape (pseudo-elements, no extra markup). Layouts vary from
+       card to card so the board looks hand-assembled. Where two strips
+       appear they always sit on opposite corners or opposite sides. --- */
+    #rgd-content .rgd-overall-insight::after,
+    #rgd-content .rgd-overall-insight::before,
+    #rgd-content .rgd-chart-card::after,
+    #rgd-content .rgd-chart-card::before,
+    #rgd-content .rgd-content-header::before,
+    #rgd-content .rgd-content-header::after {
+        content: "";
+        position: absolute;
+        width: 4rem;
+        height: 1.35rem;
+        background: var(--pinboard-tape);
+        border-left: 1px dashed rgba(255, 255, 255, 0.65);
+        border-right: 1px dashed rgba(255, 255, 255, 0.65);
+        box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.12);
+        opacity: 0.9;
+        z-index: 4;
+    }
+    /* Horizontal strips only. Each card gets one or two; when there are two
+       they sit on opposite corners. */
+    #rgd-content .rgd-overall-insight::after,
+    #rgd-content .rgd-chart-card::after,
+    #rgd-content .rgd-content-header::before { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-overall-insight::before,
+    #rgd-content .rgd-chart-card::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+
+    /* Pace card — two horizontals on opposite corners (top-left + bottom-right) */
+    #rgd-content .rgd-chart-card--equal:nth-child(1)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(1)::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+    /* HR card — two horizontals on opposite corners (top-right + bottom-left) */
+    #rgd-content .rgd-chart-card--equal:nth-child(2)::after { top: -0.65rem; left: auto; right: 1.4rem; transform: rotate(5deg); }
+    #rgd-content .rgd-chart-card--equal:nth-child(2)::before { bottom: -0.6rem; right: auto; left: 1.4rem; transform: rotate(-6deg); }
+    /* Mileage card — a single horizontal strip */
+    #rgd-content .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+    #rgd-content .rgd-chart-card:not(.rgd-chart-card--equal):not(.rgd-chart-card--calendar)::before { content: none; }
+    /* Calendar card — a single horizontal strip */
+    #rgd-content .rgd-chart-card--calendar::after { top: -0.65rem; left: 1.4rem; transform: rotate(-5deg); }
+    #rgd-content .rgd-chart-card--calendar::before { content: none; }
+
+    /* Masthead — two horizontals on opposite corners */
+    #rgd-content .rgd-content-header::after { top: auto; left: auto; bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+
+    /* --- Post-it notes: vitals, pillars and the limiter --- */
+    #rgd-content .rgd-metric-tile {
+        position: relative;
+        background-color: var(--pinboard-note-blue);
+        background-image: none;
+        border: none;
+        border-radius: 1px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.4rem 1.4rem -1.4rem rgba(0, 0, 0, 0.14);
+        --tilt: -0.9deg;
+        transform: rotate(var(--tilt));
+        transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+    #rgd-content .rgd-metric-tile:nth-child(2n) { --tilt: 0.8deg; background-color: var(--pinboard-note-blue-2); }
+    #rgd-content .rgd-metric-tile:nth-child(3n) { --tilt: -0.4deg; }
+    #rgd-content .rgd-metric-tile:nth-child(5n) { --tilt: 1.1deg; background-color: var(--pinboard-note-blue); }
+    #rgd-content .rgd-metric-tile:hover,
+    #rgd-content .rgd-pillar-card:hover,
+    #rgd-content .rgd-readiness-card:hover,
+    #rgd-content .rgd-chart-card:hover,
+    #rgd-content .rgd-activity-item:hover {
+        transform: rotate(0deg) translateY(-0.4rem);
+        box-shadow: var(--pinboard-shadow-hover), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+        z-index: 6;
+    }
+    /* The limiter / biggest gap is the one yellow note on the board */
+    #rgd-content .rgd-overall-insight-takeaway--gap {
+        background-color: var(--pinboard-note-yellow);
+        background-image: none;
+        border-radius: 1px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.45rem 0.7rem rgba(0, 0, 0, 0.22), inset 0 -1.2rem 1.2rem -1.2rem rgba(0, 0, 0, 0.12);
+        --tilt: 0.7deg;
+        transform: rotate(var(--tilt));
+        padding: 0.75rem 0.85rem;
+    }
+    #rgd-content .rgd-overall-insight-takeaway--strength {
+        background-color: var(--pinboard-note-blue);
+        background-image: none;
+        border-radius: 1px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.12), 0 0.45rem 0.7rem rgba(0, 0, 0, 0.2);
+        --tilt: -0.6deg;
+        transform: rotate(var(--tilt));
+        padding: 0.75rem 0.85rem;
+    }
+    /* Pillars are post-its too, with pins from the rule above */
+    #rgd-content .rgd-pillar-card {
+        background-color: var(--pinboard-note-blue);
+        background-image: none;
+        border-radius: 1px;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
+        --tilt: -0.6deg;
+        transform: rotate(var(--tilt));
+    }
+    #rgd-content .rgd-pillar-card:nth-child(2n) { --tilt: 0.7deg; background-color: var(--pinboard-note-blue-2); }
+    #rgd-content .rgd-pillar-card:nth-child(3n) { --tilt: -0.2deg; }
+
+    /* Slight scatter for the pinned sheets */
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(1) { --tilt: -0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-readiness-row > .rgd-readiness-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-charts-row > .rgd-chart-card:nth-child(1) { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-charts-row > .rgd-chart-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-activity-item { --tilt: -0.25deg; transform: rotate(var(--tilt)); }
+    #rgd-content .rgd-activity-item:nth-child(2n) { --tilt: 0.3deg; }
+
+    /* --- Handwriting: Caveat for headings, Fuzzy Bubbles for copy --- */
+    #rgd-content .rgd-project-title,
+    #rgd-content .rgd-section-title,
+    #rgd-content .rgd-card-title,
+    #rgd-content .rgd-readiness-card-title,
+    #rgd-content .rgd-overall-insight-verdict,
+    #rgd-content .rgd-overall-insight-takeaway-name,
+    #rgd-content .rgd-overall-insight-focus-label,
+    #rgd-content .rgd-pillar-name {
+        font-family: var(--font-caveat);
+        font-weight: 700;
+        letter-spacing: 0;
+    }
+    #rgd-content .rgd-project-title { font-size: clamp(2rem, 4vw, 2.8rem); }
+    /* The Pacey mark sits beside the masthead title */
+    #rgd-content .rgd-project-heading { display: flex; align-items: center; gap: 0.5rem; }
+    #rgd-content .rgd-project-logo { width: 64px; height: 64px; flex: none; display: block; }
+    /* Section title: a long hand-sketched underline tucked close to the text */
+    #rgd-content .rgd-section-title {
+        position: relative;
+        font-size: 1.75rem;
+        color: var(--pinboard-ink);
+        padding-bottom: 0.55rem;
+    }
+    /* The underline lives on the text span, so it follows the text length
+       rather than a fixed width */
+    #rgd-content .rgd-section-title-text {
+        position: relative;
+        display: inline-block;
+    }
+    #rgd-content .rgd-section-title-text::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -0.28rem;
+        height: 0.7rem;
+        background-image: var(--pinboard-sketch-underline);
+        background-repeat: no-repeat;
+        background-position: left bottom;
+        background-size: 100% 100%;
+        transform-origin: left center;
+        opacity: 0.95;
+    }
+    /* Per-section variation — the line runs a little long or short (±10%) and
+       tilts a touch, so no two titles look stamped from the same die */
+    #rgd-content .rgd-page > section:nth-of-type(1) .rgd-section-title-text::after { transform: scaleX(1.06) rotate(-1.1deg); }
+    #rgd-content .rgd-page > section:nth-of-type(2) .rgd-section-title-text::after { transform: scaleX(0.93) rotate(0.9deg); }
+    #rgd-content .rgd-page > section:nth-of-type(3) .rgd-section-title-text::after { transform: scaleX(1.02) rotate(-0.6deg); }
+    #rgd-content .rgd-page > section:nth-of-type(4) .rgd-section-title-text::after { transform: scaleX(0.9) rotate(1.4deg); }
+    #rgd-content .rgd-page > section:nth-of-type(5) .rgd-section-title-text::after { transform: scaleX(1.08) rotate(-0.8deg); }
+    #rgd-content .rgd-page > section:nth-of-type(6) .rgd-section-title-text::after { transform: scaleX(0.96) rotate(1deg); }
+    #rgd-content .rgd-card-title,
+    #rgd-content .rgd-readiness-card-title { font-size: 1.4rem; }
+    #rgd-content .rgd-overall-insight-takeaway-name { font-size: 1.5rem; }
+    #rgd-content .rgd-overall-insight-verdict { font-size: 1.3rem; }
+    #rgd-content .rgd-overall-insight-focus-label { font-size: 1.15rem; }
+    #rgd-content .rgd-pillar-name { font-size: 1.3rem; }
+
+    /* Coach copy, labels and data — Fuzzy Bubbles */
+    #rgd-content .rgd-project-intro,
+    #rgd-content .rgd-section-sub,
+    #rgd-content .rgd-readiness-card-sub,
+    #rgd-content .rgd-card-sub,
+    #rgd-content .rgd-goal-stat-label,
+    #rgd-content .rgd-goal-stat-value,
+    #rgd-content .rgd-metric-label,
+    #rgd-content .rgd-metric-value,
+    #rgd-content .rgd-metric-unit,
+    #rgd-content .rgd-overall-insight-summary,
+    #rgd-content .rgd-overall-insight-takeaway-note,
+    #rgd-content .rgd-overall-insight-focus-text,
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-activity-name,
+    #rgd-content .rgd-activity-date,
+    #rgd-content .rgd-activity-stat-value,
+    #rgd-content .rgd-activity-stat-label,
+    #rgd-content .rgd-pillar-summary,
+    #rgd-content .rgd-pillar-note,
+    #rgd-content .rgd-pillar-view-details { font-family: var(--font-fuzzy); }
+
+    #rgd-content .rgd-project-intro,
+    #rgd-content .rgd-overall-insight-summary,
+    #rgd-content .rgd-overall-insight-takeaway-note,
+    #rgd-content .rgd-overall-insight-focus-text,
+    #rgd-content .rgd-card-sub,
+    #rgd-content .rgd-readiness-card-sub,
+    #rgd-content .rgd-section-sub,
+    #rgd-content .rgd-pillar-summary,
+    #rgd-content .rgd-pillar-note { font-size: 1.02rem; line-height: 1.5; }
+
+    /* Scores and the countdown read as handwritten coaching marks */
+    #rgd-content .rgd-pillar-score,
+    #rgd-content .rgd-overall-insight-score { font-family: var(--font-fuzzy); font-weight: 400; }
+    #rgd-content .rgd-pillar-score { font-size: 1.6rem; }
+    #rgd-content .rgd-overall-insight-score { font-size: 1.7rem; }
+    /* The "/10" sits quieter than the mark itself */
+    #rgd-content .rgd-pillar-score-max,
+    #rgd-content .rgd-overall-insight-score-max {
+        font-family: var(--font-fuzzy);
+        font-size: 0.95rem;
+        font-weight: 400;
+        color: var(--pinboard-muted);
+    }
+    /* Countdown */
+    #rgd-content .rgd-countdown-value,
+    #rgd-content .rgd-countdown-label { font-family: var(--font-fuzzy); font-weight: 400; }
+
+    /* --- Countdown: a blue tag pinned to the Race Goal sheet --- */
+    #rgd-content .rgd-countdown-highlight {
+        border-radius: 2px 6px 3px 8px / 8px 3px 6px 2px;
+        box-shadow: 0 0.35rem 0.6rem rgba(0, 0, 0, 0.28);
+        transform: rotate(1.2deg);
+    }
+    #rgd-content .rgd-countdown-highlight::before {
+        content: "";
+        position: absolute;
+        top: 0.35rem;
+        left: 50%;
+        width: 0.7rem;
+        height: 0.7rem;
+        margin-left: -0.35rem;
+        border-radius: 50%;
+        background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+        box-shadow: 0 0.15rem 0.22rem rgba(0, 0, 0, 0.4);
+    }
+
+    /* --- Buttons and small chrome adopt the paper look --- */
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-btn {
+        border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
+        box-shadow: 0 0.2rem 0.4rem rgba(0, 0, 0, 0.22);
+    }
+
+    /* --- Subtle movement on interactive controls --- */
+    #rgd-content .rgd-overall-insight-cta,
+    #rgd-content .rgd-show-more-btn,
+    #rgd-content .rgd-pillar-view-details,
+    #rgd-content .rgd-btn {
+        transition: transform 0.18s ease-out, background 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+    #rgd-content .rgd-overall-insight-cta:hover { transform: translateY(-0.15rem); }
+    #rgd-content .rgd-show-more-btn:hover { transform: translateY(-0.12rem); }
+    /* "View details" slides right when its note is hovered */
+    #rgd-content .rgd-pillar-card:hover .rgd-pillar-view-details { transform: translateX(0.3rem); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn:hover,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-cta:hover { transform: translateY(-0.12rem); }
+
+    /* --- Demo banner (sticky, outside the page container, so scoped via
+       html:has): a pinned sticky note that stays at the top of the board --- */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner {
+        background-color: var(--pinboard-note-yellow);
+        background-image: none;
+        border: none;
+        border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
+        box-shadow: var(--pinboard-shadow);
+        transform: rotate(-0.3deg);
+        overflow: visible;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner::before {
+        content: "";
+        position: absolute;
+        top: 0.4rem;
+        left: 50%;
+        width: 0.7rem;
+        height: 0.7rem;
+        margin-left: -0.35rem;
+        border-radius: 50%;
+        background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+        box-shadow: 0 0.15rem 0.22rem rgba(0, 0, 0, 0.4);
+        z-index: 5;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-cta,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim { font-family: var(--font-fuzzy); }
+
+    /* --- Footer CTA (also outside the page container) --- */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn { font-family: var(--font-fuzzy); }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { font-size: 1.05rem; }
+
+    /* --- Sidebar (shared shell) adopts the handwriting while Overview is on --- */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-nav-label,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-greeting,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-goal,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-theme-label,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-settings-label {
+        font-family: var(--font-fuzzy);
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-nav-label { font-size: 0.9rem; }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-greeting { font-size: 1rem; }
+
+    /* --- Charts: give the row noticeably more air --- */
+    #rgd-content .rgd-charts-row { gap: clamp(1.6rem, 3.5vw, 2.8rem); }
+
+    /* --- Motion: no tilt on hover when the user prefers reduced motion --- */
+    @media (prefers-reduced-motion: reduce) {
+        #rgd-content .rgd-metric-tile:hover,
+        #rgd-content .rgd-pillar-card:hover,
+        #rgd-content .rgd-readiness-card:hover,
+        #rgd-content .rgd-chart-card:hover,
+        #rgd-content .rgd-activity-item:hover { transform: rotate(var(--tilt, 0deg)); }
+        #rgd-content .rgd-overall-insight-cta:hover,
+        #rgd-content .rgd-show-more-btn:hover,
+        #rgd-content .rgd-pillar-card:hover .rgd-pillar-view-details,
+        html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-btn:hover { transform: none; }
+    }
+
+    /* --- Mobile: same treatment, scaled down --- */
+    @media (max-width: 48rem) {
+        #rgd-content .rgd-readiness-card::before,
+        #rgd-content .rgd-pillar-card::before { width: 0.7rem; height: 0.7rem; top: 0.6rem; margin-left: -0.35rem; }
+        #rgd-content .rgd-overall-insight::after,
+        #rgd-content .rgd-chart-card::after,
+        #rgd-content .rgd-content-header::before,
+        #rgd-content .rgd-overall-insight::before,
+        #rgd-content .rgd-chart-card::before,
+        #rgd-content .rgd-content-header::after { width: 3rem; height: 1.05rem; }
+        #rgd-content .rgd-section-title { font-size: 1.55rem; }
+        #rgd-content .rgd-metric-tile { --tilt: -0.6deg; }
+        #rgd-content .rgd-metric-tile:nth-child(2n) { --tilt: 0.6deg; }
+    }
+
+    /* --- Mobile vitals: a hand-scrollable carousel laid out as TWO rows.
+       Cards fill column by column (grid-auto-flow: column) with two rows,
+       and each column is 42% wide so the next column peeks in, signalling
+       there is more to the right. No auto-advance. --- */
+    @media (max-width: 48rem) {
+        #rgd-content .rgd-metrics-grid {
+            display: grid;
+            grid-auto-flow: column;
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+            grid-auto-columns: 42%;
+            gap: 0.75rem;
+            overflow-x: auto;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+            padding: 0.75rem 0.3rem 1rem;
+            scrollbar-width: none;
+        }
+        #rgd-content .rgd-metrics-grid::-webkit-scrollbar { display: none; }
+        /* All tiles join the scroll grid (no collapsed drawer on mobile) */
+        #rgd-content .rgd-metrics-extra,
+        #rgd-content .rgd-metrics-extra-inner { display: contents; }
+        #rgd-content .rgd-vitals-toggle { display: none; }
+        #rgd-content .rgd-metric-tile { scroll-snap-align: start; }
+    }
+
+    /* --- Night board: text that sits on the cork (not on paper) needs to be
+       light, otherwise the dark ink disappears against the dark board.
+       The score info button is excluded — it carries its own paper chip. --- */
+    [data-theme="dark"] #rgd-content .rgd-section-title,
+    [data-theme="dark"] #rgd-content .rgd-section-sub,
+    [data-theme="dark"] #rgd-content .rgd-metrics-date,
+    [data-theme="dark"] #rgd-content .rgd-vitals-toggle,
+    [data-theme="dark"] #rgd-content .rgd-card-title--with-action { color: #e8dfca; }
+    /* Footer note sits on cork */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #4a4235; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #c3cfd8; }
+    /* Sticky demo note is a light gold in both themes, so its copy stays dark.
+       The "Connect Garmin" button is deliberately left alone so it keeps its
+       own blue background with white text. */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-text,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim-cta,
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-icon { color: var(--pinboard-ink); }
+
+    /* --- Pacey mark on the auth / onboarding cards. The site header that
+       used to carry the brand is gone, so these screens show the logo. --- */
+    .rgd-card-logo {
+        display: block;
+        width: 52px;
+        height: 52px;
+        margin-bottom: 0.6rem;
+    }
+
+    /* --- "Back to my site" link tucked under the sidebar Settings. The
+       sidebar is desktop-only; on mobile the Account dialog carries it. --- */
+    .rgd-sidebar-site-link {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0.3rem 0.5rem 0.25rem;
+        padding: 0.4rem 0.55rem;
+        border-radius: 0.5rem;
+        color: var(--rgd-muted);
+        text-decoration: none;
+        font-family: var(--font-fuzzy);
+        font-size: 0.85rem;
+        transition: background 0.18s ease-out, transform 0.18s ease-out;
+    }
+    .rgd-sidebar-site-link img { width: 24px; height: 24px; border-radius: 6px; display: block; flex: none; }
+    .rgd-sidebar-site-link:hover {
+        background: color-mix(in srgb, currentColor 12%, transparent);
+        transform: translateY(-1px);
+    }
+    /* Collapsed sidebar: icon only */
+    .rgd-sidebar.collapsed .rgd-sidebar-site-link { justify-content: center; padding: 0.4rem; }
+    .rgd-sidebar.collapsed .rgd-sidebar-site-label { display: none; }
+
+    /* --- Site section inside the Account dialog (mobile's way back) --- */
+    .rgd-settings-site {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--rgd-border);
+    }
+    .rgd-settings-site-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+    .rgd-settings-site-links a { color: var(--rgd-blue); text-decoration: none; font-size: var(--rgd-text-label); }
+    .rgd-settings-site-links a:hover { text-decoration: underline; }
+    .rgd-settings-site-socials { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .rgd-settings-site-socials img { width: 22px; height: 22px; display: block; }
+
+    /* --- Compact "made by Terrance" footer on the board --- */
+    .rgd-app-footer {
+        margin-top: 2rem;
+        padding: 1rem 0.5rem 0.5rem;
+        text-align: center;
+        font-family: var(--font-fuzzy);
+        font-size: 0.95rem;
+        color: var(--pinboard-muted);
+    }
+    .rgd-app-footer a { color: #2a5169; text-decoration: underline; text-underline-offset: 2px; }
+    .rgd-app-footer-heart { color: #b6503a; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-app-footer { color: #b3a98f; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-app-footer a { color: #a7c9e6; }
+    </style>
+    <!-- Per-page pinboard extensions. Kept in separate files so each page's
+         styling stays self-contained and easy to revert independently. They
+         load after the shared theme above, so they win on equal specificity. -->
+    <link href="/projects/runassist/pinboard-activities.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-readiness.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-plan.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-overlays.css" rel="stylesheet">
 </head>
 
 <body class="m-0 relative h-full bg-white overflow-x-hidden">
-    <!-- Shared site header -->
-    <header class="w-full inline-block rgd-header-offset">
-        <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
-            <div class="flex flex-col md:flex-row items-center w-auto md:w-80 gap-1">
-                <h1 class="font-lato font-semibold text-[#1d3557] rgd-header-title text-2xl md:text-3xl p-0 text-center sm:text-left sm:w-auto">
-                    Terrance's Playground
-                </h1>
-            </div>
-            <nav class="flex flex-wrap justify-center gap-2">
-                <a href="/index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Home</a>
-                <a href="/articles" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Articles</a>
-                <a href="/projects" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link rgd-header-link--active hover:bg-[#c0e9fc] bg-[#c0e9fc]">Projects</a>
-                <a href="/playground" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Playground</a>
-            </nav>
-            <div class="flex items-center gap-4 md:gap-3 mt-2 lg:w-[300px] justify-end lg:mt-0">
-                <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/facebook.webp" alt="facebook" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/instagram.webp" alt="instagram" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
-                    <img src="/resources/x.webp" alt="x" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/linkedin.webp" alt="linkedin" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
-                    <img src="/resources/github.webp" alt="github" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-            </div>
-        </div>
-    </header>
+    <!-- Site header removed for the Pacey app: the app has its own sidebar
+         nav, so the site title / nav / social icons were pure duplication.
+         The link back to the main site now lives under the sidebar Settings
+         (desktop) and inside the Account dialog, and a compact "made by
+         Terrance" footer sits at the bottom of the app. -->
 
     <main class="rgd-main">
         <!-- ========== LOGIN MODAL (popup, triggered from sidebar settings) ========== -->
@@ -89,6 +755,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="rgd-auth-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Garmin Connect</span>
                     <h2 class="rgd-auth-title">Connect your Garmin</h2>
                     <p class="rgd-auth-subtitle">
@@ -122,6 +789,7 @@
         <section class="rgd-screen" id="rgd-onboarding-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 2 of 4</span>
                     <h2 class="rgd-onboard-title">Tell us about your race goal</h2>
                     <p class="rgd-onboard-subtitle">
@@ -229,6 +897,7 @@
         <section class="rgd-screen" id="rgd-onboarding-fitness-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 3 of 4</span>
                     <h2 class="rgd-onboard-title">How fast are you right now?</h2>
                     <p class="rgd-onboard-desc">A recent race tells us your current fitness, so training paces start from where you actually are — not just where you want to be.</p>
@@ -269,6 +938,7 @@
         <section class="rgd-screen" id="rgd-onboarding-plan-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 4 of 4</span>
                     <h2 class="rgd-onboard-title">Customize your training plan</h2>
                     <p class="rgd-onboard-subtitle">
@@ -408,6 +1078,12 @@
                             </svg>
                             <span class="rgd-sidebar-settings-label">Settings</span>
                         </button>
+                        <!-- Link back to the main site — tucked under Settings
+                             so the app itself stays free of site chrome -->
+                        <a class="rgd-sidebar-site-link" href="/index.html" title="Back to terrancehah.com" aria-label="Back to terrancehah.com">
+                            <img src="/resources/th-logo-64.png" alt="" width="24" height="24" loading="lazy">
+                            <span class="rgd-sidebar-site-label">terrancehah.com</span>
+                        </a>
                     </div>
                 </aside>
 
@@ -418,24 +1094,40 @@
                          Positioned via JS in navigateTo(). -->
                     <div class="rgd-tab-indicator" id="rgd-tab-indicator"></div>
                     <a class="rgd-tab-item active" href="#overview">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Home icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                         <!-- Home icon — filled (active): solid house with door cutout -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path fill-rule="evenodd" d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#activities">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Records/list icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
                         <!-- Records icon — filled (active): solid document with folded corner + text line cutouts -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path fill-rule="evenodd" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6z M8 13h8v1.5H8z M8 16.5h8V18H8z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#readiness">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Hexagon icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                         <!-- Hexagon icon — filled (active): solid hexagon -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#plan">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Calendar icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         <!-- Calendar icon — filled (active): solid body with binding rings + header strip cutout -->
@@ -477,7 +1169,10 @@
                     <div class="rgd-page" id="rgd-page-overview">
                         <!-- Project title + intro — only on the overview page -->
                         <div class="rgd-content-header">
-                            <h1 class="rgd-project-title">RunAssist</h1>
+                            <div class="rgd-project-heading">
+                                <img class="rgd-project-logo" src="/resources/pacey-icon-192.png" alt="" width="46" height="46">
+                                <h1 class="rgd-project-title">Pacey</h1>
+                            </div>
                             <p class="rgd-project-intro">Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.</p>
                         </div>
 
@@ -486,7 +1181,7 @@
                              Two cards side by side on desktop, stacked on mobile.
                              Each card has its own h3 title inside the container. -->
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Race Goal & Readiness</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Race Goal &amp; Readiness</span></h2>
                             <div class="rgd-readiness-row">
                                 <!-- Race Goal — left column on laptop, top on mobile -->
                                 <div class="rgd-readiness-card" id="rgd-goal-specifics">
@@ -553,7 +1248,7 @@
                              where they stand overall and what to focus on next.
                              Spaced — marks a topic shift from race data to AI insight. -->
                         <section class="rgd-section rgd-section--spaced">
-                            <h2 class="rgd-section-title">The Big Picture</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">The Big Picture</span></h2>
                             <div class="rgd-overall-insight" id="rgd-overall-insight" hidden>
                                 <!-- Populated by renderOverallInsight() in runassist.js.
                                      Contains an overall readiness verdict, a summary
@@ -603,7 +1298,7 @@
                              drawer toggled by the chevron button below.
                              Tight — closely related to The Big Picture (both today's status). -->
                         <section class="rgd-section rgd-section--tight">
-                            <h2 class="rgd-section-title">Today's Metrics
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Today's Metrics</span>
                                 <span class="rgd-metrics-date" id="rgd-metrics-date" hidden></span>
                             </h2>
                             <div class="rgd-metrics-grid" id="rgd-metrics-grid"></div>
@@ -630,7 +1325,7 @@
                              Each chart card has its own h3 title inside.
                              Spaced — marks a topic shift from today's status to trends. -->
                         <section class="rgd-section rgd-section--spaced">
-                            <h2 class="rgd-section-title">Training Trends</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Training Trends</span></h2>
                             <div class="rgd-charts-row">
                                 <div class="rgd-chart-card rgd-chart-card--equal">
                                     <h3 class="rgd-card-title">Pace Breakdown</h3>
@@ -652,7 +1347,7 @@
                              Tight — closely related to Training Trends (both "what
                              have I been doing"). -->
                         <section class="rgd-section rgd-section--tight">
-                            <h2 class="rgd-section-title">Training Log</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Training Log</span></h2>
                             <div class="rgd-charts-row">
                                 <div class="rgd-chart-card">
                                     <h3 class="rgd-card-title">Weekly Mileage</h3>
@@ -676,7 +1371,7 @@
                              Each area has a score, summary, strengths, and gaps.
                              Spaced — marks a topic shift from raw data to AI analysis. -->
                         <section class="rgd-section rgd-section--spaced">
-                            <h2 class="rgd-section-title">What to Work On
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">What to Work On</span>
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
                                 <button class="rgd-score-info-btn" type="button" aria-label="How scores work" title="How scores work">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -691,7 +1386,7 @@
                     <!-- ========== PAGE: Activities ========== -->
                     <div class="rgd-page" id="rgd-page-activities" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">All Activities</h2>
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">All Activities</span></h2>
                             <div class="rgd-activities-list" id="rgd-activities-full"></div>
                             <button class="rgd-btn rgd-btn-secondary rgd-show-more-btn" id="rgd-load-more-activities" hidden>Loading…</button>
                         </section>
@@ -700,7 +1395,7 @@
                     <!-- ========== PAGE: Readiness ========== -->
                     <div class="rgd-page" id="rgd-page-readiness" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Race Readiness
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Race Readiness</span>
                                 <!-- Info button — opens the modal explaining what each of the six dimensions means -->
                                 <button class="rgd-dimension-info-btn" type="button" aria-label="What the six areas mean" title="What the six areas mean">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
@@ -743,7 +1438,7 @@
                             </div>
                             <!-- What to Work On — the six full pillar cards (strengths/gaps)
                                  live below the radar on this page -->
-                            <h2 class="rgd-section-title">What to Work On
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">What to Work On</span>
                                 <!-- Info button — opens the scoring guide modal explaining the 0-10 AI score scale -->
                                 <button class="rgd-score-info-btn" type="button" aria-label="How scores work" title="How scores work">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -759,7 +1454,7 @@
                     <!-- ========== PAGE: Plan ========== -->
                     <div class="rgd-page" id="rgd-page-plan" hidden>
                         <section class="rgd-section">
-                            <h2 class="rgd-section-title">Training Plan
+                            <h2 class="rgd-section-title"><span class="rgd-section-title-text">Training Plan</span>
                                 <!-- Edit button — opens the plan preferences modal -->
                                 <button class="rgd-plan-edit-btn" id="rgd-plan-edit-btn" type="button" title="Customize plan">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -831,6 +1526,11 @@
                         <p class="rgd-demo-cta-text">Ready to see your real training data and personalized insights? Connect Garmin to get started.</p>
                         <button class="rgd-btn rgd-btn-primary rgd-demo-cta-btn" id="rgd-demo-cta-btn">Connect Garmin</button>
                     </div>
+
+                    <!-- Compact app footer — a quiet line on the board -->
+                    <footer class="rgd-app-footer">
+                        <p>Made with <span class="rgd-app-footer-heart">♥</span> by Terrance — have a look at my <a href="/projects">other projects</a>.</p>
+                    </footer>
                 </div>
             </div>
         </section>
@@ -897,6 +1597,25 @@
                             <option>English</option>
                         </select>
                         <span class="rgd-settings-field-hint">More languages coming soon</span>
+                    </div>
+                    <!-- Site section — the app's link back to the main site and
+                         socials. Mobile relies on this since the sidebar (and
+                         its Settings-adjacent site link) is hidden there. -->
+                    <div class="rgd-settings-site">
+                        <span class="rgd-settings-field-label">Terrance's Playground</span>
+                        <div class="rgd-settings-site-links">
+                            <a href="/index.html">Home</a>
+                            <a href="/articles">Articles</a>
+                            <a href="/projects">Projects</a>
+                            <a href="/playground">Playground</a>
+                        </div>
+                        <div class="rgd-settings-site-socials">
+                            <a href="https://facebook.com/terrancehah/" target="_blank" rel="noopener"><img src="/resources/facebook.webp" alt="Facebook" width="22" height="22" loading="lazy"></a>
+                            <a href="https://instagram.com/terrancehah/" target="_blank" rel="noopener"><img src="/resources/instagram.webp" alt="Instagram" width="22" height="22" loading="lazy"></a>
+                            <a href="https://x.com/terrance_hah" target="_blank" rel="noopener"><img src="/resources/x.webp" alt="X" width="22" height="22" loading="lazy"></a>
+                            <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" rel="noopener"><img src="/resources/linkedin.webp" alt="LinkedIn" width="22" height="22" loading="lazy"></a>
+                            <a href="https://github.com/terrancehah" target="_blank" rel="noopener"><img src="/resources/github.webp" alt="GitHub" width="22" height="22" loading="lazy"></a>
+                        </div>
                     </div>
                 </div>
                 <div class="rgd-settings-popup-footer">

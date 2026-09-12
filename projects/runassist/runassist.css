@@ -1044,7 +1044,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 
 .rgd-sidebar-goal {
     font-family: 'Raleway', sans-serif;
-    font-size: var(--rgd-text-label);
+    font-size: var(--rgd-text-caption);
     color: var(--rgd-blue);
     font-weight: 500;
     flex: 1;
@@ -1326,7 +1326,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     color: var(--rgd-muted);
     margin: 0;
     line-height: 1.5;
-    max-width: 40rem;
+    /* max-width: 40rem; */
 }
 
 /* Demo mode info bar — subtle light-blue bar with info icon */
@@ -1422,7 +1422,8 @@ header.rgd-header-offset.rgd-header-collapsed {
     position: absolute;
     inset: 0;
     display: flex;
-    align-items: center;
+    align-items: end;
+    margin-bottom: 0.5rem;
     justify-content: center;
     gap: 0.3rem;
     font-family: 'Lato', sans-serif;
@@ -1454,11 +1455,13 @@ header.rgd-header-offset.rgd-header-collapsed {
    reduce padding for a slimmer pill, and cross-fade the inner content. */
 .rgd-demo-banner--slim {
     max-width: 11rem;
-    max-height: 1.75rem;
+    padding-top: 0.7rem;
+    max-height: 2.7rem;
     border-radius: 999px;
     padding: 0.25rem 0.9rem;
     margin-left: auto;
     margin-right: auto;
+    align-items: end;
 }
 .rgd-demo-banner--slim .rgd-demo-banner-full {
     opacity: 0;
@@ -1642,7 +1645,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 18vw, 10rem), 1fr));
     /* Increased gap for better visual breathing room between tiles */
-    gap: clamp(0.75rem, 1.5vw, 1rem);
+    gap: clamp(1rem, 1.5vw, 1.25rem);
 }
 
 .rgd-metric-tile {
@@ -2633,7 +2636,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-pillar-view-details {
     font-family: 'Lato', sans-serif;
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--rgd-blue);
     margin-top: auto;
     padding-top: 0.25rem;
