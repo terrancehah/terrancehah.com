@@ -258,7 +258,9 @@
 }
 
 /* Suggested (actionable) workouts are the "to-do" slips: pinned paper
-   with a faint edge. The pin marks them as things to do, not history. */
+   with a faint edge. The pin marks them as things to do, not history.
+   The pin sits inside the card, a little below the top edge (matching the
+   other pinned sheets) rather than straddling the edge. */
 #rgd-content .rgd-cal-card--suggested {
     background-color: var(--pinboard-paper);
     border: 1px solid var(--pinboard-line);
@@ -267,7 +269,7 @@
 #rgd-content .rgd-cal-card--suggested::before {
     content: "";
     position: absolute;
-    top: -0.35rem;
+    top: 0.6rem;
     left: 50%;
     width: 0.6rem;
     height: 0.6rem;
