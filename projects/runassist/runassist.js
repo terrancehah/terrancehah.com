@@ -118,6 +118,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return fetch(url, options);
     }
 
+    // Retry a data request once on 401. The backend silently refreshes the
+    // Garmin tokens, so a lone 401 is usually a transient rotation/rate-limit
+    // blip — one retry resolves it without interrupting the runner. Only a
+    // second consecutive 401 is treated as a genuine re-login case, keeping
+    // prompts to a minimum.
+    async function apiCallWithAuthRetry(method, path, body = null) {
+        let resp = await apiCall(method, path, body);
+        if (resp.status === 401) {
+            // Brief pause lets a concurrent token rotation settle before retry
+            await new Promise(resolve => setTimeout(resolve, 800));
+            resp = await apiCall(method, path, body);
+        }
+        return resp;
+    }
+
     // Rotating loading messages — cycles through motivational phrases while data loads.
     // The overlay text is wrapped in a .rgd-shimmer-text span so the shimmer
     // animation persists even as the text content rotates.
@@ -1175,21 +1190,33 @@ document.addEventListener('DOMContentLoaded', function () {
         // chart under the overlay would play the animation invisibly).
         let mileageWeeks = null;
         try {
-            // Fetch the first batch of activities for both the overview
-            // (5 latest) and the activities page (first 20). Charts use
-            // this same batch and are never updated by pagination.
-            const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
-                apiCall('GET', 'metrics'),
-                apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
-                apiCall('GET', 'activities?mode=mileage&weeks=12'),
-            ]);
+            // Metrics runs FIRST and alone. It is the endpoint that
+            // authenticates to Garmin and stocks the shared Redis cache; the
+            // activities + mileage calls read from that cache. Firing all
+            // three in parallel let the readers miss the still-empty cache and
+            // each log into Garmin concurrently — tripping Garmin's rate limit
+            // and rotating-token race, which surfaced as empty activities and
+            // missing charts. Sequencing guarantees the cache is warm first.
+            const metricsResp = await apiCallWithAuthRetry('GET', 'metrics');
             const metricsData = await metricsResp.json();
-            const activitiesData = await activitiesResp.json();
-            const mileageData = await mileageResp.json();
             if (metricsResp.ok && metricsData.metrics) {
                 renderMetrics(metricsData.metrics);
                 writeSWRCache(METRICS_CACHE_KEY, metricsData.metrics);
+            } else if (metricsResp.status === 401) {
+                // Genuine auth failure even after the silent retry — the
+                // Garmin session is dead, so ask the runner to log in again.
+                openLoginModal();
             }
+
+            // Fetch the first batch of activities for both the overview
+            // (5 latest) and the activities page (first 20). Charts use
+            // this same batch and are never updated by pagination.
+            const [activitiesResp, mileageResp] = await Promise.all([
+                apiCallWithAuthRetry('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
+                apiCallWithAuthRetry('GET', 'activities?mode=mileage&weeks=12'),
+            ]);
+            const activitiesData = await activitiesResp.json();
+            const mileageData = await mileageResp.json();
             if (activitiesResp.ok && activitiesData.activities) {
                 const acts = activitiesData.activities;
                 // Store for the activities page pagination
@@ -6232,18 +6259,21 @@ document.addEventListener('DOMContentLoaded', function () {
         // re-render without the loading state.
         (async () => {
             try {
-                const [metricsResp, activitiesResp, mileageResp] = await Promise.all([
-                    apiCall('GET', 'metrics'),
-                    apiCall('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
-                    apiCall('GET', 'activities?mode=mileage&weeks=12'),
-                ]);
+                // Metrics first (it stocks the shared cache), then the two
+                // readers in parallel — same sequencing as loadAllData so a
+                // background refresh can never trip the concurrent-login race.
+                const metricsResp = await apiCallWithAuthRetry('GET', 'metrics');
                 const metricsData = await metricsResp.json();
-                const activitiesData = await activitiesResp.json();
-                const mileageData = await mileageResp.json();
                 if (metricsResp.ok && metricsData.metrics) {
                     renderMetrics(metricsData.metrics);
                     writeSWRCache(METRICS_CACHE_KEY, metricsData.metrics);
                 }
+                const [activitiesResp, mileageResp] = await Promise.all([
+                    apiCallWithAuthRetry('GET', `activities?limit=${ACTIVITIES_PAGE_SIZE}&offset=0`),
+                    apiCallWithAuthRetry('GET', 'activities?mode=mileage&weeks=12'),
+                ]);
+                const activitiesData = await activitiesResp.json();
+                const mileageData = await mileageResp.json();
                 if (activitiesResp.ok && activitiesData.activities) {
                     const acts = activitiesData.activities;
                     fullActivitiesLoaded = acts;

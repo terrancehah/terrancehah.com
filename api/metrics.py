@@ -11,8 +11,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_garmin_client, _get_session, create_app,
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
-    _compute_goal_pace_ms, _slim_activity, _compute_weekly_mileage,
-    ALLOWED_ACTIVITY_TYPES,
+    _get_cached_garmin_data, _compute_goal_pace_ms, _slim_activity,
+    _compute_weekly_mileage, ALLOWED_ACTIVITY_TYPES,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -257,11 +257,13 @@ async def metrics(token: str = ""):
     # they read from Redis instead of making their own Garmin calls.
     # The bundle now also caches the UI activity list and weekly mileage so
     # those endpoints serve from cache (0 extra logins / Garmin calls).
+    # Cache the UI activity list + weekly mileage FIRST, independently of the
+    # fragile physiological/AI fetches below. /activities and mode=mileage read
+    # these straight from the cache, so they must be present even when the AI
+    # payload fails — otherwise those endpoints log into Garmin themselves,
+    # which is exactly the concurrent-login race this ordering avoids.
+    goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
     try:
-        physio = _fetch_physio_trends(client, days=60)
-        goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
-        # Fetch the AI activities (with lap details for speedwork sessions)
-        ai_activities = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
         # Slim UI list — filtered to allowed activity types (running +
         # cross-training) so the activities page only shows relevant sports.
         # Goal pace is passed so each activity carries its run_tag (computed by
@@ -273,11 +275,25 @@ async def metrics(token: str = ""):
         ]
         weekly_mileage = _compute_weekly_mileage(client, weeks=12)
         _cache_garmin_data(token, {
-            "activities": ai_activities,
-            "physio": physio,
             "ui_activities": ui_activities,
             "weekly_mileage": weekly_mileage,
         })
+    except Exception:
+        # Best-effort — on failure /activities and mode=mileage fall back to
+        # fetching directly from Garmin.
+        pass
+
+    # Then fetch and cache the AI payload (physiological trends + lap-detailed
+    # activities) for ai-radar.py, merging into the entry written above.
+    # Best-effort: a failure here degrades the AI radar but must not clear the
+    # UI data already cached.
+    try:
+        physio = _fetch_physio_trends(client, days=60)
+        # Fetch the AI activities (with lap details for speedwork sessions)
+        ai_activities = _fetch_activities_for_ai(client, limit=30, goal_pace_ms=goal_pace_ms)
+        cached = _get_cached_garmin_data(token) or {}
+        cached.update({"activities": ai_activities, "physio": physio})
+        _cache_garmin_data(token, cached)
     except Exception:
         # Cache population is best-effort — if it fails, ai-radar.py will
         # fall back to fetching directly from Garmin

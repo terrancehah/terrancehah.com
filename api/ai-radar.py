@@ -180,7 +180,11 @@ async def ai_radar(token: str = "", force: str = ""):
     # Redis), we fall back to fetching directly from Garmin.
     cached = _get_cached_garmin_data(token)
 
-    if cached:
+    # Only treat the cache as a hit when it carries the AI payload. metrics.py
+    # now caches the UI activity list + weekly mileage first, independently of
+    # the fragile physio/AI fetches, so a partial entry must fall through to a
+    # direct Garmin fetch rather than feeding the AI an empty activity set.
+    if cached and cached.get("activities") is not None:
         activities_data = cached.get("activities", [])
         physio = cached.get("physio", {})
     else:
