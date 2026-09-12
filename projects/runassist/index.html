@@ -760,8 +760,10 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="rgd-auth-header">
-                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
-                    <span class="rgd-eyebrow">Garmin Connect</span>
+                    <div class="rgd-auth-brand">
+                        <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="" width="44" height="44">
+                        <span class="rgd-auth-brand-name">Pacey</span>
+                    </div>
                     <h2 class="rgd-auth-title">Connect your Garmin</h2>
                     <p class="rgd-auth-subtitle">
                         Connect your Garmin account to pull in your training data.
@@ -908,28 +910,45 @@
                     <p class="rgd-onboard-desc">A recent race tells us your current fitness, so training paces start from where you actually are — not just where you want to be.</p>
                 </div>
                 <form class="rgd-onboard-form" id="rgd-onboard-fitness-form" novalidate>
-                    <!-- Race result distance -->
+                    <!-- Race Type — same picker as the race goal form -->
                     <div class="rgd-field">
-                        <label for="rgd-fitness-distance" class="rgd-label">Race Distance <span class="rgd-required">*</span></label>
+                        <label for="rgd-fitness-distance" class="rgd-label">Race Type <span class="rgd-required">*</span></label>
                         <select id="rgd-fitness-distance" class="rgd-input rgd-select" required>
-                            <option value="" disabled selected>Select distance</option>
+                            <option value="" disabled selected>Select race type</option>
                             <option value="5K">5K</option>
                             <option value="10K">10K</option>
-                            <option value="15K">15K</option>
-                            <option value="21.1K">21.1K (Half Marathon)</option>
                             <option value="Half Marathon">Half Marathon</option>
                             <option value="Marathon">Marathon</option>
+                            <option value="Ultra Marathon">Ultra Marathon</option>
+                            <option value="Triathlon">Triathlon</option>
                         </select>
-                        <span class="rgd-field-error" hidden>Please select the race distance.</span>
+                        <span class="rgd-field-error" hidden>Please select a race type.</span>
                     </div>
 
-                    <!-- Race result time -->
+                    <!-- Race Time — duration picker H : M : S, same as the target time -->
                     <div class="rgd-field">
-                        <label for="rgd-fitness-race-time" class="rgd-label">Race Time <span class="rgd-required">*</span></label>
-                        <input type="text" id="rgd-fitness-race-time" class="rgd-input" placeholder="e.g. 48:00 or 1:48:00" required>
-                        <p class="rgd-hint">Minutes:seconds (e.g. 48:00) or hours:minutes:seconds (e.g. 1:48:00).</p>
+                        <label class="rgd-label">Race Time <span class="rgd-required">*</span></label>
+                        <div class="rgd-duration-picker" id="rgd-fitness-duration-picker">
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-fitness-time-h" class="rgd-input rgd-duration-input" placeholder="0" min="0" max="99" required>
+                                <span class="rgd-duration-label">hr</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-fitness-time-m" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">min</span>
+                            </div>
+                            <span class="rgd-duration-sep">:</span>
+                            <div class="rgd-duration-unit">
+                                <input type="number" id="rgd-fitness-time-s" class="rgd-input rgd-duration-input" placeholder="00" min="0" max="59" required>
+                                <span class="rgd-duration-label">sec</span>
+                            </div>
+                        </div>
                         <span class="rgd-field-error" hidden>Please enter your race time.</span>
                     </div>
+
+                    <!-- Live readout — turns the type + time into a plain sentence -->
+                    <p class="rgd-race-result-summary" id="rgd-fitness-summary" hidden></p>
 
                     <button type="submit" class="rgd-btn rgd-btn-primary" id="rgd-onboard-fitness-btn">
                         <span class="rgd-btn-text">Continue</span>
@@ -1641,17 +1660,18 @@
                     </button>
                 </div>
                 <form class="rgd-edit-goal-form" id="rgd-edit-goal-form" novalidate>
-                    <!-- Race Name — optional, shown in the goal specifics panel -->
+                    <!-- Race Name — required, shown in the goal specifics panel -->
                     <div class="rgd-field">
-                        <label for="rgd-edit-race-name" class="rgd-label">Race Name <span class="rgd-optional">(optional)</span></label>
-                        <input type="text" id="rgd-edit-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100">
+                        <label for="rgd-edit-race-name" class="rgd-label">Race Name <span class="rgd-required">*</span></label>
+                        <input type="text" id="rgd-edit-race-name" class="rgd-input" placeholder="e.g. Boston Marathon" maxlength="100" required>
+                        <span class="rgd-field-error" hidden>Please enter a race name.</span>
                     </div>
 
                     <!-- Race Type -->
                     <div class="rgd-field">
                         <label for="rgd-edit-purpose" class="rgd-label">Race Type <span class="rgd-required">*</span></label>
                         <select id="rgd-edit-purpose" class="rgd-input rgd-select" required>
-                            <option value="" disabled>Select race type</option>
+                            <option value="" disabled selected>Select race type</option>
                             <option value="5K">5K</option>
                             <option value="10K">10K</option>
                             <option value="Half Marathon">Half Marathon</option>
@@ -1692,7 +1712,6 @@
                                   title="An effective marathon block needs about 12 weeks (3 months) of training. Shorter blocks still work, but leave less room to build long runs and taper.">?</span>
                         </label>
                         <input type="date" id="rgd-edit-race-date" class="rgd-input" required>
-                        <p class="rgd-hint">Most effective training blocks run 12+ weeks (about 3 months). Shorter blocks work too — your plan adapts.</p>
                         <span class="rgd-field-error" hidden>Please select a race date.</span>
                     </div>
 
@@ -1707,23 +1726,6 @@
                             </select>
                         </div>
                         <span class="rgd-field-error" hidden>Please enter your weekly mileage.</span>
-                    </div>
-
-                    <!-- Latest Race Result (optional) — same as onboarding -->
-                    <div class="rgd-field">
-                        <label class="rgd-label">Latest Race Result <span class="rgd-optional">(optional)</span></label>
-                        <div class="rgd-mileage-row">
-                            <input type="text" id="rgd-edit-fitness-race-distance" class="rgd-input" placeholder="e.g. 10K" list="rgd-edit-fitness-distances">
-                            <input type="text" id="rgd-edit-fitness-race-time" class="rgd-input" placeholder="e.g. 48:00">
-                        </div>
-                        <datalist id="rgd-edit-fitness-distances">
-                            <option value="5K"></option>
-                            <option value="10K"></option>
-                            <option value="15K"></option>
-                            <option value="21.1K"></option>
-                            <option value="Half Marathon"></option>
-                            <option value="Marathon"></option>
-                        </datalist>
                     </div>
 
                     <!-- Gender + Age -->

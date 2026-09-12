@@ -429,3 +429,90 @@
 #rgd-edit-goal-popup .rgd-modal-close:hover,
 #rgd-goal-reminder-popup .rgd-modal-close:hover,
 #rgd-workout-sheet .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+
+/* =====================================================================
+   ONBOARDING / AUTH FINISHING PASS
+   ===================================================================== */
+
+/* Brand lockup on the login card: Pacey mark + wordmark, no eyebrow pill */
+.rgd-auth-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+.rgd-auth-brand .rgd-card-logo { margin-bottom: 0; width: 44px; height: 44px; }
+.rgd-auth-brand-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--pinboard-ink);
+}
+
+/* iOS zooms the whole page when a focused field is under 16px. Pin every
+   form control to 1rem so tapping email/password/number never zooms. */
+.rgd-input,
+.rgd-select,
+.rgd-duration-input { font-size: 1rem; }
+
+/* Onboarding cards join the pinned-paper family */
+#rgd-onboarding-screen .rgd-onboard-card,
+#rgd-onboarding-fitness-screen .rgd-onboard-card,
+#rgd-onboarding-plan-screen .rgd-onboard-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-bg: var(--pinboard-paper-2);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+/* Onboarding headings + copy in the handwriting faces */
+.rgd-onboard-title { font-family: var(--font-caveat); font-weight: 700; letter-spacing: 0; }
+.rgd-onboard-card .rgd-onboard-subtitle,
+.rgd-onboard-card .rgd-onboard-desc,
+.rgd-onboard-card .rgd-label,
+.rgd-onboard-card .rgd-hint,
+.rgd-onboard-card .rgd-field-error,
+.rgd-onboard-card .rgd-eyebrow { font-family: var(--font-fuzzy); }
+
+/* Larger titles on the welcome-back and edit-goal cards */
+#rgd-goal-reminder-popup .rgd-goal-reminder-title,
+#rgd-edit-goal-popup .rgd-edit-goal-title { font-size: 1.5rem; }
+#rgd-goal-reminder-popup .rgd-goal-reminder-intro,
+#rgd-goal-reminder-popup .rgd-goal-reminder-summary-row,
+#rgd-goal-reminder-popup .rgd-goal-reminder-question { font-family: var(--font-fuzzy); }
+
+/* Race goal modal: no internal vertical scroll, and a tighter rhythm so the
+   form fits even a small phone viewport (down to ~667px) without one. */
+#rgd-edit-goal-popup .rgd-edit-goal-card { max-height: none; overflow-y: visible; }
+#rgd-edit-goal-popup .rgd-edit-goal-form { padding: 0.7rem; gap: 0.45rem; }
+#rgd-edit-goal-popup .rgd-edit-goal-header { padding: 0.6rem 0.8rem; }
+#rgd-edit-goal-popup .rgd-input { padding: 0.5em 0.7em; }
+#rgd-edit-goal-popup .rgd-label { line-height: 1.2; }
+#rgd-edit-goal-popup .rgd-btn { padding: 0.55rem 1rem; }
+
+/* Live sentence under the race-result inputs */
+.rgd-race-result-summary {
+    margin: 0;
+    padding: 0.7rem 0.85rem;
+    background: var(--pinboard-note-blue);
+    border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
+    font-family: var(--font-fuzzy);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--pinboard-ink);
+}

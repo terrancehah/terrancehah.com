@@ -930,6 +930,62 @@ document.addEventListener('DOMContentLoaded', function () {
         finally { setButtonLoading(onboardBtn, false); }
     });
 
+    // ---- Latest race result helpers -------------------------------------
+    // Race type -> distance in km, used only for the pace readout. Types
+    // without a fixed distance (Ultra, Triathlon) are absent, so the pace
+    // clause is dropped and we just state the time.
+    const RACE_TYPE_KM = { '5K': 5, '10K': 10, 'Half Marathon': 21.0975, 'Marathon': 42.195 };
+
+    // Read the H/M/S duration picker into a total-second count.
+    function readDurationSeconds(hId, mId, sId) {
+        const h = parseInt($(hId).value, 10) || 0;
+        const m = parseInt($(mId).value, 10) || 0;
+        const s = parseInt($(sId).value, 10) || 0;
+        return h * 3600 + m * 60 + s;
+    }
+
+    // Format total seconds as "H:MM:SS" (or "MM:SS" under an hour). Named
+    // distinctly because an existing formatDuration(minutes) lives further
+    // down the same scope and would otherwise win via hoisting.
+    function formatRaceTime(totalSec) {
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        const pad = n => String(n).padStart(2, '0');
+        return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+    }
+
+    // Format a per-km pace from total seconds and a distance in km.
+    function formatPacePerKm(totalSec, km) {
+        const secPerKm = Math.round(totalSec / km);
+        let m = Math.floor(secPerKm / 60);
+        let s = secPerKm % 60;
+        if (s === 60) { m += 1; s = 0; }
+        return `${m}:${String(s).padStart(2, '0')}/km`;
+    }
+
+    // Live sentence under the race-result inputs, e.g.
+    // "You completed your latest race of Half Marathon in 1:48:00, which
+    //  converts to 5:07/km pace."
+    function updateFitnessSummary() {
+        const el = $('#rgd-fitness-summary');
+        if (!el) return;
+        const type = $('#rgd-fitness-distance').value;
+        const totalSec = readDurationSeconds('#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s');
+        if (!type || !totalSec) { el.hidden = true; el.textContent = ''; return; }
+        const time = formatRaceTime(totalSec);
+        const km = RACE_TYPE_KM[type];
+        el.textContent = km
+            ? `You completed your latest race of ${type} in ${time}, which converts to ${formatPacePerKm(totalSec, km)} pace.`
+            : `You completed your latest race of ${type} in ${time}.`;
+        el.hidden = false;
+    }
+
+    ['#rgd-fitness-distance', '#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s'].forEach(sel => {
+        const el = $(sel);
+        if (el) { el.addEventListener('input', updateFitnessSummary); el.addEventListener('change', updateFitnessSummary); }
+    });
+
     // Step 3 — latest race result (current fitness anchor). Saves the full
     // goal with the fitness fields, then proceeds to planning preferences.
     onboardFitnessForm.addEventListener('submit', async (e) => {
@@ -937,26 +993,27 @@ document.addEventListener('DOMContentLoaded', function () {
         $$('.rgd-input.error').forEach(el => el.classList.remove('error'));
         $$('.rgd-field-error').forEach(el => el.hidden = true);
 
-        const required = [
-            { id: 'rgd-fitness-distance', val: $('#rgd-fitness-distance').value },
-            { id: 'rgd-fitness-race-time', val: $('#rgd-fitness-race-time').value.trim() },
+        const raceType = $('#rgd-fitness-distance').value;
+        const totalSec = readDurationSeconds('#rgd-fitness-time-h', '#rgd-fitness-time-m', '#rgd-fitness-time-s');
+        // A race type and a non-zero time are both required.
+        const checks = [
+            { el: $('#rgd-fitness-distance'), bad: !raceType },
+            { el: $('#rgd-fitness-time-m'), bad: !totalSec },
         ];
         let hasError = false;
-        for (const f of required) {
-            if (!f.val) {
-                const el = document.getElementById(f.id);
-                if (el) el.classList.add('error');
-                const fg = el && el.closest('.rgd-field');
-                if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
-                hasError = true;
-            }
+        for (const c of checks) {
+            if (!c.bad) continue;
+            if (c.el) c.el.classList.add('error');
+            const fg = c.el && c.el.closest('.rgd-field');
+            if (fg) { const er = fg.querySelector('.rgd-field-error'); if (er) er.hidden = false; }
+            hasError = true;
         }
         if (hasError) return;
 
         setButtonLoading(onboardFitnessBtn, true);
         const body = buildOnboardingBody();
-        body.fitness_race_distance = $('#rgd-fitness-distance').value;
-        body.fitness_race_time = $('#rgd-fitness-race-time').value.trim();
+        body.fitness_race_distance = raceType;
+        body.fitness_race_time = formatRaceTime(totalSec);
         try {
             const resp = await apiCall('POST', 'onboarding', body, true);
             const data = await resp.json();
@@ -4024,8 +4081,6 @@ document.addEventListener('DOMContentLoaded', function () {
             $('#rgd-edit-race-date').value = raceGoal.race_date || '';
             $('#rgd-edit-mileage').value = raceGoal.weekly_mileage || '';
             $('#rgd-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
-            $('#rgd-edit-fitness-race-distance').value = raceGoal.fitness_race_distance || '';
-            $('#rgd-edit-fitness-race-time').value = raceGoal.fitness_race_time || '';
             $('#rgd-edit-gender').value = raceGoal.gender || '';
             $('#rgd-edit-age').value = raceGoal.age || '';
         }
@@ -4099,8 +4154,10 @@ document.addEventListener('DOMContentLoaded', function () {
             race_date: $('#rgd-edit-race-date').value,
             weekly_mileage: $('#rgd-edit-mileage').value,
             mileage_unit: $('#rgd-edit-mileage-unit').value,
-            fitness_race_distance: $('#rgd-edit-fitness-race-distance').value.trim(),
-            fitness_race_time: $('#rgd-edit-fitness-race-time').value.trim(),
+            // The latest race result now lives in its own onboarding step, so
+            // carry the stored values through unchanged when editing the goal.
+            fitness_race_distance: (raceGoal && raceGoal.fitness_race_distance) || '',
+            fitness_race_time: (raceGoal && raceGoal.fitness_race_time) || '',
             gender: $('#rgd-edit-gender').value,
             age: $('#rgd-edit-age').value,
         };
