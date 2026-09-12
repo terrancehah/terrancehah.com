@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const onboardPlanScreen = $('#pacey-onboarding-plan-screen');
     const dashboardScreen = $('#pacey-dashboard-screen');
     const overlay = $('#pacey-overlay');
-    const overlayText = $('#pacey-overlay-text');
+    const overlayStroke = $('#pacey-overlay-stroke');
 
     // Login
     const loginForm = $('#pacey-login-form');
@@ -133,9 +133,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return resp;
     }
 
-    // Rotating loading messages — cycles through motivational phrases while data loads.
-    // The overlay text is wrapped in a .pacey-shimmer-text span so the shimmer
-    // animation persists even as the text content rotates.
+    // Rotating loading messages — the overlay shows a hand-drawn SVG for each
+    // phrase (generated with Tegaki from the app's Caveat face) and swaps to
+    // the next every 4 seconds. Each SVG strokes itself on in ~3.6s.
     const LOADING_MESSAGES = [
         'Loading your training data…',
         'Crunching the numbers…',
@@ -144,28 +144,29 @@ document.addEventListener('DOMContentLoaded', function () {
         'Preparing your dashboard…',
         'Syncing with Garmin…',
     ];
+    const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/loading-${i + 1}.svg`);
     let loadingMsgTimer = null;
 
-    // Update the shimmer text inside the overlay — preserves the span element
-    // so the CSS animation isn't interrupted on each message rotation.
-    function setOverlayText(text) {
-        const shimmer = overlayText.querySelector('.pacey-shimmer-text');
-        if (shimmer) {
-            shimmer.textContent = text;
-        } else {
-            overlayText.innerHTML = `<span class="pacey-shimmer-text">${escapeHtml(text)}</span>`;
-        }
+    // Swap the hand-drawn overlay SVG. Changing src restarts the stroke
+    // animation, so each phrase draws itself from the start.
+    function setOverlayStroke(index) {
+        if (!overlayStroke) return;
+        const i = index % LOADING_STROKES.length;
+        const src = LOADING_STROKES[i];
+        if (overlayStroke.getAttribute('src') === src) return;
+        overlayStroke.setAttribute('src', src);
+        overlayStroke.setAttribute('alt', LOADING_MESSAGES[i].replace('…', ''));
     }
 
-    function showOverlay(text) {
-        setOverlayText(text);
+    function showOverlay() {
         overlay.hidden = false;
-        // Start rotating through messages every 4 seconds
+        // Start rotating through the hand-drawn phrases every 4 seconds
         let idx = 0;
+        setOverlayStroke(idx);
         if (loadingMsgTimer) clearInterval(loadingMsgTimer);
         loadingMsgTimer = setInterval(() => {
-            idx = (idx + 1) % LOADING_MESSAGES.length;
-            setOverlayText(LOADING_MESSAGES[idx]);
+            idx = (idx + 1) % LOADING_STROKES.length;
+            setOverlayStroke(idx);
         }, 4000);
     }
 
@@ -406,7 +407,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (window.scrollY > 4) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
-                window.location.reload();
+                // Play the refresh animation before reloading so the refresh
+                // reads as deliberate instead of a white blink.
+                playRefreshAnimation(() => window.location.reload());
             }
         });
     });
@@ -419,6 +422,37 @@ document.addEventListener('DOMContentLoaded', function () {
     // keeps its own native mechanisms, so the pull gesture is standalone-only.
     const isStandalone = window.navigator.standalone === true
         || window.matchMedia('(display-mode: standalone)').matches;
+
+    // --- Refresh animation ---
+    // A quick "pull down and spring back" dip of the page CONTENT (not the
+    // fixed chrome — the tab bar and FAB stay put, like Safari's pull), so a
+    // refresh reads as deliberate. The callback (a reload) fires once the
+    // spring-back settles.
+    const refreshSurface = $('#pacey-content') || document.documentElement;
+
+    // Spinner shown while a refresh is in flight (tab re-tap) or while the
+    // page is pulled past the trigger point (standalone gesture).
+    const refreshSpinner = document.createElement('div');
+    refreshSpinner.className = 'pacey-refresh-spinner';
+    refreshSpinner.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(refreshSpinner);
+    const showRefreshSpinner = (on) =>
+        refreshSpinner.classList.toggle('pacey-refresh-spinner--visible', on);
+
+    let refreshAnimating = false;
+    function playRefreshAnimation(done) {
+        if (refreshAnimating) return;
+        refreshAnimating = true;
+        showRefreshSpinner(true);
+        refreshSurface.style.transition = 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)';
+        refreshSurface.style.transform = 'translateY(56px)';
+        setTimeout(() => {
+            refreshSurface.style.transition = 'transform 0.22s ease-out';
+            refreshSurface.style.transform = 'translateY(0)';
+            // Leave the spinner up through the reload so it covers the swap.
+            setTimeout(done, 220);
+        }, 300);
+    }
 
     // --- Pull-to-refresh (standalone only) ---
     // A rubber-band pull at the top of the page, matching how Safari feels:
@@ -437,9 +471,13 @@ document.addEventListener('DOMContentLoaded', function () {
             pullActive = false;
             pullDistance = 0;
             // Spring back, then reload so the animation isn't cut short.
-            document.documentElement.style.transition = 'transform 0.25s ease-out';
-            document.documentElement.style.transform = 'translateY(0)';
-            if (shouldReload) setTimeout(() => window.location.reload(), 260);
+            refreshSurface.style.transition = 'transform 0.25s ease-out';
+            refreshSurface.style.transform = 'translateY(0)';
+            if (shouldReload) {
+                setTimeout(() => window.location.reload(), 260);
+            } else {
+                showRefreshSpinner(false);
+            }
         };
 
         window.addEventListener('touchstart', (e) => {
@@ -460,8 +498,10 @@ document.addEventListener('DOMContentLoaded', function () {
             pullActive = true;
             // Damped so the drag gets progressively harder, like Safari's.
             pullDistance = Math.min(PULL_MAX_PX, Math.pow(dy, 0.85));
-            document.documentElement.style.transition = 'none';
-            document.documentElement.style.transform = `translateY(${pullDistance}px)`;
+            // Spin once the pull is past the point that will trigger a reload.
+            showRefreshSpinner(pullDistance >= PULL_TRIGGER_PX);
+            refreshSurface.style.transition = 'none';
+            refreshSurface.style.transform = `translateY(${pullDistance}px)`;
             if (e.cancelable) e.preventDefault();
         }, { passive: false });
 
@@ -1317,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Hide pillars content until real AI data arrives
         pillarsContents.forEach(el => el.hidden = true);
 
-        showOverlay('Loading your training data...');
+        showOverlay();
 
         // Stale-while-revalidate: render cached metrics + mileage instantly
         // so the dashboard appears without waiting for the API round-trip.
@@ -2115,7 +2155,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         backgroundColor: chartSurface,
                         titleColor: chartText,
                         bodyColor: chartText,
-                        borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
+                        borderColor: chartIsDark ? '#4a4034' : '#ddd0b6',
                         borderWidth: 1,
                         titleFont: { family: chartFonts.heading, size: 12 },
                         bodyFont: { family: chartFonts.body, size: 14 },
@@ -2124,7 +2164,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         // of chart type (bar, scatter, etc.)
                         displayColors: false,
                         padding: 8,
-                        cornerRadius: 6,
+                        cornerRadius: 3,
                         callbacks: {
                             // Show the full week date range (Monday – Sunday) in the tooltip title
                             title: (ctx) => {
@@ -2778,13 +2818,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         backgroundColor: chartSurface,
                         titleColor: chartText,
                         bodyColor: chartText,
-                        borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
+                        borderColor: chartIsDark ? '#4a4034' : '#ddd0b6',
                         borderWidth: 1,
                         titleFont: { family: chartFonts.heading, size: 12 },
                         bodyFont: { family: chartFonts.body, size: 14 },
                         displayColors: false,
                         padding: 8,
-                        cornerRadius: 6,
+                        cornerRadius: 3,
                         callbacks: {
                             label: (ctx) => {
                                 const b = bucketData[ctx.dataIndex];
@@ -2898,13 +2938,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         backgroundColor: chartSurface,
                         titleColor: chartText,
                         bodyColor: chartText,
-                        borderColor: chartIsDark ? '#2a3f56' : '#dce8f2',
+                        borderColor: chartIsDark ? '#4a4034' : '#ddd0b6',
                         borderWidth: 1,
                         titleFont: { family: chartFonts.heading, size: 12 },
                         bodyFont: { family: chartFonts.body, size: 14 },
                         displayColors: false,
                         padding: 8,
-                        cornerRadius: 6,
+                        cornerRadius: 3,
                         callbacks: {
                             label: (ctx) => {
                                 const p = scatterData[ctx.dataIndex];

@@ -121,6 +121,10 @@
         background-blend-mode: soft-light, multiply;
     }
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-content { background: transparent; }
+    /* With the dashboard up the page canvas is the cork board, not white, so
+       a refresh doesn't blink white between unload and first paint. */
+    html:has(#pacey-dashboard-screen:not([hidden])),
+    html:has(#pacey-dashboard-screen:not([hidden])) body { background-color: var(--pinboard-cork); }
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar {
         background-color: var(--pinboard-cork-edge);
         background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
@@ -199,6 +203,20 @@
             stroke-dashoffset: 0;
         }
     }
+
+    /* Hand-placed look: each floating-tab button sits at its own slight angle,
+       so the row reads as stuck on by hand rather than machine-aligned. */
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item {
+        transform: rotate(var(--tab-tilt, 0deg));
+    }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:active {
+        transform: rotate(var(--tab-tilt, 0deg)) scale(0.92);
+    }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:nth-child(2) { --tab-tilt: -3deg; }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:nth-child(3) { --tab-tilt: 2.5deg; }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:nth-child(4) { --tab-tilt: -2deg; }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:nth-child(5) { --tab-tilt: 3deg; }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar .pacey-tab-item:nth-child(6) { --tab-tilt: -1.5deg; }
 
     /* Chart fonts — inherited by the canvases inside the overview. Kept as
        literal stacks (not var() refs) because Chart.js reads them at runtime. */
@@ -1587,7 +1605,11 @@
         <!-- ========== LOADING OVERLAY ========== -->
         <div class="pacey-overlay" id="pacey-overlay" hidden>
             <div class="pacey-overlay-content">
-                <p class="pacey-overlay-text" id="pacey-overlay-text"><span class="pacey-shimmer-text">Loading...</span></p>
+                <!-- Hand-drawn loading phrase. Each SVG is generated with Tegaki
+                     from the app's Caveat face and strokes itself on; JS swaps
+                     the src to rotate through the phrases. -->
+                <img class="pacey-overlay-stroke" id="pacey-overlay-stroke"
+                     src="/projects/pacey/loading-1.svg" alt="Loading your training data" width="1053" height="104">
             </div>
         </div>
 

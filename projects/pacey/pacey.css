@@ -766,7 +766,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     backdrop-filter: blur(24px) saturate(180%) brightness(1.1);
     -webkit-backdrop-filter: blur(24px) saturate(180%) brightness(1.1);
     border: 0.0625rem solid rgba(255, 255, 255, 0.25);
-    border-radius: 1.5rem;
+    border-radius: 0.5rem;
     box-shadow:
         0 0.5rem 2rem rgba(29, 53, 87, 0.18),
         /* Refractive rim: strong top highlight, softer on the other edges */

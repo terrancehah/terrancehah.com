@@ -112,11 +112,11 @@
 .pacey-btn-danger { color: #a83b3b; background: rgba(168, 59, 59, 0.12); }
 .pacey-btn-danger:hover { background: rgba(168, 59, 59, 0.2); }
 
-/* --- Chat FAB — a small cork note pinned to the board ---------------- */
+/* --- Chat FAB — a small dark-brown note pinned to the board ---------- */
 .pacey-chat-fab {
-    background-color: var(--pinboard-cork-edge);
-    color: #2b2620;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    background-color: #4a3728;
+    color: #f1ede4;
+    border: 1px solid rgba(0, 0, 0, 0.2);
     border-radius: 3% 6% 2% 4% / 36% 32% 38% 30%;
     /* Nudge the icon down so the pin above it doesn't crowd the glyph */
     padding-top: 0.3rem;
@@ -139,13 +139,16 @@
     z-index: 2;
 }
 .pacey-chat-fab:hover {
-    color: #10201a;
+    color: #ffffff;
     box-shadow: var(--pinboard-shadow-hover);
     transform: rotate(-1deg) translateY(-0.15rem);
 }
 .pacey-chat-fab:active { transform: rotate(-4deg) scale(0.94); }
-/* The cork tone flips with the theme, so the icon flips with it */
+/* Keep the dark-brown note in dark mode too — this rule must re-declare the
+   background, otherwise the base [data-theme="dark"] .pacey-chat-fab rule
+   (higher specificity) wins and the FAB falls back to the navy surface. */
 [data-theme="dark"] .pacey-chat-fab {
+    background-color: #4a3728;
     color: #f1ede4;
     border-color: rgba(255, 255, 255, 0.14);
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.3), 0 0.5rem 0.85rem rgba(0, 0, 0, 0.45);
@@ -536,7 +539,7 @@
     background-repeat: repeat;
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
     box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
-    padding: 1.6rem 2.2rem 1.4rem;
+    padding: 1.5rem 1.15rem 1.25rem;
     gap: 0.4rem;
 }
 /* Pushpin holding the sheet */
@@ -553,16 +556,89 @@
     box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4);
     z-index: 2;
 }
-.pacey-overlay-text {
-    margin: 0.5rem 0 0;
-    font-family: var(--font-caveat);
-    font-weight: 700;
-    font-size: 1.5rem;
-    color: var(--pinboard-ink);
+/* Hand-drawn loading phrase — a self-stroking SVG (Tegaki, Caveat). The note
+   is paper in both themes, so the fixed dark-ink stroke reads either way. */
+.pacey-overlay-stroke {
+    display: block;
+    width: min(80vw, 24rem);
+    height: auto;
+    margin: 0.55rem 0 0;
 }
-/* Keep the shimmer sweep, but in ink tones so it reads on the paper in
-   both themes (the sheet stays light). */
+/* The overlay no longer uses the shimmer text, but the class is still used by
+   other inline loading placeholders — keep the ink-toned override. */
 .pacey-shimmer-text {
     --pacey-shimmer-base: var(--pinboard-muted);
     --pacey-shimmer-sweep: var(--pinboard-ink);
+}
+
+/* =====================================================================
+   CHART / CALENDAR TOOLTIPS — small paper notes
+   The radar tooltip (overview + readiness) and the calendar day tooltip are
+   DOM elements appended to <body>, so they sit outside #pacey-content and
+   were still using the old white/navy surface. Give them the paper treatment
+   and re-map the tokens so their text stays dark on the light note.
+   ===================================================================== */
+.pacey-radar-tooltip,
+.pacey-chart-tooltip {
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
+    box-shadow: var(--pinboard-shadow);
+    --pacey-surface: var(--pinboard-paper);
+    --pacey-text: var(--pinboard-ink);
+    --pacey-navy: var(--pinboard-ink);
+    --pacey-muted: var(--pinboard-muted);
+    --pacey-border: var(--pinboard-line);
+    --pacey-blue: #2a5169;
+    color: var(--pinboard-ink);
+}
+/* Radar tooltip — dimension name as a handwritten link, score beneath */
+.pacey-radar-tooltip-link {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #2a5169;
+}
+.pacey-radar-tooltip-link::after { color: #2a5169; opacity: 0.75; }
+.pacey-radar-tooltip-link:hover { color: #1d3c50; }
+.pacey-radar-tooltip-score { font-family: var(--font-fuzzy); color: var(--pinboard-ink); }
+/* Calendar day tooltip */
+.pacey-calendar-tooltip-date {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    color: var(--pinboard-ink);
+}
+.pacey-calendar-tooltip-run-name { font-family: var(--font-fuzzy); color: var(--pinboard-ink); }
+.pacey-calendar-tooltip-run-meta { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+
+/* =====================================================================
+   REFRESH SPINNER — shown at the top of the board while a refresh is
+   running (tab re-tap) or while the page is pulled down (standalone).
+   A rust arc on a faint track, on-brand with the sketched underline.
+   ===================================================================== */
+.pacey-refresh-spinner {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 0.85rem);
+    left: 50%;
+    width: 2.1rem;
+    height: 2.1rem;
+    margin-left: -1.05rem;
+    border-radius: 50%;
+    border: 0.2rem solid rgba(43, 38, 32, 0.16);
+    border-top-color: #b6503a;
+    border-right-color: #b6503a;
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+    pointer-events: none;
+    z-index: 500;
+    animation: pacey-refresh-spin 0.7s linear infinite;
+}
+.pacey-refresh-spinner--visible { opacity: 1; }
+[data-theme="dark"] .pacey-refresh-spinner { border-color: rgba(241, 237, 228, 0.2); border-top-color: #e0895f; border-right-color: #e0895f; }
+@keyframes pacey-refresh-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .pacey-refresh-spinner { animation-duration: 1.4s; }
 }
