@@ -389,6 +389,11 @@
     #pacey-content .pacey-overall-insight-takeaway--gap .pacey-overall-insight-takeaway-name {
         position: relative;
         display: inline-block;
+        /* The takeaway is a column flex container, so a flex item would stretch
+           to the full card width and the ring would circle the whole row.
+           align-self + fit-content keep it hugging just the text. */
+        align-self: flex-start;
+        width: fit-content;
         padding: 0 0.25rem;
     }
     #pacey-content .pacey-overall-insight-takeaway--gap .pacey-overall-insight-takeaway-name::after {
