@@ -273,6 +273,19 @@ def _get_garmin_client(token: str) -> Garmin:
             # rejected/expired, login() raises and the user re-logs in.
             client = Garmin(email)
             client.login(tokenstore=tokens_json)
+            # Persist the rotated token bundle. garminconnect refreshes AND
+            # rotates the DI refresh token on login, but only writes it back
+            # when it was given a file path — we pass inline JSON, so without
+            # this the stored refresh token would go stale and every later
+            # request would fail re-auth. Best-effort, and only written when
+            # it actually changed (avoids a Redis write on every request).
+            try:
+                refreshed = client.client.dumps()
+                if refreshed and refreshed != tokens_json:
+                    sess["tokens"] = refreshed
+                    _save_session(token, sess)
+            except Exception:
+                pass
             return client
         if password:
             # Legacy session (created before OAuth token storage)
@@ -285,6 +298,25 @@ def _get_garmin_client(token: str) -> Garmin:
         )
     except HTTPException:
         raise
+    except GarminConnectTooManyRequestsError:
+        # Garmin is rate-limiting — a TRANSIENT condition, not an auth
+        # failure. Surface 429 so callers can retry instead of prompting the
+        # runner to log in again.
+        raise HTTPException(
+            status_code=429,
+            detail="Garmin is temporarily rate-limiting requests. Please try again shortly."
+        )
+    except GarminConnectConnectionError:
+        # Network / Garmin-side outage — also transient, not an auth failure.
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach Garmin. Please try again shortly."
+        )
+    except GarminConnectAuthenticationError:
+        raise HTTPException(
+            status_code=401,
+            detail="Garmin re-authentication failed. Please log in again."
+        )
     except Exception:
         raise HTTPException(
             status_code=401,
