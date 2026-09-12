@@ -1645,7 +1645,7 @@ header.rgd-header-offset.rgd-header-collapsed {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 18vw, 10rem), 1fr));
     /* Increased gap for better visual breathing room between tiles */
-    gap: clamp(0.75rem, 1.5vw, 1rem);
+    gap: clamp(1rem, 1.5vw, 1.25rem);
 }
 
 .rgd-metric-tile {
@@ -2636,7 +2636,7 @@ header.rgd-header-offset.rgd-header-collapsed {
 .rgd-pillar-view-details {
     font-family: 'Lato', sans-serif;
     font-weight: 600;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     color: var(--rgd-blue);
     margin-top: auto;
     padding-top: 0.25rem;

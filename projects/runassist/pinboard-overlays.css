@@ -259,3 +259,173 @@
 #rgd-metric-popup .rgd-gauge-legend-dot { border-radius: 3px; }
 #rgd-metric-popup .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
 #rgd-metric-popup .rgd-modal-close:hover { color: var(--pinboard-ink); background: rgba(255, 255, 255, 0.45); }
+
+/* =====================================================================
+   INFO MODALS — "How scores work" + the six-areas explainer
+   These are explanatory sheets rather than metric cards, so they get the
+   cream paper treatment with a blue pushpin (the metric modal above keeps
+   its blue post-it). Scoped per-modal so nothing else shifts.
+   ===================================================================== */
+#rgd-score-modal .rgd-metric-popup-card,
+#rgd-dimension-modal .rgd-metric-popup-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-metric-popup-card::before,
+#rgd-dimension-modal .rgd-metric-popup-card::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #a7c9e6 0%, var(--pinboard-pin-blue) 58%, #17365a 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+#rgd-score-modal .rgd-metric-popup-header,
+#rgd-dimension-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
+#rgd-score-modal .rgd-metric-popup-title,
+#rgd-dimension-modal .rgd-metric-popup-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-metric-popup-icon,
+#rgd-dimension-modal .rgd-metric-popup-icon { color: #2a5169; }
+#rgd-score-modal .rgd-metric-popup-explanation,
+#rgd-dimension-modal .rgd-metric-popup-explanation {
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+#rgd-score-modal .rgd-modal-close,
+#rgd-dimension-modal .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#rgd-score-modal .rgd-modal-close:hover,
+#rgd-dimension-modal .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+
+/* Score tiers — the range in Caveat, the description in Fuzzy */
+#rgd-score-modal .rgd-score-tier { font-family: var(--font-fuzzy); }
+#rgd-score-modal .rgd-score-tier-range {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--pinboard-ink);
+}
+#rgd-score-modal .rgd-score-tier-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+
+/* Six-areas explainer rows */
+#rgd-dimension-modal .rgd-dimension-explainer-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--pinboard-ink);
+}
+#rgd-dimension-modal .rgd-dimension-explainer-desc { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+/* Drop the coloured dot beside each area name — the label carries it */
+#rgd-dimension-modal .rgd-dimension-explainer-dot { display: none; }
+
+/* =====================================================================
+   REMAINING MODALS + SHEETS — same pinned-paper language so the whole app
+   is consistent. Form modals also get a paper input fill via --rgd-bg.
+   ===================================================================== */
+#rgd-plan-prefs-modal .rgd-metric-popup-card,
+#rgd-edit-goal-popup .rgd-edit-goal-card,
+#rgd-goal-reminder-popup .rgd-goal-reminder-card,
+#rgd-workout-sheet .rgd-workout-sheet,
+#rgd-login-modal .rgd-auth-card {
+    position: relative;
+    background-color: var(--pinboard-paper);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    border: none;
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    /* Paper-context palette (the sheet stays light in both themes) */
+    --rgd-surface: var(--pinboard-paper);
+    --rgd-bg: var(--pinboard-paper-2);
+    --rgd-text: var(--pinboard-ink);
+    --rgd-navy: var(--pinboard-ink);
+    --rgd-border: var(--pinboard-line);
+    --rgd-muted: var(--pinboard-muted);
+    --rgd-light: var(--pinboard-paper-2);
+    --rgd-blue: #2a5169;
+    --rgd-accent-green: #2f6a3f;
+    --rgd-accent-amber: #7a5810;
+    --rgd-accent-red: #a83b3b;
+    --rgd-btn-primary-text: #ffffff;
+    color: var(--pinboard-ink);
+}
+/* Pushpin on each sheet */
+#rgd-plan-prefs-modal .rgd-metric-popup-card::before,
+#rgd-edit-goal-popup .rgd-edit-goal-card::before,
+#rgd-goal-reminder-popup .rgd-goal-reminder-card::before,
+#rgd-workout-sheet .rgd-workout-sheet::before,
+#rgd-login-modal .rgd-auth-card::before {
+    content: "";
+    position: absolute;
+    top: 0.6rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-left: -0.4rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    z-index: 4;
+}
+/* Headings on those sheets use the handwriting faces */
+#rgd-edit-goal-popup .rgd-edit-goal-title,
+#rgd-goal-reminder-popup .rgd-goal-reminder-title,
+#rgd-plan-prefs-modal .rgd-metric-popup-title,
+#rgd-login-modal .rgd-auth-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-plan-prefs-modal .rgd-metric-popup-header { margin-top: 0.35rem; }
+#rgd-plan-prefs-modal .rgd-metric-popup-icon { color: #2a5169; }
+/* Labels and copy in Fuzzy */
+#rgd-plan-prefs-modal .rgd-plan-pref-label,
+#rgd-edit-goal-popup .rgd-label,
+#rgd-login-modal .rgd-label,
+#rgd-goal-reminder-popup .rgd-goal-reminder-body,
+#rgd-workout-sheet .rgd-sheet-description { font-family: var(--font-fuzzy); }
+/* Workout sheet heading + section labels */
+#rgd-workout-sheet .rgd-sheet-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    letter-spacing: 0;
+    color: var(--pinboard-ink);
+}
+#rgd-workout-sheet .rgd-sheet-section-title { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }
+/* Close buttons */
+#rgd-plan-prefs-modal .rgd-modal-close,
+#rgd-edit-goal-popup .rgd-modal-close,
+#rgd-goal-reminder-popup .rgd-modal-close,
+#rgd-workout-sheet .rgd-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#rgd-plan-prefs-modal .rgd-modal-close:hover,
+#rgd-edit-goal-popup .rgd-modal-close:hover,
+#rgd-goal-reminder-popup .rgd-modal-close:hover,
+#rgd-workout-sheet .rgd-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
