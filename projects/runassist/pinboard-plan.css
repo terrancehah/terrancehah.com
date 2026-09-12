@@ -78,26 +78,26 @@
    the page rather than a second sheet. Toggle label is a heading
    (Caveat); the pace summary/range are numbers and stay in the app sans.
    --------------------------------------------------------------------- */
+/* A sticky note rather than a dashed index card: flat blue post-it with
+   the usual soft note shadow and a slight tilt. */
 #rgd-content .rgd-plan-fitness {
-    background-color: var(--pinboard-paper-2);
-    background-image: var(--pinboard-paper-noise);
-    background-size: 140px 140px;
-    background-repeat: repeat;
-    border: 1px dashed var(--pinboard-line);
-    border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
+    background-color: var(--pinboard-note-blue);
+    background-image: none;
+    border: none;
+    border-radius: 2px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
+    transform: rotate(-0.25deg);
 }
 
-/* Toggle header strip: lighter than the drawer body so it reads as a
-   header. The app's --rgd-light resolves to paper-2, which is the drawer
-   fill, so pin it to the lighter paper for contrast. */
+/* The toggle header blends into the note so the whole drawer reads as one
+   post-it, with just a hairline under the header. */
 #rgd-content .rgd-plan-fitness-toggle {
     font-family: var(--font-fuzzy);
-    background: var(--pinboard-paper);
-    border-radius: 2px 7px 0 0;
+    background: transparent;
+    border-radius: 2px 2px 0 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
-/* Toggle hover/active keep the app's tinted fills, which resolve to the
-   always-light paper tints inside #rgd-content — readable in both modes. */
-#rgd-content .rgd-plan-fitness-toggle:hover { background: var(--pinboard-note-blue); }
+#rgd-content .rgd-plan-fitness-toggle:hover { background: rgba(255, 255, 255, 0.35); }
 
 #rgd-content .rgd-plan-fitness-toggle-label {
     font-family: var(--font-caveat);
@@ -126,6 +126,31 @@
 #rgd-content .rgd-plan-fitness-run-meta {
     font-family: var(--font-fuzzy);
     font-weight: 400;
+}
+
+/* Two-line run row: the run name sits on the first line, with the date and
+   distance/pace details below it. The arrow is pinned to the right edge and
+   spans both lines. (Grid, so the row can never wrap the arrow onto its own
+   line.) */
+#rgd-content .rgd-plan-fitness-run {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+        "name name arrow"
+        "date meta arrow";
+    align-items: center;
+    column-gap: 0.5rem;
+    row-gap: 0.1rem;
+}
+#rgd-content .rgd-plan-fitness-run-name { grid-area: name; }
+#rgd-content .rgd-plan-fitness-run-date { grid-area: date; }
+#rgd-content .rgd-plan-fitness-run-meta { grid-area: meta; }
+#rgd-content .rgd-plan-fitness-run-arrow {
+    grid-area: arrow;
+    justify-self: end;
+    align-self: center;
+    margin-left: 0;
+    color: var(--pinboard-muted);
 }
 
 /* ---------------------------------------------------------------------
@@ -176,18 +201,24 @@
     font-size: 1.35rem;
     letter-spacing: 0;
 }
-/* Phase chip becomes a small paper tag so it reads on the cork in both
-   themes (the app's blue-on-transparent would vanish at night). */
+/* Phase tag styled as a pill, matching the run-type tags on the cards. */
 #rgd-content .rgd-cal-week-phase {
     font-family: var(--font-fuzzy);
     font-weight: 600;
-    color: var(--pinboard-ink);
-    background: var(--pinboard-paper-2);
-    border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
-    padding: 0.12rem 0.6rem;
-    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.16);
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #2a5169;
+    background: rgba(42, 81, 105, 0.14);
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem;
+    box-shadow: none;
 }
-/* Date range is numbers-heavy — keep it in the app sans. */
+/* Week date range picks up the handwriting face too. */
+#rgd-content .rgd-cal-week-range {
+    font-family: var(--font-fuzzy);
+    font-weight: 600;
+}
 #rgd-content .rgd-cal-date-dow,
 #rgd-content .rgd-cal-date-month {
     font-family: var(--font-fuzzy);
@@ -217,10 +248,13 @@
     background-color: var(--pinboard-paper-2);
 }
 
-/* Rest days stay dashed and quiet — a lighter sheet, not a workout note. */
+/* Rest days are not cards: just the word sitting on the cork, so the board
+   stays uncluttered. */
 #rgd-content .rgd-cal-card--rest {
-    background-color: var(--pinboard-paper-2);
-    border: 1px dashed var(--pinboard-line);
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
 }
 
 /* Suggested (actionable) workouts are the "to-do" slips: pinned paper
@@ -276,10 +310,11 @@
 }
 #rgd-content .rgd-cal-rest-label {
     font-family: var(--font-caveat);
-    font-weight: 700;
-    font-size: 1.05rem;
-    letter-spacing: 0;
+    font-weight: 600;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
     text-transform: none;
+    color: var(--pinboard-muted);
 }
 #rgd-content .rgd-drag-handle {
     color: var(--pinboard-muted);
@@ -391,8 +426,14 @@ html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .r
    --------------------------------------------------------------------- */
 html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-title,
 html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-range,
+html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-rest-label,
 html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-coach-build-status {
     color: #e8dfca;
+}
+/* Phase pill on the dark board: light text on a translucent light tint. */
+html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-week-phase {
+    color: #cfe0ea;
+    background: rgba(207, 224, 234, 0.16);
 }
 html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-row:not(.rgd-cal-row--today) .rgd-cal-date-dow,
 html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) #rgd-content .rgd-cal-row:not(.rgd-cal-row--today) .rgd-cal-date-num,

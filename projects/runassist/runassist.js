@@ -5380,7 +5380,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${showButton ? `
                     <div class="rgd-cal-week-send">
                         <button type="button" class="rgd-btn rgd-btn-primary rgd-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
-                            Sync
+                            Sync to Garmin
                         </button>
                         <span class="rgd-coach-schedule-status" hidden></span>
                     </div>` : ''}
