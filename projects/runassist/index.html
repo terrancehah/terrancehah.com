@@ -64,9 +64,9 @@
     <style id="rgd-pinboard-theme">
     /* --- Board palette (new tokens; the app's blue stays as the accent) --- */
     :root {
-        --pinboard-cork: #efe3c9;
+        --pinboard-cork: #f1e7d2;
         --pinboard-cork-edge: #e3d3b3;
-        --pinboard-paper: #f8f2e4;
+        --pinboard-paper: #f3eee3;
         --pinboard-paper-2: #f1e9d7;
         --pinboard-line: #ddd0b6;
         --pinboard-ink: #2b2620;
@@ -634,6 +634,11 @@
         #rgd-content .rgd-metrics-grid {
             display: grid;
             grid-auto-flow: column;
+            /* Reset the base auto-fill tracks: without this the first two
+               columns stay explicit (content-sized) and only the extra ones
+               pick up the 42% auto-column, so the primary cards came out
+               narrower than the rest. */
+            grid-template-columns: none;
             grid-template-rows: repeat(2, minmax(0, 1fr));
             grid-auto-columns: 42%;
             gap: 0.75rem;
