@@ -395,13 +395,98 @@ document.addEventListener('DOMContentLoaded', function () {
         item.addEventListener('click', (e) => {
             const targetPage = item.getAttribute('href').replace('#', '');
             const currentPage = getPageFromHash();
-            // Only scroll to top if the tapped tab is already the active page.
-            // If it's a different page, let the normal hashchange flow handle it.
-            if (targetPage === currentPage) {
-                e.preventDefault();
+            // Only act when the tapped tab is already the active page. If it's
+            // a different page, let the normal hashchange flow handle it.
+            if (targetPage !== currentPage) return;
+            e.preventDefault();
+            // Same page: tap once to scroll to the top, and tap again once
+            // you're already there to reload. Home-screen (standalone) PWAs
+            // have no browser chrome and no pull-to-refresh, so this gives
+            // them a refresh path that Safari users also get for free.
+            if (window.scrollY > 4) {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+                window.location.reload();
             }
         });
+    });
+
+    // =========================================================================
+    // Refresh paths for home-screen (standalone) web apps
+    // =========================================================================
+    // iOS strips Safari's pull-to-refresh and the reload button when a site
+    // is added to the Home Screen. Everything below fills that gap; Safari
+    // keeps its own native mechanisms, so the pull gesture is standalone-only.
+    const isStandalone = window.navigator.standalone === true
+        || window.matchMedia('(display-mode: standalone)').matches;
+
+    // --- Pull-to-refresh (standalone only) ---
+    // A rubber-band pull at the top of the page, matching how Safari feels:
+    // drag the page down with damping, and reload if released past a
+    // threshold. The page itself is the indicator — no extra UI.
+    if (isStandalone) {
+        const PULL_TRIGGER_PX = 80;   // release past this to reload
+        const PULL_MAX_PX = 140;      // clamp so the page can't be dragged away
+        let pullStartY = null;
+        let pullActive = false;
+        let pullDistance = 0;
+
+        const endPull = () => {
+            const shouldReload = pullActive && pullDistance >= PULL_TRIGGER_PX;
+            pullStartY = null;
+            pullActive = false;
+            pullDistance = 0;
+            // Spring back, then reload so the animation isn't cut short.
+            document.documentElement.style.transition = 'transform 0.25s ease-out';
+            document.documentElement.style.transform = 'translateY(0)';
+            if (shouldReload) setTimeout(() => window.location.reload(), 260);
+        };
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1 || window.scrollY > 0) return;
+            pullStartY = e.touches[0].clientY;
+            pullActive = false;
+            pullDistance = 0;
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (pullStartY === null) return;
+            const dy = e.touches[0].clientY - pullStartY;
+            if (dy <= 0 || window.scrollY > 0) {
+                if (pullActive) endPull();
+                pullStartY = null;
+                return;
+            }
+            pullActive = true;
+            // Damped so the drag gets progressively harder, like Safari's.
+            pullDistance = Math.min(PULL_MAX_PX, Math.pow(dy, 0.85));
+            document.documentElement.style.transition = 'none';
+            document.documentElement.style.transform = `translateY(${pullDistance}px)`;
+            if (e.cancelable) e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchend', endPull, { passive: true });
+        window.addEventListener('touchcancel', endPull, { passive: true });
+    }
+
+    // --- Refresh on resume (after a long gap) ---
+    // Coming back to the app after it's been backgrounded for a while (e.g.
+    // after finishing a run) should show fresh data without a manual reload.
+    // Short app-switches are ignored so we don't refetch constantly, and the
+    // reload is skipped while onboarding/login is on screen so it can't wipe
+    // a half-finished form.
+    const RESUME_REFRESH_MS = 10 * 60 * 1000;
+    let backgroundedAt = null;
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            backgroundedAt = Date.now();
+            return;
+        }
+        const gap = backgroundedAt ? Date.now() - backgroundedAt : 0;
+        backgroundedAt = null;
+        if (gap < RESUME_REFRESH_MS) return;
+        const dashboard = $('#pacey-dashboard-screen');
+        if (dashboard && !dashboard.hidden) window.location.reload();
     });
 
     // Reposition indicators on viewport resize — the tab bar and sidebar

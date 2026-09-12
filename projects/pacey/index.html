@@ -135,10 +135,15 @@
        is behind them. (The glass is the contrast anchor; the icons never need
        to adapt per-pixel.) */
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar {
-        background: rgba(248, 242, 228, 0.62);
+        background: rgba(248, 242, 228, 0.34);
         backdrop-filter: blur(20px) saturate(150%);
         -webkit-backdrop-filter: blur(20px) saturate(150%);
-        border-color: rgba(255, 255, 255, 0.45);
+        border-color: rgba(255, 255, 255, 0.4);
+    }
+    /* Soften the glass sheen so the bar reads as see-through glass rather
+       than a milky panel */
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar::before {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.05) 30%, transparent 60%);
     }
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tab-item { color: #4a4235; }
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-tab-item.active { color: #1d3557; }
@@ -152,7 +157,7 @@
         backdrop-filter: none;
     }
     html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-tabbar {
-        background: rgba(26, 20, 15, 0.74);
+        background: rgba(26, 20, 15, 0.46);
         border-color: rgba(255, 255, 255, 0.16);
     }
     html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-tab-item { color: #cfd8cf; }
