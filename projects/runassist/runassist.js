@@ -449,42 +449,27 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentY = window.scrollY;
         const delta = currentY - lastScrollY;
 
-        // Demo banner slim — shrink only when the banner has reached its
-        // sticky position at the top of the viewport. The banner is
-        // position:sticky with top: clamp(1rem, 2vw, 1.5rem).
+        // Demo banner slim — shrink to the compact pill once the user has
+        // scrolled away from the top, and expand back when they return.
         //
-        // CRITICAL: we must NOT read the banner's own getBoundingClientRect
-        // for the threshold. When the banner shrinks to a pill, its height
-        // decreases, which shifts the content below it, which changes the
-        // banner's rect.top, which can cross back past the exit threshold,
-        // which expands the banner, which shifts content back, which
-        // crosses the enter threshold again — an infinite flicker loop.
-        // No amount of hysteresis on the banner's rect.top fixes this
-        // because the signal (rect.top) is coupled to the action (shrink).
+        // This used to key off #rgd-content's rect.top (i.e. the banner
+        // reaching its sticky position). That worked while the site header
+        // sat above the content, because the content only reached the top
+        // after scrolling past the header. The header has since been removed
+        // for the Pacey app, so the content now starts at the very top of the
+        // page and that signal is permanently true — the banner shrank on
+        // load and never expanded. The scroll offset is the right signal now.
         //
-        // Instead, we read the CONTENT container's rect.top — a stable
-        // signal that does NOT change when the banner shrinks. The banner
-        // is the first child inside .rgd-content, so the banner's natural
-        // top = contentRect.top + contentPaddingTop. The banner sticks
-        // when this natural top <= the sticky top offset. With content
-        // padding of clamp(1rem, 3vw, 2rem) (16-32px) and sticky top of
-        // clamp(1rem, 2vw, 1.5rem) (16-24px), the banner sticks when
-        // contentRect.top reaches roughly 0 to -8px. Using contentRect.top
-        // <= 0 as the enter threshold covers the full clamp range.
-        //
-        // Hysteresis (40px gap) prevents edge-case flicker at the boundary,
-        // though the signal is already stable so this is just insurance.
+        // Reading the banner's own rect is still avoided: its height changes
+        // when it shrinks, which shifts the content below it and can cause an
+        // expand/shrink flicker loop.
         const banner = $('#rgd-demo-banner');
         if (banner && !banner.hidden) {
-            const content = $('#rgd-content');
-            if (content) {
-                const contentTop = content.getBoundingClientRect().top;
-                const isSlim = banner.classList.contains('rgd-demo-banner--slim');
-                if (!isSlim && contentTop <= 0) {
-                    banner.classList.add('rgd-demo-banner--slim');
-                } else if (isSlim && contentTop > 40) {
-                    banner.classList.remove('rgd-demo-banner--slim');
-                }
+            const isSlim = banner.classList.contains('rgd-demo-banner--slim');
+            if (!isSlim && currentY > 64) {
+                banner.classList.add('rgd-demo-banner--slim');
+            } else if (isSlim && currentY < 16) {
+                banner.classList.remove('rgd-demo-banner--slim');
             }
         }
 
@@ -4274,7 +4259,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const settingsPopupClose = $('#rgd-settings-popup-close');
     const settingsLogoutBtn = $('#rgd-settings-logout-btn');
 
-    async function openSettingsPopup() {
+    async function openSettingsPopup(trigger) {
         if (sessionToken && sessionToken !== 'demo') {
             // Populate account details from the latest check-session data
             try {
@@ -4336,7 +4321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Focus management: store the triggering element and move focus
         // to the close button so keyboard users can dismiss the popup
-        settingsPopupTrigger = settingsBtn;
+        settingsPopupTrigger = trigger || settingsBtn;
         settingsPopup.hidden = false;
         settingsPopupClose.focus();
     }
@@ -4348,11 +4333,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     let settingsPopupTrigger = null;
-    settingsBtn.addEventListener('click', openSettingsPopup);
+
+    // The settings button toggles the panel: open when closed, close when it
+    // is already open (so a second tap dismisses it).
+    settingsBtn.addEventListener('click', () => {
+        if (settingsPopup.hidden) openSettingsPopup(settingsBtn);
+        else closeSettingsPopup();
+    });
     settingsPopupClose.addEventListener('click', closeSettingsPopup);
-    // Close when clicking outside the popup
-    settingsPopup.addEventListener('click', (e) => {
-        if (e.target === settingsPopup) closeSettingsPopup();
+    // Close when clicking anywhere outside the panel. The popup element is
+    // only as large as the card (it is not a full-screen overlay), so this
+    // needs a document-level listener rather than a click on the popup. The
+    // two trigger buttons are exempt so their own click can toggle.
+    document.addEventListener('click', (e) => {
+        if (settingsPopup.hidden) return;
+        if (settingsPopup.contains(e.target)) return;
+        if (settingsBtn.contains(e.target)) return;
+        const tabBtn = document.getElementById('rgd-tab-settings');
+        if (tabBtn && tabBtn.contains(e.target)) return;
+        closeSettingsPopup();
     });
     // Close on Escape key — matches the login modal and metric popup behavior
     document.addEventListener('keydown', (e) => {
@@ -4431,12 +4430,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Mobile tab bar settings button — mirrors the sidebar settings button
+    // Mobile tab bar settings button — mirrors the sidebar settings button,
+    // including the toggle behaviour (a second tap closes the panel).
     const tabSettingsBtn = $('#rgd-tab-settings');
     if (tabSettingsBtn) {
         tabSettingsBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            openSettingsPopup();
+            if (settingsPopup.hidden) openSettingsPopup(tabSettingsBtn);
+            else closeSettingsPopup();
         });
     }
 

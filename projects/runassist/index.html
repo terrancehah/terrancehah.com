@@ -6,14 +6,19 @@
     <link href="/styles/output.css" rel="stylesheet">
     <link href="/styles/style.css" type="text/css" rel="stylesheet">
     <link href="/projects/runassist/runassist.css" type="text/css" rel="stylesheet">
-    <link rel="icon" href="/resources/TH-logo.png" type="image/x-icon">
-    <meta property="og:title" content="RunAssist - Terrance's Playground">
-    <meta property="og:description" content="Track your training progress toward your race goal with Garmin data and AI-powered insights.">
-    <meta property="og:image" content="https://terrancehah.com/resources/TH-logo.png">
+    <link rel="icon" href="/resources/pacey-icon-32.png" type="image/png">
+    <link rel="apple-touch-icon" href="/resources/pacey-icon-180.png">
+    <meta property="og:title" content="Pacey — Marathon Race Readiness">
+    <meta property="og:description" content="Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.">
+    <meta property="og:image" content="https://terrancehah.com/resources/pacey-og.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://terrancehah.com/projects/runassist/">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://terrancehah.com/resources/pacey-og.png">
 
-    <title>RunAssist - Terrance's Playground</title>
+    <title>Pacey — Marathon Race Readiness</title>
     <!-- Preconnect to Google Fonts origins — establishes the connection
          early so the font CSS and font files download without delay.
          Saves ~470ms on LCP (300ms gstatic + 170ms googleapis). -->
@@ -116,13 +121,6 @@
         background-blend-mode: soft-light, multiply;
     }
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-content { background: transparent; }
-    html:has(#rgd-dashboard-screen:not([hidden])) header.rgd-header-offset {
-        background-color: var(--pinboard-cork-edge);
-        background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
-        background-size: 220px 220px, 80px 80px;
-        background-blend-mode: soft-light, multiply;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.18);
-    }
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar {
         background-color: var(--pinboard-cork-edge);
         background-image: var(--pinboard-cork-noise), var(--pinboard-cork-fine);
@@ -144,14 +142,58 @@
     }
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #4a4235; }
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #1d3557; }
-    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.62); }
+    /* The active tab is marked with a hand-drawn red ring (below), so the
+       frosted pill indicator is hidden — it stays in the DOM because the
+       scroll/route code still positions it, but it no longer paints. */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator {
+        background: none;
+        box-shadow: none;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
     html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tabbar {
         background: rgba(26, 20, 15, 0.74);
         border-color: rgba(255, 255, 255, 0.16);
     }
     html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item { color: #cfd8cf; }
     html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active { color: #f2e9d7; }
-    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-indicator { background: rgba(255, 255, 255, 0.16); }
+
+    /* --- Hand-drawn selection ring on the active floating-tab button ---
+       A red pencil ring, sketched in (stroke-dashoffset) when the tab
+       becomes active. Because the ring lives on the .active element, moving
+       the selection replays the draw automatically. */
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-sketch {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 2.9rem;
+        height: 2.9rem;
+        transform: translate(-50%, -50%);
+        pointer-events: none;
+        overflow: visible;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-sketch-path {
+        fill: none;
+        stroke: #c0392b;
+        stroke-width: 5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+    }
+    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active .rgd-tab-sketch-path {
+        animation: rgd-tab-sketch-draw 0.45s ease-out forwards;
+    }
+    @keyframes rgd-tab-sketch-draw {
+        from { stroke-dashoffset: 100; }
+        to { stroke-dashoffset: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        html:has(#rgd-dashboard-screen:not([hidden])) .rgd-tab-item.active .rgd-tab-sketch-path {
+            animation: none;
+            stroke-dashoffset: 0;
+        }
+    }
 
     /* Chart fonts — inherited by the canvases inside the overview. Kept as
        literal stacks (not var() refs) because Chart.js reads them at runtime. */
@@ -351,6 +393,9 @@
         letter-spacing: 0;
     }
     #rgd-content .rgd-project-title { font-size: clamp(2rem, 4vw, 2.8rem); }
+    /* The Pacey mark sits beside the masthead title */
+    #rgd-content .rgd-project-heading { display: flex; align-items: center; gap: 0.5rem; }
+    #rgd-content .rgd-project-logo { width: 46px; height: 46px; flex: none; display: block; }
     /* Section title: a long hand-sketched underline tucked close to the text */
     #rgd-content .rgd-section-title {
         position: relative;
@@ -526,13 +571,6 @@
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-nav-label { font-size: 0.9rem; }
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-sidebar-greeting { font-size: 1rem; }
 
-    /* --- Top site header bar (shared shell) --- */
-    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-title {
-        font-family: var(--font-caveat);
-        font-weight: 700;
-    }
-    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { font-family: var(--font-fuzzy); }
-
     /* --- Charts: give the row noticeably more air --- */
     #rgd-content .rgd-charts-row { gap: clamp(1.6rem, 3.5vw, 2.8rem); }
 
@@ -564,6 +602,32 @@
         #rgd-content .rgd-metric-tile:nth-child(2n) { --tilt: 0.6deg; }
     }
 
+    /* --- Mobile vitals: a hand-scrollable carousel, two rows tall.
+       No auto-advance; the peeking next column signals there is more to the
+       right. Cards flow down two rows per column and the row scrolls
+       sideways. --- */
+    @media (max-width: 48rem) {
+        #rgd-content .rgd-metrics-grid {
+            display: grid;
+            /* Two rows, filled column-by-column, then scroll sideways */
+            grid-auto-flow: column;
+            grid-template-rows: repeat(2, auto);
+            grid-auto-columns: 42%;
+            gap: 0.75rem;
+            overflow-x: auto;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+            padding: 0.15rem 0.2rem 0.5rem;
+            scrollbar-width: none;
+        }
+        #rgd-content .rgd-metrics-grid::-webkit-scrollbar { display: none; }
+        /* All tiles join the scroll grid (no collapsed drawer on mobile) */
+        #rgd-content .rgd-metrics-extra,
+        #rgd-content .rgd-metrics-extra-inner { display: contents; }
+        #rgd-content .rgd-vitals-toggle { display: none; }
+        #rgd-content .rgd-metric-tile { scroll-snap-align: start; }
+    }
+
     /* --- Night board: text that sits on the cork (not on paper) needs to be
        light, otherwise the dark ink disappears against the dark board.
        The score info button is excluded — it carries its own paper chip. --- */
@@ -572,10 +636,6 @@
     [data-theme="dark"] #rgd-content .rgd-metrics-date,
     [data-theme="dark"] #rgd-content .rgd-vitals-toggle,
     [data-theme="dark"] #rgd-content .rgd-card-title--with-action { color: #e8dfca; }
-    /* Site header sits on cork too */
-    html:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { color: #2f5a78; }
-    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-title { color: #f2e9d7; }
-    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-header-link { color: #d9e4dc; }
     /* Footer note sits on cork */
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #4a4235; }
     html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-cta-text { color: #c3cfd8; }
@@ -586,6 +646,67 @@
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim,
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-slim-cta,
     html:has(#rgd-dashboard-screen:not([hidden])) .rgd-demo-banner-icon { color: var(--pinboard-ink); }
+
+    /* --- Pacey mark on the auth / onboarding cards. The site header that
+       used to carry the brand is gone, so these screens show the logo. --- */
+    .rgd-card-logo {
+        display: block;
+        width: 52px;
+        height: 52px;
+        margin-bottom: 0.6rem;
+    }
+
+    /* --- "Back to my site" link tucked under the sidebar Settings. The
+       sidebar is desktop-only; on mobile the Account dialog carries it. --- */
+    .rgd-sidebar-site-link {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0.3rem 0.5rem 0.25rem;
+        padding: 0.4rem 0.55rem;
+        border-radius: 0.5rem;
+        color: var(--rgd-muted);
+        text-decoration: none;
+        font-family: var(--font-fuzzy);
+        font-size: 0.85rem;
+        transition: background 0.18s ease-out, transform 0.18s ease-out;
+    }
+    .rgd-sidebar-site-link img { width: 24px; height: 24px; border-radius: 6px; display: block; flex: none; }
+    .rgd-sidebar-site-link:hover {
+        background: color-mix(in srgb, currentColor 12%, transparent);
+        transform: translateY(-1px);
+    }
+    /* Collapsed sidebar: icon only */
+    .rgd-sidebar.collapsed .rgd-sidebar-site-link { justify-content: center; padding: 0.4rem; }
+    .rgd-sidebar.collapsed .rgd-sidebar-site-label { display: none; }
+
+    /* --- Site section inside the Account dialog (mobile's way back) --- */
+    .rgd-settings-site {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--rgd-border);
+    }
+    .rgd-settings-site-links { display: flex; flex-wrap: wrap; gap: 0.35rem 0.9rem; }
+    .rgd-settings-site-links a { color: var(--rgd-blue); text-decoration: none; font-size: var(--rgd-text-label); }
+    .rgd-settings-site-links a:hover { text-decoration: underline; }
+    .rgd-settings-site-socials { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .rgd-settings-site-socials img { width: 22px; height: 22px; display: block; }
+
+    /* --- Compact "made by Terrance" footer on the board --- */
+    .rgd-app-footer {
+        margin-top: 2rem;
+        padding: 1rem 0.5rem 0.5rem;
+        text-align: center;
+        font-family: var(--font-fuzzy);
+        font-size: 0.95rem;
+        color: var(--pinboard-muted);
+    }
+    .rgd-app-footer a { color: #2a5169; text-decoration: underline; text-underline-offset: 2px; }
+    .rgd-app-footer-heart { color: #b6503a; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-app-footer { color: #b3a98f; }
+    html[data-theme="dark"]:has(#rgd-dashboard-screen:not([hidden])) .rgd-app-footer a { color: #a7c9e6; }
     </style>
     <!-- Per-page pinboard extensions. Kept in separate files so each page's
          styling stays self-contained and easy to revert independently. They
@@ -593,43 +714,15 @@
     <link href="/projects/runassist/pinboard-activities.css" rel="stylesheet">
     <link href="/projects/runassist/pinboard-readiness.css" rel="stylesheet">
     <link href="/projects/runassist/pinboard-plan.css" rel="stylesheet">
+    <link href="/projects/runassist/pinboard-overlays.css" rel="stylesheet">
 </head>
 
 <body class="m-0 relative h-full bg-white overflow-x-hidden">
-    <!-- Shared site header -->
-    <header class="w-full inline-block rgd-header-offset">
-        <div class="flex flex-col lg:flex-row justify-between items-center p-2.5 sm:p-3">
-            <div class="flex flex-col md:flex-row items-center w-auto lg:w-80">
-                <h1 class="font-lato font-semibold text-[#1d3557] rgd-header-title text-2xl md:text-3xl p-0 text-center sm:text-left">
-                    Terrance's Playground
-                </h1>
-            </div>
-            <nav class="flex flex-wrap justify-center gap-0">
-                <a href="/index.html" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Home</a>
-                <a href="/articles" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Articles</a>
-                <a href="/projects" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link rgd-header-link--active hover:bg-[#c0e9fc] bg-[#c0e9fc]">Projects</a>
-                <a href="/playground" class="relative p-2 font-raleway font-medium text-lg md:text-xl rgd-header-link hover:bg-[#c0e9fc]">Playground</a>
-            </nav>
-
-            <div class="flex items-center gap-3 md:gap-2 mt-2 justify-end lg:mt-0 lg:w-80">
-                <a href="https://facebook.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/facebook.webp" alt="facebook" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://instagram.com/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/instagram.webp" alt="instagram" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://x.com/terrance_hah" target="_blank" class="w-8 h-8">
-                    <img src="/resources/x.webp" alt="x" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" class="w-8 h-8">
-                    <img src="/resources/linkedin.webp" alt="linkedin" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-                <a href="https://github.com/terrancehah" target="_blank" class="w-8 h-8">
-                    <img src="/resources/github.webp" alt="github" width="32" height="32" loading="lazy" class="w-full h-full rgd-social-icon">
-                </a>
-            </div>
-        </div>
-    </header>
+    <!-- Site header removed for the Pacey app: the app has its own sidebar
+         nav, so the site title / nav / social icons were pure duplication.
+         The link back to the main site now lives under the sidebar Settings
+         (desktop) and inside the Account dialog, and a compact "made by
+         Terrance" footer sits at the bottom of the app. -->
 
     <main class="rgd-main">
         <!-- ========== LOGIN MODAL (popup, triggered from sidebar settings) ========== -->
@@ -639,6 +732,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="rgd-auth-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Garmin Connect</span>
                     <h2 class="rgd-auth-title">Connect your Garmin</h2>
                     <p class="rgd-auth-subtitle">
@@ -672,6 +766,7 @@
         <section class="rgd-screen" id="rgd-onboarding-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 2 of 4</span>
                     <h2 class="rgd-onboard-title">Tell us about your race goal</h2>
                     <p class="rgd-onboard-subtitle">
@@ -779,6 +874,7 @@
         <section class="rgd-screen" id="rgd-onboarding-fitness-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 3 of 4</span>
                     <h2 class="rgd-onboard-title">How fast are you right now?</h2>
                     <p class="rgd-onboard-desc">A recent race tells us your current fitness, so training paces start from where you actually are — not just where you want to be.</p>
@@ -819,6 +915,7 @@
         <section class="rgd-screen" id="rgd-onboarding-plan-screen" hidden>
             <div class="rgd-onboard-card">
                 <div class="rgd-onboard-header">
+                    <img class="rgd-card-logo" src="/resources/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="rgd-eyebrow">Step 4 of 4</span>
                     <h2 class="rgd-onboard-title">Customize your training plan</h2>
                     <p class="rgd-onboard-subtitle">
@@ -958,6 +1055,12 @@
                             </svg>
                             <span class="rgd-sidebar-settings-label">Settings</span>
                         </button>
+                        <!-- Link back to the main site — tucked under Settings
+                             so the app itself stays free of site chrome -->
+                        <a class="rgd-sidebar-site-link" href="/index.html" title="Back to terrancehah.com" aria-label="Back to terrancehah.com">
+                            <img src="/resources/th-logo-64.png" alt="" width="24" height="24" loading="lazy">
+                            <span class="rgd-sidebar-site-label">terrancehah.com</span>
+                        </a>
                     </div>
                 </aside>
 
@@ -968,24 +1071,40 @@
                          Positioned via JS in navigateTo(). -->
                     <div class="rgd-tab-indicator" id="rgd-tab-indicator"></div>
                     <a class="rgd-tab-item active" href="#overview">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Home icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                         <!-- Home icon — filled (active): solid house with door cutout -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path fill-rule="evenodd" d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#activities">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Records/list icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
                         <!-- Records icon — filled (active): solid document with folded corner + text line cutouts -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path fill-rule="evenodd" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6z M8 13h8v1.5H8z M8 16.5h8V18H8z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#readiness">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Hexagon icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                         <!-- Hexagon icon — filled (active): solid hexagon -->
                         <svg class="rgd-tab-icon-filled" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                     </a>
                     <a class="rgd-tab-item" href="#plan">
+                        <!-- Hand-drawn selection ring — sketched in when this tab is active -->
+                        <svg class="rgd-tab-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                            <path class="rgd-tab-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/>
+                        </svg>
                         <!-- Calendar icon — outline (inactive) -->
                         <svg class="rgd-tab-icon-outline" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         <!-- Calendar icon — filled (active): solid body with binding rings + header strip cutout -->
@@ -1027,7 +1146,10 @@
                     <div class="rgd-page" id="rgd-page-overview">
                         <!-- Project title + intro — only on the overview page -->
                         <div class="rgd-content-header">
-                            <h1 class="rgd-project-title">RunAssist</h1>
+                            <div class="rgd-project-heading">
+                                <img class="rgd-project-logo" src="/resources/pacey-icon-192.png" alt="" width="46" height="46">
+                                <h1 class="rgd-project-title">Pacey</h1>
+                            </div>
                             <p class="rgd-project-intro">Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.</p>
                         </div>
 
@@ -1381,6 +1503,11 @@
                         <p class="rgd-demo-cta-text">Ready to see your real training data and personalized insights? Connect Garmin to get started.</p>
                         <button class="rgd-btn rgd-btn-primary rgd-demo-cta-btn" id="rgd-demo-cta-btn">Connect Garmin</button>
                     </div>
+
+                    <!-- Compact app footer — a quiet line on the board -->
+                    <footer class="rgd-app-footer">
+                        <p>Made with <span class="rgd-app-footer-heart">♥</span> by Terrance — have a look at my <a href="/projects">other projects</a>.</p>
+                    </footer>
                 </div>
             </div>
         </section>
@@ -1447,6 +1574,25 @@
                             <option>English</option>
                         </select>
                         <span class="rgd-settings-field-hint">More languages coming soon</span>
+                    </div>
+                    <!-- Site section — the app's link back to the main site and
+                         socials. Mobile relies on this since the sidebar (and
+                         its Settings-adjacent site link) is hidden there. -->
+                    <div class="rgd-settings-site">
+                        <span class="rgd-settings-field-label">Terrance's Playground</span>
+                        <div class="rgd-settings-site-links">
+                            <a href="/index.html">Home</a>
+                            <a href="/articles">Articles</a>
+                            <a href="/projects">Projects</a>
+                            <a href="/playground">Playground</a>
+                        </div>
+                        <div class="rgd-settings-site-socials">
+                            <a href="https://facebook.com/terrancehah/" target="_blank" rel="noopener"><img src="/resources/facebook.webp" alt="Facebook" width="22" height="22" loading="lazy"></a>
+                            <a href="https://instagram.com/terrancehah/" target="_blank" rel="noopener"><img src="/resources/instagram.webp" alt="Instagram" width="22" height="22" loading="lazy"></a>
+                            <a href="https://x.com/terrance_hah" target="_blank" rel="noopener"><img src="/resources/x.webp" alt="X" width="22" height="22" loading="lazy"></a>
+                            <a href="https://www.linkedin.com/in/terrancehah/" target="_blank" rel="noopener"><img src="/resources/linkedin.webp" alt="LinkedIn" width="22" height="22" loading="lazy"></a>
+                            <a href="https://github.com/terrancehah" target="_blank" rel="noopener"><img src="/resources/github.webp" alt="GitHub" width="22" height="22" loading="lazy"></a>
+                        </div>
                     </div>
                 </div>
                 <div class="rgd-settings-popup-footer">
