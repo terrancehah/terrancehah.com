@@ -5375,7 +5375,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    // Canned demo workout specs — mirrors the on-demand /api/workout-insight
+    // Canned demo workout specs — mirrors the on-demand /api/coach-plan (action "insight")
     // behaviour: workouts carry no insight, and opening the card "generates"
     // one locally in demo mode via mockInsight().
     const MOCK_WORKOUT_DEFS = {
@@ -5388,7 +5388,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Race': { title: 'Race Day', distance_km: 42.195, duration_min: null, intensity: 'hard', description: 'Race day — execute the goal-pace plan you trained for.' },
     };
 
-    // Demo insight generator — mirrors the on-demand /api/workout-insight
+    // Demo insight generator — mirrors the on-demand /api/coach-plan (action "insight")
     // behaviour with the same context: week position in the block, phase at
     // the session's date, the previous planned session, and the runner's
     // recent similar runs from the demo history. Context leads; race
@@ -5486,7 +5486,7 @@ document.addEventListener('DOMContentLoaded', function () {
             title: type === 'Long Run' && o.distance_km != null ? `Long ${o.distance_km}km` : d.title,
             description: d.description,
             // Lazy insight — the card opens with null and the sheet fills it
-            // in via mockInsight (demo) or /api/workout-insight (real).
+            // in via mockInsight (demo) or /api/coach-plan (action "insight") (real).
             insight: null,
             distance_km: o.distance_km != null ? o.distance_km : d.distance_km,
             duration_min: o.duration_min != null ? o.duration_min : d.duration_min,
@@ -6096,7 +6096,7 @@ document.addEventListener('DOMContentLoaded', function () {
             trajectory_note: (plan.trajectory && plan.trajectory.note) || '',
         };
         try {
-            const resp = await apiCall('POST', 'workout-insight', { kind: 'plan', context });
+            const resp = await apiCall('POST', 'coach-plan', { action: 'insight', kind: 'plan', context });
             const data = await resp.json();
             if (resp.ok && data.insight) {
                 planInsightEl.textContent = data.insight;
@@ -6257,7 +6257,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!day || !day.workout) return;
         const zones = (plan.zones_by_date || {})[dateKey] || plan.pace_zones || {};
         try {
-            const resp = await apiCall('POST', 'compile-workout', { workout: day.workout, zones });
+            const resp = await apiCall('POST', 'coach-plan', { action: 'compile', workout: day.workout, zones });
             const data = await resp.json();
             if (resp.ok && data.workout) {
                 data.workout.insight = null;
@@ -6409,7 +6409,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Coach insight is lazy: the full-block plan carries no insight text,
         // so the sheet shows a placeholder and fills it on demand from
-        // /api/workout-insight (canned text in demo mode).
+        // /api/coach-plan (action "insight") (canned text in demo mode).
         const insightHtml = `
             <div class="pacey-sheet-section" id="pacey-sheet-insight-slot">
                 <span class="pacey-sheet-section-title">Coach insight</span>
@@ -6491,11 +6491,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 duration_min: w.duration_min,
                 intensity: w.intensity,
                 target_pace_min_per_km: w.target_pace_min_per_km,
+                // The compiled structure — the insight describes the exact
+                // session that will be sent to the watch, not a re-imagined one.
+                totals: w.totals,
+                segments: w.segments,
             },
             context,
         };
         try {
-            const resp = await apiCall('POST', 'workout-insight', body);
+            const resp = await apiCall('POST', 'coach-plan', { action: 'insight', ...body });
             const data = await resp.json();
             if (!resp.ok) throw new Error('Failed to write insight.');
             w.insight = data.insight;
@@ -6626,7 +6630,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const resp = await apiCall('POST', 'schedule-plan', { days });
+            const resp = await apiCall('POST', 'coach-plan', { action: 'schedule', days });
             const data = await resp.json();
             if (!resp.ok) {
                 console.warn('Schedule request failed:', data.error || resp.status);

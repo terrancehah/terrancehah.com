@@ -1,8 +1,16 @@
-"""POST /api/coach-plan — AI coaching plan from recent training + user preferences."""
+"""POST /api/coach-plan — the plan cluster.
+
+Four operations share this one serverless function, dispatched by the request's
+`action` field, so the plan cluster stays within the Vercel Hobby function limit:
+  - "plan"     generate the AI coaching block (default)
+  - "compile"  recompile one workout into the canonical object after an edit
+  - "schedule" upload workouts to Garmin as templates and schedule them
+  - "insight"  write the coach insight for one workout (or the plan card line)
+"""
 
 from fastapi.responses import JSONResponse
 from datetime import date, timedelta, datetime as _dt
-from typing import Optional
+from typing import Optional, List, Any
 from pydantic import BaseModel
 import os
 import json
@@ -315,8 +323,8 @@ def _attach_workout_details(days, pace_zones):
         if not isinstance(w, dict):
             continue
         # Coach insight is generated on demand when the runner opens the
-        # workout card (see /api/workout-insight) — keep it null here so the
-        # full-block plan payload stays light and fast.
+        # workout card (see the "insight" action below) — keep it null here so
+        # the full-block plan payload stays light and fast.
         w.setdefault("insight", None)
         try:
             w.update(_compile_workout(w, pace_zones, workout_type=w.get("type")))
@@ -467,18 +475,412 @@ Return ONLY valid JSON:
 {{"days": [{{"date": "YYYY-MM-DD", "day_of_week": "Mon", "is_rest": false, "workout": {{...}}}}, ...]}}"""
 
 
+# ---------------------------------------------------------------------------
+# Insight helpers (moved from workout-insight.py)
+# ---------------------------------------------------------------------------
+
+# Plan workout types -> run_tag classes from the runner's actual history.
+# Used to find "previous similar sessions" so the insight can compare this
+# session against real runs of the same kind, not just the plan.
+TYPE_TAG_MAP = {
+    "Long Run": ("LSD",),
+    "Tempo": ("Tempo Long", "Tempo"),
+    "Intervals": ("Speedwork",),
+    "Speedwork": ("Speedwork",),
+    "Easy": ("Easy", "Warmup"),
+    "Recovery": ("Recovery",),
+    "Race": ("LSD", "Tempo Long"),
+}
+
+
+def _fmt_pace_ms(pace_ms) -> str:
+    """Format m/s as "M:SS" per km for user-facing strings."""
+    if not pace_ms or pace_ms <= 0:
+        return "--"
+    sec = 1000 / pace_ms
+    mins = int(sec // 60)
+    secs = int(round(sec % 60))
+    if secs >= 60:
+        mins += 1
+        secs -= 60
+    return f"{mins}:{secs:02d}"
+
+
+def _similar_sessions(token: str, workout_type: str, limit: int = 2) -> list:
+    """Pull the most recent actual runs of a similar type from the Garmin data
+    cache, so the insight can reference real sessions. Returns [] when the
+    cache is cold or nothing matches — the insight then simply skips the
+    comparison instead of inventing one."""
+    tags = TYPE_TAG_MAP.get(workout_type, ())
+    if not tags:
+        return []
+    cached = _get_cached_garmin_data(token)
+    if not cached:
+        return []
+    matches = []
+    for a in cached.get("activities", []):
+        if (a.get("type") or "").lower() not in RUNNING_TYPES:
+            continue
+        if (a.get("run_tag") or "") in tags:
+            matches.append(a)
+    matches.sort(key=lambda x: x.get("start_time") or "", reverse=True)
+    return matches[:limit]
+
+
+# Phase labels with the job of each phase — same boundaries as the plan.
+PHASE_LABELS = {
+    "build": "Build — base volume and controlled quality, laying the aerobic foundation",
+    "specificity": "Specificity — race-pace work at peak volume, sharpening toward the goal",
+    "sharpen": "Sharpen — volume trimmed, one short race-pace session to keep the edge",
+    "taper": "Taper — light week, arrive at the line fresh",
+    "post_race": "Post-race recovery",
+}
+
+
+async def _plan_overview_insight(ctx: dict):
+    """One short coach line for the plan page race card (kind == "plan").
+
+    Uses the same context the plan page already has — race goal, current
+    fitness numbers, phase, and trajectory — so it is cheap to call once
+    per plan load.
+    """
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    race = ctx.get("race_goal") or {}
+    fitness = ctx.get("fitness") or {}
+    trajectory_status = ctx.get("trajectory_status") or "on_track"
+    trajectory_note = ctx.get("trajectory_note") or ""
+
+    race_label = race.get("race_name") or race.get("purpose") or "your goal race"
+    prompt = f"""You are an expert running coach. Write ONE short coach line (1-2 sentences, warm and direct — like a coach texting a club runner) for the overview of the runner's plan page.
+
+RACE: {race_label} — {race.get('purpose', '')} {race.get('distance', '') or ''}, target {race.get('time_target', '')} (goal pace {fitness.get('goal_pace', '--')}/km) on {race.get('race_date', '')}.
+
+CURRENT FITNESS (from recent runs): long-run pace {fitness.get('current_easy_pace', '--')}/km, quality pace {fitness.get('current_quality_pace', '--')}/km. The race goal pace is {fitness.get('goal_pace', '--')}/km (tempo work around {fitness.get('goal_quality_pace', '--')}/km).
+
+PLAN: {ctx.get('race_phase', '')} phase, {ctx.get('days_to_race', '')} days to race.
+
+TRAJECTORY: {trajectory_status}. {trajectory_note}
+
+Write the line so it:
+- names the gap or the strength in ONE concrete number where useful ("your recent quality pace is 20s off the goal", "your long runs already sit at goal shape"),
+- says what this week's focus is (from the phase),
+- gives the runner one thing to trust.
+Do not invent numbers. Do not repeat the race date as filler. Keep it 1-2 sentences. Never write m/s.
+
+Return ONLY valid JSON:
+{{"insight": "..."}}"""
+
+    try:
+        result = await _call_ai(prompt, api_key)
+        insight = (result.get("insight") or "").strip()
+    except Exception:
+        insight = ""
+    if not insight:
+        return JSONResponse(status_code=500, content={"error": "Could not generate insight."})
+    return JSONResponse(content={"insight": insight})
+
+
+# ---------------------------------------------------------------------------
+# Scheduling helpers (moved from schedule-plan.py)
+# ---------------------------------------------------------------------------
+
+class ScheduleDay(BaseModel):
+    date: str
+    workout: Optional[dict] = None
+
+
+def _extract_workout_id(resp: Any):
+    """Pull a workout id out of a Garmin upload response, defensively.
+
+    Garmin's response shape has varied across revisions, so accept the common
+    locations: a top-level workoutId/id, or a nested workout object.
+    """
+    if isinstance(resp, dict):
+        for key in ("workoutId", "id"):
+            if resp.get(key):
+                return resp[key]
+        nested = resp.get("workout") or resp.get("workouts")
+        if isinstance(nested, dict):
+            return nested.get("workoutId") or nested.get("id")
+        if isinstance(nested, list) and nested and isinstance(nested[0], dict):
+            return nested[0].get("workoutId") or nested[0].get("id")
+    return None
+
+
 class CoachPlanRequest(BaseModel):
     token: str = ""
+    # Which operation this request is: "plan" (default, generate the block),
+    # "compile" (recompile one workout), "schedule" (push workouts to Garmin),
+    # or "insight" (write the coach insight for one workout / the plan card).
+    # The four plan-cluster operations share this one serverless function to
+    # stay within the Vercel Hobby function limit.
+    action: str = "plan"
+    # --- plan ---
     days_per_week: int = 3        # number of workout days to schedule (2-6)
     intensity: str = "moderate"   # easy | moderate | hard
     distance_adj: str = "keep"    # reduce | keep | increase (relative to last week)
     force: str = ""               # when "1", skip the persistent cache and regenerate
     week_start: str = ""          # ISO date of a block week: when set, generate ONLY
                                   # that week (Hobby-friendly single-call mode)
+    # --- compile ---
+    workout: Optional[dict] = None
+    zones: Optional[dict] = None
+    # --- schedule ---
+    days: List[ScheduleDay] = []
+    # --- insight ---
+    date: str = ""
+    context: Optional[dict] = None
+    kind: str = "workout"         # "workout" (single session) | "plan" (race card line)
 
 
 @app.post("/")
 async def coach_plan(body: CoachPlanRequest):
+    """Plan-cluster endpoint — dispatches on `action` (see CoachPlanRequest).
+
+    Plan / compile / schedule / insight share this one function so the plan
+    cluster stays within the Vercel Hobby function limit. The heavy plan
+    generation lives in _generate_plan below.
+    """
+    action = (body.action or "plan").strip().lower()
+    if action == "compile":
+        return await _compile_workout_action(body)
+    if action == "schedule":
+        return await _schedule_plan_action(body)
+    if action == "insight":
+        return await _workout_insight_action(body)
+    return await _generate_plan(body)
+
+
+async def _compile_workout_action(body: CoachPlanRequest):
+    """Recompile one workout into the canonical object (see _compile_workout).
+
+    Called by the frontend after the runner edits a workout, so the paces,
+    distances, durations, totals and step breakdown are recomputed together
+    instead of mutating one raw field and letting the consumers drift apart.
+    """
+    _get_session(body.token)
+    w = body.workout or {}
+    if not w.get("type"):
+        return JSONResponse(status_code=400, content={"error": "Workout type required."})
+    zones = body.zones or {}
+    # Fall back to the workout's own headline pace as the goal-pace anchor so
+    # a recompile without zones still resolves the main block sensibly.
+    if not zones and w.get("target_pace_min_per_km"):
+        zones = {"Race": w.get("target_pace_min_per_km")}
+    try:
+        compiled = _compile_workout(w, zones, workout_type=w.get("type"))
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Could not compile workout: {str(e)}"})
+    # The insight is regenerated on demand after an edit — never carry the old
+    # one, which described the pre-edit session.
+    compiled["insight"] = None
+    return JSONResponse(content={"workout": compiled})
+
+
+async def _schedule_plan_action(body: CoachPlanRequest):
+    """Upload each workout as a Garmin template and schedule it on its date."""
+    _get_session(body.token)
+    client = _get_garmin_client(body.token)
+
+    scheduled = []
+    errors = []
+
+    for day in body.days:
+        # Rest days / empty slots are skipped — nothing to write
+        if not day.workout:
+            continue
+        try:
+            workout = _build_running_workout(day.workout)
+            upload_resp = client.upload_running_workout(workout)
+            # garminconnect's client returns the raw requests.Response (not a
+            # parsed dict), so read the JSON body before extracting the id.
+            # Without this the id is never found and the workout gets uploaded
+            # but is never scheduled onto its date (no date in Garmin).
+            upload_data = upload_resp.json() if hasattr(upload_resp, "json") else upload_resp
+            workout_id = _extract_workout_id(upload_data)
+            if not workout_id:
+                errors.append({"date": day.date, "error": "Garmin did not return a workout id."})
+                continue
+            schedule_resp = client.schedule_workout(workout_id, day.date)
+            # Keep only the JSON body of the schedule response too, so the
+            # API response payload stays JSON-serializable.
+            schedule_data = schedule_resp.json() if hasattr(schedule_resp, "json") else schedule_resp
+            scheduled.append({
+                "date": day.date,
+                "workout_id": workout_id,
+                "schedule": schedule_data,
+            })
+        except Exception as e:
+            errors.append({"date": day.date, "error": str(e)})
+
+    return JSONResponse(content={"scheduled": scheduled, "errors": errors})
+
+
+async def _workout_insight_action(body: CoachPlanRequest):
+    """Write the coach insight paragraph for one workout — or the plan
+    overview line when kind == "plan" — on demand.
+
+    The full-block plan is generated without per-workout insight text so the
+    payload stays light. Tapping a workout card calls this action, which
+    writes the paragraph with real context: where the session sits in the
+    block (week number, phase at THAT date, previous session), the race goal,
+    and the runner's readiness analysis when one exists.
+    """
+    sess = _get_session(body.token)
+    if body.kind == "plan":
+        return await _plan_overview_insight(body.context or {})
+    race_goal = sess.get("race_goal")
+    email = sess.get("email", "")
+    workout = body.workout or {}
+    context = body.context or {}
+    if not workout.get("type"):
+        return JSONResponse(status_code=400, content={"error": "Workout type required."})
+
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    # Phase + days left computed from the WORKOUT's date, not today — a week-14
+    # session in a 20-week block must be read as specificity, not whatever
+    # phase "today" happens to be. Falls back to today when the date is bad.
+    workout_date = None
+    if body.date:
+        try:
+            workout_date = _dt.strptime(body.date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            workout_date = None
+    race_phase_text = ""
+    days_left = None
+    dow_label = (workout_date or date.today()).strftime("%A")
+    race_date_str = race_goal.get("race_date") if race_goal else None
+    if race_date_str:
+        try:
+            race_date = _dt.strptime(race_date_str, "%Y-%m-%d").date()
+            anchor = workout_date or date.today()
+            days_left = (race_date - anchor).days
+            phase = _phase_for_days_left(days_left) if days_left is not None else None
+            if phase:
+                race_phase_text = f"{PHASE_LABELS.get(phase, phase)} ({days_left} days after this session)."
+        except (ValueError, TypeError):
+            pass
+
+    # Week position inside the block — sent by the frontend from the plan.
+    week_index = context.get("week_index")
+    total_weeks = context.get("total_weeks")
+    week_text = ""
+    if isinstance(week_index, int) and isinstance(total_weeks, int) and total_weeks > 0:
+        week_text = f"This workout sits in week {week_index} of {total_weeks} of the training block."
+    else:
+        week_text = "This workout is part of the training block leading to your race."
+    week_text += f" It is scheduled on a {dow_label}."
+
+    # Previous planned session — lets the insight say "after yesterday's easy
+    # run" or "the day before your long run", instead of reading standalone.
+    prev_text = "None — this is the first planned session." if not context.get("prev_workout") else str(context.get("prev_workout"))
+
+    # Readiness analysis (cached ai-radar, read-only) — ties the insight to
+    # the diagnosis so sessions that work the top gap say so.
+    readiness_line = ""
+    if email:
+        cached_ai = _get_persistent_ai_cache(email)
+        if cached_ai:
+            overall = (cached_ai.get("data") or {}).get("overall") or {}
+            top_gap = overall.get("topGap") or {}
+            if overall.get("verdict"):
+                readiness_line = (
+                    # Coach-language prompt context — the model may echo this
+                    # back to the runner, so it must not use internal terms
+                    # like "analysis" (see pacey-writing-style.md).
+                    "Your last readiness check said: "
+                    f"{overall.get('verdict')} ({overall.get('score')}/10), "
+                    f"top gap: {top_gap.get('label') or 'n/a'}. "
+                    "If this session works that gap, call it out; otherwise keep the focus on the phase."
+                )
+
+    race_week_extra = ""
+    if days_left is not None and 0 <= days_left < 7:
+        race_week_extra = (" This is race week — the only job is arriving at the line fresh, "
+                           "so keep everything short and easy except brief goal-pace touches.")
+
+    goal_text = ""
+    if race_goal:
+        goal_text = (
+            f"RACE GOAL: {race_goal.get('purpose', 'N/A')} in "
+            f"{race_goal.get('time_target', 'N/A')} on {race_goal.get('race_date', 'N/A')}."
+        )
+
+    # The compiled structure — `segments` is the exact session the watch gets
+    # and `totals` is the reconciled summary. Handing both to the model means
+    # the insight describes the real session, not a re-imagined one.
+    workout_spec = {
+        k: workout.get(k)
+        for k in ("type", "title", "description", "distance_km", "duration_min",
+                  "intensity", "target_pace_min_per_km", "totals", "segments")
+    }
+
+    # The runner's actual recent runs of the same type — lets the insight say
+    # "your last long run drifted in the final third, hold the effort earlier"
+    # instead of describing the session in a vacuum.
+    similar = _similar_sessions(body.token, workout.get("type") or "")
+    similar_section = ""
+    if similar:
+        rows = []
+        for a in similar:
+            date_label = (a.get("start_time") or "")[:10]
+            pace = _fmt_pace_ms(a.get("avg_pace"))
+            hr = f", avg HR {a['avg_hr']}" if a.get("avg_hr") else ""
+            rows.append(f"{date_label}: {a.get('distance')} km @ {pace}/km{hr} ({a.get('run_tag')})")
+        similar_section = (
+            "PREVIOUS SIMILAR SESSIONS (your actual runs of this type, most recent first):\n"
+            + "\n".join(rows)
+            + "\n\nReference them only when it genuinely helps: compare this session's target to your "
+            + "recent pace on the same type of run, or note HR drift late in a long run. Never invent numbers."
+        )
+
+    prompt = f"""You are an expert running coach. Write ONE coach insight paragraph for a single workout.
+
+PLAN CONTEXT (this is the heart of the insight — write for the week, not the workout in isolation):
+- {week_text}
+- Race phase at this session: {race_phase_text or 'no race context yet'}.
+- Previous session in the plan: {prev_text}.
+
+{similar_section}
+
+RACE CONTEXT (internal reference only — do not lead with numbers from this):
+- {goal_text}
+
+WORKOUT:
+{json.dumps(workout_spec, indent=2)}
+
+NOTE: "segments" is the EXACT structure that will be sent to the watch (each with a role, a distance or time, and a pace), and "totals" is the reconciled summary (distance, duration, average pace). Describe THAT session — do not invent a different structure, and do not describe a segment as longer or shorter than it is.
+
+Write a short paragraph (2-4 sentences):
+- Lead with why THIS session exists in this week of the block and how it fits the phase. The week placement and the sessions around it are the context — not the race date.
+- Say what to notice during the run: the target effort (RPE or the sensation to hold), and where the hard part sits.
+- One practical tip: hydration / fuelling / recovery-between-efforts relevant to this session.
+- Refer to the race as "your goal race", "race day", or "the {race_goal.get('purpose', 'goal') if race_goal else 'goal'} goal". Mention the exact goal time or race date at most once, and only when it sharpens the point. Prefer phase and week context over numbers.{race_week_extra}
+
+{readiness_line}
+
+Do NOT mention missing data. Do not repeat the race date or goal time as filler. Keep it warm and direct, like a good coach texting a club runner. Never write m/s.
+
+Return ONLY valid JSON:
+{{"insight": "..."}}"""
+
+    try:
+        result = await _call_ai(prompt, api_key)
+        insight = (result.get("insight") or "").strip()
+    except Exception:
+        insight = ""
+    if not insight:
+        return JSONResponse(status_code=500, content={"error": "Could not generate insight."})
+    return JSONResponse(content={"insight": insight})
+
+
+async def _generate_plan(body: CoachPlanRequest):
     """Return the last 2 weeks of activities plus a GPT plan honouring prefs.
 
     Fetches a 14-day, lap-detailed activity history and physiological trends,
