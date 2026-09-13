@@ -382,6 +382,12 @@ document.addEventListener('DOMContentLoaded', function () {
         $$('.pacey-page').forEach(p => p.hidden = true);
         const target = document.getElementById(`pacey-page-${page}`);
         if (target) target.hidden = false;
+        // A radar canvas that was hidden when the chart was last built (the
+        // readiness page during the overview load) has no chart yet — it gets
+        // one now that the page is visible and the canvas has a size.
+        if (lastRadarData && radarCanvasesToRender().some(c => !Chart.getChart(c))) {
+            renderRadarChart(lastRadarData);
+        }
         // Scroll to the top of the new page. The window is the actual scroll
         // container (.pacey-content has overflow:clip — the page scrolls
         // naturally), so setting content.scrollTop alone does nothing and the
@@ -3463,8 +3469,15 @@ document.addEventListener('DOMContentLoaded', function () {
         tooltipEl.style.opacity = 1;
     }
 
-    function renderRadarChart(aiData) {
-        // Store last radar data so charts can be re-rendered on theme change
+    // Radar canvases that are actually laid out. A canvas inside a hidden page
+    // measures 0x0, and a chart drawn at that size produces NaN coordinates —
+    // rough.js then throws on every frame trying to parse the path.
+    function radarCanvasesToRender() {
+        return Array.from(document.querySelectorAll('.pacey-radar-chart'))
+            .filter(canvas => canvas.clientWidth > 0);
+    }
+
+    function renderRadarChart(aiData) {        // Store last radar data so charts can be re-rendered on theme change
         lastRadarData = aiData;
         // AI radar returns dimensions as [{name, score, note}] with 0-10 scores
         // Map the AI dimension names to the chart's expected order using normalized
@@ -3496,8 +3509,14 @@ document.addEventListener('DOMContentLoaded', function () {
         radarCharts.forEach(c => c.destroy());
         radarCharts = [];
 
-        // Create a Chart instance for each radar canvas (overview + readiness)
-        const canvases = document.querySelectorAll('.pacey-radar-chart');
+        // Create a Chart instance for each radar canvas (overview + readiness).
+        // Only canvases that have been laid out get one: the readiness radar
+        // sits inside a display:none page at load, so its canvas measures 0x0,
+        // and drawing a chart at zero size yields NaN coordinates. Canvas
+        // silently ignored those; rough.js does not — it throws on every frame,
+        // which is how this surfaced. navigateTo() calls back in once a page is
+        // shown, so the hidden radar still gets its chart on first visit.
+        const canvases = radarCanvasesToRender();
         canvases.forEach(canvas => {
             // Reset the loaded class so the canvas starts at opacity 0,
             // then add it after the chart is created to trigger the fade-in
