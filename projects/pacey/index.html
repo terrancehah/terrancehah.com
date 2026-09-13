@@ -1302,38 +1302,8 @@
                                     <div class="pacey-radar-wrap">
                                         <canvas class="pacey-radar-chart"></canvas>
                                         <div class="pacey-radar-skeleton" hidden>
-                                            <!-- Hexagon-based radar skeleton: outer boundary + 2 inner
-                                                 concentric levels mimic the radar chart grid -->
-                                            <svg class="pacey-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                                                <!-- Outer hexagon (radar boundary) -->
-                                                <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
-                                                    fill="none" stroke="var(--pacey-border)" stroke-width="1.5" opacity="0.7"/>
-                                                <!-- Middle grid line -->
-                                                <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                    fill="none" stroke="var(--pacey-border)" stroke-width="1" opacity="0.45"/>
-                                                <!-- Inner grid line -->
-                                                <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                    fill="none" stroke="var(--pacey-border)" stroke-width="1" opacity="0.3"/>
-                                                <!-- Axis lines from center to each vertex -->
-                                                <line x1="100" y1="100" x2="100" y2="20" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <line x1="100" y1="100" x2="170" y2="60" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <line x1="100" y1="100" x2="170" y2="140" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <line x1="100" y1="100" x2="100" y2="180" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <line x1="100" y1="100" x2="30" y2="140" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <line x1="100" y1="100" x2="30" y2="60" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                                <!-- Morphing data shape — JS randomises the vertices while loading,
-                                                     then the real chart fades in with the actual values -->
-                                                <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                    fill="rgba(61,122,175,0.16)" class="pacey-radar-skeleton-fill pacey-radar-morph"/>
-                                                <!-- Vertex dots (6) — follow the morphing shape during loading -->
-                                                <circle cx="100" cy="20" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                                <circle cx="170" cy="60" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                                <circle cx="170" cy="140" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                                <circle cx="100" cy="180" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                                <circle cx="30" cy="140" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                                <circle cx="30" cy="60" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            </svg>
-                                            <!-- Loading hint — makes the placeholder state unmistakable -->
+                                            <!-- The placeholder is the real radar drawn with stand-in
+                                                 scores, so only the loading label lives here now. -->
                                             <div class="pacey-radar-skeleton-label"><span class="pacey-shimmer-text">Checking your readiness…</span></div>
                                         </div>
                                     </div>
@@ -1505,31 +1475,6 @@
                                 <div class="pacey-radar-wrap pacey-radar-wrap--full">
                                     <canvas class="pacey-radar-chart" height="400"></canvas>
                                     <div class="pacey-radar-skeleton" hidden>
-                                        <svg class="pacey-radar-skeleton-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                                            <polygon points="100,20 170,60 170,140 100,180 30,140 30,60"
-                                                fill="none" stroke="var(--pacey-border)" stroke-width="1.5" opacity="0.7"/>
-                                            <polygon points="100,47 147,73 147,127 100,153 53,127 53,73"
-                                                fill="none" stroke="var(--pacey-border)" stroke-width="1" opacity="0.45"/>
-                                            <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                fill="none" stroke="var(--pacey-border)" stroke-width="1" opacity="0.3"/>
-                                            <line x1="100" y1="100" x2="100" y2="20" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <line x1="100" y1="100" x2="170" y2="60" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <line x1="100" y1="100" x2="170" y2="140" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <line x1="100" y1="100" x2="100" y2="180" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <line x1="100" y1="100" x2="30" y2="140" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <line x1="100" y1="100" x2="30" y2="60" stroke="var(--pacey-border)" stroke-width="0.5" opacity="0.4"/>
-                                            <!-- Morphing data shape — JS randomises the vertices while loading,
-                                                 then the real chart fades in with the actual values -->
-                                            <polygon points="100,73 123,87 123,113 100,127 77,113 77,87"
-                                                fill="rgba(61,122,175,0.16)" class="pacey-radar-skeleton-fill pacey-radar-morph"/>
-                                            <!-- Vertex dots (6) — follow the morphing shape during loading -->
-                                            <circle cx="100" cy="20" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            <circle cx="170" cy="60" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            <circle cx="170" cy="140" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            <circle cx="100" cy="180" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            <circle cx="30" cy="140" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                            <circle cx="30" cy="60" r="2.5" fill="var(--pacey-blue)" opacity="0.55" class="pacey-radar-morph-dot"/>
-                                        </svg>
                                         <!-- Loading hint — makes the placeholder state unmistakable -->
                                         <div class="pacey-radar-skeleton-label"><span class="pacey-shimmer-text">Checking your readiness…</span></div>
                                     </div>

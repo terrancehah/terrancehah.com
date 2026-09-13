@@ -2005,9 +2005,10 @@ header.pacey-header-offset.pacey-header-collapsed {
     opacity: 1;
 }
 
-/* Radar skeleton — hexagon-based SVG placeholder that mimics the actual radar chart
-   structure: outer boundary, two inner grid levels, axis lines, and vertex dots.
-   Includes opacity transition for smooth fade-out when data arrives. */
+/* Radar loading state. The placeholder is no longer a separate SVG — the real
+   radar renders with stand-in scores (desaturated, see RADAR_LOADING_* in
+   pacey.js) and this container carries only the loading label, which fades out
+   when the real scores land. */
 .pacey-radar-skeleton {
     position: absolute;
     inset: 0;
@@ -2024,37 +2025,19 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-radar-skeleton[hidden] { display: none; }
 
-/* SVG fills the wrapper — constrained by padding so it stays within bounds */
-.pacey-radar-skeleton-svg {
-    width: 85%;
-    height: 85%;
-    max-width: 100%;
-    max-height: 100%;
-}
-
-/* Animated shimmer over the data fill area — pulses to indicate loading */
-@keyframes pacey-radar-pulse {
-    0%, 100% { opacity: 0.2; }
-    50% { opacity: 0.45; }
-}
-
-.pacey-radar-skeleton-fill {
-    animation: pacey-radar-pulse 1.6s ease-in-out infinite;
-}
-
-/* The morphing data shape keeps the chart's hexagon grid static while the
-   vertices are randomised by JS (requestAnimationFrame) — the polygon's
-   points attribute is rewritten each frame, so no CSS animation is needed. */
-
-/* "Checking your readiness…" label under the radar skeleton — makes the
-   placeholder state unmistakable instead of looking like a faint copy of
-   the final chart. The text inside uses the shimmer animation, so the
-   label color is set transparent by the .pacey-shimmer-text class. */
+/* "Checking your readiness…" label over the radar while it loads — makes the
+   placeholder state unmistakable instead of looking like a faint copy of the
+   final chart. The text inside uses the shimmer animation, so the label color
+   is set transparent by the .pacey-shimmer-text class. */
 .pacey-radar-skeleton-label {
     position: absolute;
-    bottom: 0.5rem;
+    /* Centred rather than pinned to the bottom: the radar's own axis labels sit
+       around the edges, and the bottom one collided with this. The middle of a
+       radar is empty grid, so the label has room and reads as "still working". */
+    top: 50%;
     left: 0;
     right: 0;
+    transform: translateY(-50%);
     text-align: center;
     font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
@@ -5327,15 +5310,14 @@ header.pacey-header-offset.pacey-header-collapsed {
         scroll-behavior: auto !important;
     }
 
-    /* Hide shimmer/skeleton sweep animations — show the base colour only */
+    /* Hide shimmer/skeleton sweep animations — show the base colour only.
+       .pacey-radar-skeleton is deliberately absent: it is now only a
+       positioning container for the loading label, so giving it a background
+       would paint a solid block over the placeholder radar. */
     .pacey-shimmer-text,
     .pacey-skeleton,
     .pacey-skeleton-text,
     .pacey-skeleton-line,
-    .pacey-radar-skeleton,
-    .pacey-radar-skeleton-svg,
-    .pacey-radar-skeleton-fill,
-    .pacey-radar-morph,
     .pacey-coach-loading--active {
         animation: none !important;
         background: var(--pacey-light) !important;

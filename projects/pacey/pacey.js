@@ -3481,7 +3481,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const score = scoreMap[normalizeName(name)];
             return score !== undefined ? Math.round(score) : 0;
         });
-        radarValues10 = values10;
+        // Stand-in scores must never reach the tooltip, or it would report a
+        // made-up number as the runner's reading.
+        if (!radarLoading) radarValues10 = values10;
         radarLabels = RADAR_DIMENSIONS;
 
         // Destroy any existing chart instances before re-creating
@@ -3516,10 +3518,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     labels: RADAR_DIMENSIONS,
                     datasets: [{
                         data: values10,
-                        backgroundColor: `rgba(69, 123, 157, 0.1)`,
-                        borderColor: `rgba(69, 123, 157, 0.8)`,
+                        backgroundColor: radarLoading ? RADAR_LOADING_FILL : `rgba(69, 123, 157, 0.1)`,
+                        borderColor: radarLoading ? RADAR_LOADING_LINE : `rgba(69, 123, 157, 0.8)`,
                         borderWidth: 2,
-                        pointBackgroundColor: RADAR_COLORS,
+                        pointBackgroundColor: radarLoading ? RADAR_LOADING_POINT : RADAR_COLORS,
                         pointBorderColor: '#fff',
                         pointBorderWidth: 2,
                         pointRadius: 5,
@@ -3828,100 +3830,74 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
         if (show) {
-            // Best-effort teardown — the skeleton is already visible, so a
+            // Best-effort teardown — the label is already visible, so a
             // failure here cannot leave a blank radar area.
             try {
                 radarCharts.forEach(c => c.destroy());
                 radarCharts = [];
                 // Reset the canvas opacity so it can fade in again when the
-                // new chart is created
+                // placeholder chart is created
                 document.querySelectorAll('.pacey-radar-chart').forEach(canvas => {
                     canvas.classList.remove('pacey-radar-loaded');
                 });
-                startRadarMorph();
+                startRadarLoading();
             } catch (err) {
                 console.error('Radar teardown error during refresh:', err);
                 radarCharts = [];
             }
         } else {
-            stopRadarMorph();
+            stopRadarLoading();
         }
     }
 
-    // Radar loading morph — while the skeleton is visible, the data polygon
-    // keeps morphing between random shapes (vertices eased toward random
-    // radii), suggesting values are still being computed. The hexagon grid
-    // stays static; only the data shape + its vertex dots move.
-    let radarMorphRaf = null;
-    // Per-skeleton state: [polygon element, dot elements, current radii, target radii]
-    let radarMorphStates = [];
-    // Vertex angles (radians) for the 6 dimensions, starting at top (12 o'clock)
-    const RADAR_MORPH_ANGLES = [-Math.PI / 2, -Math.PI / 6, Math.PI / 6, Math.PI / 2, (5 * Math.PI) / 6, (7 * Math.PI) / 6];
-    const RADAR_MORPH_CENTER = 100;      // hexagon centre in the 200x200 viewBox
-    const RADAR_MORPH_MIN_R = 24;        // min vertex radius (stays inside the grid)
-    const RADAR_MORPH_MAX_R = 76;        // max vertex radius (stays inside the grid)
-    const RADAR_MORPH_EASE = 0.12;       // per-frame ease toward the target radius
-    // Hold frames (1-2s at 60fps) a vertex stays at its target radius before
-    // morphing again — sets the interval between shape changes
-    const RADAR_MORPH_HOLD_MIN = 60;
-    const RADAR_MORPH_HOLD_MAX = 120;
+    // Radar loading placeholder. Rather than a separate SVG skeleton, the real
+    // radar is rendered early with stand-in scores and handed new ones on a
+    // timer. Chart.js tweens between data sets, so the polygon warps using the
+    // library's own animation — no per-frame loop — and it is drawn by the same
+    // rough.js pass as the finished chart, so placeholder and result are the
+    // same object rather than two things that have to look alike.
+    //
+    // Two things keep it honest: the styling runs desaturated while loading,
+    // and the "Checking your readiness…" label stays up. A glance should never
+    // mistake a placeholder polygon for a real reading.
+    let radarLoading = false;
+    let radarLoadingTimer = null;
+    // Longer than the chart's 1.2s tween so each shape settles before the next,
+    // and so rough.js isn't recomputing hatch geometry every frame for the whole
+    // wait — it only runs while a tween is in flight.
+    const RADAR_LOADING_STEP_MS = 1500;
+    const RADAR_LOADING_LINE = 'rgba(122, 134, 142, 0.5)';
+    const RADAR_LOADING_FILL = 'rgba(122, 134, 142, 0.07)';
+    const RADAR_LOADING_POINT = 'rgba(122, 134, 142, 0.55)';
 
-    function startRadarMorph() {
-        if (radarMorphRaf !== null) return; // already running
-        radarMorphStates = [];
-        document.querySelectorAll('.pacey-radar-skeleton').forEach(skel => {
-            const poly = skel.querySelector('.pacey-radar-morph');
-            const dots = Array.from(skel.querySelectorAll('.pacey-radar-morph-dot'));
-            if (!poly) return;
-            const radii = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
-            const targets = Array.from({ length: 6 }, () => RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R));
-            // Frames remaining before each vertex may morph again — starts at 0
-            // so vertices move on load, then desync via random holds
-            const holds = Array(6).fill(0);
-            radarMorphStates.push({ poly, dots, radii, targets, holds });
-        });
-        if (!radarMorphStates.length) return;
-
-        const tick = () => {
-            radarMorphStates.forEach(state => {
-                for (let i = 0; i < state.radii.length; i++) {
-                    const diff = state.targets[i] - state.radii[i];
-                    if (state.holds[i] > 0) {
-                        // Holding at the current target — no movement
-                        state.holds[i]--;
-                        if (state.holds[i] === 0) {
-                            state.targets[i] = RADAR_MORPH_MIN_R + Math.random() * (RADAR_MORPH_MAX_R - RADAR_MORPH_MIN_R);
-                        }
-                    } else {
-                        // Moving toward the target
-                        state.radii[i] += diff * RADAR_MORPH_EASE;
-                        if (Math.abs(diff) < 0.6) {
-                            // Reached the target — hold before the next morph
-                            state.holds[i] = RADAR_MORPH_HOLD_MIN + Math.floor(Math.random() * (RADAR_MORPH_HOLD_MAX - RADAR_MORPH_HOLD_MIN));
-                        }
-                    }
-                }
-                // Rebuild the polygon points and move the vertex dots with it
-                const pts = state.radii.map((r, i) => {
-                    const x = RADAR_MORPH_CENTER + r * Math.cos(RADAR_MORPH_ANGLES[i]);
-                    const y = RADAR_MORPH_CENTER + r * Math.sin(RADAR_MORPH_ANGLES[i]);
-                    if (state.dots[i]) {
-                        state.dots[i].setAttribute('cx', x.toFixed(1));
-                        state.dots[i].setAttribute('cy', y.toFixed(1));
-                    }
-                    return `${x.toFixed(1)},${y.toFixed(1)}`;
-                }).join(' ');
-                state.poly.setAttribute('points', pts);
-            });
-            radarMorphRaf = requestAnimationFrame(tick);
-        };
-        tick();
+    // Plausible scores. Never an empty or a perfect radar — either would read
+    // as a real result rather than a placeholder.
+    function radarLoadingScores() {
+        return RADAR_DIMENSIONS.map(() => 3 + Math.floor(Math.random() * 7));
     }
 
-    function stopRadarMorph() {
-        if (radarMorphRaf !== null) cancelAnimationFrame(radarMorphRaf);
-        radarMorphRaf = null;
-        radarMorphStates = [];
+    function radarLoadingData() {
+        const scores = radarLoadingScores();
+        return { dimensions: RADAR_DIMENSIONS.map((name, i) => ({ name, score: scores[i] })) };
+    }
+
+    function startRadarLoading() {
+        stopRadarLoading();
+        radarLoading = true;
+        renderRadarChart(radarLoadingData());
+        radarLoadingTimer = setInterval(() => {
+            if (!radarCharts.length) return;
+            const values = radarLoadingScores();
+            radarCharts.forEach(c => {
+                c.data.datasets[0].data = values;
+                c.update();
+            });
+        }, RADAR_LOADING_STEP_MS);
+    }
+
+    function stopRadarLoading() {
+        radarLoading = false;
+        if (radarLoadingTimer) { clearInterval(radarLoadingTimer); radarLoadingTimer = null; }
     }
 
     // Simulated fetch duration for demo mode — charts show a loading state
