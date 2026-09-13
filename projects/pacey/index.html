@@ -664,6 +664,7 @@
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-greeting,
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-goal,
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-theme-label,
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-site-label,
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-settings-label {
         font-family: var(--font-fuzzy);
     }
@@ -765,22 +766,26 @@
         display: flex;
         align-items: center;
         gap: 0.55rem;
-        margin: 0.3rem 0.5rem 0.25rem;
+        /* margin: 0.3rem 0.5rem 0.25rem; */
         padding: 0.4rem 0.55rem;
         border-radius: 0.5rem;
         color: var(--pacey-muted);
         text-decoration: none;
         font-family: var(--font-fuzzy);
-        font-size: 0.85rem;
+        font-size: 0.75rem;
         transition: background 0.18s ease-out, transform 0.18s ease-out;
     }
-    .pacey-sidebar-site-link img { width: 24px; height: 24px; border-radius: 6px; display: block; flex: none; }
+    /* max-width: none matters — a global img { max-width: 100% } let the mark
+       be squashed below its own size whenever the link got narrow. */
+    .pacey-sidebar-site-link img { width: 18px; height: 18px; max-width: none; border-radius: 6px; display: block; flex: none; }
     .pacey-sidebar-site-link:hover {
         background: color-mix(in srgb, currentColor 12%, transparent);
         transform: translateY(-1px);
     }
-    /* Collapsed sidebar: icon only */
-    .pacey-sidebar.collapsed .pacey-sidebar-site-link { justify-content: center; padding: 0.4rem; }
+    /* Collapsed sidebar: icon only. The padding and alignment are deliberately
+       left alone so the mark keeps the same left offset as the theme and
+       settings buttons — those don't shift on collapse either, and matching
+       them means the rail's icons stay in one column. Only the label hides. */
     .pacey-sidebar.collapsed .pacey-sidebar-site-label { display: none; }
 
     /* --- Site section inside the Account dialog (mobile's way back) --- */
@@ -1180,7 +1185,7 @@
                         <!-- Link back to the main site — tucked under Settings
                              so the app itself stays free of site chrome -->
                         <a class="pacey-sidebar-site-link" href="/index.html" title="Back to terrancehah.com" aria-label="Back to terrancehah.com">
-                            <img src="/resources/th-logo-64.png" alt="" width="24" height="24" loading="lazy">
+                            <img src="/resources/th-logo-64.png" alt="" width="16" height="16" loading="lazy">
                             <span class="pacey-sidebar-site-label">terrancehah.com</span>
                         </a>
                     </div>

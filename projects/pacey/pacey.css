@@ -1037,7 +1037,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-sidebar-goal {
     font-size: var(--pacey-text-caption);
-    color: var(--pacey-blue);
+    color: var(--pacey-btn-primary-hover);
     font-weight: 500;
     flex: 1;
     text-align: end;
