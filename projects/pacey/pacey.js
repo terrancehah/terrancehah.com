@@ -2260,6 +2260,112 @@ document.addEventListener('DOMContentLoaded', function () {
     // Activity calendar
     // =========================================================================
 
+    // ---- Hand-drawn calendar dots ---------------------------------------
+    // A day marker is drawn as an inline SVG so it reads like a circle
+    // someone sketched and then coloured in with a pencil: a wobbly outline
+    // plus a few hatch strokes. Wobble, hatch angle and stroke spacing are
+    // seeded from the date, so every dot looks hand-made while a given day
+    // keeps the same drawing across re-renders — a refresh must not make the
+    // whole calendar twitch into a new arrangement.
+    function mulberry32(seed) {
+        let a = seed >>> 0;
+        return function () {
+            a = (a + 0x6D2B79F5) >>> 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        };
+    }
+
+    // Geometry lives in a 24x24 box so the SVG scales to any dot size, and
+    // stays inside the box so nothing spills past the dot's own footprint.
+    // `hollow` draws just a faint sketched ring, for days with no run.
+    function calendarDotSvg(colors, seed, hollow) {
+        const rand = mulberry32(seed);
+        const C = 12;      // centre
+        const R = 8.3;     // nominal radius
+        const uid = 'pcd' + seed;
+
+        // Hand-drawn outline. Few points, each nudged radially and slightly
+        // off-angle, plus a small centre offset — that gives a low-frequency
+        // wobble like a real freehand circle, rather than high-frequency
+        // bumpiness. The points are then smoothed into a closed curve
+        // (Catmull-Rom), because straight segments read as a polygon.
+        const steps = 9;
+        const ox = (rand() - 0.5) * 0.7, oy = (rand() - 0.5) * 0.7;
+        const pts = [];
+        for (let i = 0; i < steps; i++) {
+            const a = (i / steps) * Math.PI * 2 - Math.PI / 2 + (rand() - 0.5) * 0.11;
+            const rr = R + (rand() - 0.5) * 1.0;
+            pts.push([C + ox + Math.cos(a) * rr, C + oy + Math.sin(a) * rr]);
+        }
+        const at = (i) => pts[((i % steps) + steps) % steps];
+        let outline = `M ${at(0)[0].toFixed(2)} ${at(0)[1].toFixed(2)}`;
+        for (let i = 0; i < steps; i++) {
+            const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
+            outline += ` C ${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(2)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(2)},`
+                + ` ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(2)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(2)},`
+                + ` ${p2[0].toFixed(2)} ${p2[1].toFixed(2)}`;
+        }
+        outline += ' Z';
+
+        // Pencil hatching: near-parallel strokes across the circle at an angle
+        // that varies per dot, with per-stroke width and opacity jitter. All
+        // of it is clipped to the outline, so the colour stays inside the line.
+        const hatch = (color) => {
+            const angle = (-34 + (rand() - 0.5) * 26) * Math.PI / 180;
+            const nx = -Math.sin(angle), ny = Math.cos(angle);
+            const tx = Math.cos(angle) * R, ty = Math.sin(angle) * R;
+            const gap = (R * 2) / 4.2;
+            let out = '';
+            for (let i = 0; i < 4; i++) {
+                const off = -R + gap * (i + 0.5) + (rand() - 0.5) * 0.7;
+                const cx = C + nx * off, cy = C + ny * off;
+                out += `<line x1="${(cx - tx).toFixed(2)}" y1="${(cy - ty).toFixed(2)}"`
+                    + ` x2="${(cx + tx).toFixed(2)}" y2="${(cy + ty).toFixed(2)}"`
+                    + ` stroke="${color}" stroke-width="${(1.5 + rand() * 0.7).toFixed(2)}"`
+                    + ` stroke-linecap="round" opacity="${(0.5 + rand() * 0.25).toFixed(2)}"/>`;
+            }
+            return out;
+        };
+
+        const split = colors.length > 1;
+        let defs = '', body = '';
+        if (!hollow) {
+            defs = `<clipPath id="${uid}"><path d="${outline}"/></clipPath>`
+                + (split
+                    ? `<clipPath id="${uid}L"><rect x="0" y="0" width="${C}" height="24"/></clipPath>`
+                      + `<clipPath id="${uid}R"><rect x="${C}" y="0" width="${C}" height="24"/></clipPath>`
+                    : '');
+            // Two run types: left half in one colour, right half in the other.
+            // The outer clip keeps everything inside the drawn circle; the
+            // inner clips divide it, and nested clips intersect.
+            body = split
+                ? `<g clip-path="url(#${uid})">`
+                    + `<rect x="0" y="0" width="${C}" height="24" fill="${colors[0]}" opacity="0.26"/>`
+                    + `<rect x="${C}" y="0" width="${C}" height="24" fill="${colors[1]}" opacity="0.26"/>`
+                    + `<g clip-path="url(#${uid}L)">${hatch(colors[0])}</g>`
+                    + `<g clip-path="url(#${uid}R)">${hatch(colors[1])}</g>`
+                  + `</g>`
+                : `<g clip-path="url(#${uid})">`
+                    + `<path d="${outline}" fill="${colors[0]}" opacity="0.26"/>`
+                    + hatch(colors[0])
+                  + `</g>`;
+        }
+
+        // The drawn line itself. A filled dot takes its own run colour as an
+        // attribute; a hollow one gets a class so the stylesheet can supply a
+        // theme-aware colour (presentation attributes can't hold var()).
+        const line = hollow
+            ? `<path d="${outline}" class="pacey-calendar-dot-stroke" fill="none"`
+                + ` stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/>`
+            : `<path d="${outline}" fill="none" stroke="${colors[0]}" stroke-width="1.5"`
+                + ` stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>`;
+
+        return `<svg class="pacey-calendar-dot-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">`
+            + (defs ? `<defs>${defs}</defs>` : '') + body + line + '</svg>';
+    }
+
     function renderCalendar(activities) {
         const now = new Date();
         const year = now.getFullYear();
@@ -2307,34 +2413,36 @@ document.addEventListener('DOMContentLoaded', function () {
             html += '<span class="pacey-calendar-dot empty"></span>';
         }
 
-        // Day dots — coloured by run type (solid) or split when a day has
-        // two different run types. data-day lets the click handler look up
-        // the day's runs for the tooltip.
+        // Day dots — drawn as hand-sketched, pencil-coloured circles rather
+        // than flat fills, so the calendar reads like a page someone marked
+        // up. A day with two different run types is coloured in two halves.
+        // data-day lets the click handler look up the day's runs for the
+        // tooltip.
         for (let day = 1; day <= daysInMonth; day++) {
             const runs = dayRuns[day];
             const isToday = day === today;
 
-            let cls = 'pacey-calendar-dot';
-            let style = '';
+            let cls = 'pacey-calendar-dot has-sketch';
+            let inner = '';
+            // One seed per date, so a day's plain ring and its coloured-in
+            // version are the same drawn circle.
+            const seed = year * 10000 + (month + 1) * 100 + day;
             if (runs) {
                 cls += ' has-runs';
                 // Distinct run types on this day (preserve first-seen order)
                 const tags = [];
                 runs.forEach(r => { if (!tags.includes(r.tag)) tags.push(r.tag); });
-                if (tags.length >= 2) {
-                    // Two different run types — side-by-side halves
-                    const c1 = RUN_TAG_COLOR[tags[0]] || RUN_TAG_COLOR['Easy'];
-                    const c2 = RUN_TAG_COLOR[tags[1]] || RUN_TAG_COLOR['Easy'];
-                    style = `style="background: linear-gradient(to right, ${c1} 50%, ${c2} 50%);"`;
-                } else {
-                    const c = RUN_TAG_COLOR[tags[0]] || RUN_TAG_COLOR['Easy'];
-                    style = `style="background: ${c};"`;
-                }
+                const colors = tags.map(t => RUN_TAG_COLOR[t] || RUN_TAG_COLOR['Easy']);
+                inner = calendarDotSvg(colors.slice(0, 2), seed, false);
+            } else {
+                // No run — a faint sketched ring, so the whole month reads as
+                // hand-marked instead of a grid of stamped circles.
+                inner = calendarDotSvg([], seed, true);
             }
             if (isToday) cls += ' today';
 
             const dataAttr = runs ? `data-day="${day}"` : '';
-            html += `<span class="${cls}" ${style} ${dataAttr}></span>`;
+            html += `<span class="${cls}" ${dataAttr}>${inner}</span>`;
         }
 
         html += '</div>';
@@ -2395,8 +2503,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 return `
                     <div class="pacey-calendar-tooltip-run">
                         <span class="pacey-calendar-tooltip-run-dot" style="background:${color}"></span>
-                        <span class="pacey-calendar-tooltip-run-name">${escapeHtml(r.name)}</span>
-                        <span class="pacey-calendar-tooltip-run-meta">${meta}</span>
+                        <span class="pacey-calendar-tooltip-run-text">
+                            <span class="pacey-calendar-tooltip-run-name">${escapeHtml(r.name)}</span>
+                            <span class="pacey-calendar-tooltip-run-meta">${meta}</span>
+                        </span>
                     </div>
                 `;
             }).join('')}
@@ -2999,11 +3109,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         padding: 8,
                         cornerRadius: 3,
                         callbacks: {
+                            // Returning an array puts the run name on its own
+                            // line, with the numbers beneath it.
                             label: (ctx) => {
                                 const p = scatterData[ctx.dataIndex];
                                 const paceStr = `${Math.floor(p.x)}:${String(Math.round((p.x % 1) * 60)).padStart(2, '0')}/km`;
                                 const dateStr = p.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                                return `${p.name || 'Run'}: ${paceStr} · ${p.y} bpm · ${p.distance}km · ${dateStr}`;
+                                return [
+                                    p.name || 'Run',
+                                    `${paceStr} · ${p.y} bpm · ${p.distance}km · ${dateStr}`,
+                                ];
                             }
                         }
                     }

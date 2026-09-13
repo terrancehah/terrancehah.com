@@ -2163,11 +2163,20 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-calendar-tooltip-run {
     display: flex;
-    align-items: center;
+    /* Marker sits on the name's line rather than centred between two */
+    align-items: flex-start;
     gap: 0.4rem;
     font-family: 'Lato', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-text);
+}
+
+/* Run name and its detail stack, so a long name never shoves the detail
+   off to one side. */
+.pacey-calendar-tooltip-run-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
 }
 
 .pacey-calendar-tooltip-run-dot {
@@ -2175,6 +2184,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     height: 0.55rem;
     border-radius: 50%;
     flex-shrink: 0;
+    /* Drop it level with the name's cap height */
+    margin-top: 0.3rem;
 }
 
 .pacey-calendar-tooltip-run-name {
@@ -2183,7 +2194,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-calendar-tooltip-run-meta {
     color: var(--pacey-muted);
-    margin-left: auto;
 }
 
 /* Brief highlight pulse when a pillar is scrolled into view from the
@@ -2317,8 +2327,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-calendar-dot {
     /* Bigger dots that fill more of each grid cell */
-    width: clamp(0.85rem, 2vw, 1.15rem);
-    height: clamp(0.85rem, 2vw, 1.15rem);
+    width: clamp(0.95rem, 2.2vw, 1.3rem);
+    height: clamp(0.95rem, 2.2vw, 1.3rem);
     border-radius: 50%;
     background: var(--pacey-border);
     transition: transform 0.12s ease;
@@ -2327,11 +2337,19 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-calendar-dot:hover { transform: scale(1.25); }
 .pacey-calendar-dot.empty { background: transparent; pointer-events: none; }
-/* Dots with activity data are clickable (open the day tooltip). The
-   fill colour is applied inline by renderCalendar() based on the run
-   type(s) that day — solid for a single type, or a hard 50/50 split
-   (left/right halves) when two different run types occurred. */
+/* Dots with activity data are clickable (open the day tooltip). The marker
+   itself is an inline SVG drawn by renderCalendar() — a sketched circle
+   hatched in the day's run-type colour, or two halves when two different
+   run types occurred — so the flat background is cleared to let it show.
+   Run-free days get the same drawn circle, just as an empty ring. */
 .pacey-calendar-dot.has-runs { cursor: pointer; }
+.pacey-calendar-dot.has-sketch { background: none; }
+
+.pacey-calendar-dot-svg { display: block; width: 100%; height: 100%; }
+
+/* Ring for a day with no run. Set here rather than in the SVG so it can use
+   a theme token — presentation attributes can't hold var(). */
+.pacey-calendar-dot-stroke { stroke: var(--pacey-border); }
 
 .pacey-calendar-dot.today {
     box-shadow: 0 0 0 0.125rem var(--pacey-surface), 0 0 0 0.1875rem var(--pacey-blue);
@@ -3663,8 +3681,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     .pacey-dimension-legend { grid-template-columns: 1fr; }
 
     .pacey-calendar-dot {
-        width: clamp(0.7rem, 4vw, 0.9rem);
-        height: clamp(0.7rem, 4vw, 0.9rem);
+        width: clamp(0.8rem, 4.4vw, 1rem);
+        height: clamp(0.8rem, 4.4vw, 1rem);
     }
 
     /* Keep calendar labels readable on phone — use label size, not caption */

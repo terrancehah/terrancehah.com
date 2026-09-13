@@ -621,8 +621,12 @@
 .pacey-radar-tooltip-score { font-family: var(--font-fuzzy); color: var(--pinboard-ink); }
 /* Calendar day tooltip */
 .pacey-calendar-tooltip-date {
-    font-family: var(--font-caveat);
-    font-weight: 700;
+    /* Same title face as every other tooltip — the chart tooltips' titles use
+       --pacey-chart-heading-font, which the pinboard theme maps to Fuzzy
+       Bubbles. Caveat here made the calendar look like a different component.
+       Fuzzy Bubbles only ships one weight, so no bold. */
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     color: var(--pinboard-ink);
 }
 .pacey-calendar-tooltip-run-name { font-family: var(--font-fuzzy); color: var(--pinboard-ink); }
