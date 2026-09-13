@@ -292,6 +292,7 @@ SCORING
     - 9–10 = rare; needs repeated, clear evidence.
     - 6 = usable but a real limiter remains.
     - 5 or below = this area needs focused work before race day.
+    - Absence of evidence is NOT a limiter. Score each dimension on the evidence actually present. Only score down when the data positively shows a problem (e.g. HRV declining, RHR rising, sleep inconsistent, pace fading late in a run). Never lower a score because a signal is "not proven", "unclear", "not tested", or "not enough data" — treat missing evidence as neutral, not negative.
     - Judge everything against the race goal and time target.
     - Use physiological trends (VO2max, HRV, RHR, sleep) to confirm or challenge the workouts. If they disagree, trust the body-signal trend more than one good session.
     - Use weekly trends, not one-off days. One bad sleep or one low HRV reading is noise.
@@ -356,6 +357,8 @@ For each dimension, use only its primary evidence as the lead proof. Do not let 
     - 5–6: Performance drops when fatigue accumulates. HRV declining, RHR rising, or sleep inconsistent.
     - ≤4: Cannot handle consecutive quality sessions. Recovery metrics show strong negative trends.
     - HRV, RHR, and sleep trends are the PRIMARY evidence sources here. Cross-reference recovery with workout quality on days following poor recovery.
+    - Mechanical floor: if the runner has trained on consecutive days (a session followed by another within 24 hours) AND recovery signals show no persistent worsening (RHR fluctuating within a few bpm, HRV not declining week-over-week, sleep not consistently poor), the score is 7 or higher. Do not drop into 5–6 on "late-run control not proven" or "unclear" alone.
+    - Only score 5–6 or lower when at least one recovery signal positively worsens (RHR persistently up, HRV declining, or sleep repeatedly poor) OR the lap/split data actually shows late-run pace fading.
 
 Each dimension:
     - score: integer 0–10
@@ -383,6 +386,7 @@ WRITING STYLE AND RULES:
     - If you mention a zone, write "Zone 2 (easy)" not "Z2".
     - Never write m/s. Always MM:SS/km or "X seconds per km quicker/slower than goal pace".
     - Do not cite missing data as a weakness. No "HRV was not provided", "lactate threshold estimate unavailable", "sleep data missing".
+    - Do not reframe absent evidence as a gap either — no "not fully proven", "not enough evidence", "unclear", "untested". If a signal is absent, write what the present evidence does show instead.
     - Do not use jargons like physiological validation, training effect 4.5, profile value, blended session data, accumulated load. Keep things simple.
     - Strengths answer: what does this mean for the race goal?
     - Gaps answer: what should they do next, and why?
