@@ -629,11 +629,8 @@
     width: 3rem;
     height: 3rem;
     border-radius: 40%;
-    /* Match the theme toggle: surface background (white in light, dark in
-       dark mode) with muted icon color and border */
-    background: var(--pacey-surface);
-    color: var(--pacey-muted);
-    border: 0.0625rem solid var(--pacey-border);
+    /* Colour lives with the pinboard treatment further down this file — the
+       note's background and ink are declared once there, not here. */
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -651,19 +648,6 @@
 }
 
 .pacey-chat-fab:active { transform: scale(0.94); }
-
-/* Dark mode — dark surface background with lighter icon color */
-[data-theme="dark"] .pacey-chat-fab {
-    background: color-mix(in srgb, var(--pacey-surface) 90%, transparent);
-    border-color: color-mix(in srgb, var(--pacey-border) 60%, transparent);
-    color: var(--pacey-navy);
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.4);
-}
-
-[data-theme="dark"] .pacey-chat-fab:hover {
-    color: var(--pacey-text);
-    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.5);
-}
 
 /* Hide the FAB when the chat popup is open — the popup expands from
    its position so the button is no longer needed */
@@ -1421,10 +1405,12 @@
 .pacey-btn-danger { color: #a83b3b; background: rgba(168, 59, 59, 0.12); }
 .pacey-btn-danger:hover { background: rgba(168, 59, 59, 0.2); }
 
-/* --- Chat FAB — a small dark-brown note pinned to the board ---------- */
+/* --- Chat FAB — a small note pinned to the board.
+   Cream in light mode, dark-brown cork at night: the note follows the board
+   rather than being permanently dark. -------------------------------- */
 .pacey-chat-fab {
-    background-color: #4a3728;
-    color: #f1ede4;
+    background-color: var(--pinboard-paper);
+    color: #2b2620;
     border: 1px solid rgba(0, 0, 0, 0.2);
     border-radius: 3% 6% 2% 4% / 36% 32% 38% 30%;
     /* Nudge the icon down so the pin above it doesn't crowd the glyph */
@@ -1448,14 +1434,12 @@
     z-index: 2;
 }
 .pacey-chat-fab:hover {
-    color: #ffffff;
+    color: #1a1613;
     box-shadow: var(--pinboard-shadow-hover);
     transform: rotate(-1deg) translateY(-0.15rem);
 }
 .pacey-chat-fab:active { transform: rotate(-4deg) scale(0.94); }
-/* Keep the dark-brown note in dark mode too — this rule must re-declare the
-   background, otherwise the base [data-theme="dark"] .pacey-chat-fab rule
-   (higher specificity) wins and the FAB falls back to the navy surface. */
+/* Night board: the note turns dark-brown cork and the ink flips to cream. */
 [data-theme="dark"] .pacey-chat-fab {
     background-color: #4a3728;
     color: #f1ede4;
