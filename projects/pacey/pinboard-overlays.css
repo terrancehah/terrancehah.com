@@ -522,6 +522,43 @@
 }
 
 /* =====================================================================
+   TYPOGRAPHY FINISHING PASS
+   The board speaks in two hands — Caveat for headings, Fuzzy Bubbles for
+   everything else. These elements were still on the old Raleway/Lato stack
+   and read as a different product beside the rest of the pinboard. The one
+   deliberate exception stays the form controls (.pacey-input and friends):
+   email, password and number fields keep a legible sans so typing is easy
+   and iOS doesn't zoom the page when they take focus.
+   ===================================================================== */
+
+/* Metric card date caption */
+#pacey-content .pacey-metrics-date { font-family: var(--font-fuzzy); }
+
+/* "Show more" button label */
+#pacey-content .pacey-show-more-btn { font-family: var(--font-fuzzy); }
+
+/* Run-type pill. Fuzzy ships a single weight, so drop the synthetic bold
+   rather than letting the browser fake it. */
+#pacey-content .pacey-run-tag {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+}
+
+/* Coach insight prose in the workout sheet. The sheet and the settings popup
+   are siblings of #pacey-content (both live under .pacey-main), so they're
+   scoped by their own id rather than the content wrapper. */
+#pacey-workout-sheet .pacey-sheet-insight { font-family: var(--font-fuzzy); }
+
+/* Settings panel — account values and the connect/disconnect button. The
+   values are read, not typed, so the handwriting face applies here. */
+#pacey-settings-popup .pacey-settings-field-value {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+}
+
+#pacey-settings-popup #pacey-settings-logout-btn { font-family: var(--font-fuzzy); }
+
+/* =====================================================================
    LOADING OVERLAY — a pinned paper sheet with a handwritten note
    Shown after login and on refresh, so it should read like the rest of
    the board rather than a generic blurred spinner.
