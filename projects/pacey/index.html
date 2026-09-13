@@ -165,6 +165,27 @@
         border-right: 1px solid rgba(0, 0, 0, 0.18);
         /* Sidebar sits above the content, so it casts a shadow to the right */
         box-shadow: 0.5rem 0 1rem -0.5rem rgba(0, 0, 0, 0.45);
+        /* The sidebar sits outside #pacey-content, so the paper token remap
+           below never reached it: its surface was re-themed to cork while its
+           --pacey-* tokens still held the old navy palette. That left the nav,
+           the theme toggle, Settings and the site link reading as a cool
+           blue-grey on a warm brown board. Re-point them at warm tones, the
+           same way the tab bar is handled — light cork takes dark ink, the
+           night board takes cream. */
+        --pacey-navy: #4a4235;
+        --pacey-text: #4a4235;
+        --pacey-muted: #5f5546;
+        --pacey-light: rgba(43, 38, 32, 0.09);
+        --pacey-border: rgba(43, 38, 32, 0.16);
+        --pacey-blue: #1d3557;
+    }
+    html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar {
+        --pacey-navy: #cfd8cf;
+        --pacey-text: #e2dac9;
+        --pacey-muted: #a89d88;
+        --pacey-light: rgba(255, 255, 255, 0.1);
+        --pacey-border: rgba(255, 255, 255, 0.16);
+        --pacey-blue: #f2e9d7;
     }
     /* Floating tab bar — a more opaque frosted glass with fixed icon colours,
        so the buttons stay legible whether a light paper card or the dark cork

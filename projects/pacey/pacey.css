@@ -1037,7 +1037,10 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-sidebar-goal {
     font-size: var(--pacey-text-caption);
-    color: var(--pacey-btn-primary-hover);
+    /* A text token, not --pacey-btn-primary-hover: that one is a button
+       background, so the goal was inheriting a colour meant for button fills
+       and stayed cool blue on the warm board. */
+    color: var(--pacey-muted);
     font-weight: 500;
     flex: 1;
     text-align: end;
