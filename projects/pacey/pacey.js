@@ -4351,6 +4351,18 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     }
 
+        // Score colour — one six-band scale shared by both pages, so a score reads
+    // identically wherever it appears. Brighter than the old three-band
+    // green/amber/red, which rendered 6 and 9 in the same colour.
+    function pillarScoreColor(score) {
+        if (score >= 10) return '#c026d3';   // full marks — bright magenta
+        if (score >= 8) return '#2f8a3d';    // green
+        if (score >= 7) return '#74a83d';    // light green
+        if (score >= 5) return '#d9a300';    // yellow
+        if (score >= 3) return '#e8590c';    // orange
+        return '#d92d20';                    // red
+    }
+
     function renderPillars(data) {
         // Show content on all instances (overview + readiness pages)
         pillarsContents.forEach(el => el.hidden = false);
@@ -4367,9 +4379,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const overviewHtml = dims.map((d, i) => {
             // Colour-code the mark like a coach's rating — same scale as the
             // overall score. The "/10" stays quiet and inherits its own colour.
-            const scoreColor = d.score >= 7 ? 'var(--pacey-accent-green)'
-                : d.score >= 5 ? 'var(--pacey-accent-amber)'
-                : 'var(--pacey-accent-red)';
+            const scoreColor = pillarScoreColor(d.score);
             return `
             <div class="pacey-pillar-card pacey-pillar-card--summary" data-pillar-index="${i}">
                 <div class="pacey-pillar-header">
@@ -4390,7 +4400,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="pacey-pillar-header">
                     <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
                     <span class="pacey-pillar-name">${escapeHtml(d.name)}</span>
-                    <span class="pacey-pillar-score">${d.score}/10</span>
+                    <span class="pacey-pillar-score" style="color:${pillarScoreColor(d.score)}">${d.score}<span class="pacey-pillar-score-max">/10</span></span>
                 </div>
                 <div class="pacey-pillar-section pacey-pillar-section--strengths">
                     <span class="pacey-pillar-section-label pacey-pillar-section-label--strengths">Strengths</span>

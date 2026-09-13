@@ -455,7 +455,9 @@
     /* Scores and the countdown read as handwritten coaching marks */
     #pacey-content .pacey-pillar-score,
     #pacey-content .pacey-overall-insight-score { font-family: var(--font-fuzzy); font-weight: 400; }
-    #pacey-content .pacey-pillar-score { font-size: 1.6rem; }
+    /* The mark reads bigger than the "/10" beside it so the number is the
+       thing you see first */
+    #pacey-content .pacey-pillar-score { font-size: 1.9rem; line-height: 1; }
     #pacey-content .pacey-overall-insight-score { font-size: 1.7rem; }
     /* The "/10" sits quieter than the mark itself */
     #pacey-content .pacey-pillar-score-max,
