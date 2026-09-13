@@ -2201,6 +2201,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const values = weeks.map(w => Math.round(w.total));
         const maxVal = Math.max(...values, 10);
         const stepSize = maxVal > 60 ? 20 : maxVal > 30 ? 10 : 5;
+        // Headroom above the tallest bar, so the tooltip has somewhere to sit
+        // without covering the bars beneath it: round the peak up to the next
+        // ten, then add one more ten. suggestedMax rather than max, so a week
+        // taller than the computed value expands the scale instead of being
+        // clipped by a hard ceiling.
+        const suggestedMax = Math.ceil(maxVal / 10) * 10 + 10;
 
         // Single-row labels: month names only (no W1-W12)
         // Show one label per month — first occurrence of each month
@@ -2308,7 +2314,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 scales: {
                     y: {
                         beginAtZero: true,
-                        max: Math.ceil(maxVal / stepSize) * stepSize,
+                        suggestedMax,
                         title: { display: true, text: 'km', font: { family: chartFonts.heading, size: 13 }, color: chartMuted },
                         ticks: { stepSize, font: { family: chartFonts.heading, size: 13 }, color: chartMuted, callback: v => Math.round(v) },
                         grid: { color: chartGridColor }
