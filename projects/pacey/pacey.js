@@ -2119,6 +2119,57 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Chart.js paints tooltips straight onto the canvas and has no divider
+    // option, so draw the rule ourselves after the tooltip renders — the same
+    // hairline the calendar day tooltip uses under its heading. A tooltip with
+    // no title (the scatter carries the run name in the body) gets its rule
+    // under the first body line instead, so the name still reads as a heading.
+    // Registered globally so every chart picks it up.
+    const CHART_LINE_HEIGHT = 1.2;   // Chart.js's own font line-height factor
+    const paceyTooltipDivider = {
+        id: 'paceyTooltipDivider',
+        afterDraw(chart) {
+            const t = chart.tooltip;
+            if (!t || !t.opacity || !t.title) return;
+            const o = t.options || {};
+            const pad = typeof o.padding === 'number' ? o.padding : (o.padding && o.padding.top) || 0;
+            const titleSize = (o.titleFont && o.titleFont.size) || 12;
+            const bodySize = (o.bodyFont && o.bodyFont.size) || 14;
+            const hasTitle = t.title.length > 0;
+            const titleSpacing = o.titleSpacing == null ? 2 : o.titleSpacing;
+            const titleMarginBottom = o.titleMarginBottom == null ? 6 : o.titleMarginBottom;
+            const bodySpacing = o.bodySpacing == null ? 2 : o.bodySpacing;
+            // Chart.js stacks title lines with titleSpacing between them, so
+            // the heading block is its lines plus those gaps. The rule then
+            // sits in the gap that follows.
+            //
+            // The heading and body fonts differ in size, so their line boxes
+            // leave different leading: measured on screen the heading leaves
+            // ~5px below its glyphs while the body leaves ~2px above its own.
+            // Offsetting by half the margin alone therefore pushes the rule
+            // high — this trims that difference so the space reads even.
+            const HEADING_LEADING_DIFF = 3;
+            const ruleY = hasTitle
+                ? t.y + pad + t.title.length * titleSize * CHART_LINE_HEIGHT
+                    + (t.title.length - 1) * titleSpacing
+                    + (titleMarginBottom - HEADING_LEADING_DIFF) / 2
+                : t.y + pad + bodySize * CHART_LINE_HEIGHT + bodySpacing / 2;
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.strokeStyle = o.borderColor || 'rgba(0, 0, 0, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Half-pixel offset keeps a 1px rule crisp instead of smeared
+            // across two device pixels.
+            const y = Math.round(ruleY) + 0.5;
+            ctx.moveTo(t.x + pad, y);
+            ctx.lineTo(t.x + t.width - pad, y);
+            ctx.stroke();
+            ctx.restore();
+        },
+    };
+    if (window.Chart) window.Chart.register(paceyTooltipDivider);
+
     function renderMileageChart(weekData) {
         const canvas = document.getElementById('pacey-mileage-chart');
         if (!canvas) return;
@@ -2218,6 +2269,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         displayColors: false,
                         padding: 8,
                         cornerRadius: 3,
+                        // Looser line spacing than Chart.js's defaults (2/6/2),
+                        // which crowd the divider against the text.
+                        titleSpacing: 4,
+                        titleMarginBottom: 10,
+                        bodySpacing: 10,
                         callbacks: {
                             // Show the full week date range (Monday – Sunday) in the tooltip title
                             title: (ctx) => {
@@ -2988,6 +3044,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         displayColors: false,
                         padding: 8,
                         cornerRadius: 3,
+                        // Looser line spacing than Chart.js's defaults (2/6/2),
+                        // which crowd the divider against the text.
+                        titleSpacing: 4,
+                        titleMarginBottom: 10,
+                        bodySpacing: 10,
                         callbacks: {
                             label: (ctx) => {
                                 const b = bucketData[ctx.dataIndex];
@@ -3108,6 +3169,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         displayColors: false,
                         padding: 8,
                         cornerRadius: 3,
+                        // Looser line spacing than Chart.js's defaults (2/6/2),
+                        // which crowd the divider against the text. The scatter
+                        // has no title, so bodySpacing does the work there.
+                        titleSpacing: 4,
+                        titleMarginBottom: 10,
+                        bodySpacing: 10,
                         callbacks: {
                             // Returning an array puts the run name on its own
                             // line, with the numbers beneath it.

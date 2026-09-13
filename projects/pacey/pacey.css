@@ -1794,6 +1794,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     border-radius: var(--pacey-radius-sm);
     padding: clamp(0.75rem, 2.5vw, 2rem);
     box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.25);
+    padding-top: clamp(1.25rem, 3.5vw, 2.75rem);
 }
 
 .pacey-countdown-value {
