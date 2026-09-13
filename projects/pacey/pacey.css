@@ -2081,6 +2081,15 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Placeholder for the overview card's "View details →" affordance */
 .pacey-skeleton-line--link { width: 38%; height: 0.5rem; margin-top: 0.15rem; }
 
+/* Sizes for the overall-insight skeleton. These were inline on the markup;
+   naming them here keeps the placeholder's shape next to the component it
+   stands in for, and keeps the HTML free of styling. */
+.pacey-skeleton-line--headline { width: 40%; height: 1rem; }
+.pacey-skeleton-line--score { width: 2.5rem; height: 1.25rem; }
+.pacey-skeleton-line--label { width: 30%; height: 0.5rem; }
+.pacey-skeleton-line--value { width: 50%; height: 0.75rem; }
+.pacey-skeleton-line--focus { width: 45%; height: 0.5rem; }
+
 /* Shimmer text label shown above the pillars skeleton cards — makes the
    loading state obvious with the same animated gradient sweep as other
    loading placeholders across the site. */

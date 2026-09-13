@@ -747,6 +747,9 @@
     color: var(--pacey-muted);
 }
 
+/* The placeholder icon sits quieter than the copy below it */
+.pacey-chat-coming-soon svg { opacity: 0.4; margin-bottom: 1rem; }
+
 .pacey-chat-coming-soon-title {
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
