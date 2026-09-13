@@ -1606,10 +1606,11 @@
         <div class="pacey-overlay" id="pacey-overlay" hidden>
             <div class="pacey-overlay-content">
                 <!-- Hand-drawn loading phrase. Each SVG is generated with Tegaki
-                     from the app's Caveat face and strokes itself on; JS swaps
-                     the src to rotate through the phrases. -->
-                <img class="pacey-overlay-stroke" id="pacey-overlay-stroke"
-                     src="/projects/pacey/loading-1.svg" alt="Loading your training data" width="1053" height="104">
+                     from the app's Caveat face, strokes itself on once, and
+                     bakes its own draw duration into its CSS. JS reads that
+                     duration and starts the next phrase the moment this one
+                     finishes writing. -->
+                <img class="pacey-overlay-stroke" id="pacey-overlay-stroke" alt="Loading">
             </div>
         </div>
 

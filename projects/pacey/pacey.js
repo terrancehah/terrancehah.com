@@ -133,9 +133,10 @@ document.addEventListener('DOMContentLoaded', function () {
         return resp;
     }
 
-    // Rotating loading messages — the overlay shows a hand-drawn SVG for each
-    // phrase (generated with Tegaki from the app's Caveat face) and swaps to
-    // the next every 4 seconds. Each SVG strokes itself on in ~3.6s.
+    // Rotating loading messages — the overlay strokes on a hand-drawn SVG for
+    // each phrase (generated with Tegaki from the app's Caveat face). Each SVG
+    // bakes its OWN draw duration into its CSS, so we read that duration and
+    // start the next phrase the moment the current one finishes writing.
     const LOADING_MESSAGES = [
         'Loading your training data…',
         'Crunching the numbers…',
@@ -145,35 +146,66 @@ document.addEventListener('DOMContentLoaded', function () {
         'Syncing with Garmin…',
     ];
     const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/loading-${i + 1}.svg`);
-    let loadingMsgTimer = null;
+    // Warm the cache so the first phrase draws the instant the overlay opens.
+    LOADING_STROKES.forEach(src => { const im = new Image(); im.src = src; });
 
-    // Swap the hand-drawn overlay SVG. Changing src restarts the stroke
-    // animation, so each phrase draws itself from the start.
-    function setOverlayStroke(index) {
+    let loadingMsgTimer = null;   // timeout chain, not an interval
+    let loadingRunToken = 0;      // bumped to stop a running chain
+
+    // Read a stroke SVG's draw duration (seconds) from its own stylesheet.
+    // Cached per src; falls back to a sane value if the fetch fails.
+    const strokeDurations = new Map();
+    async function strokeDuration(src) {
+        if (strokeDurations.has(src)) return strokeDurations.get(src);
+        let secs = 4;
+        try {
+            const text = await (await fetch(src)).text();
+            const m = text.match(/tk-d0\s+([\d.]+)s/);
+            if (m) secs = parseFloat(m[1]);
+        } catch (e) { /* keep the fallback */ }
+        strokeDurations.set(src, secs);
+        return secs;
+    }
+
+    // Swap in a phrase. Clearing src first forces a fresh load so the stroke
+    // animation restarts even when the same file is re-shown.
+    function setOverlayStroke(src, msgIndex) {
         if (!overlayStroke) return;
-        const i = index % LOADING_STROKES.length;
-        const src = LOADING_STROKES[i];
-        if (overlayStroke.getAttribute('src') === src) return;
+        overlayStroke.removeAttribute('src');
+        void overlayStroke.offsetWidth;
         overlayStroke.setAttribute('src', src);
-        overlayStroke.setAttribute('alt', LOADING_MESSAGES[i].replace('…', ''));
+        overlayStroke.setAttribute('alt', LOADING_MESSAGES[msgIndex].replace('…', ''));
+    }
+
+    // Chain the phrases: when a stroke finishes writing, hold briefly so the
+    // finished sentence reads, then start the next one.
+    const STROKE_HOLD_MS = 600;
+    async function runLoadingStrokes() {
+        const token = ++loadingRunToken;
+        let i = 0;
+        const step = async () => {
+            if (token !== loadingRunToken) return;
+            const idx = i % LOADING_STROKES.length;
+            const src = LOADING_STROKES[idx];
+            setOverlayStroke(src, idx);
+            const secs = await strokeDuration(src);
+            if (token !== loadingRunToken) return;
+            loadingMsgTimer = setTimeout(() => { i++; step(); }, secs * 1000 + STROKE_HOLD_MS);
+        };
+        step();
     }
 
     function showOverlay() {
         overlay.hidden = false;
-        // Start rotating through the hand-drawn phrases every 4 seconds
-        let idx = 0;
-        setOverlayStroke(idx);
-        if (loadingMsgTimer) clearInterval(loadingMsgTimer);
-        loadingMsgTimer = setInterval(() => {
-            idx = (idx + 1) % LOADING_STROKES.length;
-            setOverlayStroke(idx);
-        }, 4000);
+        runLoadingStrokes();
     }
 
     function hideOverlay() {
         overlay.hidden = true;
-        if (loadingMsgTimer) { clearInterval(loadingMsgTimer); loadingMsgTimer = null; }
+        loadingRunToken++;   // stop the chain
+        if (loadingMsgTimer) { clearTimeout(loadingMsgTimer); loadingMsgTimer = null; }
     }
+
     function setButtonLoading(btn, loading) {
         const t = btn.querySelector('.pacey-btn-text');
         const s = btn.querySelector('.pacey-btn-spinner');
