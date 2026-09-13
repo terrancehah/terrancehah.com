@@ -20,6 +20,7 @@ Session storage architecture:
 import os
 import json
 import uuid
+import traceback
 from datetime import datetime, date, timedelta
 from typing import Dict, Optional
 from pydantic import BaseModel
@@ -101,6 +102,18 @@ def create_app(function_name: str) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Any unhandled exception would otherwise surface as Vercel's opaque
+    # non-JSON "Internal Server Error", which the client cannot parse (Safari
+    # reports that as "The string did not match the expected pattern") and
+    # which hides the cause. Log the traceback and answer with JSON instead.
+    @app.exception_handler(Exception)
+    async def _unhandled_exception(request, exc):
+        print("".join(traceback.format_exception(type(exc), exc, exc.__traceback__)))
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"{type(exc).__name__}: {exc}"},
+        )
 
     return app
 

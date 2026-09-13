@@ -146,35 +146,45 @@ document.addEventListener('DOMContentLoaded', function () {
         'Syncing with Garmin…',
     ];
     const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/loading-${i + 1}.svg`);
-    // Warm the cache so the first phrase draws the instant the overlay opens.
-    LOADING_STROKES.forEach(src => { const im = new Image(); im.src = src; });
+    // Warm the cache for the first phrase so the overlay paints immediately;
+    // the rest load as the phrases rotate.
+    fetch(LOADING_STROKES[0]).catch(() => { /* offline — the fallback covers it */ });
 
     let loadingMsgTimer = null;   // timeout chain, not an interval
     let loadingRunToken = 0;      // bumped to stop a running chain
 
-    // Read a stroke SVG's draw duration (seconds) from its own stylesheet.
-    // Cached per src; falls back to a sane value if the fetch fails.
-    const strokeDurations = new Map();
-    async function strokeDuration(src) {
-        if (strokeDurations.has(src)) return strokeDurations.get(src);
-        let secs = 4;
+    // Fetch a phrase's SVG and read its draw duration (seconds) out of its own
+    // stylesheet, so the next phrase starts exactly when this one finishes.
+    // Cached per src — the markup is cached too, since it gets injected inline.
+    const strokeSources = new Map();
+    async function strokeSource(src) {
+        if (strokeSources.has(src)) return strokeSources.get(src);
+        let entry = { markup: '', secs: 4 };
         try {
             const text = await (await fetch(src)).text();
             const m = text.match(/tk-d0\s+([\d.]+)s/);
-            if (m) secs = parseFloat(m[1]);
-        } catch (e) { /* keep the fallback */ }
-        strokeDurations.set(src, secs);
-        return secs;
+            entry = { markup: text, secs: m ? parseFloat(m[1]) : 4 };
+        } catch (e) { /* keep the fallback entry */ }
+        strokeSources.set(src, entry);
+        return entry;
     }
 
-    // Swap in a phrase. Clearing src first forces a fresh load so the stroke
-    // animation restarts even when the same file is re-shown.
-    function setOverlayStroke(src, msgIndex) {
+    // Swap in a phrase by replacing the injected SVG. Re-creating the elements
+    // restarts the stroke animation from the start, even for the same file.
+    function setOverlayStroke(entry, msgIndex) {
         if (!overlayStroke) return;
-        overlayStroke.removeAttribute('src');
-        void overlayStroke.offsetWidth;
-        overlayStroke.setAttribute('src', src);
-        overlayStroke.setAttribute('alt', LOADING_MESSAGES[msgIndex].replace('…', ''));
+        const label = LOADING_MESSAGES[msgIndex].replace('…', '');
+        if (entry.markup) {
+            overlayStroke.innerHTML = entry.markup;
+        } else {
+            // Fetch failed — fall back to the phrase as plain handwriting.
+            overlayStroke.textContent = '';
+            const span = document.createElement('span');
+            span.className = 'pacey-overlay-stroke-fallback';
+            span.textContent = label;
+            overlayStroke.appendChild(span);
+        }
+        overlayStroke.setAttribute('aria-label', label);
     }
 
     // Chain the phrases: when a stroke finishes writing, hold briefly so the
@@ -186,11 +196,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const step = async () => {
             if (token !== loadingRunToken) return;
             const idx = i % LOADING_STROKES.length;
-            const src = LOADING_STROKES[idx];
-            setOverlayStroke(src, idx);
-            const secs = await strokeDuration(src);
+            const entry = await strokeSource(LOADING_STROKES[idx]);
             if (token !== loadingRunToken) return;
-            loadingMsgTimer = setTimeout(() => { i++; step(); }, secs * 1000 + STROKE_HOLD_MS);
+            setOverlayStroke(entry, idx);
+            loadingMsgTimer = setTimeout(() => { i++; step(); }, entry.secs * 1000 + STROKE_HOLD_MS);
         };
         step();
     }

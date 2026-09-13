@@ -556,13 +556,27 @@
     box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4);
     z-index: 2;
 }
-/* Hand-drawn loading phrase — a self-stroking SVG (Tegaki, Caveat). The note
-   is paper in both themes, so the fixed dark-ink stroke reads either way. */
+/* Hand-drawn loading phrase. The SVG is injected INLINE (not as an <img>) so
+   WebKit runs its stroke animation; the note is paper in both themes, and the
+   SVG carries its own fixed dark-ink stroke. */
 .pacey-overlay-stroke {
     display: block;
     width: min(80vw, 24rem);
-    height: auto;
     margin: 0.55rem 0 0;
+}
+.pacey-overlay-stroke svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+/* Fallback if the SVG can't be fetched — the phrase as plain handwriting. */
+.pacey-overlay-stroke-fallback {
+    display: block;
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.5rem;
+    line-height: 1.3;
+    color: var(--pinboard-ink);
 }
 /* The overlay no longer uses the shimmer text, but the class is still used by
    other inline loading placeholders — keep the ink-toned override. */

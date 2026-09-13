@@ -18,7 +18,7 @@ from lib._shared import (
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
-    _fitness_medians, _fitness_samples, _pace_str_sec, _pace_range_sec,
+    _median, _fitness_medians, _fitness_samples, _pace_str_sec, _pace_range_sec,
     RUNNING_TYPES,
 )
 

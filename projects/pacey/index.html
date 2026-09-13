@@ -1607,10 +1607,12 @@
             <div class="pacey-overlay-content">
                 <!-- Hand-drawn loading phrase. Each SVG is generated with Tegaki
                      from the app's Caveat face, strokes itself on once, and
-                     bakes its own draw duration into its CSS. JS reads that
-                     duration and starts the next phrase the moment this one
-                     finishes writing. -->
-                <img class="pacey-overlay-stroke" id="pacey-overlay-stroke" alt="Loading">
+                     bakes its own draw duration into its CSS. JS fetches the
+                     file and injects the markup INLINE — not as an <img> —
+                     because iOS WebKit does not run CSS animations inside an
+                     SVG used as an image, and these SVGs draw nothing at all
+                     until their animation runs. -->
+                <div class="pacey-overlay-stroke" id="pacey-overlay-stroke" role="img" aria-label="Loading"></div>
             </div>
         </div>
 
