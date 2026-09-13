@@ -44,6 +44,38 @@
          so deferring this script is safe and saves ~1,830ms of
          render-blocking time. -->
     <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Hand-drawn chart styling — chartjs-plugin-roughness routes Chart.js's
+         canvas drawing through rough.js, so the bars and points come out
+         sketched and hatched. Two things matter about the wiring:
+         1. Its bare `chart.js` imports are mapped to a local shim, because the
+            plugin's own bundle pins chart.js@4.3.0 and would otherwise patch a
+            second copy of Chart.js that nothing draws with.
+         2. The module must run after the UMD script above and before pacey.js,
+            which is why it sits here rather than in the head. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "chart.js": "/projects/pacey/chartjs-roughness-shim.js",
+        "chart.js/helpers": "/projects/pacey/chartjs-roughness-shim.js",
+        "roughjs": "https://cdn.jsdelivr.net/npm/roughjs@4.6.6/+esm",
+        "d3-path": "https://cdn.jsdelivr.net/npm/d3-path@3.1.0/+esm"
+      }
+    }
+    </script>
+    <script type="module">
+    import 'https://cdn.jsdelivr.net/npm/chartjs-plugin-roughness@1.0.6/index.js';
+
+    // rough.js has no ellipse, but Chart.js draws point elements with
+    // ctx.ellipse whenever a width is set — which is exactly the scatter's
+    // dots. The plugin's own override calls a method d3-path doesn't have and
+    // throws, so replace it with an arc of the larger radius. Exact for the
+    // circles Pacey draws; the charts it isn't exact for (doughnut, polar)
+    // aren't used here.
+    CanvasRenderingContext2D.prototype.ellipse = function (x, y, rx, ry, rot, a0, a1) {
+      return this.arc(x, y, Math.max(rx, ry), a0, a1);
+    };
+    </script>
     <!-- Vercel Analytics -->
     <script>
     window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
