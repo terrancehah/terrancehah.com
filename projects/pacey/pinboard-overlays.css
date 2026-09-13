@@ -222,9 +222,9 @@
     color: var(--pinboard-ink);
 }
 #pacey-metric-popup .pacey-metric-popup-icon { color: #2a5169; }
-/* The number stays in the readable sans, matching the vitals card */
+/* The number follows the vitals card, which the pinboard theme puts in Fuzzy */
 #pacey-metric-popup .pacey-metric-popup-value {
-    font-family: 'Lato', sans-serif;
+    font-family: var(--font-fuzzy);
     color: var(--pinboard-ink);
 }
 #pacey-metric-popup .pacey-metric-popup-unit { font-family: var(--font-fuzzy); color: var(--pinboard-muted); }

@@ -202,7 +202,6 @@
 .pacey-metric-popup-icon svg { width: 100%; height: 100%; }
 
 .pacey-metric-popup-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -219,21 +218,19 @@
 }
 
 .pacey-metric-popup-value {
-    font-family: 'Lato', sans-serif;
-    font-weight: 900;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-display);
     color: var(--pacey-navy);
     line-height: 1;
 }
 
 .pacey-metric-popup-unit {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
 
 .pacey-metric-popup-zone {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     font-weight: 600;
     color: var(--pacey-btn-primary-text);
@@ -288,7 +285,6 @@
 
 .pacey-gauge-scale-min,
 .pacey-gauge-scale-max {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
 }
@@ -322,14 +318,12 @@
 }
 
 .pacey-gauge-legend-text {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-text);
 }
 
 /* Textual explanation below the gauge */
 .pacey-metric-popup-explanation {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -354,14 +348,12 @@
     display: flex;
     align-items: baseline;
     gap: var(--pacey-space-md);
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
     line-height: 1.4;
 }
 
 .pacey-score-tier-range {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-blue);
@@ -387,7 +379,6 @@
 /* Eyebrow */
 .pacey-eyebrow {
     display: inline-block;
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     letter-spacing: 0.08em;
@@ -408,7 +399,6 @@
 
 .pacey-auth-title,
 .pacey-onboard-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-display);
     color: var(--pacey-navy);
@@ -418,7 +408,7 @@
 
 .pacey-auth-subtitle,
 .pacey-onboard-subtitle {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-weight: 400;
     font-size: var(--pacey-text-body);
     color: var(--pacey-muted);
@@ -451,7 +441,6 @@
 }
 
 .pacey-label {
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -496,7 +485,7 @@
 }
 
 .pacey-field-error {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-accent-red);
     margin-top: 0.25rem;
@@ -544,9 +533,9 @@
 }
 
 .pacey-duration-label {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-caption);
-    font-weight: 600;
+    font-weight: 400;
     color: var(--pacey-muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -578,8 +567,8 @@
     align-items: center;
     justify-content: center;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-body);
     padding: 0.75em 1.5em;
     border-radius: var(--pacey-radius-sm);
@@ -650,7 +639,7 @@
 
 /* Auth error */
 .pacey-auth-error {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-accent-red);
     background: rgba(196, 75, 75, 0.06);
@@ -673,7 +662,7 @@
 .pacey-demo-section .pacey-btn { width: auto; padding: 0.6rem 1.75rem; }
 
 .pacey-demo-hint {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     margin: 0;
@@ -682,7 +671,7 @@
 /* Auth footer */
 .pacey-auth-footer {
     text-align: center;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     margin: 1.5rem 0 0;
@@ -1032,14 +1021,13 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Initials fallback when no profile image is available */
 .pacey-sidebar-avatar .pacey-avatar-initials {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: 0.85rem;
     color: var(--pacey-blue);
 }
 
 .pacey-sidebar-greeting {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -1048,7 +1036,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-sidebar-goal-row { display: flex; align-items: center; gap: 0.35rem; }
 
 .pacey-sidebar-goal {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-blue);
     font-weight: 500;
@@ -1101,7 +1088,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-weight: 500;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
@@ -1186,7 +1173,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-weight: 500;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
@@ -1259,7 +1246,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-weight: 500;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
@@ -1315,7 +1302,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-project-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 900;
     font-size: var(--pacey-text-display);
     color: var(--pacey-navy);
@@ -1326,7 +1312,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Introductory statement under the project title */
 .pacey-project-intro {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-muted);
     margin: 0;
@@ -1362,7 +1347,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-demo-banner-text {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     flex: 1;
@@ -1372,7 +1356,6 @@ header.pacey-header-offset.pacey-header-collapsed {
    accent (not the navy primary) to distinguish it as a demo-mode
    conversion CTA rather than a standard form action. */
 .pacey-demo-banner-cta {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-btn-primary-text);
@@ -1431,7 +1414,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     margin-bottom: 0.5rem;
     justify-content: center;
     gap: 0.3rem;
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
@@ -1444,8 +1426,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* "Connect" inside the slim pill — clickable link that opens the login
    modal, matching the full banner's Connect Garmin CTA behaviour. */
 .pacey-demo-banner-slim-cta {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-label);
     color: var(--pacey-blue);
     background: none;
@@ -1494,7 +1476,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-demo-cta[hidden] { display: none; }
 
 .pacey-demo-cta-text {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-muted);
     max-width: 28rem;
@@ -1532,7 +1513,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-section--spaced { margin-top: var(--pacey-space-xl); }
 
 .pacey-section-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-heading);
     color: var(--pacey-navy);
@@ -1546,7 +1526,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* "Last updated" date label shown inline with the Training Vitals
    section title, pushed to the far right of the row */
 .pacey-metrics-date {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     font-weight: 400;
     color: var(--pacey-muted);
@@ -1554,7 +1534,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-section-sub {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-muted);
     margin: -0.5rem 0 0;
@@ -1590,7 +1569,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Hint line under an input — muted caption for guidance like the
    "12+ weeks" training-block note on the race-date field. */
 .pacey-hint {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
     margin: 0.3rem 0 0;
@@ -1699,7 +1677,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-metric-label {
-    font-family: 'Raleway', sans-serif;
     font-weight: 500;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
@@ -1716,7 +1693,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-metric-value {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-display);
     color: var(--pacey-navy);
@@ -1724,7 +1700,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-metric-unit {
-    font-family: 'Raleway', sans-serif;
     font-weight: 400;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
@@ -1798,7 +1773,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-countdown-value {
-    font-family: 'Lato', sans-serif;
     font-weight: 900;
     /* Bigger — display size for strong visual impact. Scales with the
        viewport so it grows on both phone and laptop widths while staying
@@ -1813,7 +1787,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-countdown-label {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: rgba(255, 255, 255, 0.85);
     text-transform: lowercase;
@@ -1822,7 +1795,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Card title — same treatment on both sides for visual symmetry */
 .pacey-readiness-card-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -1838,7 +1810,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-readiness-card-link:hover { color: var(--pacey-blue); text-decoration: underline; }
 
 .pacey-readiness-card-sub {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     margin: 0 0 0.75rem;
@@ -1856,7 +1827,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-dimension-explainer-title {
-    font-family: 'Lato', sans-serif;
+    font-family: var(--font-caveat);
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -1900,7 +1871,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-dimension-explainer-name {
     display: block;
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -1908,7 +1878,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-dimension-explainer-desc {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.5;
     color: var(--pacey-muted);
@@ -1938,7 +1907,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-stat-label {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     font-weight: 600;
     color: var(--pacey-muted);
@@ -1955,7 +1923,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-stat-value {
-    font-family: 'Lato', sans-serif;
     font-size: var(--pacey-text-subheading);
     font-weight: 700;
     color: var(--pacey-navy);
@@ -1963,7 +1930,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-stat-unit {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
 }
@@ -2039,7 +2006,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     right: 0;
     transform: translateY(-50%);
     text-align: center;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-body);
     opacity: 0.75;
     pointer-events: none;
@@ -2073,7 +2040,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-radar-tooltip-link {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-body);
     color: var(--pacey-blue);
@@ -2099,7 +2065,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-radar-tooltip-score {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -2136,7 +2101,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-calendar-tooltip-date {
-    font-family: 'Raleway', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -2150,7 +2114,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     /* Marker sits on the name's line rather than centred between two */
     align-items: flex-start;
     gap: 0.4rem;
-    font-family: 'Lato', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-text);
 }
@@ -2221,7 +2185,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-chart-card--large { padding: clamp(1rem, 2.5vw, 1.75rem); }
 
 .pacey-card-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -2239,7 +2202,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Subtitle / explanation text inside a chart card */
 .pacey-card-sub {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     margin: 0 0 0.75rem;
@@ -2288,9 +2250,9 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-calendar-header span {
     text-align: center;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
-    font-weight: 600;
+    font-weight: 400;
     color: var(--pacey-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -2370,7 +2332,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-overall-insight-verdict {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -2379,7 +2340,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Score — large number with small /10 suffix. Color is set inline by JS
    based on the score value (green/amber/red from the AI score scale). */
 .pacey-overall-insight-score {
-    font-family: 'Lato', sans-serif;
     font-weight: 900;
     font-size: var(--pacey-text-heading);
     line-height: 1;
@@ -2394,7 +2354,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Summary paragraph — the coach's opening assessment */
 .pacey-overall-insight-summary {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     line-height: 1.6;
     color: var(--pacey-text);
@@ -2432,8 +2391,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-overall-insight-takeaway-label {
-    font-family: 'Lato', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2441,14 +2400,12 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-overall-insight-takeaway-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
 }
 
 .pacey-overall-insight-takeaway-note {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -2466,7 +2423,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-overall-insight-focus-label {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-caption);
     text-transform: uppercase;
@@ -2475,7 +2431,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-overall-insight-focus-text {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -2489,7 +2444,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-btn-primary-text);
@@ -2604,7 +2558,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-pillar-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -2612,7 +2565,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-pillar-score {
     margin-left: auto;
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-blue);
@@ -2633,7 +2585,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-pillar-summary {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -2641,7 +2592,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-pillar-view-details {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
     color: var(--pacey-blue);
@@ -2651,7 +2601,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-pillar-note {
     /* Standardized to Raleway — matches all other body text in the dashboard */
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -2667,7 +2616,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-pillar-section-label {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: 0.65rem;
     letter-spacing: 0.04em;
@@ -2796,7 +2744,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-activity-month-header:first-child { margin-top: 0; }
 
 .pacey-activity-month-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -2805,7 +2752,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-activity-month-total {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -2876,7 +2822,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-activity-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -2887,7 +2832,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Date shown inline after the activity name */
 .pacey-activity-date {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     white-space: nowrap;
@@ -2896,8 +2840,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* Run type tag — colored badge indicating workout type (LSD, Easy, Tempo, Interval) */
 .pacey-run-tag {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: 0.65rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -2943,14 +2887,12 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-activity-stat-value {
-    font-family: 'Lato', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
 }
 
 .pacey-activity-stat-label {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -2983,7 +2925,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-activity-detail-item { display: flex; flex-direction: column; gap: 0.1rem; }
 
 .pacey-activity-detail-label {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     font-weight: 600;
     color: var(--pacey-muted);
@@ -2992,7 +2933,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-activity-detail-value {
-    font-family: 'Lato', sans-serif;
     font-size: var(--pacey-text-label);
     font-weight: 600;
     color: var(--pacey-navy);
@@ -3012,7 +2952,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
 }
@@ -3021,8 +2961,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-legend-score {
     margin-left: auto;
-    font-weight: 700;
-    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
 }
 
@@ -3045,7 +2985,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* ---- Summary ---- */
 .pacey-summary-error {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-accent-red);
     padding: var(--pacey-space-md);
@@ -3130,12 +3069,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     animation: pacey-spin 0.7s linear infinite;
 }
 
-.pacey-overlay-text {
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--pacey-text-subheading);
-    margin: 0;
-}
-
 /* ========== SETTINGS POPUP ========== */
 /* Popup anchored near the settings button, shows account details */
 .pacey-settings-popup {
@@ -3168,7 +3101,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-settings-popup-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -3214,7 +3146,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-edit-goal-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -3253,7 +3184,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-reminder-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -3268,7 +3198,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-reminder-intro {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
     margin: 0;
@@ -3290,7 +3219,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     justify-content: space-between;
     gap: var(--pacey-space-sm);
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
 }
 
@@ -3306,7 +3234,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-goal-reminder-question {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
     margin: 0;
@@ -3368,7 +3295,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-settings-profile-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -3381,7 +3307,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-settings-profile-goal {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-blue);
     font-weight: 500;
@@ -3395,7 +3320,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-settings-field-label {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     flex-shrink: 0;
@@ -3403,7 +3327,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-settings-field-value {
-    font-family: 'Lato', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
     font-weight: 600;
@@ -3426,7 +3349,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-settings-field-hint {
     display: block;
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
     margin-top: 0.15rem;
@@ -3446,8 +3368,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     padding: 0.5rem 1rem;
     border: none;
     border-radius: var(--pacey-radius-sm);
-    font-family: 'Lato', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-label);
     cursor: pointer;
     background: color-mix(in srgb, var(--pacey-accent-red) 10%, transparent);
@@ -3620,7 +3542,7 @@ header.pacey-header-offset.pacey-header-collapsed {
         padding: 0.3rem 0.75rem;
         background: none;
         border: none;
-        font-family: 'Raleway', sans-serif;
+        font-family: var(--font-fuzzy);
         font-size: var(--pacey-text-label);
         font-weight: 500;
         color: var(--pacey-muted);
@@ -3805,7 +3727,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-chat-popup-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
@@ -3829,7 +3750,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-chat-coming-soon-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
@@ -3837,7 +3757,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-chat-coming-soon-text {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.55;
     color: var(--pacey-muted);
@@ -3885,7 +3804,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-coach-loading,
 .pacey-coach-empty {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-muted);
     /* Tight padding so the loading box hugs the aura + status line instead
@@ -4023,7 +3942,6 @@ header.pacey-header-offset.pacey-header-collapsed {
    plan weeks are still generating (the calendar is already visible with
    the past activities + first weeks at that point). */
 .pacey-coach-build-status {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     text-align: center;
@@ -4043,7 +3961,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     border-radius: var(--pacey-radius);
     background: var(--pacey-surface);
     box-shadow: var(--pacey-shadow);
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
 }
 
 .pacey-plan-race-head {
@@ -4053,7 +3971,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-plan-race-name {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: 1.125rem;
     line-height: 1.3;
@@ -4092,7 +4009,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     border: none;
     background: var(--pacey-light);
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
     text-align: left;
@@ -4188,7 +4104,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     border-radius: var(--pacey-radius-sm);
     background: none;
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-text);
     text-align: left;
@@ -4348,8 +4264,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-history-day-header {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
     text-transform: uppercase;
@@ -4371,8 +4287,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-history-run-type {
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-blue);
     background: var(--pacey-light);
@@ -4383,14 +4299,14 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-history-run-name {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
 }
 
 .pacey-history-run-meta {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -4400,8 +4316,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     background: none;
     border: none;
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-blue);
     padding: 0.2rem 0.4rem;
@@ -4423,7 +4339,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     grid-template-columns: 2rem 1fr 1fr 1fr;
     gap: var(--pacey-space-sm);
     align-items: center;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
     padding: 0.2rem 0;
@@ -4467,14 +4383,14 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-plan-day-dow {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-navy);
 }
 
 .pacey-plan-day-date {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -4482,8 +4398,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-plan-rest-label,
 .pacey-plan-scheduled-badge {
     margin-left: auto;
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -4513,7 +4429,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-plan-control-label {
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
@@ -4523,7 +4438,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-plan-control input,
 .pacey-plan-control select {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     padding: 0.45rem 0.55rem;
     border: 0.0625rem solid var(--pacey-border);
@@ -4547,7 +4461,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-plan-day-desc {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     line-height: 1.5;
     color: var(--pacey-muted);
@@ -4561,8 +4475,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     border: 0.0625rem solid var(--pacey-border);
     border-radius: var(--pacey-radius-sm);
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-label);
     color: var(--pacey-blue);
     padding: 0.35rem 0.75rem;
@@ -4587,7 +4501,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-coach-schedule-status,
 .pacey-coach-error {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     line-height: 1.5;
     padding: 0.6rem 0.85rem;
@@ -4629,7 +4542,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-plan-pref-label {
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
@@ -4672,7 +4584,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-date-dow {
-    font-family: 'Raleway', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
@@ -4681,8 +4592,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-date-num {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-heading);
     color: var(--pacey-navy);
     line-height: 1.1;
@@ -4692,7 +4603,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-date-month {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
     padding-top: 0.1rem;
@@ -4767,7 +4677,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-card-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -4782,7 +4691,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-card-meta {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
     white-space: nowrap;
@@ -4812,8 +4720,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-workout-type {
-    font-family: 'Raleway', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     color: #fff;
     background: var(--pacey-blue);
@@ -4824,14 +4732,12 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-card-meta--suggested {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-navy);
     white-space: nowrap;
 }
 
 .pacey-cal-rest-label {
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-caption);
     text-transform: uppercase;
@@ -4840,7 +4746,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-card-desc {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-caption);
     line-height: 1.45;
     color: var(--pacey-muted);
@@ -4848,7 +4753,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-card-pace {
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -4869,8 +4773,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     border: 0.0625rem solid var(--pacey-border);
     border-radius: var(--pacey-radius-sm);
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
-    font-weight: 600;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     padding: 0.3rem 0.65rem;
     transition: background var(--pacey-transition), border-color var(--pacey-transition), color var(--pacey-transition);
@@ -4904,7 +4808,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     border: 0.0625rem solid var(--pacey-border);
     border-radius: var(--pacey-radius-sm);
     cursor: pointer;
-    font-family: 'Raleway', sans-serif;
     font-weight: 600;
     font-size: var(--pacey-text-label);
     color: var(--pacey-blue);
@@ -4930,7 +4833,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-distance-slider-labels {
     display: flex;
     justify-content: space-between;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
 }
@@ -4982,14 +4885,12 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-cal-week-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-body);
     color: var(--pacey-navy);
 }
 
 .pacey-cal-week-phase {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     font-weight: 600;
     color: var(--pacey-blue);
@@ -5000,7 +4901,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-cal-week-range {
     margin-left: auto;
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
@@ -5124,7 +5024,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-sheet-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-heading);
     color: var(--pacey-navy);
@@ -5134,15 +5033,15 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-sheet-pace {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-subheading);
     color: var(--pacey-blue);
     white-space: nowrap;
 }
 
 .pacey-sheet-pace-unit {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-weight: 400;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-muted);
@@ -5153,7 +5052,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem 1.25rem;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
     padding-bottom: 0.4rem;
@@ -5161,8 +5060,8 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-sheet-meta-item strong {
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     color: var(--pacey-navy);
 }
 
@@ -5173,7 +5072,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-sheet-section-title {
-    font-family: 'Lato', sans-serif;
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
@@ -5182,7 +5080,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-sheet-insight {
-    font-family: 'Raleway', sans-serif;
     font-size: var(--pacey-text-body);
     line-height: 1.55;
     color: var(--pacey-text);
@@ -5211,7 +5108,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-text);
     padding: 0.45rem 0;
@@ -5227,8 +5124,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Lato', sans-serif;
-    font-weight: 700;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
     font-size: var(--pacey-text-caption);
     color: var(--pacey-blue);
     background: var(--pacey-light);
@@ -5262,7 +5159,7 @@ header.pacey-header-offset.pacey-header-collapsed {
    workout description. Styled like the insight but without the background
    fill so it reads as a lighter, secondary block above the AI insight. */
 .pacey-sheet-description {
-    font-family: 'Raleway', sans-serif;
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-body);
     line-height: 1.55;
     color: var(--pacey-muted);
