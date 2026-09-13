@@ -7,7 +7,6 @@
    pinboard-theme.css. Tokens are inherited here, never redefined.
    ===================================================================== */
 
-
 /* ---------------------------------------------------------------------
    BASE STYLES — moved out of pacey.css so this file owns the Plan page
    end to end. They sit before the theme rules below on purpose: the
@@ -153,19 +152,6 @@
 @keyframes pacey-plan-sweep {
     from { offset-distance: 0%; }
     to   { offset-distance: 100%; }
-}
-
-/* Plan build headline — the same hand-drawn stroke as the boot overlay,
-   injected inline by JS. The part counter under it stays plain text. */
-.pacey-coach-loading-stroke {
-    width: min(72%, 17rem);
-    margin: 0 auto 0.4rem;
-}
-
-.pacey-coach-loading-stroke svg {
-    display: block;
-    width: 100%;
-    height: auto;
 }
 
 .pacey-coach-loading-progress {

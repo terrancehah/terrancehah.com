@@ -5598,18 +5598,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Loading skeleton for the plan page — a light aura revolving around
     // the loading container's border (motion-primitive effect, adapted to
     // the Pacey palette), with the status line below.
-    // The plan build runs one AI call per part, so it can take a while — long
-    // enough for a hand-drawn headline to finish writing. The part counter
-    // sits beneath as plain text: it changes as batches land and has to stay
-    // legible, which a fixed stroke drawing can't do.
-    const BUILD_STROKE_SRC = '/projects/pacey/assets/loading/loading-building-plan.svg';
+    // The plan build runs one AI call per part, so it can take a while. The
+    // status line is plain text: it changes as batches land and has to stay
+    // legible.
     function coachLoadingMarkup(text) {
         return `
             <div class="pacey-coach-loading pacey-coach-loading--plan" role="status" aria-label="Building your plan">
                 <div class="pacey-plan-skeleton-border">
                     <div class="pacey-plan-skeleton-glow"></div>
                 </div>
-                <div class="pacey-coach-loading-stroke" data-build-stroke></div>
                 <span class="pacey-coach-loading-progress">${text}</span>
             </div>
         `;
@@ -5627,7 +5624,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         coachErrorEl.hidden = true;
-        coachCalendarEl.innerHTML = coachLoadingMarkup('Building your plan…');
+        coachCalendarEl.innerHTML = coachLoadingMarkup('Preparing your weeks…');
 
         // Demo mode uses local mocks — no API calls. A 3-second delay
         // (matching DEMO_CHART_LOADING_MS) lets the shimmer loading state
@@ -5698,14 +5695,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 const done = Math.min(i + batch.length, weekStarts.length);
                 // Chunks are AI calls, not calendar weeks — the first chunk
                 // can span up to 13 days, so label them "parts".
+                // The headline stroke above already says "Building your plan",
+                // so this line carries only the progress — repeating the words
+                // read as two competing loading messages.
                 const partLabel = weekStarts.length === 1
-                    ? 'Building your plan…'
-                    : `Building plan part ${i + 1}–${done} of ${weekStarts.length}…`;
+                    ? 'Preparing your weeks…'
+                    : `Part ${i + 1}–${done} of ${weekStarts.length}…`;
                 if (i === 0) {
                     // First batch — show the loading skeleton while the first
                     // weeks generate.
                     coachCalendarEl.innerHTML = coachLoadingMarkup(partLabel);
-                    injectStroke(coachCalendarEl.querySelector('[data-build-stroke]'), BUILD_STROKE_SRC);
                 } else if (coachBuildStatusEl) {
                     // The calendar is already visible (history + first weeks)
                     // — keep a slim status line instead of the skeleton.
