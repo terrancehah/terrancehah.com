@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Preparing your dashboard…',
         'Syncing with Garmin…',
     ];
-    const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/loading-${i + 1}.svg`);
+    const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/assets/loading/loading-${i + 1}.svg`);
     // Warm the cache for the first phrase so the overlay paints immediately;
     // the rest load as the phrases rotate.
     fetch(LOADING_STROKES[0]).catch(() => { /* offline — the fallback covers it */ });
@@ -5593,7 +5593,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // enough for a hand-drawn headline to finish writing. The part counter
     // sits beneath as plain text: it changes as batches land and has to stay
     // legible, which a fixed stroke drawing can't do.
-    const BUILD_STROKE_SRC = '/projects/pacey/loading-building-plan.svg';
+    const BUILD_STROKE_SRC = '/projects/pacey/assets/loading/loading-building-plan.svg';
     function coachLoadingMarkup(text) {
         return `
             <div class="pacey-coach-loading pacey-coach-loading--plan" role="status" aria-label="Building your plan">
