@@ -338,13 +338,15 @@
 /* Strengths — subtle green tint + dark green text that clears contrast
    on the light blue post-it. */
 #pacey-content .pacey-pillar-section-label--strengths {
-    background: rgba(47, 106, 63, 0.16);
-    color: #275a34;
+    background: rgba(47, 106, 63, 0.26);
+    color: #114d20;
 }
 
-/* Gaps — subtle amber tint + dark amber text (actionable, not alarming). */
+/* Gaps — the bright amber from pacey.css, kept on the board. It reads as
+   "actionable, not alarming" without going muddy; the dark amber text is
+   what carries the contrast. */
 #pacey-content .pacey-pillar-section-label--gaps {
-    background: rgba(122, 88, 16, 0.18);
+    background: rgba(235, 189, 71, 0.55);
     color: #5f410b;
 }
 
@@ -355,8 +357,12 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     background: rgba(47, 106, 63, 0.18);
     color: #275a34;
 }
+/* Night board: the post-it stays light, so the amber stays amber — nudged up
+   in opacity so it still reads as yellow rather than tan — with the same dark
+   text. (The app's dark rule uses a light-gold text, which only works on a
+   dark card.) */
 html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-pillar-section-label--gaps {
-    background: rgba(122, 88, 16, 0.2);
+    background: rgba(225, 178, 61, 0.82);
     color: #5f410b;
 }
 

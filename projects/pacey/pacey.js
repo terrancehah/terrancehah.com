@@ -2773,6 +2773,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Run': 'pacey-run-tag--easy',
         'Warmup': 'pacey-run-tag--warmup',
         'Tempo Long': 'pacey-run-tag--tempo-long',
+        'Tempo': 'pacey-run-tag--tempo-long',
         'LSD': 'pacey-run-tag--lsd',
         'Speedwork': 'pacey-run-tag--speedwork',
         'Easy': 'pacey-run-tag--easy',
@@ -2797,6 +2798,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Easy': cssVar('--pacey-run-easy', '#388e8e'),
         'Warmup': cssVar('--pacey-run-warmup', '#7a7a7a'),
         'Tempo Long': cssVar('--pacey-run-tempo', '#8a6313'),
+        'Tempo': cssVar('--pacey-run-tempo', '#8a6313'),
         'LSD': cssVar('--pacey-run-lsd', '#5d6db0'),
         'Speedwork': cssVar('--pacey-run-speedwork', '#c44b4b'),
         // Non-running activities share a neutral colour
@@ -5029,7 +5031,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // (type, distance, duration, pace, description) invalidates the sync.
     function workoutFingerprint(w) {
         if (!w) return '';
-        return [w.type, w.title, w.distance_km, w.duration_min, w.target_pace_min_per_km, w.description].join('|');
+        // Include the compiled structure (segments, or the derived steps) so a
+        // change to the step breakdown alone still invalidates the sync — a
+        // structure-only edit would otherwise look "already synced".
+        return [
+            w.type, w.title, w.distance_km, w.duration_min,
+            w.target_pace_min_per_km, w.description,
+            JSON.stringify(w.segments || w.steps || []),
+        ].join('|');
     }
 
     // Training phase for a given number of days left until race day — mirrors
@@ -5218,7 +5227,7 @@ document.addEventListener('DOMContentLoaded', function () {
             current_quality_pace: '5:52',
             current_quality_range: '5:40–6:05',
             current_quality_runs: mockHistory
-                .filter(r => ['Tempo Long', 'Speedwork'].includes(r.run_tag))
+                .filter(r => ['Tempo Long', 'Tempo', 'Speedwork'].includes(r.run_tag))
                 .map(runSummary),
             goal_quality_pace: '5:18',
             goal_pace: '5:13',
@@ -5436,10 +5445,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Recent similar runs from the demo history — same tag mapping as the
-        // backend: Long Run→LSD, Tempo→Tempo Long, Intervals/Speedwork→Speedwork,
+        // backend: Long Run→LSD, Tempo→Tempo Long/Tempo, Intervals/Speedwork→Speedwork,
         // Easy→Easy/Warmup, Recovery→Recovery, Race→LSD/Tempo Long.
         const tagMap = {
-            'Long Run': ['LSD'], 'Tempo': ['Tempo Long'], 'Intervals': ['Speedwork'],
+            'Long Run': ['LSD'], 'Tempo': ['Tempo Long', 'Tempo'], 'Intervals': ['Speedwork'],
             'Speedwork': ['Speedwork'], 'Easy': ['Easy', 'Warmup'], 'Recovery': ['Recovery'],
             'Race': ['LSD', 'Tempo Long'],
         };
@@ -6227,16 +6236,37 @@ document.addEventListener('DOMContentLoaded', function () {
             day.workout.type = value;
             // The workout changed — any previously generated insight is stale.
             day.workout.insight = null;
-            // Pace is derived from the workout type — paces ramp across the
-            // block, so use THIS day's week zone set, falling back to the
-            // plan-level zones.
-            const zones = (coachPlanData.plan.zones_by_date || {})[dateKey]
-                || coachPlanData.plan.pace_zones || {};
-            if (zones[value]) day.workout.target_pace_min_per_km = zones[value];
         } else {
             day.workout[field] = value;
         }
         renderCoachCalendar(coachPlanData);
+        // Recompile server-side so the paces, distances, durations, totals and
+        // step breakdown are all recomputed from the edit. The card, the detail
+        // sheet and the Garmin upload read the compiled structure, so they must
+        // move together — editing only the raw field would let them drift.
+        if (field !== 'date') recompileDay(dateKey);
+    }
+
+    // Ask the server to recompile one edited workout and swap in the result.
+    // Uses the day's own week pace zones so the recomputed paces still reflect
+    // the runner's current fitness at that point in the block.
+    async function recompileDay(dateKey) {
+        if (window.__demoMode) return;
+        const plan = coachPlanData && coachPlanData.plan;
+        const day = plan ? plan.days.find(x => x.date === dateKey) : null;
+        if (!day || !day.workout) return;
+        const zones = (plan.zones_by_date || {})[dateKey] || plan.pace_zones || {};
+        try {
+            const resp = await apiCall('POST', 'compile-workout', { workout: day.workout, zones });
+            const data = await resp.json();
+            if (resp.ok && data.workout) {
+                data.workout.insight = null;
+                day.workout = data.workout;
+                renderCoachCalendar(coachPlanData);
+            }
+        } catch (err) {
+            console.warn('Workout recompile failed:', err);
+        }
     }
 
     // Event delegation — edits re-render the whole calendar, keyed by date

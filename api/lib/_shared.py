@@ -998,7 +998,7 @@ def _classify_non_running(type_key: str) -> str:
 def _classify_run(a: dict, goal_pace_ms: float) -> str:
     """Full run classification — the SINGLE classifier for the UI tag and the
     AI lap-selection. Returns one of: Run / Warmup / Tempo Long / LSD /
-    Speedwork / Easy.
+    Speedwork / Tempo / Easy.
     """
     avg_speed = a.get("averageSpeed") or 0
     dist_km = (a.get("distance") or 0) / 1000
@@ -1007,11 +1007,19 @@ def _classify_run(a: dict, goal_pace_ms: float) -> str:
     # Warmup: runs shorter than 2km
     if dist_km < 2:
         return "Warmup"
-    speedwork = _is_speedwork_candidate(a, goal_pace_ms)
-    # Long runs are split by speedwork character
+    quality = _is_speedwork_candidate(a, goal_pace_ms)
+    # Long runs are split by quality character — a long run with race-pace or
+    # threshold work inside it is "Tempo Long" (the long-run-with-quality
+    # session), everything else is plain LSD.
     if dist_km > 12:
-        return "Tempo Long" if speedwork else "LSD"
-    return "Speedwork" if speedwork else "Easy"
+        return "Tempo Long" if quality else "LSD"
+    if not quality:
+        return "Easy"
+    # Short quality runs split by SHAPE, not distance: interval reps (fast pace
+    # spikes + HR swings within the session) are Speedwork; a continuous
+    # sustained effort with a steady pace/HR is Tempo. This is the real
+    # coaching distinction the old distance cutoff could not make.
+    return "Speedwork" if _is_interval_shaped(a) else "Tempo"
 
 
 def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
@@ -1101,9 +1109,7 @@ def _is_speedwork_candidate(a: dict, goal_pace_ms: float) -> bool:
     # Weak pair — must BOTH fire (interval-rep signature: pace spikes AND
     # HR swings in the same session). A fast last km or a hilly drift trips
     # only one of them and stays classified as easy.
-    ratio = (max_speed / avg_speed) if (avg_speed > 0 and max_speed > 0) else 0
-    spread = (max_hr - avg_hr) if (avg_hr > 0 and max_hr > 0) else 0
-    if ratio >= 1.15 and spread >= 30:
+    if _is_interval_shaped(a):
         return True
 
     # Last resort: name keywords (user-set names can be unreliable alone)
@@ -1112,6 +1118,22 @@ def _is_speedwork_candidate(a: dict, goal_pace_ms: float) -> bool:
         return True
 
     return False
+
+
+def _is_interval_shaped(a: dict) -> bool:
+    """True when the session looks like interval reps rather than a continuous
+    effort: the pace spiked well above the average AND the heart rate swung
+    well above the average within the same run. Neither alone is enough (a
+    fast finish or a hilly drift trips only one), so both must fire. This is
+    what separates Speedwork from Tempo among short quality runs.
+    """
+    avg_speed = a.get("averageSpeed") or 0
+    max_speed = a.get("maxSpeed") or 0
+    avg_hr = a.get("averageHR") or 0
+    max_hr = a.get("maxHR") or 0
+    ratio = (max_speed / avg_speed) if (avg_speed > 0 and max_speed > 0) else 0
+    spread = (max_hr - avg_hr) if (avg_hr > 0 and max_hr > 0) else 0
+    return ratio >= 1.15 and spread >= 30
 
 
 def _fetch_lap_summaries(client, activity_id, goal_pace_ms: float = 0) -> dict | None:
@@ -1203,13 +1225,13 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
             "avg_cadence": a.get("averageRunningCadenceInStepsPerMinute"),
             "training_effect": a.get("aerobicTrainingEffect"),
         }
-        # Attach lap details only for speedwork-tagged sessions (same single
+        # Attach lap details only for quality-tagged sessions (same single
         # classifier as the UI tag), up to the cap — each lap fetch is one
         # extra Garmin API call, so keep the count low
         if (
             goal_pace_ms > 0
             and lap_fetches < LAP_DETAIL_CAP
-            and _classify_run(a, goal_pace_ms) in ("Speedwork", "Tempo Long")
+            and _classify_run(a, goal_pace_ms) in ("Speedwork", "Tempo", "Tempo Long")
             and a.get("activityId")
         ):
             laps = _fetch_lap_summaries(client, a["activityId"], goal_pace_ms)
@@ -1299,99 +1321,373 @@ def _fetch_recent_activities_with_laps(client, days: int = 14, goal_pace_ms: flo
     return result
 
 
-def _build_running_workout(workout: dict):
-    """Build a Garmin running workout from a coach-plan workout spec.
+# ---------------------------------------------------------------------------
+# Canonical workout model
+# ---------------------------------------------------------------------------
+# One structured object is shared by every consumer of a planned workout: the
+# plan card, the detail sheet, the Garmin upload, and the coach insight. The
+# AI proposes a session SHAPE (segments, each with a role and an effort); the
+# compiler below resolves each segment's pace from the runner's CURRENT
+# fitness zones (_compute_pace_zones — easy / long-run pace from recent easy
+# runs, quality pace from recent fast work, ramped toward goal pace across the
+# block) and computes every distance / duration / total exactly once. Because
+# the totals are DERIVED from the segments, the consumers can never disagree:
+# what the card shows is what the watch gets and what the insight describes.
 
-    The spec carries: type, title, description, distance_km, duration_min,
-    target_pace_min_per_km, intensity. Maps the common session types into a
-    structured RunningWorkout (warmup/main/cooldown, with a repeat group for
-    interval work). Returns a RunningWorkout instance ready for
-    client.upload_running_workout(). Steps use distance/time end conditions
-    and carry a custom pace-zone target (m/s range) so the pace appears on
-    the watch during the run — not just as text in the description.
+# Segment role -> Garmin step type key
+SEGMENT_STEP_TYPE = {
+    "warmup": "warmup",
+    "main": "interval",
+    "recovery": "recovery",
+    "cooldown": "cooldown",
+    "rest": "rest",
+}
+
+# Garmin step type ids (mirrors garminconnect.workout.StepType)
+_STEP_TYPE_IDS = {
+    "warmup": 1, "cooldown": 2, "interval": 3, "recovery": 4,
+    "rest": 5, "repeat": 6, "other": 7, "main": 8,
+}
+
+# Segment effort -> pace-zone name produced by _compute_pace_zones. This is
+# how a segment inherits the runner's current fitness pace (easy, long-run,
+# tempo, intervals, speedwork) or the race-goal pace — the paces come from
+# the runner's recent training + the block ramp, not a fixed guess.
+EFFORT_TO_ZONE = {
+    "recovery": "Recovery",
+    "easy": "Easy",
+    "long_run": "Long Run",
+    "tempo": "Tempo",
+    "intervals": "Intervals",
+    "speed": "Speedwork",
+    "goal_pace": "Race",
+}
+
+# Display labels for the detail sheet
+_STEP_KIND_LABEL = {
+    "warmup": "Warm up", "main": "Run", "recovery": "Recover",
+    "cooldown": "Cool down", "rest": "Rest", "interval": "Run",
+}
+
+
+def _segment_zone_pace(effort: str, zones: dict):
+    """Return (pace_str, pace_sec) for a segment effort from the pace zones."""
+    zone = EFFORT_TO_ZONE.get((effort or "").strip().lower())
+    if not zone or not zones:
+        return None, None
+    pace_str = zones.get(zone)
+    if not pace_str:
+        return None, None
+    return pace_str, _pace_str_sec(pace_str)
+
+
+def _default_segments(spec: dict, wtype: str) -> list:
+    """Synthesize a segment list for a spec with no explicit segments.
+
+    Used for plans generated before the AI emitted segments (cached plans)
+    and for legacy callers. The AI's distance_km/duration_min is treated as
+    the SESSION TOTAL and split into warm-up / main / cool-down, so the main
+    block is never inflated to the whole session (the old template bug).
+    """
+    total_km = _parse_float(spec.get("distance_km"))
+    total_min = _parse_float(spec.get("duration_min"))
+    t = (wtype or "Easy").strip().lower()
+    desc = (spec.get("description") or "").lower()
+
+    if t == "recovery":
+        effort = "recovery"
+    elif t == "long run":
+        effort = "long_run"
+    elif t == "race":
+        effort = "goal_pace"
+    elif t in ("tempo", "threshold"):
+        effort = "goal_pace" if ("goal pace" in desc or "race pace" in desc) else "tempo"
+    elif t in ("intervals", "interval", "fartlek"):
+        effort = "intervals"
+    elif t in ("speedwork", "speed"):
+        effort = "speed"
+    else:
+        effort = "easy"
+
+    # Steady types: the whole session is one block at the type's pace.
+    if t in ("easy", "recovery", "long run", "race") or not total_km:
+        seg = {"role": "main", "end": "distance", "effort": effort}
+        if total_km:
+            seg["distance_km"] = total_km
+        elif total_min:
+            seg["end"] = "time"
+            seg["duration_min"] = total_min
+        else:
+            seg["distance_km"] = 5.0
+        return [seg]
+
+    # Quality types: split the total into warm-up / main / cool-down so the
+    # main block is the remainder, never the whole distance.
+    warm = min(2.0, round(total_km * 0.30, 2))
+    cool = min(2.0, round(total_km * 0.20, 2))
+    main_km = round(total_km - warm - cool, 2)
+    if main_km <= 0:
+        warm, cool, main_km = 0.0, 0.0, total_km
+    segs = []
+    if warm > 0:
+        segs.append({"role": "warmup", "end": "distance", "distance_km": warm, "effort": "easy"})
+    segs.append({"role": "main", "end": "distance", "distance_km": main_km, "effort": effort})
+    if cool > 0:
+        segs.append({"role": "cooldown", "end": "distance", "distance_km": cool, "effort": "easy"})
+    return segs
+
+
+def _resolve_segment(seg, zones: dict, order: int):
+    """Resolve one raw segment into a concrete step: pace from its effort, and
+    BOTH distance and duration filled in (whichever the segment did not
+    declare is computed from its pace), so the totals always reconcile."""
+    if not isinstance(seg, dict):
+        return None
+    role = (seg.get("role") or "main").strip().lower()
+    if role not in SEGMENT_STEP_TYPE:
+        role = "main"
+    effort = (seg.get("effort") or "").strip().lower()
+    pace_str, pace_sec = _segment_zone_pace(effort, zones)
+
+    distance_km = _parse_float(seg.get("distance_km"))
+    duration_min = _parse_float(seg.get("duration_min"))
+    end = (seg.get("end") or "").strip().lower()
+    if end not in ("distance", "time"):
+        end = "time" if (duration_min and not distance_km) else "distance"
+
+    # Fill the missing dimension from the resolved pace so every segment
+    # carries both units and the session total is exact in distance and time.
+    if pace_sec:
+        if end == "distance" and distance_km and not duration_min:
+            duration_min = round(distance_km * pace_sec / 60.0, 1)
+        elif end == "time" and duration_min and not distance_km:
+            distance_km = round(duration_min * 60.0 / pace_sec, 2)
+    if distance_km is None and duration_min is None:
+        return None
+
+    reps = int(seg.get("reps") or 1)
+    if reps < 1:
+        reps = 1
+
+    resolved = {
+        "role": role,
+        "step": SEGMENT_STEP_TYPE[role],
+        "end": end,
+        "distance_km": distance_km,
+        "duration_min": duration_min,
+        "effort": effort or None,
+        "pace_min_per_km": pace_str,
+        "pace_ms": round(1000.0 / pace_sec, 4) if pace_sec else None,
+        "reps": reps,
+        "order": order,
+    }
+    # Optional recovery between reps (interval sessions). Force a recovery
+    # role/effort when the caller left them out.
+    rec = seg.get("recovery")
+    if reps > 1 and isinstance(rec, dict):
+        rec = dict(rec)
+        rec.setdefault("role", "recovery")
+        rec.setdefault("effort", "recovery")
+        resolved["recovery"] = _resolve_segment(rec, zones, order + 1)
+    return resolved
+
+
+def _segment_contribution(seg: dict) -> tuple:
+    """Distance (km) and duration (min) a segment contributes to the total,
+    accounting for reps and the recovery between them."""
+    reps = seg.get("reps") or 1
+    km = (seg.get("distance_km") or 0) * reps
+    mins = (seg.get("duration_min") or 0) * reps
+    rec = seg.get("recovery")
+    if isinstance(rec, dict):
+        km += (rec.get("distance_km") or 0) * reps
+        mins += (rec.get("duration_min") or 0) * reps
+    return km, mins
+
+
+def _segment_detail(seg: dict) -> str:
+    """Human detail for a step: distance in km (or m under 1 km) or a time."""
+    if seg.get("end") == "distance":
+        km = seg.get("distance_km")
+        if km is None:
+            return ""
+        return f"{int(km * 1000)} m" if km < 1 else f"{km:g} km"
+    mins = seg.get("duration_min")
+    if mins is None:
+        return ""
+    if mins < 1:
+        return f"{int(round(mins * 60))} s"
+    return f"{mins:g} min"
+
+
+def _segments_to_steps(segments: list) -> list:
+    """Flatten resolved segments into the detail sheet's step rows, so the
+    displayed breakdown IS the compiled structure (the same data the watch
+    gets), not a re-derived approximation."""
+    out = []
+    for seg in segments:
+        reps = seg.get("reps") or 1
+        label = _STEP_KIND_LABEL.get(seg.get("role"), "Run")
+        if reps > 1:
+            out.append({"type": "Repeat", "detail": f"{reps}×", "level": 0, "pace": None})
+            out.append({"type": label, "detail": _segment_detail(seg),
+                        "level": 1, "pace": seg.get("pace_min_per_km")})
+            rec = seg.get("recovery")
+            if isinstance(rec, dict):
+                out.append({"type": _STEP_KIND_LABEL.get(rec.get("role"), "Recover"),
+                            "detail": _segment_detail(rec), "level": 1,
+                            "pace": rec.get("pace_min_per_km")})
+        else:
+            out.append({"type": label, "detail": _segment_detail(seg),
+                        "level": 0, "pace": seg.get("pace_min_per_km")})
+    return out
+
+
+def _compile_workout(spec: dict, pace_zones: dict, workout_type: str = "") -> dict:
+    """Turn a workout spec into the canonical object every consumer reads.
+
+    Resolves each segment's pace from the runner's current fitness zones,
+    fills in both distance and duration per segment, and computes the session
+    totals once. Also emits the flat `steps` rows for the detail sheet. The
+    result carries the fields the frontend already renders (distance_km,
+    duration_min, target_pace_min_per_km, steps) plus the new `segments` and
+    `totals`, all derived from the same structure.
+    """
+    spec = dict(spec or {})
+    zones = pace_zones or {}
+    wtype = (workout_type or spec.get("type") or "Easy").strip()
+
+    raw = spec.get("segments")
+    if not isinstance(raw, list) or not raw:
+        raw = _default_segments(spec, wtype)
+
+    resolved = []
+    for i, seg in enumerate(raw):
+        r = _resolve_segment(seg, zones, i + 1)
+        if r:
+            resolved.append(r)
+    if not resolved:
+        resolved = [{
+            "role": "main", "step": "interval", "end": "distance",
+            "distance_km": _parse_float(spec.get("distance_km")) or 5.0,
+            "duration_min": None, "effort": None, "pace_min_per_km": None,
+            "pace_ms": None, "reps": 1, "order": 1,
+        }]
+
+    total_km = round(sum(_segment_contribution(s)[0] for s in resolved), 2)
+    total_min = round(sum(_segment_contribution(s)[1] for s in resolved), 1)
+    avg_pace = _format_pace_min_km((total_min * 60.0 / total_km) if total_km > 0 else None)
+
+    # Headline pace = the main block's pace (what the session is "about"),
+    # falling back to the first paced segment.
+    main = next((s for s in resolved if s.get("role") == "main" and s.get("pace_min_per_km")), None)
+    headline = (main or next((s for s in resolved if s.get("pace_min_per_km")), {})).get("pace_min_per_km")
+
+    out = dict(spec)
+    out["segments"] = resolved
+    out["totals"] = {
+        "distance_km": total_km or None,
+        "duration_min": round(total_min) if total_min else None,
+        "avg_pace_min_per_km": avg_pace,
+    }
+    if total_km:
+        out["distance_km"] = total_km
+    if total_min:
+        out["duration_min"] = round(total_min)
+    if headline:
+        out["target_pace_min_per_km"] = headline
+    out["steps"] = _segments_to_steps(resolved)
+    return out
+
+
+def _build_running_workout(workout: dict):
+    """Build a Garmin running workout from a compiled coach-plan workout.
+
+    Steps come straight from the workout's compiled `segments` — the same
+    structure the card and detail sheet show — so the watch gets exactly what
+    the runner saw. Warm-up / cool-down / recovery steps can end on distance
+    OR time, per the segment, and every step carries a pace-zone target
+    derived from the runner's current fitness (m/s range, so the pace shows
+    on the watch during the run). Returns a RunningWorkout ready for
+    client.upload_running_workout().
     """
     from garminconnect.workout import (
         RunningWorkout,
         WorkoutSegment,
-        create_warmup_step,
-        create_interval_step,
-        create_distance_interval_step,
-        create_recovery_step,
-        create_cooldown_step,
-        create_repeat_group,
+        ExecutableStep,
+        RepeatGroup,
     )
 
-    wtype = (workout.get("type") or "Easy").strip().lower()
     title = workout.get("title") or "Run"
     description = workout.get("description") or ""
-    # Target pace is carried in the description AND attached to the steps as
-    # a custom pace-zone target, so the watch enforces the pace during the
-    # run rather than only showing it as text.
-    target_pace = workout.get("target_pace_min_per_km")
-    if target_pace:
-        description = f"{description} Target pace: {target_pace}/km." if description else f"Target pace: {target_pace}/km."
-    pace_sec = _pace_str_sec(target_pace)
-    pace_ms = (1000.0 / pace_sec) if pace_sec else None  # m/s for the Garmin target
-    distance_km = _parse_float(workout.get("distance_km"))
-    duration_min = _parse_float(workout.get("duration_min"))
+    segments = workout.get("segments")
+    if not isinstance(segments, list) or not segments:
+        # Legacy spec without compiled segments — compile it with no zones so
+        # the structure is still internally consistent.
+        segments = _compile_workout(workout, {}).get("segments") or []
 
-    # Attach a custom pace-zone target to a step. The values must live ON the
-    # step (targetValueOne/Two), not nested inside targetType — Garmin
-    # silently discards nested values, leaving a pace target with no range.
-    # valueOne is the faster bound (higher m/s), valueTwo the slower bound —
-    # Garmin's canonical order for running workouts. A small band around the
-    # target keeps the range honest (Garmin pace targets are ranges, not
-    # single values).
-    def with_pace(step, pace_ms, band=0.06):
-        if not pace_ms:
-            return step
-        step.targetType = {
-            "workoutTargetTypeId": 6,
-            "workoutTargetTypeKey": "pace.zone",
-            "displayOrder": 1,
-        }
-        step.targetValueOne = round(pace_ms * (1 + band), 4)  # faster bound
-        step.targetValueTwo = round(pace_ms * (1 - band), 4)  # slower bound
+    # Carry the headline pace in the description too, so the watch shows it as
+    # text even before the run starts.
+    headline = workout.get("target_pace_min_per_km")
+    if headline:
+        description = (f"{description} Target pace: {headline}/km." if description
+                       else f"Target pace: {headline}/km.")
+
+    def make_step(seg, order):
+        """One ExecutableStep from a resolved segment. Distance-based steps
+        are built directly (the library's warm-up/cool-down helpers only offer
+        time), so any role can end on distance or time."""
+        step_key = seg.get("step") or "interval"
+        if seg.get("end") == "time":
+            value = (seg.get("duration_min") or 0) * 60.0
+            cond = {"conditionTypeId": 2, "conditionTypeKey": "time",
+                    "displayOrder": 2, "displayable": True}
+        else:
+            value = (seg.get("distance_km") or 0) * 1000.0
+            cond = {"conditionTypeId": 3, "conditionTypeKey": "distance",
+                    "displayOrder": 3, "displayable": True}
+        step = ExecutableStep(
+            stepOrder=order,
+            stepType={
+                "stepTypeId": _STEP_TYPE_IDS.get(step_key, 3),
+                "stepTypeKey": step_key,
+                "displayOrder": _STEP_TYPE_IDS.get(step_key, 3),
+            },
+            endCondition=cond,
+            endConditionValue=value,
+        )
+        # Pace target lives ON the step (targetValueOne/Two), not nested in
+        # targetType — Garmin discards nested values. valueOne is the faster
+        # bound, valueTwo the slower bound.
+        pace_ms = seg.get("pace_ms")
+        if pace_ms:
+            step.targetType = {"workoutTargetTypeId": 6,
+                               "workoutTargetTypeKey": "pace.zone", "displayOrder": 1}
+            step.targetValueOne = round(pace_ms * 1.06, 4)
+            step.targetValueTwo = round(pace_ms * 0.94, 4)
         return step
 
-    # Helper: distance-based main step (meters) or time-based fallback
-    def main_step(order):
-        if distance_km:
-            return create_distance_interval_step(distance_km * 1000.0, order)
-        return create_interval_step((duration_min or 30.0) * 60.0, order)
+    steps = []
+    order = 1
+    for seg in segments:
+        reps = seg.get("reps") or 1
+        if reps > 1:
+            children = [make_step(seg, 1)]
+            rec = seg.get("recovery")
+            if isinstance(rec, dict):
+                children.append(make_step(rec, 2))
+            steps.append(RepeatGroup(
+                stepOrder=order,
+                stepType={"stepTypeId": 6, "stepTypeKey": "repeat", "displayOrder": 6},
+                numberOfIterations=reps,
+                workoutSteps=children,
+            ))
+        else:
+            steps.append(make_step(seg, order))
+        order += 1
 
-    if wtype in ("tempo", "threshold"):
-        # 10' easy + a sustained main block + 5' easy
-        steps = [
-            with_pace(create_warmup_step(600.0, 1), pace_ms * 0.92),
-            with_pace(main_step(2), pace_ms),
-            with_pace(create_cooldown_step(300.0, 3), pace_ms * 0.92),
-        ]
-    elif wtype in ("intervals", "speedwork", "speed", "interval", "fartlek"):
-        # 10' easy + 6 x (2' hard / 2' recovery) + 5' easy
-        repeat = create_repeat_group(
-            6,
-            [
-                with_pace(create_interval_step(120.0, 1), pace_ms),
-                with_pace(create_recovery_step(120.0, 2), pace_ms * 0.85),
-            ],
-            2,
-        )
-        steps = [
-            with_pace(create_warmup_step(600.0, 1), pace_ms * 0.92),
-            repeat,
-            with_pace(create_cooldown_step(300.0, 3), pace_ms * 0.92),
-        ]
-    else:
-        # Easy / long run / recovery / default: single distance/time step
-        steps = [with_pace(main_step(1), pace_ms)]
-
-    if duration_min:
-        est_secs = int(duration_min * 60)
-    elif distance_km:
-        est_secs = int(distance_km * 360)  # ~6:00/km average
-    else:
-        est_secs = 1800
+    est_min = (workout.get("totals") or {}).get("duration_min") or workout.get("duration_min")
+    est_secs = int(est_min * 60) if est_min else 1800
 
     segment = WorkoutSegment(
         segmentOrder=1,
@@ -1495,12 +1791,12 @@ def _fitness_samples(history: list[dict]) -> tuple:
         sec = 1000 / pace_ms
         # Quality = the classifier's hard sessions; everything else counts as
         # easy. This must cover _classify_run's FULL output domain
-        # (Run / Warmup / Tempo Long / LSD / Speedwork / Easy). Previously the
-        # easy bucket only accepted Easy/Recovery/Warmup/LSD, so a run tagged
-        # "Run" (emitted whenever the activity carries no speed data) was
-        # dropped from BOTH buckets and surfaced in the UI as
+        # (Run / Warmup / Tempo Long / LSD / Speedwork / Tempo / Easy).
+        # Previously the easy bucket only accepted Easy/Recovery/Warmup/LSD,
+        # so a run tagged "Run" (emitted whenever the activity carries no speed
+        # data) was dropped from BOTH buckets and surfaced in the UI as
         # "no recent easy/quality runs — goal-based reference only".
-        if tag in ("Speedwork", "Tempo Long"):
+        if tag in ("Speedwork", "Tempo", "Tempo Long"):
             fast.append({"sec": sec, "run": a})
         else:
             easy.append({"sec": sec, "run": a})

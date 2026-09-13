@@ -16,6 +16,7 @@ from lib._shared import (
     _compute_goal_pace_ms, _race_distance_km, _race_result_paces, _fetch_physio_trends,
     _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
+    _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
     _median, _fitness_medians, _fitness_samples, _pace_str_sec, _pace_range_sec,
@@ -303,43 +304,22 @@ def _progression_guide(phase, prev_long_km, race_day_chunk, peak_long_km, race_d
 
 
 def _attach_workout_details(days, pace_zones):
-    """Override each workout's pace with the deterministic zone for its type,
-    attach the coaching insight, and build the native Garmin step breakdown
-    for the detail sheet (pace is derived, never user- or AI-editable)."""
+    """Compile each workout into the canonical object every consumer reads:
+    paces resolved from the runner's current fitness zones, distances /
+    durations / totals computed once, and the detail-sheet steps derived from
+    the same segments the watch gets. The plan card, the detail sheet, the
+    Garmin upload, and the coach insight all read this one structure, so they
+    cannot disagree (pace is derived, never user- or AI-editable)."""
     for day in days:
         w = day.get("workout")
         if not isinstance(w, dict):
             continue
-        wtype = w.get("type") or "Easy"
-        # Goal-pace work carries the goal pace itself — never the
-        # fitness-derived type zone — so the steps match the description:
-        # - a Race workout is the goal effort by definition
-        # - a quality session whose description prescribes goal-pace work
-        #   (the phase text asks for these in specificity/sharpen)
-        goal_pace = pace_zones.get("Race")
-        desc = (w.get("description") or "").lower()
-        if wtype == "Race" and goal_pace:
-            w["target_pace_min_per_km"] = goal_pace
-        elif (wtype in ("Tempo", "Intervals", "Speedwork") and goal_pace
-                and ("goal pace" in desc or "race pace" in desc)):
-            w["target_pace_min_per_km"] = goal_pace
-        else:
-            w["target_pace_min_per_km"] = pace_zones.get(wtype)
         # Coach insight is generated on demand when the runner opens the
         # workout card (see /api/workout-insight) — keep it null here so the
         # full-block plan payload stays light and fast.
         w.setdefault("insight", None)
-        # Native Garmin steps — the exact steps that will be sent to the
-        # watch, flattened into readable {type, detail} rows. Pace zones are
-        # passed so each step's detail includes a target pace; the main step
-        # uses the workout's target pace (goal pace for goal-pace sessions).
         try:
-            w["steps"] = _flatten_workout_steps(
-                _build_running_workout(w).to_dict(),
-                pace_zones=pace_zones,
-                workout_type=wtype,
-                main_pace=w["target_pace_min_per_km"],
-            )
+            w.update(_compile_workout(w, pace_zones, workout_type=w.get("type")))
         except Exception:
             w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
 
@@ -455,16 +435,31 @@ read the work-lap paces as the true effort, not the blended average.
 
 WORKOUT REQUIREMENTS:
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
-  Speedwork, Race), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
-  "duration_min" (number or null), and "intensity" (easy, moderate, or hard). Do NOT set
-  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below. Do NOT
-  set "insight" — it is generated on demand when the runner opens the workout, so leave it out.
-- Scale distances and durations to the runner's recent training load, the weekly distance target,
-  and this week's phase.
+  Speedwork, Race), "title", "description" (1-2 sentences on intent), "intensity" (easy, moderate,
+  or hard), and "segments" — the exact session structure (see below).
+- "segments" is an ordered list of the session's parts. Each segment has:
+    - "role": "warmup" | "main" | "recovery" | "cooldown"
+    - "effort": "easy" | "recovery" | "long_run" | "tempo" | "intervals" | "speed" | "goal_pace"
+    - exactly one of "distance_km" (number) or "duration_min" (number) — that segment's length
+    - "reps" (integer, optional — only for interval reps; the segment length is ONE rep)
+    - "recovery" (optional object, only when "reps" > 1): the rest between reps, with "distance_km"
+      or "duration_min" and "effort": "recovery"
+  Examples: a tempo tune-up is [warmup easy 2 km, main goal_pace 1.5 km, cooldown easy 2 km];
+  intervals are [warmup easy 2 km, main intervals 0.4 km reps 6 with recovery 2 min, cooldown easy 1 km].
+- The segments ARE the session — their lengths sum to the session total, so do NOT also declare a
+  separate "distance_km"/"duration_min" total (the totals are computed from the segments).
+- Do NOT set "target_pace_min_per_km" — each segment's pace is assigned automatically from its
+  "effort" using the target pace zones below. Do NOT set "insight" — it is generated on demand when
+  the runner opens the workout, so leave it out.
+- Scale segment lengths to the runner's recent training load, the weekly distance target, and this
+  week's phase.
 
-TARGET PACE ZONES (computed from the runner's recent fitness + race goal — use these paces when
-writing descriptions; the numeric pace field is set automatically):
+TARGET PACE ZONES (computed from the runner's recent fitness + race goal — the "effort" you pick for
+each segment maps to one of these zones; the numeric pace is set automatically):
 {json.dumps(pace_zones, indent=2)}
+
+EFFORT → ZONE: "easy"→Easy, "recovery"→Recovery, "long_run"→Long Run, "tempo"→Tempo,
+"intervals"→Intervals, "speed"→Speedwork, "goal_pace"→Race (the race goal pace).
 
 {goal_pace_text}
 
@@ -1127,16 +1122,31 @@ PLAN REQUIREMENTS:
 - Distribute the {days_per_week} workout days across each 7-day block. Days between tomorrow and
   the next Monday should be treated as the tail of the current week — fill with easy runs or rest.
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
-  Speedwork), "title", "description" (1-2 sentences on intent), "distance_km" (number or null),
-  "duration_min" (number or null), and "intensity" (easy, moderate, or hard). Do NOT set
-  "target_pace_min_per_km" — it is assigned automatically from the target pace zones below. Do NOT
-  set "insight" — it is generated on demand when the runner opens the workout, so leave it out.
-- Scale distances/durations to the runner's recent training load, the weekly distance target, and
-  the race phase (sharpen and taper phases must reduce volume).
+  Speedwork), "title", "description" (1-2 sentences on intent), "intensity" (easy, moderate, or
+  hard), and "segments" — the exact session structure (see below).
+- "segments" is an ordered list of the session's parts. Each segment has:
+    - "role": "warmup" | "main" | "recovery" | "cooldown"
+    - "effort": "easy" | "recovery" | "long_run" | "tempo" | "intervals" | "speed" | "goal_pace"
+    - exactly one of "distance_km" (number) or "duration_min" (number) — that segment's length
+    - "reps" (integer, optional — only for interval reps; the segment length is ONE rep)
+    - "recovery" (optional object, only when "reps" > 1): the rest between reps, with "distance_km"
+      or "duration_min" and "effort": "recovery"
+  Examples: a tempo tune-up is [warmup easy 2 km, main goal_pace 1.5 km, cooldown easy 2 km];
+  intervals are [warmup easy 2 km, main intervals 0.4 km reps 6 with recovery 2 min, cooldown easy 1 km].
+- The segments ARE the session — their lengths sum to the session total, so do NOT also declare a
+  separate "distance_km"/"duration_min" total (the totals are computed from the segments).
+- Do NOT set "target_pace_min_per_km" — each segment's pace is assigned automatically from its
+  "effort" using the target pace zones below. Do NOT set "insight" — it is generated on demand when
+  the runner opens the workout, so leave it out.
+- Scale segment lengths to the runner's recent training load, the weekly distance target, and the
+  race phase (sharpen and taper phases must reduce volume).
 
-TARGET PACE ZONES (computed from the runner's recent fitness + race goal — use these paces when
-writing descriptions; the numeric pace field is set automatically):
+TARGET PACE ZONES (computed from the runner's recent fitness + race goal — the "effort" you pick for
+each segment maps to one of these zones; the numeric pace is set automatically):
 {json.dumps(pace_zones, indent=2)}
+
+EFFORT → ZONE: "easy"→Easy, "recovery"→Recovery, "long_run"→Long Run, "tempo"→Tempo,
+"intervals"→Intervals, "speed"→Speedwork, "goal_pace"→Race (the race goal pace).
 
 Return ONLY valid JSON:
 {{"week_start": "{plan_start.isoformat()}", "days": [{{"date": "YYYY-MM-DD", "day_of_week": "Mon", "is_rest": false, "workout": {{...}}}}, ...]}}"""

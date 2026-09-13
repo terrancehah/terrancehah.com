@@ -2012,7 +2012,7 @@ header.pacey-header-offset.pacey-header-collapsed {
    darkened to #8a6313 (~5.2:1 on the tinted background) to meet WCAG
    AA 4.5:1 for small text. */
 .pacey-pillar-section-label--gaps {
-    background: rgba(212, 160, 23, 0.15);
+    background: rgba(235, 189, 71, 0.75);
     color: var(--pacey-run-tempo);
 }
 
@@ -2023,7 +2023,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 [data-theme="dark"] .pacey-pillar-section-label--gaps {
-    background: rgba(212, 160, 23, 0.25);
+    background: rgba(212, 160, 23, 0.75);
     color: var(--pacey-run-tempo);
 }
 
@@ -2238,7 +2238,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Tag color variants — each workout type uses a tokenized colour so
    dark mode overrides are handled by the token, not per-tag rules. */
 .pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 28%, transparent); color: var(--pacey-run-lsd); }
-.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 28%, transparent); color: var(--pacey-run-easy); }
+.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 18%, transparent); color: var(--pacey-run-easy); }
 .pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 28%, transparent); color: var(--pacey-run-speedwork); }
 .pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 28%, transparent); color: var(--pacey-run-tempo); }
 .pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 28%, transparent); color: var(--pacey-run-warmup); }

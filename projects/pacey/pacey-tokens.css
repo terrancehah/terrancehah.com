@@ -55,11 +55,11 @@
        to full palette tokenisation — they represent distinct data
        categories (Easy, Tempo, Speedwork, etc.) and need unique hues.
        Defined as tokens so dark mode can lighten them for coherence. */
-    --pacey-run-easy: #388e8e;
-    --pacey-run-warmup: #7a7a7a;
+    --pacey-run-easy: #43caca;
+    --pacey-run-warmup: #e7d897;
     --pacey-run-tempo: #8a6313;
-    --pacey-run-lsd: #5d6db0;
-    --pacey-run-speedwork: #c44b4b;
+    --pacey-run-lsd: #5a70ca;
+    --pacey-run-speedwork: #f14040;
     --pacey-run-cross-train: #8a8a8a;
 
     /* ---- Skeleton loading tokens (plan page) ---- */

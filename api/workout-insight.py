@@ -41,7 +41,7 @@ class WorkoutInsightRequest(BaseModel):
 # session against real runs of the same kind, not just the plan.
 TYPE_TAG_MAP = {
     "Long Run": ("LSD",),
-    "Tempo": ("Tempo Long",),
+    "Tempo": ("Tempo Long", "Tempo"),
     "Intervals": ("Speedwork",),
     "Speedwork": ("Speedwork",),
     "Easy": ("Easy", "Warmup"),
@@ -234,9 +234,13 @@ async def workout_insight(body: WorkoutInsightRequest):
             f"{race_goal.get('time_target', 'N/A')} on {race_goal.get('race_date', 'N/A')}."
         )
 
+    # The compiled structure — `segments` is the exact session the watch gets
+    # and `totals` is the reconciled summary. Handing both to the model means
+    # the insight describes the real session, not a re-imagined one.
     workout_spec = {
         k: workout.get(k)
-        for k in ("type", "title", "description", "distance_km", "duration_min", "intensity", "target_pace_min_per_km")
+        for k in ("type", "title", "description", "distance_km", "duration_min",
+                  "intensity", "target_pace_min_per_km", "totals", "segments")
     }
 
     # The runner's actual recent runs of the same type — lets the insight say
@@ -272,6 +276,8 @@ RACE CONTEXT (internal reference only — do not lead with numbers from this):
 
 WORKOUT:
 {json.dumps(workout_spec, indent=2)}
+
+NOTE: "segments" is the EXACT structure that will be sent to the watch (each with a role, a distance or time, and a pace), and "totals" is the reconciled summary (distance, duration, average pace). Describe THAT session — do not invent a different structure, and do not describe a segment as longer or shorter than it is.
 
 Write a short paragraph (2-4 sentences):
 - Lead with why THIS session exists in this week of the block and how it fits the phase. The week placement and the sessions around it are the context — not the race date.
