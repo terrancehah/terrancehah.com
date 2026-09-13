@@ -581,8 +581,10 @@
 /* The overlay no longer uses the shimmer text, but the class is still used by
    other inline loading placeholders — keep the ink-toned override. */
 .pacey-shimmer-text {
+    /* On the paper sheets the shimmer shifts partway toward the ink rather
+       than running a full-contrast band over the words. */
     --pacey-shimmer-base: var(--pinboard-muted);
-    --pacey-shimmer-sweep: var(--pinboard-ink);
+    --pacey-shimmer-sweep: color-mix(in srgb, var(--pinboard-muted) 55%, var(--pinboard-ink));
 }
 
 /* =====================================================================

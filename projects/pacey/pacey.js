@@ -169,6 +169,18 @@ document.addEventListener('DOMContentLoaded', function () {
         return entry;
     }
 
+    // Inject a stroke SVG inline into any host element — used by the loading
+    // overlay and by the plan build's headline. Inline rather than an <img>
+    // because iOS WebKit doesn't run CSS animations inside an SVG used as an
+    // image. Leaves the host empty if the fetch fails.
+    async function injectStroke(host, src) {
+        if (!host) return;
+        try {
+            const entry = await strokeSource(src);
+            if (entry.markup) host.innerHTML = entry.markup;
+        } catch (e) { /* leave the host empty */ }
+    }
+
     // Swap in a phrase by replacing the injected SVG. Re-creating the elements
     // restarts the stroke animation from the start, even for the same file.
     function setOverlayStroke(entry, msgIndex) {
@@ -4157,24 +4169,50 @@ document.addEventListener('DOMContentLoaded', function () {
     // No loading text label — the skeleton cards themselves are the
     // visual feedback, and a text label would push the first real
     // card down when it loads.
+    // Skeleton for the six pillar cards. The two pages show different cards —
+    // the overview a one-paragraph summary, the readiness page a strengths and
+    // gaps breakdown — so the skeleton mirrors each rather than showing one
+    // generic card, which would jump as soon as the real text landed. Only the
+    // prose is a placeholder: the dimension names and the Strengths/Gaps
+    // labels are static, so they render for real. The cards are decorative
+    // while they load, so they're hidden from screen readers.
     function showPillarsSkeleton() {
-        const skeletonHtml = RADAR_DIMENSIONS.map((name, i) => `
-            <div class="pacey-pillar-card pacey-pillar-card--skeleton">
-                <div class="pacey-pillar-header">
-                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
-                    <span class="pacey-pillar-name">${name}</span>
-                    <span class="pacey-pillar-score pacey-skeleton-text"></span>
+        const cardHeader = (name, i) => `
+            <div class="pacey-pillar-header">
+                <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                <span class="pacey-pillar-name">${name}</span>
+                <span class="pacey-pillar-score pacey-skeleton-text"></span>
+            </div>`;
+        // Last line short, like a real paragraph's final line.
+        const textLines = (count) => `
+            <span class="pacey-skeleton-lines">${Array.from({ length: count }, (_, k) =>
+                `<span class="pacey-skeleton-line${k === count - 1 ? ' pacey-skeleton-line--short' : ''}"></span>`
+            ).join('')}</span>`;
+
+        const overviewHtml = RADAR_DIMENSIONS.map((name, i) => `
+            <div class="pacey-pillar-card pacey-pillar-card--summary pacey-pillar-card--skeleton" aria-hidden="true">
+                ${cardHeader(name, i)}
+                ${textLines(3)}
+                <span class="pacey-skeleton-line pacey-skeleton-line--link"></span>
+            </div>`).join('');
+
+        const insightsHtml = RADAR_DIMENSIONS.map((name, i) => `
+            <div class="pacey-pillar-card pacey-pillar-card--skeleton" aria-hidden="true">
+                ${cardHeader(name, i)}
+                <div class="pacey-pillar-section pacey-pillar-section--strengths">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--strengths">Strengths</span>
+                    ${textLines(2)}
                 </div>
-                <div class="pacey-skeleton-lines">
-                    <div class="pacey-skeleton-line"></div>
-                    <div class="pacey-skeleton-line"></div>
-                    <div class="pacey-skeleton-line pacey-skeleton-line--short"></div>
+                <div class="pacey-pillar-section pacey-pillar-section--gaps">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--gaps">Gaps</span>
+                    ${textLines(2)}
                 </div>
-            </div>
-        `).join('');
+            </div>`).join('');
+
+        const overviewPage = document.getElementById('pacey-page-overview');
         pillarsContents.forEach(el => {
             el.hidden = false;
-            el.innerHTML = skeletonHtml;
+            el.innerHTML = (overviewPage && overviewPage.contains(el)) ? overviewHtml : insightsHtml;
         });
     }
 
@@ -5550,13 +5588,19 @@ document.addEventListener('DOMContentLoaded', function () {
     // Loading skeleton for the plan page — a light aura revolving around
     // the loading container's border (motion-primitive effect, adapted to
     // the Pacey palette), with the status line below.
+    // The plan build runs one AI call per part, so it can take a while — long
+    // enough for a hand-drawn headline to finish writing. The part counter
+    // sits beneath as plain text: it changes as batches land and has to stay
+    // legible, which a fixed stroke drawing can't do.
+    const BUILD_STROKE_SRC = '/projects/pacey/loading-building-plan.svg';
     function coachLoadingMarkup(text) {
         return `
-            <div class="pacey-coach-loading pacey-coach-loading--plan" role="status" aria-label="Loading plan">
+            <div class="pacey-coach-loading pacey-coach-loading--plan" role="status" aria-label="Building your plan">
                 <div class="pacey-plan-skeleton-border">
                     <div class="pacey-plan-skeleton-glow"></div>
                 </div>
-                <span class="pacey-shimmer-text">${text}</span>
+                <div class="pacey-coach-loading-stroke" data-build-stroke></div>
+                <span class="pacey-coach-loading-progress">${text}</span>
             </div>
         `;
     }
@@ -5651,6 +5695,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // First batch — show the loading skeleton while the first
                     // weeks generate.
                     coachCalendarEl.innerHTML = coachLoadingMarkup(partLabel);
+                    injectStroke(coachCalendarEl.querySelector('[data-build-stroke]'), BUILD_STROKE_SRC);
                 } else if (coachBuildStatusEl) {
                     // The calendar is already visible (history + first weeks)
                     // — keep a slim status line instead of the skeleton.
@@ -6023,8 +6068,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         if (!plan.fitness) { planInsightEl.hidden = true; return; }
-        planInsightEl.textContent = 'Working out your plan…';
-        planInsightEl.classList.add('pacey-shimmer-text');
+        // A skeleton rather than a phrase: this line sits inside the race card,
+        // which already carries a lot of text, so the loading state stays quiet.
+        // Decorative, so it's hidden from screen readers.
+        planInsightEl.innerHTML = '<span class="pacey-skeleton-lines" aria-hidden="true">'
+            + '<span class="pacey-skeleton-line"></span>'
+            + '<span class="pacey-skeleton-line"></span>'
+            + '<span class="pacey-skeleton-line pacey-skeleton-line--short"></span>'
+            + '</span>';
         planInsightEl.hidden = false;
         const context = {
             race_goal: raceGoal,
@@ -6044,8 +6095,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (err) {
             planInsightEl.hidden = true;
-        } finally {
-            planInsightEl.classList.remove('pacey-shimmer-text');
         }
     }
 
@@ -6335,7 +6384,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="pacey-sheet-section-title">Coach insight</span>
                 ${w.insight
                     ? `<p class="pacey-sheet-insight">${escapeHtml(w.insight)}</p>`
-                    : '<p class="pacey-sheet-insight pacey-sheet-insight--loading"><span class="pacey-shimmer-text">Writing your insight…</span></p>'}
+                    : '<div class="pacey-sheet-insight pacey-sheet-insight--loading" aria-hidden="true">'
+                        + '<span class="pacey-skeleton-lines">'
+                        + '<span class="pacey-skeleton-line"></span>'
+                        + '<span class="pacey-skeleton-line"></span>'
+                        + '<span class="pacey-skeleton-line pacey-skeleton-line--short"></span>'
+                        + '</span></div>'}
             </div>`;
 
         workoutSheetBody.innerHTML = `

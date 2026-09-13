@@ -2723,6 +2723,20 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 /* ---- Skeleton loading state for AI insight pillars ---- */
 /* Animated shimmer effect indicates content is being generated */
+/* Skeleton tint. Derived from the surrounding TEXT colour rather than a fixed
+   pair of tokens, so the bars sit close to whatever they're drawn on — the
+   paper of a race card, the blue of a pillar card — instead of reading as a
+   glowing band. currentColor resolves per element, so each context gets its
+   own tint from one definition. */
+:root {
+    --pacey-skeleton-tint: color-mix(in srgb, currentColor 8%, transparent);
+    --pacey-skeleton-tint-hi: color-mix(in srgb, currentColor 17%, transparent);
+    --pacey-skeleton-gradient: linear-gradient(90deg,
+        var(--pacey-skeleton-tint) 25%,
+        var(--pacey-skeleton-tint-hi) 50%,
+        var(--pacey-skeleton-tint) 75%);
+}
+
 @keyframes pacey-skeleton-shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }
@@ -2733,7 +2747,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     width: 1.5rem;
     height: 1rem;
     border-radius: 0.25rem;
-    background: linear-gradient(90deg, var(--pacey-border) 25%, var(--pacey-light) 50%, var(--pacey-border) 75%);
+    background: var(--pacey-skeleton-gradient);
     background-size: 200% 100%;
     animation: pacey-skeleton-shimmer 1.5s infinite;
 }
@@ -2746,24 +2760,24 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-skeleton-line {
+    /* Block so the same class works on <span> too (skeleton markup sometimes
+       has to sit inside a <p>, where a <div> would be invalid) */
+    display: block;
     height: 0.6rem;
     border-radius: 0.25rem;
-    background: linear-gradient(90deg, var(--pacey-border) 25%, var(--pacey-light) 50%, var(--pacey-border) 75%);
+    background: var(--pacey-skeleton-gradient);
     background-size: 200% 100%;
     animation: pacey-skeleton-shimmer 1.5s infinite;
 }
 
 .pacey-skeleton-line--short { width: 60%; }
 
+/* Placeholder for the overview card's "View details →" affordance */
+.pacey-skeleton-line--link { width: 38%; height: 0.5rem; margin-top: 0.15rem; }
+
 /* Shimmer text label shown above the pillars skeleton cards — makes the
    loading state obvious with the same animated gradient sweep as other
    loading placeholders across the site. */
-.pacey-pillars-skeleton-label {
-    font-family: 'Raleway', sans-serif;
-    font-size: var(--pacey-text-label);
-    margin-bottom: 0.75rem;
-}
-
 /* ---- Activities list ---- */
 .pacey-activities-list { display: flex; flex-direction: column; gap: 0.4rem; }
 
@@ -3033,9 +3047,9 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-skeleton-block { display: flex; flex-direction: column; gap: var(--pacey-space-md); padding: 1rem 0; }
 
 .pacey-skeleton {
-    background: linear-gradient(90deg, var(--pacey-border) 25%, var(--pacey-light) 50%, var(--pacey-border) 75%);
+    background: var(--pacey-skeleton-gradient);
     background-size: 200% 100%;
-    animation: pacey-shimmer 1.5s ease-in-out infinite;
+    animation: pacey-skeleton-shimmer 1.5s infinite;
     border-radius: 0.25rem;
 }
 
@@ -3045,11 +3059,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 .pacey-skeleton--line.w-60 { width: 60%; }
 .pacey-skeleton--line.w-50 { width: 50%; }
 .pacey-skeleton--line.w-40 { width: 40%; }
-
-@keyframes pacey-shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
 
 /* ---- Summary ---- */
 .pacey-summary-error {
@@ -3102,8 +3111,12 @@ header.pacey-header-offset.pacey-header-collapsed {
    is white; in light mode it's the navy accent. */
 .pacey-shimmer-text {
     --pacey-shimmer-spread: 36px;
+    /* Base is the muted text tone; the sweep only shifts partway toward the
+       body text colour, so it reads as a gentle shimmer across the words
+       rather than a navy/white band glowing over them. Mixing against the
+       text token means it follows the theme on its own. */
     --pacey-shimmer-base: var(--pacey-muted);
-    --pacey-shimmer-sweep: var(--pacey-navy);
+    --pacey-shimmer-sweep: color-mix(in srgb, var(--pacey-muted) 55%, var(--pacey-text));
     display: inline-block;
     background-image:
         linear-gradient(90deg,
@@ -3123,12 +3136,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 @keyframes pacey-shimmer-sweep {
     0%   { background-position: 150% center, 0 center; }
     100% { background-position: -50% center, 0 center; }
-}
-
-/* Dark mode — sweep is white so it reads against the dark background */
-[data-theme="dark"] .pacey-shimmer-text {
-    --pacey-shimmer-base: var(--pacey-muted);
-    --pacey-shimmer-sweep: #ffffff;
 }
 
 .pacey-spinner {
@@ -4008,6 +4015,25 @@ header.pacey-header-offset.pacey-header-collapsed {
 @keyframes pacey-plan-sweep {
     from { offset-distance: 0%; }
     to   { offset-distance: 100%; }
+}
+
+/* Plan build headline — the same hand-drawn stroke as the boot overlay,
+   injected inline by JS. The part counter under it stays plain text. */
+.pacey-coach-loading-stroke {
+    width: min(72%, 17rem);
+    margin: 0 auto 0.4rem;
+}
+
+.pacey-coach-loading-stroke svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.pacey-coach-loading-progress {
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
 }
 
 /* Slim build-status line shown above the calendar while the remaining
