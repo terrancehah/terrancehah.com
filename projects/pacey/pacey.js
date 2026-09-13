@@ -441,7 +441,10 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 // Play the refresh animation before reloading so the refresh
                 // reads as deliberate instead of a white blink.
-                playRefreshAnimation(() => window.location.reload());
+                playRefreshAnimation(() => {
+                    clearClientPlanCache();
+                    window.location.reload();
+                });
             }
         });
     });
@@ -472,6 +475,14 @@ document.addEventListener('DOMContentLoaded', function () {
         refreshSpinner.classList.toggle('pacey-refresh-spinner--visible', on);
 
     let refreshAnimating = false;
+
+    // A user-initiated refresh should actually re-pull the plan (the server
+    // serves its own persistent cache cheaply), not hand back the 24h client
+    // copy — otherwise a run finished today never shows up until tomorrow.
+    function clearClientPlanCache() {
+        try { localStorage.removeItem('pacey_coach_plan_cache_v2'); } catch (e) { /* ignore */ }
+    }
+
     function playRefreshAnimation(done) {
         if (refreshAnimating) return;
         refreshAnimating = true;
@@ -506,6 +517,7 @@ document.addEventListener('DOMContentLoaded', function () {
             refreshSurface.style.transition = 'transform 0.25s ease-out';
             refreshSurface.style.transform = 'translateY(0)';
             if (shouldReload) {
+                clearClientPlanCache();
                 setTimeout(() => window.location.reload(), 260);
             } else {
                 showRefreshSpinner(false);
@@ -4860,10 +4872,20 @@ document.addEventListener('DOMContentLoaded', function () {
             const entry = JSON.parse(raw);
             if (entry.key !== getCoachCacheKey()) return null;
             if (Date.now() - entry.timestamp > COACH_CACHE_TTL_MS) return null;
+            if (!coachCacheIsUsable(entry.data)) return null;
             return entry.data;
         } catch (e) {
             return null;
         }
+    }
+
+    // A cached plan is only usable if its fitness block carries the run lists.
+    // An older payload has the pace values but no current_*_runs, which renders
+    // as "no recent easy/quality runs — goal-based reference only" even though
+    // the runner has them. Reject it so the plan is re-pulled.
+    function coachCacheIsUsable(data) {
+        const f = data && data.plan && data.plan.fitness;
+        return !f || Array.isArray(f.current_easy_runs);
     }
 
     function writeCoachCache(data) {

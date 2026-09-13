@@ -559,6 +559,13 @@ async def coach_plan(body: CoachPlanRequest):
                     data = dict(data)
                     plan_data = dict(data.get("plan") or {})
                     plan_data.pop("trajectory", None)
+                    # Drop a stored fitness that predates the run lists. An old
+                    # payload has the pace values but no current_*_runs, so the
+                    # UI would render "no recent runs — goal-based reference
+                    # only" even though the runner plainly has recent runs.
+                    stored_fitness = plan_data.get("fitness")
+                    if stored_fitness is not None and "current_easy_runs" not in stored_fitness:
+                        plan_data.pop("fitness", None)
                     data["plan"] = plan_data
                     garmin_cached = _get_cached_garmin_data(token)
                     if garmin_cached:
