@@ -1,20 +1,307 @@
 /* =====================================================================
-   PINBOARD THEME — READINESS PAGE EXTENSION
+   PACEY — READINESS PAGE
    ---------------------------------------------------------------------
-   Extends the "training notes pinned to a corkboard" theme (defined inline
-   in index.html as <style id="pacey-pinboard-theme">) to the Readiness page
-   (#pacey-page-readiness), which lives inside #pacey-content. The shared theme
-   already covers the section titles, the readiness/radar card and the
-   pillar-card chrome; this file only fills the gaps that the readiness
-   variant renders (Strengths/Gaps blocks, info buttons, radar skeleton,
-   error/status rows).
-
-   Every selector is scoped under #pacey-content. Night-board overrides use
-   the shell condition html[data-theme="dark"]:has(#pacey-dashboard-screen:
-   not([hidden])). Revert = delete this file and its <link>; nothing else
-   changes. Tokens are inherited from the inline block — never redefined.
+   The Readiness page, end to end: its base styles (the radar card, the six
+   pillar cards and their strengths/gaps sections, the dimension explainer,
+   the legend and the summary) followed by its pinboard treatment, scoped to
+   #pacey-content. Shared board materials come from pinboard-theme.css;
+   tokens are inherited here, never redefined.
    ===================================================================== */
 
+
+/* ---------------------------------------------------------------------
+   BASE STYLES — moved out of pacey.css so this file owns the Readiness
+   page end to end. They sit before the theme rules below on purpose: the
+   base must keep losing to the scoped theme, as it did in pacey.css.
+   --------------------------------------------------------------------- */
+
+/* ---- Dimension explainer: educational content under the radar ---- */
+/* Explains how each of the 6 dimensions influences race performance */
+.pacey-dimension-explainer {
+    margin-top: clamp(1rem, 2vw, 1.5rem);
+}
+
+.pacey-dimension-explainer-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-navy);
+    margin: 0 0 0.75rem;
+}
+
+.pacey-dimension-explainer-grid {
+    display: grid;
+    /* Two columns on large screens, one on mobile */
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: clamp(0.75rem, 1.5vw, 1rem);
+}
+
+.pacey-dimension-explainer-item {
+    display: flex;
+    gap: 0.6rem;
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: clamp(0.6rem, 1.2vw, 0.85rem);
+}
+
+.pacey-dimension-explainer-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+
+/* Dimension dot colour variants — each maps to a performance dimension.
+   Colours use the run-type tokens since the dimensions share the same
+   palette (red = lactate/speed, green = aerobic, amber = economy,
+   purple = strength, blue = VO₂max, teal = fatigue). */
+.pacey-dimension-explainer-dot--lactate { background: color-mix(in srgb, var(--pacey-run-speedwork) 70%, transparent); }
+.pacey-dimension-explainer-dot--aerobic { background: color-mix(in srgb, var(--pacey-accent-green) 70%, transparent); }
+.pacey-dimension-explainer-dot--economy { background: color-mix(in srgb, var(--pacey-run-tempo) 70%, transparent); }
+.pacey-dimension-explainer-dot--strength { background: color-mix(in srgb, var(--pacey-run-lsd) 70%, transparent); }
+.pacey-dimension-explainer-dot--vo2max { background: color-mix(in srgb, var(--pacey-blue) 70%, transparent); }
+.pacey-dimension-explainer-dot--fatigue { background: color-mix(in srgb, var(--pacey-run-easy) 70%, transparent); }
+
+.pacey-dimension-explainer-name {
+    display: block;
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+    margin-bottom: 0.2rem;
+}
+
+.pacey-dimension-explainer-desc {
+    font-size: var(--pacey-text-label);
+    line-height: 1.5;
+    color: var(--pacey-muted);
+    margin: 0;
+}
+
+/* Goal specifics stat grid — 2 columns, centered vertically with improved spacing */
+.pacey-goal-specifics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(0.9rem, 1.8vw, 1.25rem);
+    flex: 1;
+    align-content: center;
+    /* Add top padding so stats don't overlap with the countdown highlight */
+    padding-top: clamp(2.5rem, 4vw, 3rem);
+}
+
+.pacey-goal-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+/* Full-width stat — spans both grid columns for a 1-2-2 row layout */
+.pacey-goal-stat--full {
+    grid-column: 1 / -1;
+}
+
+.pacey-goal-stat-label {
+    font-size: var(--pacey-text-caption);
+    font-weight: 600;
+    color: var(--pacey-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Value + unit inline on the same row */
+.pacey-goal-stat-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--pacey-space-xs);
+    flex-wrap: wrap;
+}
+
+.pacey-goal-stat-value {
+    font-size: var(--pacey-text-subheading);
+    font-weight: 700;
+    color: var(--pacey-navy);
+    line-height: 1.2;
+}
+
+.pacey-goal-stat-unit {
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+}
+
+/* Radar canvas wrapper — the radar plot is square (Chart.js sizes the
+   hexagon by the smaller canvas dimension), so the wrap is square too.
+   Previously flex:1 stretched it tall to match the goal-specifics card,
+   leaving dead vertical space above and below the hexagon on wide-but-
+   short screens (e.g. tablet landscape). The readiness page pins a fixed
+   height instead (--full), which overrides the ratio since both
+   dimensions are then definite. */
+.pacey-radar-wrap {
+    width: 100%;
+    /* The radar plot is square — keep the wrap square at every width. A
+       min-height here would override the aspect ratio on narrow columns
+       (column < 22rem), making the wrap taller than wide and leaving the
+       hexagon with dead space above and below it. */
+    aspect-ratio: 1 / 1;
+    max-height: 100%;
+    /* Center the square in the card's leftover space so the two cards'
+       backgrounds still read as balanced */
+    margin: auto 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative; /* anchor for radar skeleton overlay */
+}
+
+.pacey-radar-wrap canvas {
+    max-width: 100%;
+    /* Fade in when the chart is created after the skeleton fades out.
+       Short fade so the radar's grow-from-center animation is the dominant
+       motion rather than being hidden behind a slow opacity crossfade. */
+    opacity: 0;
+    transition: opacity 0.3s ease-out;
+}
+
+.pacey-radar-wrap canvas.pacey-radar-loaded {
+    opacity: 1;
+}
+
+/* Radar loading state. The placeholder is no longer a separate SVG — the real
+   radar renders with stand-in scores (desaturated, see RADAR_LOADING_* in
+   pacey.js) and this container carries only the loading label, which fades out
+   when the real scores land. */
+.pacey-radar-skeleton {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.4s ease-out;
+}
+
+/* Fade-out class applied by JS before setting hidden=true */
+.pacey-radar-skeleton.pacey-fade-out { opacity: 0; }
+
+.pacey-radar-skeleton[hidden] { display: none; }
+
+/* "Checking your readiness…" label over the radar while it loads — makes the
+   placeholder state unmistakable instead of looking like a faint copy of the
+   final chart. The text inside uses the shimmer animation, so the label color
+   is set transparent by the .pacey-shimmer-text class. */
+.pacey-radar-skeleton-label {
+    position: absolute;
+    /* Centred rather than pinned to the bottom: the radar's own axis labels sit
+       around the edges, and the bottom one collided with this. The middle of a
+       radar is empty grid, so the label has room and reads as "still working". */
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    text-align: center;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-body);
+    opacity: 0.75;
+    pointer-events: none;
+    letter-spacing: 0.02em;
+}
+
+/* Full-page radar (readiness page) — significantly taller for better readability */
+.pacey-radar-wrap--full {
+    height: 40rem;
+}
+
+/* External HTML tooltip for the radar chart — rendered as a real DOM element
+   so it can contain a clickable link to the corresponding insight pillar.
+   Positioned absolutely on the page by the external tooltip handler. */
+.pacey-radar-tooltip {
+    position: absolute;
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: 0.5rem 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    opacity: 0;
+    transition: opacity 0.15s ease-out;
+    pointer-events: auto;
+    z-index: 1000;
+    white-space: nowrap;
+}
+
+.pacey-radar-tooltip-link {
+    font-weight: 600;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-blue);
+    text-decoration: none;
+    cursor: pointer;
+    /* Clickable indicator — a small chevron signals the link navigates
+       to the readiness pillar detail (standardized tooltip affordance
+       for interactive items). */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.pacey-radar-tooltip-link::after {
+    content: "›";
+    font-weight: 700;
+    color: var(--pacey-blue);
+    opacity: 0.7;
+}
+
+.pacey-radar-tooltip-link:hover {
+    text-decoration: underline;
+}
+
+.pacey-radar-tooltip-score {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+}
+
+/* ---- Dimension legend ---- */
+.pacey-dimension-legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(clamp(10rem, 16vw, 12rem), 1fr));
+    gap: var(--pacey-space-sm);
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-legend-item {
+    display: flex;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-navy);
+}
+
+.pacey-legend-dot { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; }
+
+.pacey-legend-score {
+    margin-left: auto;
+    font-weight: 400;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+}
+
+/* ---- Summary ---- */
+.pacey-summary-error {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-accent-red);
+    padding: var(--pacey-space-md);
+    background: rgba(196, 75, 75, 0.05);
+    border-radius: var(--pacey-radius-sm);
+}
+
+.pacey-refresh-btn { width: auto; align-self: flex-start; }
 /* ---------------------------------------------------------------------
    1. FULL PILLAR CARDS — Strengths / Gaps blocks
    The readiness variant adds Strengths and Gaps sections inside each

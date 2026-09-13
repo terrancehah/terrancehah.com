@@ -1,0 +1,169 @@
+/* =====================================================================
+   PACEY — DESIGN TOKENS
+   ---------------------------------------------------------------------
+   Every custom property the app draws with, in one place: the app's own
+   palette and type scale (light + dark) first, then the board's palette
+   (cork, paper, ink, notes), handwriting faces and noise/underline data
+   URIs, in both the light board and the night board.
+
+   Tokens only — this file should never contain a rule that draws.
+   ===================================================================== */
+
+/* --- App palette + type scale (light) ---------------------------------- */
+:root {
+    --pacey-navy: #1d3557;
+    --pacey-blue: #457b9d;
+    --pacey-sky: #c0e9fc;
+    --pacey-light: #e8f4ff;
+    --pacey-bg: #f7fafd;
+    --pacey-surface: #ffffff;
+    --pacey-border: #dce8f2;
+    --pacey-muted: #5a7184;
+    --pacey-text: #1a2e40;
+    --pacey-accent-green: #3f7b4f;
+    --pacey-accent-amber: #d4a017;
+    --pacey-accent-red: #c44b4b;
+    /* Top-tier / neutral zone hues — mid-tones that read on both themes */
+    --pacey-accent-purple: #9b6dd0;
+    --pacey-accent-grey: #999999;
+    --pacey-radius: 0.75rem;
+    --pacey-radius-sm: 0.5rem;
+    --pacey-shadow: 0 0.0625rem 0.1875rem rgba(29, 53, 87, 0.06);
+    --pacey-shadow-md: 0 0.25rem 0.75rem rgba(29, 53, 87, 0.08);
+    --pacey-transition: 0.2s ease;
+    --pacey-sidebar-w: 12.5rem;
+    --pacey-sidebar-collapsed: 3.75rem;
+    --pacey-content-padding: clamp(1rem, 3vw, 2rem);
+
+    /* ---- Type scale (fixed rem, app UI) ---- */
+    /* 6-step scale with ~1.25 ratio: caption > label > body > subheading > heading > display */
+    --pacey-text-caption: 0.65rem;     /* hints, units, tiny meta */
+    --pacey-text-label: 0.75rem;       /* labels, nav items, secondary text */
+    --pacey-text-body: 0.875rem;       /* body text, descriptions, default */
+    --pacey-text-subheading: 1rem;     /* card titles, section subs, prominent labels */
+    --pacey-text-heading: 1.25rem;     /* section titles, page headings */
+    --pacey-text-display: 1.75rem;     /* hero numbers, countdown, large metrics */
+
+    /* ---- Button tokens ---- */
+    /* Primary button text + hover use dedicated tokens so they flip
+       correctly in dark mode (where --pacey-navy becomes light). */
+    --pacey-btn-primary-text: #ffffff;
+    --pacey-btn-primary-hover: #142a47;
+
+    /* ---- Run-type tag tokens ---- */
+    /* Categorical colours for workout types. These are the one exception
+       to full palette tokenisation — they represent distinct data
+       categories (Easy, Tempo, Speedwork, etc.) and need unique hues.
+       Defined as tokens so dark mode can lighten them for coherence. */
+    --pacey-run-easy: #388e8e;
+    --pacey-run-warmup: #7a7a7a;
+    --pacey-run-tempo: #8a6313;
+    --pacey-run-lsd: #5d6db0;
+    --pacey-run-speedwork: #c44b4b;
+    --pacey-run-cross-train: #8a8a8a;
+
+    /* ---- Skeleton loading tokens (plan page) ---- */
+    /* Border-aura glow colour for the coach-plan loading skeleton, so it
+       flips correctly in dark mode. */
+    --pacey-skeleton-glow: rgba(69, 123, 157, 0.55);
+
+    /* ---- Spacing scale ---- */
+    /* 6-step rem-based scale for consistent vertical rhythm. Components
+       should reference these instead of inventing ad-hoc values. */
+    --pacey-space-xs: 0.25rem;   /* tight gaps inside dense components */
+    --pacey-space-sm: 0.5rem;    /* default inner padding, small gaps */
+    --pacey-space-md: 0.75rem;   /* card padding, medium gaps */
+    --pacey-space-lg: 1rem;      /* section gaps, larger padding */
+    --pacey-space-xl: 1.5rem;    /* section separation, page-level gaps */
+    --pacey-space-2xl: 2rem;     /* generous breathing room */
+}
+
+/* ---- Dark theme overrides ---- */
+/* Applied via data-theme="dark" on the <html> element */
+[data-theme="dark"] {
+    --pacey-navy: #a8c5e8;
+    --pacey-blue: #6ba3d0;
+    --pacey-sky: #1e3a5f;
+    --pacey-light: #1a2e44;
+    --pacey-bg: #0f1a26;
+    --pacey-surface: #162234;
+    --pacey-border: #2a3f56;
+    --pacey-muted: #8ba5be;
+    --pacey-text: #c8d8e8;
+    --pacey-accent-green: #5fae74;
+    --pacey-accent-amber: #e0b840;
+    --pacey-accent-red: #e07070;
+    /* Same mid-tones as light mode — they read on dark surfaces too */
+    --pacey-accent-purple: #9b6dd0;
+    --pacey-accent-grey: #999999;
+    --pacey-shadow: 0 0.0625rem 0.1875rem rgba(0, 0, 0, 0.2);
+    --pacey-shadow-md: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.25);
+
+    /* Dark mode button tokens — navy is light, so text and hover
+       need to flip to dark colors for proper contrast. */
+    --pacey-btn-primary-text: #0f1a26;
+    --pacey-btn-primary-hover: #c8d8e8;
+
+    /* Dark mode run-type tags — lightened for visibility on dark surfaces */
+    --pacey-run-easy: #5fb8b8;
+    --pacey-run-warmup: #a0a0a0;
+    --pacey-run-tempo: #d9b24f;
+    --pacey-run-lsd: #8b9bd6;
+    --pacey-run-speedwork: #e07070;
+    --pacey-run-cross-train: #b0b0b0;
+
+    /* Dark mode skeleton token — softer blue aura glow */
+    --pacey-skeleton-glow: rgba(107, 163, 208, 0.5);
+}
+
+/* --- Board palette + materials ----------------------------------------- */
+
+    /* --- Board palette (new tokens; the app's blue stays as the accent) --- */
+    :root {
+        --pinboard-cork: #f1e7d2;
+        --pinboard-cork-edge: #e3d3b3;
+        --pinboard-paper: #f3eee3;
+        --pinboard-paper-2: #f1e9d7;
+        --pinboard-line: #ddd0b6;
+        --pinboard-ink: #2b2620;
+        --pinboard-muted: #5f5546;
+        --pinboard-note-blue: #cfe3f1;
+        --pinboard-note-blue-2: #bcd8ec;
+        --pinboard-note-yellow: #f6e6a4;
+        --pinboard-tape: rgba(255, 255, 255, 0.5);
+        --pinboard-pin: #b83b2e;
+        --pinboard-pin-blue: #2f6fb0;
+        --pinboard-underline: #b6503a;
+        /* Handwriting faces — Caveat for headings, Fuzzy Bubbles for copy */
+        --font-caveat: 'Caveat', cursive;
+        --font-fuzzy: 'Fuzzy Bubbles', 'Caveat', cursive;
+        /* Cork: a coarse grain layer plus a fine speckle layer, blended over
+           a light base to read as pressed cork rather than flat tan. */
+        --pinboard-cork-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.5' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23c)' opacity='0.55'/%3E%3C/svg%3E");
+        --pinboard-cork-fine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23f)' opacity='0.4'/%3E%3C/svg%3E");
+        --pinboard-paper-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23p)' opacity='0.06'/%3E%3C/svg%3E");
+        /* Hand-sketched underline for the section titles — one strong stroke */
+        --pinboard-sketch-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14' viewBox='0 0 240 14'%3E%3Cpath d='M5 8 C 70 5.5, 150 9.5, 235 7' fill='none' stroke='%23b6503a' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+        --pinboard-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.7rem rgba(0, 0, 0, 0.16), 0 1.4rem 1.8rem rgba(0, 0, 0, 0.12);
+        --pinboard-shadow-hover: 0 2px 3px rgba(0, 0, 0, 0.18), 0 1rem 1.2rem rgba(0, 0, 0, 0.22), 0 2.4rem 2.8rem rgba(0, 0, 0, 0.18);
+    }
+    /* Night board — same materials with the lights off */
+    [data-theme="dark"] {
+        --pinboard-cork: #3a2f26;
+        --pinboard-cork-edge: #2a221b;
+        --pinboard-paper: #cec6b6;
+        --pinboard-paper-2: #c3baa8;
+        --pinboard-line: #a89d88;
+        --pinboard-ink: #241f19;
+        --pinboard-muted: #4a4438;
+        --pinboard-note-blue: #d6e4ee;
+        --pinboard-note-blue-2: #c9dce9;
+        --pinboard-note-yellow: #e8db9e;
+        --pinboard-tape: rgba(255, 255, 255, 0.28);
+        --pinboard-pin: #8f2f24;
+        --pinboard-pin-blue: #2a5d92;
+        --pinboard-underline: #d98b74;
+        --pinboard-sketch-underline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='14' viewBox='0 0 240 14'%3E%3Cpath d='M5 8 C 70 5.5, 150 9.5, 235 7' fill='none' stroke='%23d98b74' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E");
+        --pinboard-shadow: 0 1px 1px rgba(0, 0, 0, 0.4), 0 0.5rem 0.8rem rgba(0, 0, 0, 0.45), 0 1.4rem 1.8rem rgba(0, 0, 0, 0.4);
+        --pinboard-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.45), 0 1rem 1.4rem rgba(0, 0, 0, 0.5), 0 2.4rem 3rem rgba(0, 0, 0, 0.45);
+    }

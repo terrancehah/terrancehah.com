@@ -1,11 +1,11 @@
 /* =====================================================================
-   PINBOARD THEME — Activities page additions
-   Complements the scoped <style id="pacey-pinboard-theme"> block in
-   index.html. Only the classes that appear on the FULL activities page
-   (month grouping, expanded detail rows, chevron) are covered here —
-   the shared paper card, name/date/stats and section title already live
-   in that block. Revert by removing this file (and its <link>).
-   All tokens (--pinboard-*, --font-*) are inherited, never redefined.
+   PACEY — ACTIVITIES PAGE
+   ---------------------------------------------------------------------
+   The Activities page's pinboard treatment, scoped to #pacey-content: the
+   month grouping, the activity rows, the expanded detail and the chevron.
+   The shared paper card, name/date/stats and section titles come from
+   pinboard-theme.css. Tokens (--pinboard-*, --font-*) are inherited here,
+   never redefined.
    ===================================================================== */
 
 /* --- Month separator: a small handwritten label on the board, sitting

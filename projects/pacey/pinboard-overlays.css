@@ -1,15 +1,1321 @@
 /* =====================================================================
-   PINBOARD OVERLAYS — Account panel + coach chat
+   PACEY — OVERLAYS (everything outside the pages)
    ---------------------------------------------------------------------
-   Extends the Pacey paper theme to the two floating overlays that live
-   outside #pacey-content: the Account/Settings panel and the chat FAB +
-   popup. Both are paper in BOTH themes (the paper never darkens), so the
-   --pacey-* tokens are remapped on the card itself. That way every existing
-   descendant rule that uses var(--pacey-navy/muted/blue/...) resolves to
-   dark ink on light paper instead of flipping to light-on-light at night.
+   The pinboard treatment for anything that renders outside #pacey-content:
+   the loading overlay, the Account/Settings panel, the coach chat, the
+   modals and popups (metric, edit-goal, plan prefs, workout sheet), the
+   auth and onboarding cards, the tooltips, and the shared paper classes
+   those use.
 
-   Revert = delete this file and its <link>; nothing else changes.
+   Because these sit outside #pacey-content they don't inherit the board's
+   token remap, so each surface re-points the --pacey-* tokens it needs.
    ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   BASE STYLES — moved out of pacey.css so this file owns the overlays
+   end to end. These come before the theme rules below on purpose:
+   the base must keep losing to the scoped theme, exactly as it did
+   when it lived in pacey.css.
+   --------------------------------------------------------------------- */
+
+/* ========== LOGIN MODAL ========== */
+.pacey-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(29, 53, 87, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Sit above the sticky demo banner (z-index: 100) so the modal's
+       blur overlay covers the banner when the login dialog is open */
+    z-index: 200;
+    padding: var(--pacey-space-lg);
+}
+
+.pacey-modal-overlay[hidden] { display: none; }
+
+.pacey-modal-close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    color: var(--pacey-muted);
+    cursor: pointer;
+    padding: 0.35rem;
+    border-radius: var(--pacey-radius-sm);
+    transition: color var(--pacey-transition), background var(--pacey-transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pacey-modal-close:hover { color: var(--pacey-navy); background: var(--pacey-light); }
+
+/* ========== METRIC DETAIL POPUP ========== */
+/* Popup card for metric explanations with gauge bar and color-coded zones */
+.pacey-metric-popup-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: var(--pacey-shadow-md);
+    padding: clamp(1.5rem, 3vw, 2rem);
+    width: min(100%, 28rem);
+    position: relative;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Popup header — icon + title */
+.pacey-metric-popup-header {
+    display: flex;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    margin-bottom: 0.75rem;
+}
+
+.pacey-metric-popup-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    color: var(--pacey-blue);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pacey-metric-popup-icon svg { width: 100%; height: 100%; }
+
+.pacey-metric-popup-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-navy);
+    margin: 0;
+}
+
+/* Current value display with zone badge */
+.pacey-metric-popup-value-row {
+    display: flex;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.pacey-metric-popup-value {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-display);
+    color: var(--pacey-navy);
+    line-height: 1;
+}
+
+.pacey-metric-popup-unit {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+}
+
+.pacey-metric-popup-zone {
+    font-size: var(--pacey-text-caption);
+    font-weight: 600;
+    color: var(--pacey-btn-primary-text);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--pacey-radius-sm);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Gauge section — bar with zone segments and legend */
+.pacey-gauge-section {
+    margin-bottom: 1rem;
+}
+
+/* Gauge bar — relative container for zone segments and value marker */
+.pacey-gauge-bar {
+    position: relative;
+    height: 0.75rem;
+    border-radius: 0.375rem;
+    overflow: hidden;
+    background: var(--pacey-light);
+    margin-bottom: 0.35rem;
+}
+
+/* Each zone segment is absolutely positioned within the gauge bar */
+.pacey-gauge-segment {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    opacity: 0.75;
+}
+
+/* Current value marker — vertical line on the gauge */
+.pacey-gauge-marker {
+    position: absolute;
+    top: -0.25rem;
+    bottom: -0.25rem;
+    width: 0.1875rem;
+    background: var(--pacey-navy);
+    border-radius: 0.09375rem;
+    transform: translateX(-50%);
+    z-index: 2;
+    box-shadow: 0 0 0 0.125rem var(--pacey-surface);
+}
+
+/* Gauge scale labels — min and max values */
+.pacey-gauge-scale {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.pacey-gauge-scale-min,
+.pacey-gauge-scale-max {
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+}
+
+/* Zone legend — color dots with labels */
+.pacey-gauge-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+}
+
+.pacey-gauge-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+/* Highlight the active zone in the legend */
+.pacey-gauge-legend-item--active {
+    opacity: 1;
+    font-weight: 600;
+}
+
+.pacey-gauge-legend-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.pacey-gauge-legend-text {
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-text);
+}
+
+/* Textual explanation below the gauge */
+.pacey-metric-popup-explanation {
+    font-size: var(--pacey-text-body);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* ========== SCORING GUIDE MODAL ========== */
+/* Tier list inside the scoring guide — each row pairs a bold score
+   range with a plain-language description of what that score means */
+.pacey-score-modal-card { width: min(100%, 32rem); }
+
+.pacey-score-tier-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin: 1.25rem 0;
+    padding: 0;
+    list-style: none;
+}
+
+.pacey-score-tier {
+    display: flex;
+    align-items: baseline;
+    gap: var(--pacey-space-md);
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-text);
+    line-height: 1.4;
+}
+
+.pacey-score-tier-range {
+    font-weight: 700;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-blue);
+    flex-shrink: 0;
+    min-width: 2.75rem;
+}
+
+/* ========== AUTH / ONBOARDING CARDS ========== */
+.pacey-auth-card,
+.pacey-onboard-card {
+    background: var(--pacey-surface);
+    border-radius: var(--pacey-radius);
+    box-shadow: var(--pacey-shadow-md);
+    padding: clamp(1.5rem, 4vw, 3rem) clamp(1.25rem, 3vw, 2.5rem);
+    width: min(100%, 30rem);
+    border: 0.0625rem solid var(--pacey-border);
+    margin: clamp(1rem, 3vw, 2rem);
+    position: relative;
+}
+
+.pacey-onboard-card { width: min(100%, 35rem); }
+
+/* Eyebrow */
+.pacey-eyebrow {
+    display: inline-block;
+    font-weight: 600;
+    font-size: var(--pacey-text-label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--pacey-blue);
+    background: var(--pacey-light);
+    padding: 0.25em 0.75em;
+    border-radius: 62.5rem;
+    margin-bottom: 0.75rem;
+}
+
+/* Auth header */
+.pacey-auth-header,
+.pacey-onboard-header {
+    text-align: center;
+    margin-bottom: clamp(1.25rem, 3vw, 2rem);
+}
+
+.pacey-auth-title,
+.pacey-onboard-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-display);
+    color: var(--pacey-navy);
+    line-height: 1.2;
+    margin: 0 0 0.5rem;
+}
+
+.pacey-auth-subtitle,
+.pacey-onboard-subtitle {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ========== SETTINGS POPUP ========== */
+/* Popup anchored near the settings button, shows account details */
+.pacey-settings-popup {
+    position: fixed;
+    z-index: 90;
+    /* Positioned near the sidebar settings button — centered on larger screens */
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.pacey-settings-popup[hidden] { display: none; }
+
+.pacey-settings-popup-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: 20rem;
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+}
+
+.pacey-settings-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-settings-popup-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+    margin: 0;
+}
+
+.pacey-settings-popup-close {
+    background: none;
+    border: none;
+    color: var(--pacey-muted);
+    cursor: pointer;
+    padding: var(--pacey-space-xs);
+    border-radius: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s ease;
+}
+
+.pacey-settings-popup-close:hover { color: var(--pacey-navy); }
+
+/* Edit race goal popup — modal for changing the race goal after onboarding.
+   Reuses the same form field styles (.pacey-field, .pacey-input, etc.) as the
+   onboarding screen so the look is consistent. Wider than the settings popup
+   to accommodate the form fields comfortably. */
+.pacey-edit-goal-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: min(100%, 32rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    position: relative; /* anchor for the absolute-positioned close button */
+}
+
+.pacey-edit-goal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-edit-goal-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+    margin: 0;
+}
+
+.pacey-edit-goal-form {
+    padding: var(--pacey-space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+}
+
+/* ---- Race goal reminder popup ---- */
+/* Shown when a returning user logs in and has a persisted race goal.
+   Uses the same modal overlay pattern as the edit-goal popup but with
+   a simpler card body — just a summary of the saved goal and three
+   action buttons (keep / edit / new). */
+.pacey-goal-reminder-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: min(100%, 28rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    position: relative;
+}
+
+.pacey-goal-reminder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-goal-reminder-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+    margin: 0;
+}
+
+.pacey-goal-reminder-body {
+    padding: var(--pacey-space-lg);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+}
+
+.pacey-goal-reminder-intro {
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* Summary card showing the saved race goal details — race name, distance,
+   time target, race date, weekly mileage. Uses a tinted background to
+   visually distinguish it from the surrounding text. */
+.pacey-goal-reminder-summary {
+    background: var(--pacey-light);
+    border-radius: var(--pacey-radius-sm);
+    padding: var(--pacey-space-md);
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.pacey-goal-reminder-summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--pacey-space-sm);
+    font-size: var(--pacey-text-label);
+}
+
+.pacey-goal-reminder-summary-label {
+    color: var(--pacey-muted);
+    font-weight: 500;
+}
+
+.pacey-goal-reminder-summary-value {
+    color: var(--pacey-text);
+    font-weight: 600;
+    text-align: right;
+}
+
+.pacey-goal-reminder-question {
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+.pacey-goal-reminder-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-sm);
+    padding: 0 var(--pacey-space-lg) var(--pacey-space-lg);
+}
+
+/* On wider screens, the edit + new buttons sit side by side while the
+   primary "Keep" button stays full-width above them. */
+@media (min-width: 30rem) {
+    .pacey-goal-reminder-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    .pacey-goal-reminder-actions .pacey-btn:first-child {
+        width: 100%;
+    }
+    .pacey-goal-reminder-actions .pacey-btn:nth-child(2),
+    .pacey-goal-reminder-actions .pacey-btn:nth-child(3) {
+        flex: 1;
+    }
+}
+
+.pacey-settings-popup-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+    gap: 0.6rem;
+}
+
+/* Profile section inside the settings popup — shown only on mobile where
+   the sidebar (which normally holds the profile) is hidden. Contains the
+   avatar, display name, race goal, and edit-goal button. */
+.pacey-settings-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    padding-bottom: 0.75rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+    margin-bottom: 0.25rem;
+    /* Anchor for the relocated mobile theme toggle, which is absolutely
+       positioned at the top-right corner of this container. */
+    position: relative;
+}
+
+/* Mobile theme toggle relocated into the settings profile — overrides the
+   old floating fixed positioning so it sits at the top-right corner of
+   the profile container instead of floating over the page. */
+.pacey-settings-profile .pacey-theme-toggle-mobile {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+}
+
+.pacey-settings-profile-name {
+    font-weight: 700;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-navy);
+}
+
+.pacey-settings-profile-goal-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pacey-settings-profile-goal {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-blue);
+    font-weight: 500;
+}
+
+.pacey-settings-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-md);
+}
+
+.pacey-settings-field-label {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+    flex-shrink: 0;
+    min-width: 4rem;
+}
+
+.pacey-settings-field-value {
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-navy);
+    font-weight: 600;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pacey-settings-select {
+    font-family: 'Raleway', sans-serif;
+    font-size: var(--pacey-text-label);
+    padding: 0.25rem 0.5rem;
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: 0.25rem;
+    background: var(--pacey-light);
+    color: var(--pacey-muted);
+    cursor: not-allowed;
+}
+
+.pacey-settings-field-hint {
+    display: block;
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    margin-top: 0.15rem;
+    width: 100%;
+}
+
+.pacey-settings-popup-footer {
+    padding: 0.75rem 1rem;
+    border-top: 0.0625rem solid var(--pacey-border);
+}
+
+/* Danger button — uses accent-red tokens so it adapts to dark mode.
+   Light mode: soft red tint background with red text.
+   Dark mode: darker red tint with the lighter red text token. */
+.pacey-btn-danger {
+    width: 100%;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--pacey-radius-sm);
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-label);
+    cursor: pointer;
+    background: color-mix(in srgb, var(--pacey-accent-red) 10%, transparent);
+    color: var(--pacey-accent-red);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.pacey-btn-danger:hover {
+    background: color-mix(in srgb, var(--pacey-accent-red) 20%, transparent);
+}
+
+/* ========== FLOATING AI CHAT BUTTON + POPUP ========== */
+/* Floating action button — bottom-right of the interface. On desktop it
+   sits above the content with a fixed gap from the bottom edge. On mobile
+   it floats above the bottom tab bar with extra clearance.
+   Color scheme uses theme-aware variables so it adapts to light/dark mode.
+   The popup expands from the button's position using a CSS transform
+   animation rather than appearing as a separate overlay. */
+
+.pacey-chat-fab {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 40%;
+    /* Match the theme toggle: surface background (white in light, dark in
+       dark mode) with muted icon color and border */
+    background: var(--pacey-surface);
+    color: var(--pacey-muted);
+    border: 0.0625rem solid var(--pacey-border);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0.25rem 0.75rem rgba(29, 53, 87, 0.15);
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+    /* Below the loading overlay (100) and modals (200) so the FAB never
+       floats above blocking UI; above the tab bar (50) and content */
+    z-index: 80;
+}
+
+.pacey-chat-fab:hover {
+    color: var(--pacey-navy);
+    box-shadow: 0 0.375rem 1rem rgba(29, 53, 87, 0.2);
+}
+
+.pacey-chat-fab:active { transform: scale(0.94); }
+
+/* Dark mode — dark surface background with lighter icon color */
+[data-theme="dark"] .pacey-chat-fab {
+    background: color-mix(in srgb, var(--pacey-surface) 90%, transparent);
+    border-color: color-mix(in srgb, var(--pacey-border) 60%, transparent);
+    color: var(--pacey-navy);
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .pacey-chat-fab:hover {
+    color: var(--pacey-text);
+    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.5);
+}
+
+/* Hide the FAB when the chat popup is open — the popup expands from
+   its position so the button is no longer needed */
+.pacey-chat-fab.pacey-chat-fab--hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
+}
+
+/* Chat popup — fixed-position card anchored at the bottom-right, expanding
+   from the FAB's location. No full-screen overlay; instead the card sits
+   near the button with a slight gap, creating the visual effect of the
+   button growing into the chat interface. */
+.pacey-chat-popup {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.7rem;
+    z-index: 300;
+    /* Start collapsed at the FAB's size/position, then expand */
+    transform-origin: bottom right;
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+}
+
+.pacey-chat-popup[hidden] { display: block; /* keep in DOM for transition */ }
+
+/* Open state — expand to full size */
+.pacey-chat-popup.pacey-chat-popup--open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.pacey-chat-popup-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    /* border-radius: var(--pacey-radius); */
+    border-radius: 1.7rem;
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: min(100vw - 3rem, 24rem);
+    max-height: calc(100vh - 8rem);
+    overflow-y: auto;
+    position: relative;
+}
+
+/* Dark mode popup card */
+[data-theme="dark"] .pacey-chat-popup-card {
+    box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.4), 0 0.125rem 0.5rem rgba(0, 0, 0, 0.2);
+}
+
+.pacey-chat-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-chat-popup-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+    margin: 0;
+}
+
+.pacey-chat-popup-body {
+    padding: 2rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* "Coming soon" locked state */
+.pacey-chat-coming-soon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--pacey-muted);
+}
+
+.pacey-chat-coming-soon-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-navy);
+    margin: 0 0 0.5rem 0;
+}
+
+.pacey-chat-coming-soon-text {
+    font-size: var(--pacey-text-label);
+    line-height: 1.55;
+    color: var(--pacey-muted);
+    margin: 0;
+    max-width: 20rem;
+}
+
+/* Mobile: raise the FAB above the bottom tab bar so it doesn't overlap.
+   Tab bar sits at bottom 1.5rem with height 3.5rem, so the FAB needs
+   to clear that plus a comfortable gap. The popup also needs to sit
+   higher to clear the tab bar. */
+@media (max-width: 48rem) {
+    .pacey-chat-fab {
+        bottom: calc(5.5rem + env(safe-area-inset-bottom, 0));
+    }
+    .pacey-chat-popup {
+        bottom: 5.5rem;
+        right: 1.5rem;
+    }
+}
+
+/* ========== PLAN PREFERENCES MODAL + CARD TWEAKS ========== */
+
+.pacey-plan-edit-btn {
+    margin-left: auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: none;
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-blue);
+    padding: 0.3rem 0.7rem;
+    transition: background var(--pacey-transition), border-color var(--pacey-transition);
+}
+
+.pacey-plan-edit-btn:hover { background: var(--pacey-light); border-color: var(--pacey-blue); }
+
+.pacey-plan-prefs-card { width: min(100%, 24rem); }
+
+.pacey-plan-prefs-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-lg);
+}
+
+.pacey-distance-slider {
+    width: 100%;
+    accent-color: var(--pacey-blue);
+}
+
+.pacey-distance-slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+}
+
+.pacey-plan-prefs-actions {
+    display: flex;
+    gap: var(--pacey-space-md);
+    justify-content: flex-end;
+}
+
+.pacey-plan-prefs-actions .pacey-btn {
+    width: auto;
+    padding: 0.6rem 1.25rem;
+}
+
+/* Activity/workout cards: two lines — title/name on top, tag + meta below */
+.pacey-cal-card {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.pacey-cal-card--rest {
+    flex-direction: row;
+    align-items: center;
+}
+
+/* Week separation — a bolder line between Mon-Sun blocks */
+.pacey-cal-week-block {
+    border-bottom: 0.125rem solid var(--pacey-border);
+    /* margin-bottom: 0.9rem; */
+    padding-bottom: 0.25rem;
+}
+
+.pacey-cal-week-block:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Week heading — names the block (Week 1, …), the training phase chip, and
+   the Monday–Sunday date range, so the runner always knows where they are
+   in the block without reading individual day rows. */
+.pacey-cal-week-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem 0.6rem;
+    padding: 0.7rem 0.1rem 0.4rem;
+}
+
+.pacey-cal-week-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+}
+
+.pacey-cal-week-phase {
+    font-size: var(--pacey-text-label);
+    font-weight: 600;
+    color: var(--pacey-blue);
+    background: color-mix(in srgb, var(--pacey-blue) 12%, transparent);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+}
+
+.pacey-cal-week-range {
+    margin-left: auto;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+}
+
+/* Per-week Garmin send row — sits under each week block. Uses the primary
+   (navy) action treatment so it reads as an action, not as another passive
+   card surface, and is kept compact so the label stays short. The row
+   disappears once every day in the week is synced or in the past; weeks
+   beyond the two-week sync window keep a disabled button. */
+.pacey-cal-week-send {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0 0.25rem;
+}
+
+.pacey-cal-week-send-btn {
+    /* .pacey-btn defaults to width:100% — override so the button hugs its
+       short label instead of stretching across the whole week block. */
+    width: auto;
+    padding: 0.4rem 0.8rem;
+    font-size: var(--pacey-text-label);
+    border-radius: var(--pacey-radius-sm);
+}
+
+.pacey-cal-week-send .pacey-coach-schedule-status {
+    padding: 0.3rem 0.6rem;
+    font-size: var(--pacey-text-caption);
+}
+
+/* Date value — day number and month share one line */
+.pacey-cal-date-value {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pacey-space-xs);
+}
+
+/* ========== WORKOUT DETAIL — bottom sheet on mobile, modal on desktop ========== */
+/* Base styles: bottom sheet that slides up from the bottom edge.
+   A media query below switches to a centered modal on large screens. */
+
+.pacey-sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(29, 53, 87, 0);
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 250;
+    transition: background 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease;
+}
+
+.pacey-sheet-overlay[hidden] { display: none; }
+
+/* Open state — fade in the overlay and slide up the sheet */
+.pacey-sheet-overlay--open {
+    background: rgba(29, 53, 87, 0.4);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+.pacey-workout-sheet {
+    background: var(--pacey-surface);
+    border-top-left-radius: 1.25rem;
+    border-top-right-radius: 1.25rem;
+    box-shadow: 0 -0.5rem 2rem rgba(29, 53, 87, 0.18);
+    width: min(100%, 40rem);
+    max-height: 85dvh;
+    overflow-y: auto;
+    padding: var(--pacey-space-xl);
+    position: relative;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Slide up when the overlay is open */
+.pacey-sheet-overlay--open .pacey-workout-sheet {
+    transform: translateY(0);
+}
+
+/* Desktop: switch from bottom sheet to a centered popup modal.
+   The overlay centers vertically, the sheet gets full rounded corners,
+   and the entrance animation changes from slide-up to scale-in. */
+@media (min-width: 64rem) {
+    .pacey-sheet-overlay {
+        align-items: center;
+    }
+
+    .pacey-workout-sheet {
+        border-radius: var(--pacey-radius);
+        box-shadow: 0 0.5rem 2.5rem rgba(29, 53, 87, 0.25);
+        width: min(90%, 32rem);
+        max-height: 80dvh;
+        transform: scale(0.9);
+        opacity: 0;
+        transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease;
+    }
+
+    .pacey-sheet-overlay--open .pacey-workout-sheet {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.pacey-workout-sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.pacey-sheet-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    padding-right: 2.5rem;
+}
+
+.pacey-sheet-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-heading);
+    color: var(--pacey-navy);
+    margin: 0;
+    /* flex: 1; */
+    /* width: min-content; */
+}
+
+.pacey-sheet-pace {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-blue);
+    white-space: nowrap;
+}
+
+.pacey-sheet-pace-unit {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    margin-left: 0.15rem;
+}
+
+.pacey-sheet-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+    padding-bottom: 0.4rem;
+    border-bottom: 0.0625rem solid var(--pacey-border);
+}
+
+.pacey-sheet-meta-item strong {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    color: var(--pacey-navy);
+}
+
+.pacey-sheet-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.pacey-sheet-section-title {
+    font-weight: 700;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.pacey-sheet-insight {
+    font-size: var(--pacey-text-body);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    background: var(--pacey-light);
+    border-radius: var(--pacey-radius-sm);
+    padding: 0.7rem 0.9rem;
+    margin: 0;
+}
+
+/* Lazy insight states — shimmer placeholder while the on-demand text is
+   written, muted error state when generation fails. */
+.pacey-sheet-insight--loading {
+    color: var(--pacey-muted);
+}
+
+.pacey-sheet-insight--error {
+    color: var(--pacey-accent-red);
+}
+
+.pacey-sheet-steps {
+    display: flex;
+    flex-direction: column;
+}
+
+.pacey-sheet-step {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-text);
+    padding: 0.45rem 0;
+    border-bottom: 0.0625rem dashed var(--pacey-border);
+}
+
+.pacey-sheet-step:last-child { border-bottom: none; }
+
+.pacey-sheet-step-num {
+    flex-shrink: 0;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-blue);
+    background: var(--pacey-light);
+    border-radius: 50%;
+}
+
+.pacey-sheet-step-type {
+    font-weight: 600;
+    color: var(--pacey-navy);
+}
+
+.pacey-sheet-step-detail {
+    margin-left: auto;
+    color: var(--pacey-muted);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Per-step target pace — rendered as a separate element after the detail
+   so there's a clear visual gap between time/distance and pace. Uses the
+   blue accent to distinguish it from the muted detail text. */
+.pacey-sheet-step-pace {
+    margin-left: 0.75rem;
+    color: var(--pacey-blue);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Description section — the short intent summary sent to Garmin as the
+   workout description. Styled like the insight but without the background
+   fill so it reads as a lighter, secondary block above the AI insight. */
+.pacey-sheet-description {
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-body);
+    line-height: 1.55;
+    color: var(--pacey-muted);
+    margin: 0;
+}
+
+.pacey-sheet-step--sub {
+    padding-left: 2rem;
+}
+
+.pacey-sheet-step--sub .pacey-sheet-step-type {
+    color: var(--pacey-muted);
+    font-weight: 500;
+}
+
+.pacey-sheet-step--repeat {
+    color: var(--pacey-blue);
+    font-weight: 700;
+}
+
+.pacey-sheet-step--repeat .pacey-sheet-step-type,
+.pacey-sheet-step--repeat .pacey-sheet-step-detail {
+    color: var(--pacey-blue);
+}
+
+/* Clickable suggested workout card */
+.pacey-cal-card[data-action="view"] { cursor: pointer; }
+.pacey-cal-card[data-action="view"]:hover { border-color: var(--pacey-blue); }
+
+/* ===========================================================================
+   Reduced motion — respect the user's OS-level preference.
+   When prefers-reduced-motion is set, all animations and transitions are
+   disabled so users with vestibular sensitivity or motion aversion get
+   instant state changes instead of slides, fades, spins, and shimmer
+   sweeps. This is a non-negotiable quality-floor requirement.
+   =========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+    /* Disable all transitions — state changes happen instantly */
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Hide shimmer/skeleton sweep animations — show the base colour only.
+       .pacey-radar-skeleton is deliberately absent: it is now only a
+       positioning container for the loading label, so giving it a background
+       would paint a solid block over the placeholder radar. */
+    .pacey-shimmer-text,
+    .pacey-skeleton,
+    .pacey-skeleton-text,
+    .pacey-skeleton-line,
+    .pacey-coach-loading--active {
+        animation: none !important;
+        background: var(--pacey-light) !important;
+    }
+
+    /* Plan loading aura: hide the border sweep entirely */
+    .pacey-plan-skeleton-glow { display: none !important; }
+
+    /* Disable the radar pulse and pillar highlight pulse */
+    .pacey-radar-skeleton { opacity: 0.3 !important; }
+    .pacey-pillar-card--highlight { animation: none !important; box-shadow: none !important; }
+
+    /* Disable the conic-gradient halo spin on coach loading */
+    .pacey-coach-loading--active::before { animation: none !important; }
+
+    /* Disable the spinner rotation */
+    .pacey-btn-spinner { animation: none !important; }
+
+    /* Disable the demo banner shrink/expand — snap to the target state */
+    .pacey-demo-banner,
+    .pacey-demo-banner-full,
+    .pacey-demo-banner-slim {
+        transition: none !important;
+    }
+
+    /* Disable the tab bar slide and chat popup spring */
+    .pacey-tabbar,
+    .pacey-chat-popup,
+    .pacey-workout-sheet,
+    .pacey-sheet-overlay {
+        transition: none !important;
+    }
+
+    /* Disable the sidebar collapse animation */
+    .pacey-sidebar,
+    .pacey-dashboard-layout,
+    .pacey-header-offset {
+        transition: none !important;
+    }
+
+    /* Disable theme toggle icon transitions */
+    .pacey-theme-icon-sun,
+    .pacey-theme-icon-moon {
+        transition: none !important;
+    }
+}
+
+/* ---- Overlay ---- */
+.pacey-overlay {
+    position: fixed;
+    inset: 0;
+    /* Use the theme-aware background color with 85% opacity so the overlay
+       blends with the page in both light and dark modes */
+    background: color-mix(in srgb, var(--pacey-bg) 85%, transparent);
+    backdrop-filter: blur(0.25rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+.pacey-overlay[hidden] { display: none; }
+
+.pacey-overlay-content {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--pacey-space-lg);
+}
+
+/* Shimmer text — a reusable loading effect where a gradient sweep moves
+   across transparent text, creating a glowing/pulsing shimmer. Used for
+   all loading placeholders across the site (plan loading, radar skeleton,
+   full-screen overlay, pillars skeleton, etc.).
+
+   The text is made transparent via background-clip: text, then two
+   background layers are stacked:
+   1. A moving gradient sweep (the shimmer) — animated left to right
+   2. A solid base color (the muted text color underneath)
+
+   The sweep is a narrow band of the accent color that travels across,
+   making the text appear to glow as it passes. In dark mode the sweep
+   is white; in light mode it's the navy accent. */
+.pacey-shimmer-text {
+    --pacey-shimmer-spread: 36px;
+    /* Base is the muted text tone; the sweep only shifts partway toward the
+       body text colour, so it reads as a gentle shimmer across the words
+       rather than a navy/white band glowing over them. Mixing against the
+       text token means it follows the theme on its own. */
+    --pacey-shimmer-base: var(--pacey-muted);
+    --pacey-shimmer-sweep: color-mix(in srgb, var(--pacey-muted) 55%, var(--pacey-text));
+    display: inline-block;
+    background-image:
+        linear-gradient(90deg,
+            transparent calc(50% - var(--pacey-shimmer-spread)),
+            var(--pacey-shimmer-sweep),
+            transparent calc(50% + var(--pacey-shimmer-spread))),
+        linear-gradient(var(--pacey-shimmer-base), var(--pacey-shimmer-base));
+    background-size: 250% 100%, auto;
+    background-repeat: no-repeat;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: pacey-shimmer-sweep 2.5s ease-in-out infinite;
+}
+
+@keyframes pacey-shimmer-sweep {
+    0%   { background-position: 150% center, 0 center; }
+    100% { background-position: -50% center, 0 center; }
+}
+
+.pacey-spinner {
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 0.1875rem solid var(--pacey-border);
+    border-top-color: var(--pacey-blue);
+    border-radius: 50%;
+    animation: pacey-spin 0.7s linear infinite;
+}
 
 /* --- Shared paper sheet + pushpin ------------------------------------ */
 .pacey-settings-popup-card,
