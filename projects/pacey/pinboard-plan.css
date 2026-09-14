@@ -176,7 +176,7 @@
 .pacey-plan-race-card {
     display: flex;
     flex-direction: column;
-    gap: var(--pacey-space-sm);
+    gap: var(--pacey-space-md);
     padding: var(--pacey-space-md) var(--pacey-space-lg);
     margin: 0 0 14px;
     border: 0.0625rem solid var(--pacey-border);
@@ -223,6 +223,9 @@
 
 .pacey-plan-fitness-toggle {
     display: flex;
+    /* Wrap so the summary can take its own line at every width, not just on
+       phones — this is what puts the paces below the label. */
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--pacey-space-sm);
     width: 100%;
@@ -247,10 +250,17 @@
 
 .pacey-plan-fitness-toggle-label {
     font-weight: 700;
+    /* The label keeps its own line; the summary wraps below it */
+    flex: 0 0 auto;
+    white-space: nowrap;
 }
 
 .pacey-plan-fitness-toggle-summary {
-    flex: 1 1 auto;
+    /* The summary drops to its own line at every width — at laptop size it
+       used to sit on the same line as the label and ran together. */
+    flex: 1 1 100%;
+    order: 3;
+    text-align: left;
     /* Flex text children default to min-width:auto (content width), which
        forces horizontal overflow instead of wrapping — allow it to shrink
        and wrap long tokens gracefully. */
@@ -258,7 +268,7 @@
     overflow-wrap: anywhere;
     color: var(--pacey-muted);
     font-size: var(--pacey-text-label);
-    text-align: right;
+    text-align: left;
 }
 
 .pacey-plan-fitness-chevron {
@@ -384,7 +394,6 @@
    line 1 and date·pace on line 2. */
 @media (max-width: 30rem) {
     .pacey-plan-fitness-toggle {
-        flex-wrap: wrap;
         row-gap: 0.2rem;
     }
     .pacey-plan-fitness-toggle-label {
@@ -392,9 +401,6 @@
         min-width: 0;
     }
     .pacey-plan-fitness-toggle-summary {
-        flex: 1 1 100%;
-        order: 3;
-        text-align: left;
         font-size: var(--pacey-text-label);
     }
     .pacey-plan-fitness-run {
@@ -429,6 +435,11 @@
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
     line-height: 1.5;
+    /* A left rule marks this as the coach's own read, so it doesn't read as
+       another status line sitting next to the trajectory below it. */
+    border-left: 0.1875rem solid var(--pinboard-line);
+    padding-left: 0.6rem;
+    padding-top: 0.5rem;
 }
 
 /* Trajectory status row — inside the race card, always visible when
@@ -436,10 +447,13 @@
    Garmin's training-status / Whoop recovery pattern; the rebuild button
    appears only on material drift (behind/ahead). */
 .pacey-plan-trajectory {
-    display: flex;
+    /* A grid rather than a wrapping flex row: the dot and the status label
+       form one line, and the advice sits on its own line beneath. As a flex
+       row the label and the long note ran together and read as one sentence. */
+    display: grid;
+    grid-template-columns: auto 1fr;
     align-items: center;
-    gap: 0.5rem 0.75rem;
-    flex-wrap: wrap;
+    gap: 0.3rem 0.5rem;
     margin: 0;
     font-size: var(--pacey-text-body);
     color: var(--pacey-text);
@@ -468,8 +482,13 @@
 .pacey-plan-trajectory--ahead .pacey-plan-trajectory-label { color: var(--pacey-blue); }
 
 .pacey-plan-trajectory-note {
+    grid-column: 1 / -1;
     color: var(--pacey-muted);
-    flex: 1 1 16rem;
+}
+
+.pacey-plan-trajectory-rebuild {
+    grid-column: 1 / -1;
+    justify-self: start;
 }
 
 /* ---- Last 2 weeks history ---- */
@@ -856,7 +875,7 @@
     background: var(--pacey-bg);
     border: 0.0625rem solid var(--pacey-border);
 }
-.pacey-cal-card--past .pacey-run-tag { filter: saturate(0.65); opacity: 0.85; }
+.pacey-cal-card--past .pacey-run-tag { filter: saturate(0.8); opacity: 0.9; }
 .pacey-cal-card--past .pacey-cal-card-title { color: var(--pacey-text); }
 .pacey-cal-card--past .pacey-cal-card-meta { color: var(--pacey-muted); }
 
@@ -1248,7 +1267,7 @@
 #pacey-content .pacey-cal-card--past .pacey-cal-card-meta,
 #pacey-content .pacey-cal-card--past .pacey-cal-card-desc,
 #pacey-content .pacey-cal-card--past .pacey-cal-card-pace { color: #8a867f; }
-#pacey-content .pacey-cal-card--past .pacey-run-tag { filter: saturate(0.45); opacity: 0.8; }
+#pacey-content .pacey-cal-card--past .pacey-run-tag { filter: saturate(0.7); opacity: 0.9; }
 
 /* Rest days are not cards: just the word sitting on the cork, so the board
    stays uncluttered. */
