@@ -542,6 +542,69 @@ COACH_CACHE_PREFIX = "race:coach-cache:"
 COACH_CACHE_TTL = 7 * 24 * 3600  # 7 days — plans regenerate weekly
 
 
+# --- Persistent fitness snapshot (Redis, keyed by email) ---
+#
+# The trajectory verdict and the fitness summary are computed from the runner's
+# recent activity history. That history lives in the Garmin data cache, which
+# is keyed by SESSION TOKEN — so a second device (or one whose cache has
+# expired) would show a stale fitness card and no trajectory at all.
+#
+# Mirroring the same activity history under an email key means every device
+# computes the trajectory from identical inputs. We share the INPUTS, never the
+# verdict: the verdict stays a single deterministic computation on each read, so
+# it can't go stale (it reflects current fitness and days-to-race).
+FITNESS_CACHE_PREFIX = "race:fitness:"
+# 6 hours — longer than the 1h Garmin cache so another device can use it, short
+# enough that "current fitness" stays honest.
+FITNESS_CACHE_TTL = 3600 * 6
+
+
+def _save_fitness_snapshot(email: str, ui_activities: list, activities: list):
+    """Store the recent-run history keyed by email for cross-device fitness.
+
+    Mirrors the two activity lists the Garmin cache holds — the slim UI list
+    (every recent run) and the lap-detailed AI list (laps merged by date) — so
+    `_history_from_garmin_cache` can read the snapshot unchanged.
+    """
+    if not email or not ui_activities:
+        return
+    latest = ""
+    for a in ui_activities:
+        d = (a.get("start_time") or "")[:10]
+        if d and d > latest:
+            latest = d
+    key = f"{FITNESS_CACHE_PREFIX}{email}"
+    entry = {
+        "ui_activities": ui_activities,
+        "activities": activities or [],
+        "generated_at": datetime.now().isoformat(),
+        "latest_activity_date": latest,
+    }
+    if _redis:
+        _redis.set(key, json.dumps(entry), ex=FITNESS_CACHE_TTL)
+    else:
+        _local_sessions[key] = entry
+
+
+def _get_fitness_snapshot(email: str) -> dict | None:
+    """Read the email-keyed fitness snapshot, or None on a miss.
+
+    Callers fall back to the token-scoped Garmin cache when this returns None.
+    """
+    if not email:
+        return None
+    key = f"{FITNESS_CACHE_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(key)
+
+
 def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", preferences: dict = None, race_date: str = ""):
     """Store a coach plan keyed by email so it syncs across devices.
 

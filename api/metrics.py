@@ -12,7 +12,7 @@ from lib._shared import (
     _get_garmin_client, _get_session, create_app,
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
     _get_cached_garmin_data, _compute_goal_pace_ms, _slim_activity,
-    _compute_weekly_mileage, ALLOWED_ACTIVITY_TYPES,
+    _compute_weekly_mileage, _save_fitness_snapshot, ALLOWED_ACTIVITY_TYPES,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -205,6 +205,9 @@ async def metrics(token: str = ""):
     # Device name from session
     sess = _get_session(token)
     metrics["device_name"] = sess.get("device_name", "")
+    # Account email — used below to mirror the activity history under an
+    # email key so every device computes the trajectory from the same inputs.
+    email = sess.get("email", "")
 
     # Determine metrics_date — the most recent date that data was
     # successfully fetched from. Each metric scans the lookback window
@@ -297,6 +300,12 @@ async def metrics(token: str = ""):
         cached = _get_cached_garmin_data(token) or {}
         cached.update({"activities": ai_activities, "physio": physio})
         _cache_garmin_data(token, cached)
+        # Mirror the same activity history under an email key. The Garmin cache
+        # above is keyed by session token, so without this a second device (or
+        # one whose cache expired) would show a stale fitness card and no
+        # trajectory at all. Sharing the inputs keeps the trajectory identical
+        # across devices without ever storing the (transient) verdict itself.
+        _save_fitness_snapshot(email, cached.get("ui_activities") or [], ai_activities)
     except Exception:
         # Cache population is best-effort — if it fails, ai-radar.py will
         # fall back to fetching directly from Garmin

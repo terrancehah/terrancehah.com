@@ -26,7 +26,8 @@ from lib._shared import (
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
-    _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
+    _get_persistent_ai_cache, _get_cached_garmin_data, _get_fitness_snapshot,
+    _call_ai, _phase_for_days_left,
     _median, _fitness_medians, _fitness_samples, _long_run_samples, _cap_recent,
     _pace_str_sec, _pace_range_sec,
     RUNNING_TYPES,
@@ -1115,13 +1116,16 @@ async def _generate_plan(body: CoachPlanRequest):
                     if stored_fitness is not None and "current_easy_runs" not in stored_fitness:
                         plan_data.pop("fitness", None)
                     data["plan"] = plan_data
-                    garmin_cached = _get_cached_garmin_data(token)
-                    if garmin_cached:
+                    # Prefer the email-keyed fitness snapshot so every device
+                    # reads the SAME activity history (the token-scoped Garmin
+                    # cache can be cold on a second device); fall back to it.
+                    fitness_source = _get_fitness_snapshot(email) or _get_cached_garmin_data(token)
+                    if fitness_source:
                         # Fitness/trajectory read a LONGER window than the plan
                         # prompt's 2 weeks, so the endurance verdict rests on
                         # several long runs rather than the last couple.
                         check_history, _ = _history_from_garmin_cache(
-                            garmin_cached, days=FITNESS_WINDOW_DAYS)
+                            fitness_source, days=FITNESS_WINDOW_DAYS)
                         # Days to race drives the phase-aware verdict wording
                         days_left = None
                         if race_date_str:
@@ -1164,9 +1168,13 @@ async def _generate_plan(body: CoachPlanRequest):
     # The fitness/trajectory read wants a longer window than the plan prompt's
     # 2 weeks. Prefer the cached window; fall back to the plan history when the
     # Garmin cache is cold.
+    # Prefer the email-keyed fitness snapshot so every device reads the same
+    # history; fall back to this session's Garmin cache, then to the plan
+    # history (which is fetched fresh when both caches are cold).
+    fitness_source = _get_fitness_snapshot(email) or cached_garmin
     fitness_history = None
-    if cached_garmin:
-        fitness_history, _ = _history_from_garmin_cache(cached_garmin, days=FITNESS_WINDOW_DAYS)
+    if fitness_source:
+        fitness_history, _ = _history_from_garmin_cache(fitness_source, days=FITNESS_WINDOW_DAYS)
     if not fitness_history:
         fitness_history = history
 
