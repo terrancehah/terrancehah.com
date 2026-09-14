@@ -926,6 +926,7 @@
                         <span class="pacey-settings-field-label">Device</span>
                         <span class="pacey-settings-field-value" id="pacey-settings-device">--</span>
                     </div>
+                    
                     <div class="pacey-settings-field">
                         <span class="pacey-settings-field-label">Language</span>
                         <select class="pacey-settings-select" disabled>
@@ -933,6 +934,19 @@
                         </select>
                         <span class="pacey-settings-field-hint">More languages coming soon</span>
                     </div>
+
+                    <!-- Permanent entry point for the "Add to Home Screen"
+                         instructions. The one-time modal can be dismissed, so
+                         this row keeps the guidance reachable any time. -->
+                    <button class="pacey-settings-install" id="pacey-settings-install-btn" type="button">
+                        <svg class="pacey-settings-install-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                        <span class="pacey-settings-install-text">
+                            <span class="pacey-settings-install-title">Add to Home Screen</span>
+                            <span class="pacey-settings-install-sub">Open Pacey like an app</span>
+                        </span>
+                        <svg class="pacey-settings-install-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    
                     <!-- Site section — the app's link back to the main site and
                          socials. Mobile relies on this since the sidebar (and
                          its Settings-adjacent site link) is hidden there. -->
@@ -1243,6 +1257,93 @@
                     <button class="pacey-btn pacey-btn-primary" id="pacey-goal-reminder-keep">Keep this goal</button>
                     <button class="pacey-btn pacey-btn-secondary" id="pacey-goal-reminder-edit">Edit goal</button>
                     <button class="pacey-btn pacey-btn-secondary" id="pacey-goal-reminder-new">Set a new goal</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== ADD TO HOME SCREEN MODAL ========== -->
+        <!-- Instructional modal that teaches the runner how to add Pacey to
+             their phone's home screen. There is no programmatic install API
+             on iOS, and none on Android without a web app manifest, so this is
+             guidance — not a one-tap install. Shown once (remembered in
+             localStorage) and always reachable from Settings, so a dismissal
+             never loses the instruction. The iOS / Android / generic step
+             blocks are toggled by JS based on the visitor's platform. -->
+        <div class="pacey-modal-overlay" id="pacey-a2hs-modal" hidden role="dialog" aria-modal="true" aria-label="Add Pacey to your home screen">
+            <div class="pacey-a2hs-card">
+                <button class="pacey-modal-close" id="pacey-a2hs-close" title="Close" aria-label="Close add to home screen dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="pacey-a2hs-header">
+                    <img class="pacey-a2hs-icon" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="" width="56" height="56">
+                    <h3 class="pacey-a2hs-title">Open Pacey like an app</h3>
+                    <p class="pacey-a2hs-subtitle">Add Pacey to your home screen for one-tap access — full screen, no address bar.</p>
+                </div>
+
+                <!-- iOS (Safari) — Share sheet, NOT a browser menu. Shown on
+                     iPhone/iPad; both sections show when the platform can't be
+                     detected (e.g. desktop) so the guidance is never missing. -->
+                <section class="pacey-a2hs-platform" id="pacey-a2hs-ios" hidden>
+                    <span class="pacey-a2hs-platform-label">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.36 12.9c-.02-2.02 1.65-2.99 1.72-3.04-.94-1.37-2.4-1.56-2.92-1.58-1.24-.13-2.42.73-3.05.73-.63 0-1.6-.71-2.63-.69-1.35.02-2.6.79-3.29 2-1.4 2.44-.36 6.05 1.01 8.03.67.97 1.47 2.06 2.52 2.02 1.01-.04 1.39-.65 2.61-.65 1.22 0 1.56.65 2.63.63 1.09-.02 1.78-.99 2.44-1.96.77-1.12 1.09-2.21 1.11-2.27-.02-.01-2.13-.82-2.15-3.24zM14.4 6.6c.55-.67.93-1.6.82-2.53-.8.03-1.77.53-2.34 1.2-.51.59-.96 1.54-.84 2.45.89.07 1.81-.45 2.36-1.12z"/></svg>
+                        On iPhone / iPad
+                    </span>
+                    <ol class="pacey-a2hs-steps">
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Tap the <strong>Share</strong> button in Safari's toolbar</span>
+                        </li>
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Scroll down and tap <strong>Add to Home Screen</strong></span>
+                        </li>
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Tap <strong>Add</strong> — Pacey opens from your home screen</span>
+                        </li>
+                    </ol>
+                </section>
+
+                <!-- Android (Chrome and other Chromium browsers) — the browser
+                     menu, not a Share sheet. -->
+                <section class="pacey-a2hs-platform" id="pacey-a2hs-android" hidden>
+                    <span class="pacey-a2hs-platform-label">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 10h12v7a2 2 0 0 1-2 2h-1v2.5a1 1 0 0 1-2 0V19h-2v2.5a1 1 0 0 1-2 0V19H8a2 2 0 0 1-2-2v-7zM4 10a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 4 10zm16 0a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-3 0v-4A1.5 1.5 0 0 1 20 10zM7.5 4.3 6.7 3a.6.6 0 0 1 1-.6l.8 1.3A5.9 5.9 0 0 1 12 3c1.3 0 2.5.4 3.5 1l.8-1.3a.6.6 0 0 1 1 .6l-.8 1.3A5 5 0 0 1 19 9H5a5 5 0 0 1 2.5-4.7zM9 7a.75.75 0 1 0 0-1.5A.75.75 0 0 0 9 7zm6 0a.75.75 0 1 0 0-1.5A.75.75 0 0 0 15 7z"/></svg>
+                        On Android
+                    </span>
+                    <ol class="pacey-a2hs-steps">
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Tap the <strong>&#8942; menu</strong> in your browser's top-right corner</span>
+                        </li>
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Tap <strong>Add to Home screen</strong></span>
+                        </li>
+                        <li class="pacey-a2hs-step">
+                            <span class="pacey-a2hs-step-icon">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                            </span>
+                            <span class="pacey-a2hs-step-text">Tap <strong>Add</strong> — Pacey opens from your home screen</span>
+                        </li>
+                    </ol>
+                </section>
+
+                <!-- In-app browser note (Instagram / Facebook / WhatsApp etc.) -->
+                <p class="pacey-a2hs-note" id="pacey-a2hs-note" hidden></p>
+
+                <div class="pacey-a2hs-actions">
+                    <button class="pacey-btn pacey-btn-primary" id="pacey-a2hs-done">Got it</button>
                 </div>
             </div>
         </div>

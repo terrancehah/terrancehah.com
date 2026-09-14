@@ -1509,6 +1509,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // When forceAIRefresh is true (e.g. after a goal change), pass the
         // force flag so the server skips its persistent cache and regenerates.
         loadAISummary(forceAIRefresh);
+
+        // The dashboard's core value is now on screen — the earliest sensible
+        // moment to offer the "Add to Home Screen" instructions (the modal
+        // itself waits an extra dwell, see maybeScheduleA2HS). Only reached on
+        // the real (non-demo) path, so a cold demo visitor is never prompted.
+        maybeScheduleA2HS();
     }
 
     // Fetch the next batch of activities for the activities page.
@@ -4830,6 +4836,129 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !editGoalPopup.hidden) closeEditGoalPopup();
     });
+
+    // =========================================================================
+    // Add to Home Screen — instructional prompt
+    // =========================================================================
+    // There is no programmatic install API on iOS, and none on Android without
+    // a web app manifest, so this is an education modal: it teaches the manual
+    // "Add to Home Screen" gesture. It shows once (remembered in localStorage)
+    // and is always reachable from Settings, so a dismissal never loses the
+    // instruction. Desktop is skipped (different affordance), and it never
+    // appears once the app is already running standalone.
+    // =========================================================================
+
+    const A2HS_SEEN_KEY = 'pacey_a2hs_seen';
+    const FIRST_SEEN_KEY = 'pacey_first_seen_at';
+    // Dwell before the prompt appears — the first value moment should land
+    // first, and out-of-context prompts get dismissed on reflex. Returning
+    // users have already shown interest, so they wait less.
+    const A2HS_DWELL_FIRST_MS = 60 * 1000;
+    const A2HS_DWELL_RETURNING_MS = 20 * 1000;
+
+    const a2hsModal = $('#pacey-a2hs-modal');
+    const a2hsClose = $('#pacey-a2hs-close');
+    const a2hsDone = $('#pacey-a2hs-done');
+    const a2hsPlatformIos = $('#pacey-a2hs-ios');
+    const a2hsPlatformAndroid = $('#pacey-a2hs-android');
+    const a2hsNote = $('#pacey-a2hs-note');
+    const a2hsSettingsBtn = $('#pacey-settings-install-btn');
+    let a2hsTrigger = null;
+
+    // iPadOS 13+ reports itself as "Macintosh" but is touch-capable, so the
+    // platform string alone would misclassify it as desktop.
+    function isIOSDevice() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+    function isAndroidDevice() {
+        return /Android/i.test(navigator.userAgent);
+    }
+    function isMobileDevice() {
+        return isIOSDevice() || isAndroidDevice()
+            || (/Mobi/i.test(navigator.userAgent) && navigator.maxTouchPoints > 0);
+    }
+    // In-app browsers (Instagram, Facebook, WhatsApp, TikTok, etc.) don't offer
+    // "Add to Home Screen" at all, so the steps below would be wrong there.
+    function isInAppBrowser() {
+        return /FBAN|FBAV|FB_IAB|Instagram|Line\/|WhatsApp|Twitter|TikTok|Snapchat|Pinterest|MicroMessenger|GSA\//i
+            .test(navigator.userAgent || '');
+    }
+
+    function openA2HSModal(trigger) {
+        if (!a2hsModal) return;
+        a2hsTrigger = trigger || null;
+        // Show the matching platform's steps. When the platform can't be
+        // identified (desktop, or an unknown browser) show BOTH, so the
+        // guidance is complete and the two are clearly separated.
+        const ios = isIOSDevice();
+        const android = isAndroidDevice();
+        const known = ios || android;
+        if (a2hsPlatformIos) a2hsPlatformIos.hidden = known ? !ios : false;
+        if (a2hsPlatformAndroid) a2hsPlatformAndroid.hidden = known ? !android : false;
+        if (a2hsNote) {
+            if (isInAppBrowser()) {
+                a2hsNote.textContent = 'Looks like you are in an in-app browser. Open this page in Safari (iPhone) or Chrome (Android) first — the "Add to Home Screen" option only appears there.';
+                a2hsNote.hidden = false;
+            } else {
+                a2hsNote.hidden = true;
+            }
+        }
+        a2hsModal.hidden = false;
+        if (a2hsDone) a2hsDone.focus();
+    }
+
+    // Dismissing remembers it, so the prompt never nags. The Settings row
+    // reopens it without clearing the flag — an explicit request is always fine.
+    function closeA2HSModal(markSeen = true) {
+        if (!a2hsModal) return;
+        a2hsModal.hidden = true;
+        if (markSeen) {
+            try { localStorage.setItem(A2HS_SEEN_KEY, String(Date.now())); } catch (e) { /* ignore */ }
+        }
+        if (a2hsTrigger) a2hsTrigger.focus();
+    }
+
+    if (a2hsClose) a2hsClose.addEventListener('click', () => closeA2HSModal(true));
+    if (a2hsDone) a2hsDone.addEventListener('click', () => closeA2HSModal(true));
+    if (a2hsModal) a2hsModal.addEventListener('click', (e) => {
+        if (e.target === a2hsModal) closeA2HSModal(true);
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && a2hsModal && !a2hsModal.hidden) closeA2HSModal(true);
+    });
+    // Permanent entry point in Settings.
+    if (a2hsSettingsBtn) a2hsSettingsBtn.addEventListener('click', () => {
+        closeSettingsPopup();
+        openA2HSModal(a2hsSettingsBtn);
+    });
+
+    // First-time detection: the marker is written on the very first load, so a
+    // returning user is anyone whose browser already carried it before now.
+    let isFirstVisit = false;
+    try {
+        if (!localStorage.getItem(FIRST_SEEN_KEY)) {
+            localStorage.setItem(FIRST_SEEN_KEY, String(Date.now()));
+            isFirstVisit = true;
+        }
+    } catch (e) { isFirstVisit = true; }
+
+    // Schedule the one-time prompt. Called once the dashboard's real data has
+    // loaded, so the runner has reached the value before being asked.
+    let a2hsTimer = null;
+    function maybeScheduleA2HS() {
+        if (!a2hsModal || a2hsTimer) return;
+        if (isStandalone) return;                        // already added — nothing to teach
+        if (!isMobileDevice()) return;                   // desktop uses a different affordance
+        try { if (localStorage.getItem(A2HS_SEEN_KEY)) return; } catch (e) { /* ignore */ }
+        const dwell = isFirstVisit ? A2HS_DWELL_FIRST_MS : A2HS_DWELL_RETURNING_MS;
+        a2hsTimer = setTimeout(() => {
+            a2hsTimer = null;
+            if (isStandalone) return;
+            try { if (localStorage.getItem(A2HS_SEEN_KEY)) return; } catch (e) { /* ignore */ }
+            if (a2hsModal.hidden) openA2HSModal(null);
+        }, dwell);
+    }
 
     // =========================================================================
     // AI chat floating button + popup — currently locked as "coming soon"
