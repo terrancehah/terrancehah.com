@@ -6059,7 +6059,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${showButton ? `
                     <div class="pacey-cal-week-send">
                         <button type="button" class="pacey-btn pacey-btn-primary pacey-cal-week-send-btn" data-week-start="${week[0].date}" title="Sync this week's workouts to Garmin">
-                            Sync to Garmin
+                            <span class="pacey-btn-text">Sync to Garmin</span>
+                            <span class="pacey-btn-spinner" hidden></span>
                         </button>
                         <span class="pacey-coach-schedule-status" hidden></span>
                     </div>` : ''}
@@ -6320,6 +6321,16 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     }
 
+    // Title-case a workout title: capitalise the first letter of each
+    // lowercase word, but leave numbers and the "x" in rep schemes
+    // ("6 x 400m") untouched. Already-capitalised words are left alone.
+    function formatWorkoutTitle(title) {
+        if (!title) return title;
+        return title.replace(/\b[a-z][a-z']*/g, (word) => (
+            word === 'x' ? word : word[0].toUpperCase() + word.slice(1)
+        ));
+    }
+
     function renderPlanCard(d) {
         // "Synced" only when the exact current workout content has been
         // pushed to Garmin — an edit invalidates the fingerprint, so the
@@ -6379,12 +6390,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 </span>
                 <div class="pacey-cal-card-body">
                     <div class="pacey-cal-card-title-row">
-                        <span class="pacey-cal-card-title">${escapeHtml(w.title || w.type)}</span>
+                        <span class="pacey-cal-card-title">${escapeHtml(formatWorkoutTitle(w.title || w.type))}</span>
                         <span class="pacey-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
+                        ${synced ? '<span class="pacey-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
                     <div class="pacey-cal-card-row">
                         <span class="pacey-cal-card-meta">${w.distance_km ? `${w.distance_km} km · ` : ''}${pace}/km</span>
-                        ${synced ? '<span class="pacey-plan-scheduled-badge">Synced</span>' : ''}
                     </div>
                 </div>
             </div>
@@ -6594,7 +6605,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         workoutSheetBody.innerHTML = `
             <div class="pacey-sheet-header">
-                <h3 class="pacey-sheet-title">${escapeHtml(w.title || w.type)}</h3>
+                <h3 class="pacey-sheet-title">${escapeHtml(formatWorkoutTitle(w.title || w.type))}</h3>
                 <span class="pacey-run-tag ${tagClass}">${escapeHtml(w.type)}</span>
             </div>
             <div class="pacey-sheet-meta">
@@ -6778,21 +6789,38 @@ document.addEventListener('DOMContentLoaded', function () {
         const workoutByDate = {};
         days.forEach(d => { workoutByDate[d.date] = d.workout; });
         const statusEl = btn.nextElementSibling;
+        // The status line now only carries messages that need explaining, so
+        // it is shown in the error tone rather than the old success green.
+        const setStatus = (msg) => {
+            statusEl.textContent = msg;
+            statusEl.classList.add('pacey-coach-schedule-status--error');
+            statusEl.hidden = false;
+        };
 
         if (!days.length) {
             statusEl.textContent = 'Nothing to send for this week.';
+            statusEl.classList.remove('pacey-coach-schedule-status--error');
             statusEl.hidden = false;
             return;
         }
 
-        btn.disabled = true;
-        statusEl.hidden = false;
-        statusEl.textContent = 'Sending week to Garmin…';
+        // The upload only takes a second or two, so the in-progress state is a
+        // spinner on the button rather than a status line — the button label is
+        // swapped out while it spins. Text is reserved for outcomes that need
+        // explaining (nothing to send, or a failure).
+        const btnText = btn.querySelector('.pacey-btn-text');
+        const btnSpinner = btn.querySelector('.pacey-btn-spinner');
+        const setSyncing = (on) => {
+            btn.disabled = on;
+            if (btnText) btnText.hidden = on;
+            if (btnSpinner) btnSpinner.hidden = !on;
+        };
+        statusEl.hidden = true;
+        setSyncing(true);
 
         // Demo mode: simulate success without touching Garmin
         if (window.__demoMode) {
             days.forEach(d => coachSyncedDates.set(d.date, workoutFingerprint(d.workout)));
-            statusEl.textContent = `Sent ${days.length} workouts (demo — nothing written to Garmin).`;
             btn.hidden = true;
             renderCoachCalendar(coachPlanData);
             return;
@@ -6803,25 +6831,29 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (!resp.ok) {
                 console.warn('Schedule request failed:', data.error || resp.status);
-                statusEl.textContent = 'Could not send workouts to Garmin. Please try again.';
+                setStatus('Could not send workouts to Garmin. Please try again.');
             } else {
                 (data.scheduled || []).forEach(s => {
                     if (workoutByDate[s.date]) {
                         coachSyncedDates.set(s.date, workoutFingerprint(workoutByDate[s.date]));
                     }
                 });
-                const scheduledCount = (data.scheduled || []).length;
                 const errorCount = (data.errors || []).length;
-                statusEl.textContent = errorCount
-                    ? `Sent ${scheduledCount} workouts; ${errorCount} failed.`
-                    : `Sent ${scheduledCount} workouts to Garmin.`;
-                if (!errorCount) btn.hidden = true;
-                renderCoachCalendar(coachPlanData);
+                if (errorCount) {
+                    // Leave the button up so the runner can retry; a re-render
+                    // here would wipe this message.
+                    setStatus(`${errorCount} workout${errorCount !== 1 ? 's' : ''} could not be sent. Please try again.`);
+                } else {
+                    // Silent success — the "Synced" badges on the cards are the
+                    // feedback, and the week's button disappears.
+                    btn.hidden = true;
+                    renderCoachCalendar(coachPlanData);
+                }
             }
         } catch (err) {
-            statusEl.textContent = 'Network error. Please try again.';
+            setStatus('Network error. Please try again.');
         } finally {
-            btn.disabled = false;
+            setSyncing(false);
         }
     }
 

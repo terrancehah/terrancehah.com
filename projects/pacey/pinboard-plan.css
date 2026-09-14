@@ -754,6 +754,14 @@
     border-left: 0.1875rem solid var(--pacey-accent-green);
 }
 
+/* The status line now only carries errors (the in-progress state is a button
+   spinner), so it reads in the error tone rather than the old success green. */
+.pacey-coach-schedule-status--error {
+    color: var(--pacey-accent-red);
+    background: rgba(196, 75, 75, 0.06);
+    border-left-color: var(--pacey-accent-red);
+}
+
 .pacey-coach-error {
     color: var(--pacey-accent-red);
     background: rgba(196, 75, 75, 0.06);
@@ -910,7 +918,8 @@
     gap: var(--pacey-space-sm);
 }
 
-/* First row: title on the left, tag on the right */
+/* First row: title on the left, then the type tag and — when the session has
+   been pushed to Garmin — the "Synced" badge pinned to the right edge. */
 .pacey-cal-card-title-row {
     display: flex;
     align-items: center;
@@ -921,7 +930,13 @@
     font-weight: 700;
     font-size: var(--pacey-text-label);
     color: var(--pacey-navy);
+    /* Let a long title shrink instead of pushing the tag/badge off the line */
+    min-width: 0;
 }
+
+/* Tag and badge keep their size; the badge's margin-left:auto pins it right */
+.pacey-cal-card-title-row .pacey-run-tag,
+.pacey-cal-card-title-row .pacey-plan-scheduled-badge { flex-shrink: 0; }
 
 /* Second row: meta details */
 .pacey-cal-card-row {
@@ -1438,6 +1453,12 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: #245a34;
     background: #dceadb;
     border-left: 0.1875rem solid #2f6a3f;
+}
+/* Schedule status error — the same soft red alert as .pacey-coach-error */
+#pacey-content .pacey-coach-schedule-status--error {
+    color: #7d2222;
+    background: #f2d9d6;
+    border-left-color: #a83b3b;
 }
 
 /* ---------------------------------------------------------------------
