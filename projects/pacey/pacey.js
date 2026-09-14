@@ -6273,7 +6273,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!planTrajectoryEl) return;
         const t = plan.trajectory;
         if (!t || !t.status) { planTrajectoryEl.hidden = true; return; }
-        const labels = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan' };
+        const labels = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan', mixed: 'Not proven' };
         const drift = t.status === 'behind' || t.status === 'ahead';
         planTrajectoryEl.className = `pacey-plan-trajectory pacey-plan-trajectory--${t.status}`;
         planTrajectoryEl.innerHTML = `

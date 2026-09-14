@@ -27,7 +27,8 @@ from lib._shared import (
     _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _call_ai, _phase_for_days_left,
-    _median, _fitness_medians, _fitness_samples, _pace_str_sec, _pace_range_sec,
+    _median, _fitness_medians, _fitness_samples, _long_run_samples,
+    _pace_str_sec, _pace_range_sec,
     RUNNING_TYPES,
 )
 
@@ -76,7 +77,11 @@ def _fitness_summary(history, goal_pace_ms):
     if not history or not goal_pace_ms or goal_pace_ms <= 0:
         return None
     easy_samples, fast_samples = _fitness_samples(history)
-    easy_secs = [s["sec"] for s in easy_samples]
+    # The card labels this bucket "Long", so show the LONG runs specifically —
+    # a short easy run shouldn't stand in for long-run pace. Falls back to the
+    # full easy bucket when the history has no long runs yet.
+    long_samples = _long_run_samples(history) or easy_samples
+    easy_secs = [s["sec"] for s in long_samples]
     fast_secs = [s["sec"] for s in fast_samples]
     goal_sec = 1000 / goal_pace_ms
 
@@ -104,7 +109,7 @@ def _fitness_summary(history, goal_pace_ms):
     return {
         "current_easy_pace": _format_sec_km(_median(easy_secs)) if easy_secs else None,
         "current_easy_range": _range_str(easy_secs),
-        "current_easy_runs": _slim_runs(easy_samples),
+        "current_easy_runs": _slim_runs(long_samples),
         "current_quality_pace": _format_sec_km(_median(fast_secs)) if fast_secs else None,
         "current_quality_range": _range_str(fast_secs),
         "current_quality_runs": _slim_runs(fast_samples),
@@ -113,15 +118,20 @@ def _fitness_summary(history, goal_pace_ms):
     }
 
 
-def _build_trajectory(history, goal_pace_ms, cached_plan=None):
+def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None):
     """Compare the runner's CURRENT fitness against the goal and — when a
     cached plan exists — against the pace that plan projected for today.
 
-    Uses the full spread of recent paces, not just the median: a runner is
-    clearly ahead only when even their SLOWEST quality work exceeds the
-    goal's tempo demand (and their slowest long runs sit at goal shape),
-    and clearly behind when even their FASTEST work is well off. Returns a
-    status dict {status, note} or None when there is not enough data.
+    Judged on MEDIANS, not extremes. A runner is "ahead" only when their
+    typical quality work beats the goal's tempo demand AND their typical long
+    run sits at goal shape; "behind" when either typical pace is well off.
+    When the two disagree — fast quality work but long-run endurance that
+    doesn't yet support the goal — the verdict is "mixed" rather than
+    defaulting to on_track, so the card never claims readiness the data hasn't
+    shown. The note is phase-aware, so a race-week verdict doesn't tell the
+    runner to keep training.
+
+    Returns a {status, note} dict, or None when there isn't enough data.
     """
     if not history or not goal_pace_ms or goal_pace_ms <= 0:
         return None
@@ -129,12 +139,14 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None):
     fast_secs = sorted(s["sec"] for s in fast_samples)
     if not fast_secs:
         return None
-    easy_secs = sorted(s["sec"] for s in easy_samples)
-    fast_lo, fast_hi = fast_secs[0], fast_secs[-1]  # fastest .. slowest
     fast_med = _median(fast_secs)
-    easy_lo = easy_secs[0] if easy_secs else None
-    easy_hi = easy_secs[-1] if easy_secs else None
-    easy_med = _median(easy_secs) if easy_secs else None
+
+    # Endurance evidence: the LONG runs, not the whole easy bucket — a short
+    # easy run shouldn't stand in for long-run durability. Fall back to the
+    # easy bucket only when the history has no long runs at all.
+    long_samples = _long_run_samples(history) or easy_samples
+    long_secs = sorted(s["sec"] for s in long_samples)
+    long_med = _median(long_secs) if long_secs else None
 
     def _range_str(secs):
         r = _pace_range_sec(secs)
@@ -152,51 +164,81 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None):
     goal_easy_sec = goal_sec + 50
     goal_easy_str = _format_sec_km(goal_easy_sec)
 
-    # Planned quality pace at today's position, from the cached plan's
-    # per-week zones (paces ramp across the block).
+    fast_range_str = _range_str(fast_secs)
+    long_range_str = _range_str(long_secs) if long_secs else None
+    fast_med_str = _format_sec_km(fast_med)
+    long_med_str = _format_sec_km(long_med) if long_med else None
+
+    # Quality side — typical quality work vs the goal's tempo demand.
+    quality_behind = fast_med > goal_tempo_sec + 25
+    quality_ahead = fast_med < goal_tempo_sec - 10
+    # Endurance side — typical long-run pace vs the goal's aerobic reference.
+    endurance_behind = long_med is not None and long_med > goal_easy_sec + 45
+    # "Ahead" means the typical long run is at or better than the goal's aerobic
+    # reference (goal + 50s) — being merely close to it is adequate, not ahead.
+    endurance_ahead = long_med is not None and long_med <= goal_easy_sec
+
+    # Race week (the final 7 days): the block is over, so advice shifts from
+    # "keep building" to "arrive fresh and execute".
+    race_week = days_to_race is not None and 0 <= days_to_race < 7
+
+    # Planned quality pace at today's position. The plan payload carries the
+    # block's pace zones under "zones"; zones_by_date is a client-side shape,
+    # kept as a fallback.
     planned_tempo_sec = None
     if cached_plan:
-        zones_by_date = cached_plan.get("zones_by_date") or {}
-        planned_zones = (
-            zones_by_date.get(date.today().isoformat())
-            or next(iter(zones_by_date.values()), None)
-        )
-        if planned_zones:
-            planned_tempo_sec = _pace_str_sec(planned_zones.get("Tempo"))
+        planned_tempo_sec = _pace_str_sec((cached_plan.get("zones") or {}).get("Tempo"))
+        if not planned_tempo_sec:
+            zones_by_date = cached_plan.get("zones_by_date") or {}
+            planned_zones = (
+                zones_by_date.get(date.today().isoformat())
+                or next(iter(zones_by_date.values()), None)
+            )
+            if planned_zones:
+                planned_tempo_sec = _pace_str_sec(planned_zones.get("Tempo"))
 
-    fast_range_str = _range_str(fast_secs)
-    easy_range_str = _range_str(easy_secs) if easy_secs else None
-    fast_med_str = _format_sec_km(fast_med)
-    easy_med_str = _format_sec_km(easy_med) if easy_med else None
-
-    # Behind: even their FASTEST quality work is well off the goal's tempo
-    # demand, or even their fastest long runs are far from the goal's easy
-    # reference.
-    if fast_lo > goal_tempo_sec + 45 or (easy_lo is not None and easy_lo > goal_easy_sec + 60):
-        base_issue = easy_lo is not None and easy_lo > goal_easy_sec + 60
-        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is well off the "
+    # Behind — typical quality work OR typical long-run pace is well off.
+    if quality_behind or endurance_behind:
+        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is off the "
                 f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
-        if base_issue:
-            note += (f", and your long runs ({easy_range_str or easy_med_str}) sit far from the "
-                     f"~{goal_easy_str}/km this goal expects")
-        note += (". The plan ramps toward it, but the gap is large — a more conservative goal "
-                 "time or a longer block is worth considering.")
+        if endurance_behind:
+            note += (f", and your long runs ({long_range_str or long_med_str}) sit short of the "
+                     f"~{goal_easy_str}/km aerobic base this goal expects")
+        note += (". The race is days away, so there is no time to close that gap — treat the goal "
+                 "as a stretch and run to current fitness." if race_week else
+                 ". The plan ramps toward it, but the gap is large — a more conservative goal time "
+                 "or a longer block is worth considering.")
         return {"status": "behind", "note": note}
-    # Ahead: even their SLOWEST quality work is well above the goal's tempo
-    # demand, AND their slowest long runs sit at goal shape (fast speedwork
-    # alone does not make the goal conservative).
-    ahead_quality = fast_hi < goal_tempo_sec - 20
-    ahead_endurance = easy_hi is not None and easy_hi <= goal_easy_sec + 15
-    if ahead_quality and (easy_hi is None or ahead_endurance):
-        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is already faster than the "
-                f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
-        if ahead_endurance:
-            note += f", and your long runs ({easy_range_str or easy_med_str}) sit at goal shape"
-        note += " — the goal may be conservative."
+
+    # Ahead — typical quality work beats the tempo demand AND typical long runs
+    # sit at goal shape (fast intervals alone don't make the goal conservative).
+    if quality_ahead and (long_med is None or endurance_ahead):
+        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is already faster than "
+                f"the ~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
+        if endurance_ahead:
+            note += f", and your long runs ({long_range_str or long_med_str}) sit at goal shape"
+        note += (". The work is banked — race week is about arriving fresh, not adding more."
+                 if race_week else " — the goal may be conservative.")
         return {"status": "ahead", "note": note}
-    # Plan-drift check (median-based) — material drift from what this week's
-    # plan projected for the current position in the block.
-    if planned_tempo_sec and abs(fast_med - planned_tempo_sec) > 10:
+
+    # Mixed — the speed is there, but the long runs don't yet prove the
+    # endurance to hold goal pace for the distance. Honest middle ground
+    # instead of defaulting to on_track.
+    if quality_ahead and long_med is not None and not endurance_ahead:
+        note = (f"Your speed is ahead of the goal — recent quality work at "
+                f"{fast_range_str or fast_med_str} is quicker than the {goal_tempo_str}/km tempo it "
+                f"demands. But the endurance to hold {goal_pace_str}/km for the race distance isn't "
+                f"proven: your long runs ({long_range_str or long_med_str}) aren't yet at the "
+                f"~{goal_easy_str}/km shape this goal expects.")
+        note += (" With the race days away, that is about even pacing and fuelling on the day, not "
+                 "more training." if race_week else
+                 " Build the long runs toward that shape before race day.")
+        return {"status": "mixed", "note": note}
+
+    # Plan-drift (median-based) — material drift from what this week's plan
+    # projected. Skipped in race week, where rebuilding the block is moot.
+    if (not race_week and planned_tempo_sec
+            and abs(fast_med - planned_tempo_sec) > 10):
         if fast_med > planned_tempo_sec:
             return {
                 "status": "behind",
@@ -210,11 +252,16 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None):
                      f"{_format_sec_km(planned_tempo_sec)}/km for this week — rebuilding would tighten the "
                      f"remaining block."),
         }
-    return {
-        "status": "on_track",
-        "note": (f"Your recent quality work ({fast_range_str or fast_med_str}) is where the plan expects "
-                 f"it right now — keep the block moving.")
-    }
+
+    # On track — typical quality work is where the plan expects it and the long
+    # runs sit at a sustainable aerobic shape.
+    note = f"Your recent quality work ({fast_range_str or fast_med_str}) is where the plan expects it"
+    if long_med is not None:
+        note += (f", and your long runs ({long_range_str or long_med_str}) sit at a sustainable "
+                 f"aerobic shape")
+    note += (". The block is done — race week is about arriving fresh and executing the plan."
+             if race_week else ". Keep the block moving.")
+    return {"status": "on_track", "note": note}
 
 
 def _split_windows(plan_start, plan_end):
@@ -979,7 +1026,18 @@ async def _generate_plan(body: CoachPlanRequest):
                     garmin_cached = _get_cached_garmin_data(token)
                     if garmin_cached:
                         check_history, _ = _history_from_garmin_cache(garmin_cached)
-                        trajectory = _build_trajectory(check_history, goal_pace_ms, cached_plan=plan_data)
+                        # Days to race drives the phase-aware verdict wording
+                        days_left = None
+                        if race_date_str:
+                            try:
+                                days_left = (_dt.strptime(race_date_str, "%Y-%m-%d").date()
+                                             - date.today()).days
+                            except (ValueError, TypeError):
+                                days_left = None
+                        trajectory = _build_trajectory(
+                            check_history, goal_pace_ms,
+                            cached_plan=plan_data, days_to_race=days_left,
+                        )
                         fitness = _fitness_summary(check_history, goal_pace_ms)
                         if trajectory or fitness:
                             data["plan"] = dict(data["plan"])
@@ -1439,7 +1497,7 @@ async def _generate_plan(body: CoachPlanRequest):
         # Trajectory note + fitness summary: current fitness vs the goal
         # (and vs the ramp at today's position on cache hits). Attached per
         # chunk — the frontend takes them from the first response.
-        trajectory = _build_trajectory(history, goal_pace_ms)
+        trajectory = _build_trajectory(history, goal_pace_ms, days_to_race=days_to_race)
         if trajectory:
             plan["trajectory"] = trajectory
         fitness_summary = _fitness_summary(history, goal_pace_ms)

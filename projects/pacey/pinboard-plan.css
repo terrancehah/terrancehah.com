@@ -469,6 +469,7 @@
 
 .pacey-plan-trajectory--behind .pacey-plan-trajectory-dot { background: var(--pacey-accent-amber); }
 .pacey-plan-trajectory--ahead .pacey-plan-trajectory-dot { background: var(--pacey-blue); }
+.pacey-plan-trajectory--mixed .pacey-plan-trajectory-dot { background: var(--pacey-accent-amber); }
 
 .pacey-plan-trajectory-label {
     font-weight: 700;
@@ -480,6 +481,7 @@
 
 .pacey-plan-trajectory--behind .pacey-plan-trajectory-label { color: var(--pacey-accent-amber); }
 .pacey-plan-trajectory--ahead .pacey-plan-trajectory-label { color: var(--pacey-blue); }
+.pacey-plan-trajectory--mixed .pacey-plan-trajectory-label { color: var(--pacey-accent-amber); }
 
 .pacey-plan-trajectory-note {
     grid-column: 1 / -1;
@@ -1201,6 +1203,7 @@
 #pacey-content .pacey-plan-trajectory--on_track .pacey-plan-trajectory-label { color: #245a33; }
 #pacey-content .pacey-plan-trajectory--behind .pacey-plan-trajectory-label { color: #8a3a1e; }
 #pacey-content .pacey-plan-trajectory--ahead .pacey-plan-trajectory-label { color: #1f5a7a; }
+#pacey-content .pacey-plan-trajectory--mixed .pacey-plan-trajectory-label { color: #8a6313; }
 #pacey-content .pacey-plan-trajectory-note {
     font-family: var(--font-fuzzy);
     font-weight: 400;

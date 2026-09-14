@@ -1810,6 +1810,28 @@ def _fitness_samples(history: list[dict]) -> tuple:
     return easy, fast
 
 
+def _long_run_samples(history: list[dict]) -> list:
+    """Long-run (endurance) samples — the easy long runs only.
+
+    Endurance is judged on the long runs, not the whole easy bucket: a short
+    recovery jog shouldn't stand in for long-run durability. Prefers the
+    classifier's long-run tag; falls back to a distance floor. Returns [] when
+    the history has no long runs, so the caller can fall back to the easy set.
+    """
+    out = []
+    for a in history:
+        tag = a.get("run_tag") or ""
+        # Quality sessions and warmups aren't aerobic-endurance evidence
+        if tag in ("Speedwork", "Tempo", "Tempo Long", "Warmup"):
+            continue
+        dist = a.get("distance") or 0
+        if tag == "LSD" or (dist and dist >= 12):
+            pace_ms = a.get("avg_pace") or 0
+            if pace_ms and pace_ms > 0:
+                out.append({"sec": 1000 / pace_ms, "run": a})
+    return out
+
+
 def _fitness_medians(history: list[dict]) -> tuple:
     """Median easy and quality paces (sec/km) from recent runs.
 
