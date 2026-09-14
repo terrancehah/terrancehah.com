@@ -4,7 +4,7 @@
     "functions": {
         "api/*.py": {
             "maxDuration": 60,
-            "excludeFiles": "{resources,public,playground,articles,projects,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
+            "excludeFiles": "{resources,public,playground,articles,projects,pacey,dist,src,styles,.archive,node_modules,.venv,venv,.vercel}/**"
         }
     },
     "redirects": [
@@ -21,16 +21,12 @@
     ],
     "rewrites": [
         {
-            "source": "/pacey",
-            "destination": "/projects/pacey/index.html"
-        },
-        {
-            "source": "/pacey/",
-            "destination": "/projects/pacey/index.html"
-        },
-        {
             "source": "/projects/running-posture-analyser/analyse",
             "destination": "/api/analyse"
+        },
+        {
+            "source": "/pacey/api/(.*)",
+            "destination": "/api/$1"
         },
         {
             "source": "/projects/pacey/api/(.*)",

@@ -5,20 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="/styles/output.css" rel="stylesheet">
     <link href="/styles/style.css" type="text/css" rel="stylesheet">
-    <link href="/projects/pacey/pacey.css" type="text/css" rel="stylesheet">
-    <link rel="icon" href="/projects/pacey/assets/icons/pacey-icon-32-white.png" type="image/png">
-    <link rel="apple-touch-icon" href="/projects/pacey/assets/icons/pacey-icon-180-white.png">
+    <link href="/pacey/pacey.css" type="text/css" rel="stylesheet">
+    <link rel="icon" href="/pacey/assets/icons/pacey-icon-32-white.png" type="image/png">
+    <link rel="apple-touch-icon" href="/pacey/assets/icons/pacey-icon-180-white.png">
     <meta property="og:title" content="Pacey — Marathon Race Readiness">
     <meta property="og:description" content="Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.">
-    <meta property="og:image" content="https://terrancehah.com/projects/pacey/assets/icons/pacey-icon-512-white.png">
+    <meta property="og:image" content="https://terrancehah.com/pacey/assets/icons/pacey-icon-512-white.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://terrancehah.com/pacey/">
-    <!-- Canonical URL — the app now lives at /pacey; /projects/pacey 301s here -->
+    <!-- Canonical URL — the app lives at /pacey; the old /projects/pacey redirects here -->
     <link rel="canonical" href="https://terrancehah.com/pacey/">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://terrancehah.com/projects/pacey/assets/icons/pacey-icon-512-white.png">
+    <meta name="twitter:image" content="https://terrancehah.com/pacey/assets/icons/pacey-icon-512-white.png">
 
     <title>Pacey — Marathon Race Readiness</title>
     <!-- Preconnect to Google Fonts origins — establishes the connection
@@ -58,8 +58,8 @@
     <script type="importmap">
     {
       "imports": {
-        "chart.js": "/projects/pacey/chartjs-roughness-shim.js",
-        "chart.js/helpers": "/projects/pacey/chartjs-roughness-shim.js",
+        "chart.js": "/pacey/chartjs-roughness-shim.js",
+        "chart.js/helpers": "/pacey/chartjs-roughness-shim.js",
         "roughjs": "https://cdn.jsdelivr.net/npm/roughjs@4.6.6/+esm",
         "d3-path": "https://cdn.jsdelivr.net/npm/d3-path@3.1.0/+esm"
       }
@@ -95,15 +95,15 @@
          font links above. No markup or assets are required — the cork and
          paper grain are inline SVG noise data URIs.
          ===================================================================== -->
-    <link href="/projects/pacey/pacey-tokens.css" rel="stylesheet">
-    <link href="/projects/pacey/pinboard-theme.css" rel="stylesheet">
+    <link href="/pacey/pacey-tokens.css" rel="stylesheet">
+    <link href="/pacey/pinboard-theme.css" rel="stylesheet">
     <!-- Per-page pinboard extensions. Kept in separate files so each page's
          styling stays self-contained and easy to revert independently. They
          load after the shared theme above, so they win on equal specificity. -->
-    <link href="/projects/pacey/pinboard-activities.css" rel="stylesheet">
-    <link href="/projects/pacey/pinboard-readiness.css" rel="stylesheet">
-    <link href="/projects/pacey/pinboard-plan.css" rel="stylesheet">
-    <link href="/projects/pacey/pinboard-overlays.css" rel="stylesheet">
+    <link href="/pacey/pinboard-activities.css" rel="stylesheet">
+    <link href="/pacey/pinboard-readiness.css" rel="stylesheet">
+    <link href="/pacey/pinboard-plan.css" rel="stylesheet">
+    <link href="/pacey/pinboard-overlays.css" rel="stylesheet">
 </head>
 
 <body class="m-0 relative h-full bg-white overflow-x-hidden">
@@ -122,7 +122,7 @@
                 </button>
                 <div class="pacey-auth-header">
                     <div class="pacey-auth-brand">
-                        <img class="pacey-card-logo" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="" width="44" height="44">
+                        <img class="pacey-card-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="" width="44" height="44">
                         <span class="pacey-auth-brand-name">Pacey</span>
                     </div>
                     <h2 class="pacey-auth-title">Connect your Garmin</h2>
@@ -157,7 +157,7 @@
         <section class="pacey-screen" id="pacey-onboarding-screen" hidden>
             <div class="pacey-onboard-card">
                 <div class="pacey-onboard-header">
-                    <img class="pacey-card-logo" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
+                    <img class="pacey-card-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="pacey-eyebrow">Step 2 of 4</span>
                     <h2 class="pacey-onboard-title">Tell us about your race goal</h2>
                     <p class="pacey-onboard-subtitle">
@@ -265,7 +265,7 @@
         <section class="pacey-screen" id="pacey-onboarding-fitness-screen" hidden>
             <div class="pacey-onboard-card">
                 <div class="pacey-onboard-header">
-                    <img class="pacey-card-logo" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
+                    <img class="pacey-card-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="pacey-eyebrow">Step 3 of 4</span>
                     <h2 class="pacey-onboard-title">How fast are you right now?</h2>
                     <p class="pacey-onboard-desc">A recent race tells us your current fitness, so training paces start from where you actually are — not just where you want to be.</p>
@@ -323,7 +323,7 @@
         <section class="pacey-screen" id="pacey-onboarding-plan-screen" hidden>
             <div class="pacey-onboard-card">
                 <div class="pacey-onboard-header">
-                    <img class="pacey-card-logo" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
+                    <img class="pacey-card-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="pacey-eyebrow">Step 4 of 4</span>
                     <h2 class="pacey-onboard-title">Customize your training plan</h2>
                     <p class="pacey-onboard-subtitle">
@@ -466,7 +466,7 @@
                         <!-- Link back to the main site — tucked under Settings
                              so the app itself stays free of site chrome -->
                         <a class="pacey-sidebar-site-link" href="/index.html" title="Back to terrancehah.com" aria-label="Back to terrancehah.com">
-                            <img src="/projects/pacey/assets/icons/th-logo-64.png" alt="" width="16" height="16">
+                            <img src="/pacey/assets/icons/th-logo-64.png" alt="" width="16" height="16">
                             <span class="pacey-sidebar-site-label">terrancehah.com</span>
                         </a>
                     </div>
@@ -555,7 +555,7 @@
                         <!-- Project title + intro — only on the overview page -->
                         <div class="pacey-content-header">
                             <div class="pacey-project-heading">
-                                <img class="pacey-project-logo" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="" width="46" height="46">
+                                <img class="pacey-project-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="" width="46" height="46">
                                 <h1 class="pacey-project-title">Pacey</h1>
                             </div>
                             <p class="pacey-project-intro">Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.</p>
@@ -1281,7 +1281,7 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
                 <div class="pacey-a2hs-header">
-                    <img class="pacey-a2hs-icon" src="/projects/pacey/assets/icons/pacey-icon-192.png" alt="" width="56" height="56">
+                    <img class="pacey-a2hs-icon" src="/pacey/assets/icons/pacey-icon-192.png" alt="" width="56" height="56">
                     <h3 class="pacey-a2hs-title">Open Pacey like an app</h3>
                     <p class="pacey-a2hs-subtitle">Add Pacey to your home screen for one-tap access — full screen, no address bar.</p>
                 </div>
@@ -1395,6 +1395,6 @@
     <!-- Deferred so it downloads in parallel without blocking render.
          Execution order is guaranteed: Chart.js (deferred in <head>)
          runs first, then this script, then DOMContentLoaded fires. -->
-    <script defer src="/projects/pacey/pacey.js"></script>
+    <script defer src="/pacey/pacey.js"></script>
 </body>
 </html>

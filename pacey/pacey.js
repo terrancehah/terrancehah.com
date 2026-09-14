@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
     // Config
     // =========================================================================
-    const API_BASE = '/projects/pacey/api';
+    const API_BASE = '/pacey/api';
 
     const $ = (sel) => document.querySelector(sel);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Preparing your dashboard…',
         'Syncing with Garmin…',
     ];
-    const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/projects/pacey/assets/loading/loading-${i + 1}.svg`);
+    const LOADING_STROKES = LOADING_MESSAGES.map((_, i) => `/pacey/assets/loading/loading-${i + 1}.svg`);
     // Warm the cache for the first phrase so the overlay paints immediately;
     // the rest load as the phrases rotate.
     fetch(LOADING_STROKES[0]).catch(() => { /* offline — the fallback covers it */ });

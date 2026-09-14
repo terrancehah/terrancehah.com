@@ -55,9 +55,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Route /projects/pacey/api/* to FastAPI /race-goal/* endpoints.
-  if (req.url.startsWith('/projects/pacey/api/')) {
-    const apiPath = req.url.replace('/projects/pacey/api/', '/race-goal/');
+  // Route Pacey's API calls to the FastAPI /race-goal/* endpoints. The app now
+  // calls /pacey/api/*; the old /projects/pacey/api/* prefix is kept so a
+  // cached page still works.
+  if (req.url.startsWith('/pacey/api/') || req.url.startsWith('/projects/pacey/api/')) {
+    const apiPath = req.url.replace(/^\/(?:projects\/pacey|pacey)\/api\//, '/race-goal/');
     console.log(`[PROXY] ${req.method} ${req.url} -> http://localhost:${API_PORT}${apiPath}`);
     req.url = apiPath;
     proxy.web(req, res, {
@@ -67,22 +69,22 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Pacey now lives at /pacey. The old /projects/pacey PAGE 301s to it; asset
-  // requests under /projects/pacey/ are left alone so the app's root-relative
-  // paths keep resolving.
+  // The old /projects/pacey page 301s to the app's real path, /pacey.
   if (req.url === '/projects/pacey' || req.url === '/projects/pacey/') {
     res.writeHead(301, { Location: '/pacey' });
     res.end();
     return;
-  }
-  if (req.url === '/pacey' || req.url === '/pacey/' || req.url.startsWith('/pacey?')) {
-    req.url = '/projects/pacey/index.html';
   }
 
   // Serve static files
   let filePath = '.' + req.url;
   if (filePath === './') {
     filePath = './index.html';
+  }
+
+  // A directory serves its index.html (e.g. /pacey -> ./pacey/index.html)
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
+    filePath = path.join(filePath, 'index.html');
   }
 
   // Handle clean URLs (e.g., /about -> /about.html)
@@ -125,5 +127,5 @@ server.listen(PORT, () => {
   console.log(`\n   Persona generator:         http://localhost:${PORT}/projects/persona`);
   console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser`);
   console.log(`   Pacey:                http://localhost:${PORT}/pacey`);
-  console.log(`   (old path /projects/pacey 301s to /pacey)\n`);
+  console.log(`   (the old /projects/pacey 301s to /pacey)\n`);
 });

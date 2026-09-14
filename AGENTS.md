@@ -14,11 +14,11 @@ This is a static HTML/CSS/vanilla JS personal website (terrancehah.com), deploye
 
 ## Pacey product
 
-Pacey lives in `projects/pacey/` with APIs under `api/` (`coach-plan.py`, `radar.py`, `garmin-auth.py`, etc.).
+Pacey lives in `pacey/` (served at `/pacey`; the old `/projects/pacey` path 301s to it) with APIs under `api/` (`coach-plan.py`, `radar.py`, `garmin-auth.py`, etc.).
 
-**Product scope (source of truth):** `projects/pacey/PRODUCT.md`
+**Product scope (source of truth):** `pacey/PRODUCT.md`
 
-**Voice:** `projects/pacey/pacey-writing-style.md`
+**Voice:** `pacey/pacey-writing-style.md`
 
 Consensus: marathon pre-race companion. Diagnosis is six-area fitness vs the typed goal time. Plan is the full remaining block to race day (not one week). No in-run coaching. Do not treat unofficial Garmin email+password as the long-term auth path.
 
