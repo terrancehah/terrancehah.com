@@ -912,6 +912,14 @@ async def _generate_plan(body: CoachPlanRequest):
         # the cached plan.
         "fitness_race_distance": (race_goal or {}).get("fitness_race_distance", ""),
         "fitness_race_time": (race_goal or {}).get("fitness_race_time", ""),
+        # The goal itself shapes the whole plan (phases, target paces, race
+        # week). A changed time target, purpose, distance or weekly mileage
+        # must invalidate the cached block — otherwise a runner who edits
+        # 1:50 → 1:45 with the same race date keeps getting the 1:50 plan.
+        "purpose": (race_goal or {}).get("purpose", ""),
+        "distance": (race_goal or {}).get("distance", ""),
+        "time_target": (race_goal or {}).get("time_target", ""),
+        "weekly_mileage": (race_goal or {}).get("weekly_mileage", ""),
     }
     goal_pace_ms = _compute_goal_pace_ms(race_goal)
     if email and not forceRefresh:
@@ -934,7 +942,11 @@ async def _generate_plan(body: CoachPlanRequest):
                     and cached_prefs.get("intensity") == intensity
                     and cached_prefs.get("distance_adj") == distance_adj
                     and cached_prefs.get("fitness_race_distance") == current_prefs["fitness_race_distance"]
-                    and cached_prefs.get("fitness_race_time") == current_prefs["fitness_race_time"]):
+                    and cached_prefs.get("fitness_race_time") == current_prefs["fitness_race_time"]
+                    and cached_prefs.get("purpose", "") == current_prefs["purpose"]
+                    and cached_prefs.get("distance", "") == current_prefs["distance"]
+                    and cached_prefs.get("time_target", "") == current_prefs["time_target"]
+                    and cached_prefs.get("weekly_mileage", "") == current_prefs["weekly_mileage"]):
                 cached_days = ((cached_entry.get("data") or {}).get("plan") or {}).get("days") or []
                 expected_total = None
                 if race_date_str:

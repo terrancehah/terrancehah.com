@@ -4643,6 +4643,16 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Goal changed — cached AI insights are no longer valid
             clearAICache();
+            // The coach plan (and its trajectory) was generated against the old
+            // goal too. Drop the client cache AND the in-memory plan so the
+            // Plan page refetches instead of re-rendering the old block
+            // (openPlanPage re-renders coachPlanData whenever coachLoaded is
+            // true, and generateCoachPlan early-returns on it).
+            clearCoachCache();
+            coachLoaded = false;
+            coachPlanData = null;
+            coachEditingDate = null;
+            coachSyncedDates.clear();
             // Clear stored chart data so stale values aren't re-rendered
             // during the reload (e.g. by a theme toggle mid-fetch)
             lastRadarData = null;
@@ -4759,6 +4769,11 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem('pacey_race_goal');
         clearAICache();
         clearCoachCache();
+        // Also drop the in-memory plan so the Plan page rebuilds for the new goal
+        coachLoaded = false;
+        coachPlanData = null;
+        coachEditingDate = null;
+        coachSyncedDates.clear();
         showScreen(onboardScreen);
     });
 
