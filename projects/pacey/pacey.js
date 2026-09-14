@@ -3917,6 +3917,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function startRadarLoading() {
         stopRadarLoading();
         radarLoading = true;
+        // Blur the WHOLE radar (plot, grid and its axis labels) while the
+        // placeholder is up, so the "Checking your readiness…" label reads
+        // clearly on top of it.
+        document.querySelectorAll('.pacey-radar-chart').forEach(c => c.classList.add('pacey-radar-loading'));
         renderRadarChart(radarLoadingData());
         radarLoadingTimer = setInterval(() => {
             if (!radarCharts.length) return;
@@ -3931,6 +3935,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function stopRadarLoading() {
         radarLoading = false;
         if (radarLoadingTimer) { clearInterval(radarLoadingTimer); radarLoadingTimer = null; }
+        // Lift the blur so the real radar snaps back to sharp
+        document.querySelectorAll('.pacey-radar-chart').forEach(c => c.classList.remove('pacey-radar-loading'));
     }
 
     // Simulated fetch duration for demo mode — charts show a loading state

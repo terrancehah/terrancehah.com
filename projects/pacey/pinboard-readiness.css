@@ -160,7 +160,16 @@
        Short fade so the radar's grow-from-center animation is the dominant
        motion rather than being hidden behind a slow opacity crossfade. */
     opacity: 0;
-    transition: opacity 0.3s ease-out;
+    /* Blurred while the loading placeholder is up (the .pacey-radar-loading
+       class, added by startRadarLoading), then transitions back to sharp when
+       the real scores land. A light blur softens the plot AND its axis labels
+       so the loading label sits legibly in front. */
+    filter: blur(0);
+    transition: opacity 0.3s ease-out, filter 0.4s ease-out;
+}
+
+.pacey-radar-wrap canvas.pacey-radar-loading {
+    filter: blur(2px);
 }
 
 .pacey-radar-wrap canvas.pacey-radar-loaded {
@@ -203,14 +212,21 @@
     text-align: center;
     font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-body);
-    opacity: 0.75;
+    /* Full opacity so the label reads clearly over the blurred radar */
+    opacity: 1;
     pointer-events: none;
     letter-spacing: 0.02em;
 }
 
-/* Full-page radar (readiness page) — significantly taller for better readability */
+/* Full-page radar (readiness page). The plot is square, so the wrap follows
+   the base aspect-ratio (1:1) instead of a fixed height — a flat height made
+   the wrap taller than its square plot and left dead bands above and below the
+   hexagon, worst on narrow screens where the plot is only as tall as the
+   column is wide. The cap stops a very wide column from producing an oversized
+   plot. */
 .pacey-radar-wrap--full {
-    height: 40rem;
+    height: auto;
+    max-height: 40rem;
 }
 
 /* External HTML tooltip for the radar chart — rendered as a real DOM element
