@@ -623,6 +623,7 @@
     [data-theme="dark"] #pacey-content .pacey-section-title,
     [data-theme="dark"] #pacey-content .pacey-section-sub,
     [data-theme="dark"] #pacey-content .pacey-metrics-date,
+    [data-theme="dark"] #pacey-content .pacey-readiness-updated,
     [data-theme="dark"] #pacey-content .pacey-vitals-toggle,
     [data-theme="dark"] #pacey-content .pacey-card-title--with-action { color: #e8dfca; }
     /* Footer note sits on cork */

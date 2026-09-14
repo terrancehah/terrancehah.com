@@ -753,6 +753,12 @@
                                 <button class="pacey-dimension-info-btn" type="button" aria-label="What the six areas mean" title="What the six areas mean">
                                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                                 </button>
+                                <!-- When the readiness analysis was last generated,
+                                     pushed to the right end of the title row. Only
+                                     the Readiness page shows this (the overview radar
+                                     stays untouched). Populated from the AI cache's
+                                     generated_at timestamp. -->
+                                <span class="pacey-readiness-updated" id="pacey-readiness-updated" hidden></span>
                             </h2>
                             <p class="pacey-section-sub">How ready you are across six areas of fitness, based on your recent runs. Each score shows how close you are to where you need to be on race day. <span class="pacey-tap-hint">Select a label for details.</span></p>
                             <div class="pacey-readiness-card">

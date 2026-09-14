@@ -1157,6 +1157,16 @@ header.pacey-header-offset.pacey-header-collapsed {
     margin-left: auto;
 }
 
+/* "Last updated" label for the Race Readiness title row, pushed to the far
+   right like the Training Vitals date above */
+.pacey-readiness-updated {
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    font-weight: 400;
+    color: var(--pacey-muted);
+    margin-left: auto;
+}
+
 .pacey-section-sub {
     font-size: var(--pacey-text-body);
     color: var(--pacey-muted);

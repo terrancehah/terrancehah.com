@@ -55,6 +55,13 @@ async def check_session(token: str = ""):
     # may be None if no cache exists yet.
     cached_ai = _get_persistent_ai_cache(email) if email else None
     cached_coach = _get_persistent_coach_cache(email) if email else None
+    # Fold the generation time into the cached AI payload so a device with
+    # empty localStorage can show the readiness "last updated" line before it
+    # re-fetches (the timestamp lives on the cache entry, not inside data).
+    cached_ai_payload = None
+    if cached_ai:
+        cached_ai_payload = dict(cached_ai.get("data") or {})
+        cached_ai_payload["generated_at"] = cached_ai.get("generated_at", "")
 
     return JSONResponse(content={
         "valid": True,
@@ -65,7 +72,7 @@ async def check_session(token: str = ""):
         "device_name": sess.get("device_name", ""),
         "has_race_goal": race_goal is not None,
         "race_goal": race_goal,
-        "cached_ai_insights": cached_ai["data"] if cached_ai else None,
+        "cached_ai_insights": cached_ai_payload,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
     })
 

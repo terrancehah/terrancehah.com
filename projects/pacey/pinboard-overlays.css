@@ -1825,6 +1825,9 @@
 /* Metric card date caption */
 #pacey-content .pacey-metrics-date { font-family: var(--font-fuzzy); }
 
+/* Readiness "last updated" caption */
+#pacey-content .pacey-readiness-updated { font-family: var(--font-fuzzy); }
+
 /* "Show more" button label */
 #pacey-content .pacey-show-more-btn { font-family: var(--font-fuzzy); }
 

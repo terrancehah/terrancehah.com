@@ -1,6 +1,7 @@
 """GET /api/ai-radar — AI-powered 6-dimension race readiness ratings from GPT."""
 
 from fastapi.responses import JSONResponse
+from datetime import datetime
 import os
 import json
 from openai import AsyncOpenAI
@@ -172,7 +173,11 @@ async def ai_radar(token: str = "", force: str = ""):
             # entries missing topStrength/topGap or extra dimensions still
             # match the client shape.
             if not current_latest or current_latest <= cached_latest:
-                return JSONResponse(content=_normalize_ai_result(persistent.get("data") or {}))
+                content = _normalize_ai_result(persistent.get("data") or {})
+                # Surface when this analysis was generated so the client can
+                # show a "last updated" line for the readiness data.
+                content["generated_at"] = persistent.get("generated_at") or ""
+                return JSONResponse(content=content)
 
     # Try the Redis cache first — metrics.py populates this cache during the
     # same page load, so in the common case we read from Redis and make zero
@@ -432,8 +437,15 @@ OUTPUT FORMAT:
             act_date = (act.get("start_time") or act.get("date") or "")[:10]
             if act_date and act_date > latest_activity_date:
                 latest_activity_date = act_date
+        # Stamp the generation time once and reuse it for both the stored cache
+        # entry and the response, so the client's "last updated" line matches
+        # what other devices will see from the cache.
+        generated_at = datetime.now().isoformat()
         if email and complete:
-            _save_persistent_ai_cache(email, result, latest_activity_date)
+            stored_at = _save_persistent_ai_cache(email, result, latest_activity_date, generated_at)
+            if stored_at:
+                generated_at = stored_at
+        result["generated_at"] = generated_at
         return JSONResponse(content=result)
     except json.JSONDecodeError:
         return JSONResponse(status_code=500, content={"error": "AI returned unparseable response."})

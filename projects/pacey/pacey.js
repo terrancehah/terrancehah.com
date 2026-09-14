@@ -61,6 +61,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const pillarsContents = $$('.pacey-pillars-content');
     const summaryErrors = $$('.pacey-summary-error');
     const refreshAnalysisBtn = $('#pacey-refresh-analysis');
+    // Readiness page "last updated" label (readiness page only)
+    const readinessUpdatedEl = $('#pacey-readiness-updated');
 
     // Store all activities for show-all toggle
     let allActivities = [];
@@ -1407,6 +1409,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderRadarChart(getMockRadarData());
                 renderPillars(getMockPillars());
                 renderOverallInsight(getMockOverallInsight());
+                // Demo mode never calls loadAISummary (which normally fills
+                // this), so stamp the readiness "last updated" line here too.
+                renderReadinessUpdated(new Date().toISOString());
             }, DEMO_CHART_LOADING_MS);
             return;
         }
@@ -3744,9 +3749,48 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // The AI cache entry's own timestamp (ms). Fallback for the readiness
+    // "last updated" line when the cached payload predates generated_at being
+    // surfaced from the server.
+    function readAICacheTimestamp() {
+        try {
+            const raw = localStorage.getItem(AI_CACHE_KEY);
+            if (!raw) return null;
+            const entry = JSON.parse(raw);
+            if (entry.key !== getAICacheKey()) return null;
+            return entry.timestamp || null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     // Clear the AI cache (called when user clicks "Regenerate Insights")
     function clearAICache() {
         localStorage.removeItem(AI_CACHE_KEY);
+    }
+
+    // Format the readiness "last updated" line from the AI cache's
+    // generated_at timestamp. Mirrors the "Last Garmin sync" wording so the two
+    // read consistently. Hidden when the timestamp is missing (e.g. an old
+    // cached payload written before generated_at was surfaced).
+    function renderReadinessUpdated(iso) {
+        if (!readinessUpdatedEl) return;
+        const d = iso ? new Date(iso) : null;
+        if (!d || isNaN(d.getTime())) { readinessUpdatedEl.hidden = true; return; }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const that = new Date(d);
+        that.setHours(0, 0, 0, 0);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const isToday = that.getTime() === today.getTime();
+        const isYesterday = that.getTime() === yesterday.getTime();
+        const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const dateStr = isToday ? 'today'
+            : isYesterday ? 'yesterday'
+            : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        readinessUpdatedEl.textContent = `Last updated: ${dateStr}, ${timeStr}`;
+        readinessUpdatedEl.hidden = false;
     }
 
     async function loadAISummary(forceRefresh = false) {
@@ -3759,6 +3803,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showRadarSkeleton(false);
                 renderRadarChart(cached);
                 renderPillars(cached);
+                renderReadinessUpdated(cached.generated_at || readAICacheTimestamp());
                 // Use the AI-provided overall insight if present; fall back to
                 // deriveOverallInsight for cached responses from before the
                 // overall field was added to the API response, or when the
@@ -3808,6 +3853,7 @@ document.addEventListener('DOMContentLoaded', function () {
             showRadarSkeleton(false);
             renderRadarChart(data);
             renderPillars(data);
+            renderReadinessUpdated(data.generated_at);
             // Use the AI-provided overall insight; fall back to client-side
             // derivation if the API response doesn't include it or is incomplete.
             renderOverallInsight(normalizeOverallInsight(data.overall, data));

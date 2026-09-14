@@ -461,25 +461,32 @@ AI_CACHE_PREFIX = "race:ai-cache:"
 AI_CACHE_TTL = 7 * 24 * 3600  # 7 days — hard fallback expiry
 
 
-def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str = ""):
+def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str = "",
+                              generated_at: str = "") -> str:
     """Store AI radar results keyed by email so they sync across devices.
 
     Called by ai-radar.py after a successful AI call. Stores the full response
     along with metadata for activity-based invalidation. The 7-day TTL is a
     safety net — the activity-date check is the primary invalidation mechanism.
+
+    Returns the generated_at timestamp stored with the entry (the caller passes
+    it in, or it defaults to now) so the same value can be surfaced to the
+    client for its "last updated" line.
     """
     if not email:
-        return
+        return ""
     key = f"{AI_CACHE_PREFIX}{email}"
+    generated_at = generated_at or datetime.now().isoformat()
     entry = {
         "data": data,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": generated_at,
         "latest_activity_date": latest_activity_date,
     }
     if _redis:
         _redis.set(key, json.dumps(entry), ex=AI_CACHE_TTL)
     else:
         _local_sessions[key] = entry
+    return generated_at
 
 
 def _get_persistent_ai_cache(email: str) -> dict | None:
