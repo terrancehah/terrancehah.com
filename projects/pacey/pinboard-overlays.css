@@ -363,6 +363,13 @@
     border-radius: var(--pacey-radius);
     box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
     width: min(100%, 32rem);
+    /* The card is a flex item of .pacey-modal-overlay, and a flex item's
+       automatic min-width is its min-content size — which for the date
+       field is the engine's large intrinsic input width (WebKit's is much
+       bigger than Chrome's). That min-content could beat the width above
+       and push the card, and the date input with it, past the modal's
+       padding. min-width:0 lets the card honour its width in every engine. */
+    min-width: 0;
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     position: relative; /* anchor for the absolute-positioned close button */
