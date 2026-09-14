@@ -67,6 +67,18 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Pacey now lives at /pacey. The old /projects/pacey PAGE 301s to it; asset
+  // requests under /projects/pacey/ are left alone so the app's root-relative
+  // paths keep resolving.
+  if (req.url === '/projects/pacey' || req.url === '/projects/pacey/') {
+    res.writeHead(301, { Location: '/pacey' });
+    res.end();
+    return;
+  }
+  if (req.url === '/pacey' || req.url === '/pacey/' || req.url.startsWith('/pacey?')) {
+    req.url = '/projects/pacey/index.html';
+  }
+
   // Serve static files
   let filePath = '.' + req.url;
   if (filePath === './') {
@@ -112,5 +124,6 @@ server.listen(PORT, () => {
   console.log(`   API proxied from:          http://localhost:${API_PORT}`);
   console.log(`\n   Persona generator:         http://localhost:${PORT}/projects/persona`);
   console.log(`   Running posture analyser:  http://localhost:${PORT}/projects/running-posture-analyser`);
-  console.log(`   Pacey:                http://localhost:${PORT}/projects/pacey\n`);
+  console.log(`   Pacey:                http://localhost:${PORT}/pacey`);
+  console.log(`   (old path /projects/pacey 301s to /pacey)\n`);
 });
