@@ -555,7 +555,12 @@
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-settings-label {
         font-family: var(--font-fuzzy);
     }
-    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-nav-label { font-size: 0.9rem; }
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-nav-label,
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-theme-label,
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-site-label,
+    html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-settings-label { 
+        font-size: 0.9rem; 
+    }
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-sidebar-greeting { font-size: 1rem; }
 
     /* --- Charts: give the row noticeably more air --- */

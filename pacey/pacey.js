@@ -1295,7 +1295,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         if (raceGoal) {
-            sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
+            sidebarGoalEl.textContent = `${raceGoal.purpose} - ${raceGoal.time_target}`;
             renderGoalSpecifics(raceGoal);
         }
 

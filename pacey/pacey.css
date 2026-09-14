@@ -593,7 +593,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     display: flex;
     flex-direction: column;
     gap: var(--pacey-space-sm);
-    padding-bottom: 0.75rem;
     border-bottom: 0.0625rem solid var(--pacey-border);
     white-space: nowrap;
 }
@@ -654,10 +653,15 @@ header.pacey-header-offset.pacey-header-collapsed {
     color: var(--pacey-navy);
 }
 
-.pacey-sidebar-goal-row { display: flex; align-items: center; gap: 0.35rem; }
+.pacey-sidebar-goal-row { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.25rem; 
+    padding-bottom: 0.75rem;
+}
 
 .pacey-sidebar-goal {
-    font-size: var(--pacey-text-caption);
+    font-size: var(--pacey-text-label);
     /* A text token, not --pacey-btn-primary-hover: that one is a button
        background, so the goal was inheriting a colour meant for button fills
        and stayed cool blue on the warm board. */
