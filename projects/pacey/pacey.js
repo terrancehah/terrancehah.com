@@ -3937,7 +3937,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // same object rather than two things that have to look alike.
     //
     // Two things keep it honest: the styling runs desaturated while loading,
-    // and the "Checking your readiness…" label stays up. A glance should never
+    // and the "Analysing your readiness…" label stays up. A glance should never
     // mistake a placeholder polygon for a real reading.
     let radarLoading = false;
     let radarLoadingTimer = null;
@@ -3964,7 +3964,7 @@ document.addEventListener('DOMContentLoaded', function () {
         stopRadarLoading();
         radarLoading = true;
         // Blur the WHOLE radar (plot, grid and its axis labels) while the
-        // placeholder is up, so the "Checking your readiness…" label reads
+        // placeholder is up, so the "Analysing your readiness…" label reads
         // clearly on top of it.
         document.querySelectorAll('.pacey-radar-chart').forEach(c => c.classList.add('pacey-radar-loading'));
         renderRadarChart(radarLoadingData());

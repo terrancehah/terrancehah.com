@@ -196,7 +196,7 @@
 
 .pacey-radar-skeleton[hidden] { display: none; }
 
-/* "Checking your readiness…" label over the radar while it loads — makes the
+/* "Analysing your readiness…" label over the radar while it loads — makes the
    placeholder state unmistakable instead of looking like a faint copy of the
    final chart. The text inside uses the shimmer animation, so the label color
    is set transparent by the .pacey-shimmer-text class. */
