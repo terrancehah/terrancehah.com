@@ -118,7 +118,76 @@ def _fitness_summary(history, goal_pace_ms):
     }
 
 
-def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None):
+# Fitness/trajectory window. The plan prompt only wants the last 2 weeks, but
+# that window often holds just one or two long runs — too few for a stable
+# endurance read — so the trajectory and fitness summary look further back.
+FITNESS_WINDOW_DAYS = 56
+
+# How close (seconds per km) a sustained effort must be to goal pace to count
+# as goal-pace work.
+GOAL_PACE_TOLERANCE_SEC = 12
+
+
+def _goal_pace_endurance(history, goal_pace_ms, race_distance_km):
+    """The longest recent sustained effort at/near goal pace.
+
+    This is the strongest endurance signal for a race goal — a run (or a work
+    block inside one) that already held goal pace for a meaningful distance.
+    It outranks the long-run median, which averages a race-pace long run away
+    against a slow recovery-paced one. Uses lap-level work paces when present,
+    and otherwise a steady run whose average pace sits near goal pace (a
+    race-pace long run has no single goal-pace lap). Returns
+    {"distance_km", "pace", "date"} or None.
+    """
+    if not history or not goal_pace_ms or goal_pace_ms <= 0:
+        return None
+    goal_sec = 1000 / goal_pace_ms
+    best = None
+
+    def _consider(dist_m, pace_ms, a):
+        nonlocal best
+        if not dist_m or not pace_ms:
+            return
+        if best is None or dist_m > best["_dist_m"]:
+            best = {
+                "_dist_m": dist_m,
+                "distance_km": round(dist_m / 1000, 1),
+                "pace": _format_sec_km(1000 / pace_ms),
+                "date": (a.get("start_time") or "")[:10],
+            }
+
+    for a in history:
+        laps = a.get("laps")
+        if isinstance(laps, dict):
+            for lap in laps.get("laps") or []:
+                if not isinstance(lap, dict):
+                    continue
+                lap_pace_ms = lap.get("avg_pace_ms") or 0
+                dist_m = lap.get("distance_m") or 0
+                if not lap_pace_ms or not dist_m:
+                    continue
+                if abs((1000 / lap_pace_ms) - goal_sec) <= GOAL_PACE_TOLERANCE_SEC:
+                    _consider(dist_m, lap_pace_ms, a)
+        # Also consider the run's own average — a steady race-pace long run is
+        # goal-pace work even though it has no single goal-pace lap.
+        pace_ms = a.get("avg_pace") or 0
+        dist_km = a.get("distance") or 0
+        if pace_ms and dist_km and abs((1000 / pace_ms) - goal_sec) <= GOAL_PACE_TOLERANCE_SEC:
+            _consider(dist_km * 1000, pace_ms, a)
+
+    if not best:
+        return None
+    # Only a meaningful distance counts as proof: half the race distance,
+    # floored at 5 km so short-race goals aren't held to an impossible bar.
+    threshold_km = max(5.0, 0.5 * (race_distance_km or 0))
+    if best["distance_km"] < threshold_km:
+        return None
+    best.pop("_dist_m", None)
+    return best
+
+
+def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None,
+                      race_distance_km=None):
     """Compare the runner's CURRENT fitness against the goal and — when a
     cached plan exists — against the pace that plan projected for today.
 
@@ -148,6 +217,11 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     long_secs = sorted(s["sec"] for s in long_samples)
     long_med = _median(long_secs) if long_secs else None
 
+    # Goal-pace endurance proof — direct evidence the runner can hold the pace
+    # the race demands. This outranks the long-run median: a race-pace long run
+    # tagged as "easy" would otherwise be averaged away by a slow LSD.
+    proof = _goal_pace_endurance(history, goal_pace_ms, race_distance_km)
+
     def _range_str(secs):
         r = _pace_range_sec(secs)
         if not r:
@@ -173,10 +247,12 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     quality_behind = fast_med > goal_tempo_sec + 25
     quality_ahead = fast_med < goal_tempo_sec - 10
     # Endurance side — typical long-run pace vs the goal's aerobic reference.
-    endurance_behind = long_med is not None and long_med > goal_easy_sec + 45
-    # "Ahead" means the typical long run is at or better than the goal's aerobic
-    # reference (goal + 50s) — being merely close to it is adequate, not ahead.
-    endurance_ahead = long_med is not None and long_med <= goal_easy_sec
+    # A goal-pace proof settles the endurance side outright; otherwise judge the
+    # typical long run against the goal's aerobic reference (goal + 50s) —
+    # being merely close to it is adequate, not ahead.
+    endurance_behind = (proof is None and long_med is not None
+                        and long_med > goal_easy_sec + 45)
+    endurance_ahead = proof is not None or (long_med is not None and long_med <= goal_easy_sec)
 
     # Race week (the final 7 days): the block is over, so advice shifts from
     # "keep building" to "arrive fresh and execute".
@@ -199,11 +275,19 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
 
     # Behind — typical quality work OR typical long-run pace is well off.
     if quality_behind or endurance_behind:
-        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is off the "
-                f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
-        if endurance_behind:
-            note += (f", and your long runs ({long_range_str or long_med_str}) sit short of the "
-                     f"~{goal_easy_str}/km aerobic base this goal expects")
+        # Name only the side(s) that actually fell short — a runner with fast
+        # quality work and slow long runs shouldn't be told their speed is off.
+        if quality_behind and endurance_behind:
+            note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is off the "
+                    f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands, and your long "
+                    f"runs ({long_range_str or long_med_str}) sit short of the ~{goal_easy_str}/km "
+                    f"aerobic base this goal expects")
+        elif quality_behind:
+            note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is off the "
+                    f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
+        else:
+            note = (f"Your long runs ({long_range_str or long_med_str}) sit short of the "
+                    f"~{goal_easy_str}/km aerobic base your {goal_pace_str}/km goal expects")
         note += (". The race is days away, so there is no time to close that gap — treat the goal "
                  "as a stretch and run to current fitness." if race_week else
                  ". The plan ramps toward it, but the gap is large — a more conservative goal time "
@@ -215,7 +299,10 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     if quality_ahead and (long_med is None or endurance_ahead):
         note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is already faster than "
                 f"the ~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
-        if endurance_ahead:
+        if proof:
+            note += (f", and you already held goal pace for {proof['distance_km']:g} km "
+                     f"({proof['pace']}/km on {proof['date']})")
+        elif endurance_ahead:
             note += f", and your long runs ({long_range_str or long_med_str}) sit at goal shape"
         note += (". The work is banked — race week is about arriving fresh, not adding more."
                  if race_week else " — the goal may be conservative.")
@@ -228,7 +315,8 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
         note = (f"Your speed is ahead of the goal — recent quality work at "
                 f"{fast_range_str or fast_med_str} is quicker than the {goal_tempo_str}/km tempo it "
                 f"demands. But the endurance to hold {goal_pace_str}/km for the race distance isn't "
-                f"proven: your long runs ({long_range_str or long_med_str}) aren't yet at the "
+                f"proven: no recent run has held goal pace for a meaningful distance, and your long "
+                f"runs ({long_range_str or long_med_str}) aren't yet at the "
                 f"~{goal_easy_str}/km shape this goal expects.")
         note += (" With the race days away, that is about even pacing and fuelling on the day, not "
                  "more training." if race_week else
@@ -256,7 +344,10 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     # On track — typical quality work is where the plan expects it and the long
     # runs sit at a sustainable aerobic shape.
     note = f"Your recent quality work ({fast_range_str or fast_med_str}) is where the plan expects it"
-    if long_med is not None:
+    if proof:
+        note += (f", and you've already held goal pace for {proof['distance_km']:g} km "
+                 f"({proof['pace']}/km on {proof['date']})")
+    elif long_med is not None:
         note += (f", and your long runs ({long_range_str or long_med_str}) sit at a sustainable "
                  f"aerobic shape")
     note += (". The block is done — race week is about arriving fresh and executing the plan."
@@ -401,14 +492,19 @@ def _find_week_entry(week_plan, target_start):
     return closest
 
 
-def _history_from_garmin_cache(cached):
-    """Reuse the metrics Garmin cache so week-by-week plan calls don't
-    each log into Garmin and refetch 14 days of activities."""
+def _history_from_garmin_cache(cached, days=14):
+    """Reuse the metrics Garmin cache so week-by-week plan calls don't each
+    log into Garmin and refetch activities.
+
+    `days` bounds the window. The plan prompt wants the last 2 weeks, but the
+    fitness/trajectory read uses a much longer window (see FITNESS_WINDOW_DAYS)
+    so the endurance verdict rests on several long runs, not just the last two.
+    """
     if not cached:
         return None, {}
     physio = cached.get("physio") or {}
     ui = cached.get("ui_activities") or []
-    cutoff = (date.today() - timedelta(days=13)).isoformat()
+    cutoff = (date.today() - timedelta(days=days - 1)).isoformat()
     history = []
     for a in ui:
         start = (a.get("start_time") or "")[:10]
@@ -1025,7 +1121,11 @@ async def _generate_plan(body: CoachPlanRequest):
                     data["plan"] = plan_data
                     garmin_cached = _get_cached_garmin_data(token)
                     if garmin_cached:
-                        check_history, _ = _history_from_garmin_cache(garmin_cached)
+                        # Fitness/trajectory read a LONGER window than the plan
+                        # prompt's 2 weeks, so the endurance verdict rests on
+                        # several long runs rather than the last couple.
+                        check_history, _ = _history_from_garmin_cache(
+                            garmin_cached, days=FITNESS_WINDOW_DAYS)
                         # Days to race drives the phase-aware verdict wording
                         days_left = None
                         if race_date_str:
@@ -1037,6 +1137,7 @@ async def _generate_plan(body: CoachPlanRequest):
                         trajectory = _build_trajectory(
                             check_history, goal_pace_ms,
                             cached_plan=plan_data, days_to_race=days_left,
+                            race_distance_km=_race_distance_km(race_goal),
                         )
                         fitness = _fitness_summary(check_history, goal_pace_ms)
                         if trajectory or fitness:
@@ -1063,6 +1164,15 @@ async def _generate_plan(body: CoachPlanRequest):
         except Exception as e:
             return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
         physio = _fetch_physio_trends(client, days=60)
+
+    # The fitness/trajectory read wants a longer window than the plan prompt's
+    # 2 weeks. Prefer the cached window; fall back to the plan history when the
+    # Garmin cache is cold.
+    fitness_history = None
+    if cached_garmin:
+        fitness_history, _ = _history_from_garmin_cache(cached_garmin, days=FITNESS_WINDOW_DAYS)
+    if not fitness_history:
+        fitness_history = history
 
     # Derive per-workout-type pace targets from recent fitness + goal pace.
     # The runner's latest race result is the fallback fitness anchor, used
@@ -1497,10 +1607,11 @@ async def _generate_plan(body: CoachPlanRequest):
         # Trajectory note + fitness summary: current fitness vs the goal
         # (and vs the ramp at today's position on cache hits). Attached per
         # chunk — the frontend takes them from the first response.
-        trajectory = _build_trajectory(history, goal_pace_ms, days_to_race=days_to_race)
+        trajectory = _build_trajectory(fitness_history, goal_pace_ms, days_to_race=days_to_race,
+                                       race_distance_km=_race_distance_km(race_goal))
         if trajectory:
             plan["trajectory"] = trajectory
-        fitness_summary = _fitness_summary(history, goal_pace_ms)
+        fitness_summary = _fitness_summary(fitness_history, goal_pace_ms)
         if fitness_summary:
             plan["fitness"] = fitness_summary
 

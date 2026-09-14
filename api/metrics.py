@@ -268,9 +268,12 @@ async def metrics(token: str = ""):
         # cross-training) so the activities page only shows relevant sports.
         # Goal pace is passed so each activity carries its run_tag (computed by
         # the same single classifier the AI lap-selection uses).
+        # Fetch well past the 20 the UI page shows: coach-plan reads this list
+        # over an 8-week fitness window (FITNESS_WINDOW_DAYS) so the endurance
+        # verdict rests on several long runs, not just the last couple.
         ui_activities = [
             _slim_activity(a, goal_pace_ms)
-            for a in client.get_activities(0, 30)
+            for a in client.get_activities(0, 60)
             if (a.get("activityType", {}).get("typeKey", "unknown")).lower() in ALLOWED_ACTIVITY_TYPES
         ]
         weekly_mileage = _compute_weekly_mileage(client, weeks=12)
