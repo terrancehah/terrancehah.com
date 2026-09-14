@@ -6603,6 +6603,9 @@ document.addEventListener('DOMContentLoaded', function () {
             touchDrag.timer = null;
             touchDrag.card.classList.add('pacey-cal-card--dragging');
             dragDate = touchDrag.date;
+            // Clear any text selection the long-press may have already started
+            const sel = window.getSelection && window.getSelection();
+            if (sel) sel.removeAllRanges();
             // A short buzz confirms the drag has engaged, where supported
             if (navigator.vibrate) { try { navigator.vibrate(10); } catch (err) { /* ignore */ } }
         }, TOUCH_DRAG_HOLD_MS);

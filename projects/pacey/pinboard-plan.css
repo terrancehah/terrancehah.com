@@ -814,6 +814,19 @@
     /* gap: var(--pacey-space-sm); */
 }
 
+/* On touch the calendar is a drag surface, so text selection only competes
+   with the gesture — a long-press would highlight words mid-drag. Disable it
+   here; form controls (the inline editor) keep their own editing behaviour,
+   and the workout detail sheet is unaffected. */
+@media (pointer: coarse) {
+    .pacey-coach-calendar { -webkit-touch-callout: none; }
+    .pacey-coach-calendar,
+    .pacey-coach-calendar *:not(input):not(select):not(textarea) {
+        user-select: none;
+        -webkit-user-select: none;
+    }
+}
+
 .pacey-cal-row {
     display: flex;
     gap: var(--pacey-space-md);

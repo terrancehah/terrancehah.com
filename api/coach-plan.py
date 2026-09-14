@@ -139,6 +139,15 @@ MAX_SAMPLES_PER_TYPE = 8
 GOAL_PACE_TOLERANCE_SEC = 12
 
 
+def _pretty_date(iso: str) -> str:
+    """'2026-08-30' -> 'Aug 30' for user-facing copy."""
+    try:
+        d = _dt.strptime(iso, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return iso or ""
+    return f"{d.strftime('%b')} {d.day}"
+
+
 def _goal_pace_endurance(history, goal_pace_ms, race_distance_km):
     """The longest recent sustained effort at/near goal pace.
 
@@ -164,6 +173,9 @@ def _goal_pace_endurance(history, goal_pace_ms, race_distance_km):
                 "_dist_m": dist_m,
                 "distance_km": round(dist_m / 1000, 1),
                 "pace": _format_sec_km(1000 / pace_ms),
+                # How far off goal pace this effort actually was, so the copy can
+                # say "goal pace" only when it truly was.
+                "delta_sec": int(round(abs((1000 / pace_ms) - goal_sec))),
                 "date": (a.get("start_time") or "")[:10],
             }
 
@@ -236,6 +248,20 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     # the race demands. This outranks the long-run median: a race-pace long run
     # tagged as "easy" would otherwise be averaged away by a slow LSD.
     proof = _goal_pace_endurance(history, goal_pace_ms, race_distance_km)
+
+    # User-facing phrase for that proof. Only call it "goal pace" when it really
+    # was: a 5:18/km run against a 5:13/km goal is "within 5s/km of goal pace",
+    # not "goal pace".
+    proof_phrase = None
+    if proof:
+        delta = proof.get("delta_sec") or 0
+        when = _pretty_date(proof["date"])
+        if delta <= 2:
+            proof_phrase = (f"already held goal pace for {proof['distance_km']:g} km "
+                            f"({proof['pace']}/km on {when})")
+        else:
+            proof_phrase = (f"already covered {proof['distance_km']:g} km at {proof['pace']}/km "
+                            f"— within {delta}s/km of goal pace — on {when}")
 
     def _range_str(secs):
         r = _pace_range_sec(secs)
@@ -312,15 +338,14 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     # Ahead — typical quality work beats the tempo demand AND typical long runs
     # sit at goal shape (fast intervals alone don't make the goal conservative).
     if quality_ahead and (long_med is None or endurance_ahead):
-        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is already faster than "
-                f"the ~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
-        if proof:
-            note += (f", and you already held goal pace for {proof['distance_km']:g} km "
-                     f"({proof['pace']}/km on {proof['date']})")
+        note = (f"Your recent quality work ({fast_range_str or fast_med_str}) is quicker than the "
+                f"~{goal_tempo_str}/km tempo your {goal_pace_str}/km goal demands")
+        if proof_phrase:
+            note += f". You've {proof_phrase}"
         elif endurance_ahead:
             note += f", and your long runs ({long_range_str or long_med_str}) sit at goal shape"
         note += (". The work is banked — race week is about arriving fresh, not adding more."
-                 if race_week else " — the goal may be conservative.")
+                 if race_week else ". The goal may be conservative.")
         return {"status": "ahead", "note": note, "rebuild": rebuild}
 
     # Mixed — the speed is there, but the long runs don't yet prove the
@@ -341,9 +366,8 @@ def _build_trajectory(history, goal_pace_ms, cached_plan=None, days_to_race=None
     # On track — typical quality work is where the plan expects it and the long
     # runs sit at a sustainable aerobic shape.
     note = f"Your recent quality work ({fast_range_str or fast_med_str}) is where the plan expects it"
-    if proof:
-        note += (f", and you've already held goal pace for {proof['distance_km']:g} km "
-                 f"({proof['pace']}/km on {proof['date']})")
+    if proof_phrase:
+        note += f", and you've {proof_phrase}"
     elif long_med is not None:
         note += (f", and your long runs ({long_range_str or long_med_str}) sit at a sustainable "
                  f"aerobic shape")
