@@ -1832,6 +1832,22 @@ def _long_run_samples(history: list[dict]) -> list:
     return out
 
 
+def _cap_recent(samples: list, limit: int) -> list:
+    """Keep only the most recent `limit` samples.
+
+    History arrives newest-first from both the Garmin fetch and the cache, but
+    sort defensively so the cap always drops the OLDEST runs rather than an
+    arbitrary slice.
+    """
+    if not limit or len(samples) <= limit:
+        return samples
+    return sorted(
+        samples,
+        key=lambda s: ((s.get("run") or {}).get("start_time") or ""),
+        reverse=True,
+    )[:limit]
+
+
 def _fitness_medians(history: list[dict]) -> tuple:
     """Median easy and quality paces (sec/km) from recent runs.
 

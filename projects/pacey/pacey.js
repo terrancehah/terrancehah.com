@@ -5601,6 +5601,7 @@ document.addEventListener('DOMContentLoaded', function () {
             trajectory: {
                 status: 'on_track',
                 note: 'Your recent quality pace (5:52/km) is where the plan expects it right now — keep the block moving.',
+                rebuild: false,
             },
             days,
         };
@@ -6274,13 +6275,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const t = plan.trajectory;
         if (!t || !t.status) { planTrajectoryEl.hidden = true; return; }
         const labels = { on_track: 'On track', behind: 'Behind plan', ahead: 'Ahead of plan', mixed: 'Not proven' };
-        const drift = t.status === 'behind' || t.status === 'ahead';
+        // The rebuild affordance tracks PLAN staleness (fitness has moved since
+        // the block was generated), not the readiness verdict — rebuilding
+        // can't change whether you're ahead of the goal, but it does refresh a
+        // block projected from older fitness. Clears once rebuilt.
+        const canRebuild = !!t.rebuild;
         planTrajectoryEl.className = `pacey-plan-trajectory pacey-plan-trajectory--${t.status}`;
         planTrajectoryEl.innerHTML = `
             <span class="pacey-plan-trajectory-dot"></span>
             <span class="pacey-plan-trajectory-label">${labels[t.status] || 'On track'}</span>
             <span class="pacey-plan-trajectory-note">${escapeHtml(t.note || '')}</span>
-            ${drift ? '<button class="pacey-btn pacey-btn-secondary pacey-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
+            ${canRebuild ? '<button class="pacey-btn pacey-btn-secondary pacey-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
         `;
         planTrajectoryEl.hidden = false;
     }
