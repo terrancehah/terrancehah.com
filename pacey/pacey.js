@@ -1570,20 +1570,27 @@ document.addEventListener('DOMContentLoaded', function () {
     // Metric tiles
     // =========================================================================
 
-    // Monochrome SVG icons keyed by label — keeps tiles clean and consistent
+    // Hand-drawn icons keyed by label. Each one points at a <symbol> in the
+    // sprite at the top of index.html, so the same glyph is not inlined once
+    // per tile. The class decides how it paints: plain .pacey-icon is a filled
+    // ribbon glyph (Duma), .pacey-icon--stroke is an open-path one
+    // (sketchyicons, which covers the three glyphs Duma has no equivalent for —
+    // bed, battery and dumbbell).
     const METRIC_ICONS = {
-        // Lung icon — represents oxygen utilization capacity
-        'VO₂max': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18 L12 6 L18 18 Z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
-        'Readiness': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>',
-        'Sleep': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>',
-        'Body Battery': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="16" height="10" rx="2"/><line x1="22" y1="10" x2="22" y2="14"/><rect x="5" y="10" width="8" height="4" fill="currentColor" stroke="none"/></svg>',
-        'HRV': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 12 7 12 9 7 13 17 15 12 21 12"/></svg>',
-        'Resting HR': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg>',
-        // Dumbbell/weight icon — represents stress burden/pressure
-        'Stress': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5 L17.5 17.5"/><rect x="1.5" y="9" width="4" height="6" rx="1"/><rect x="18.5" y="9" width="4" height="6" rx="1"/><rect x="5.5" y="10" width="3" height="4" rx="0.5"/><rect x="15.5" y="10" width="3" height="4" rx="0.5"/></svg>',
-        'Recovery': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><polyline points="12 9 12 13 15 15"/><path d="M9 2 L15 2"/></svg>',
-        // Calendar icon — represents biological age relative to chronological age
-        'Fitness Age': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>',
+        // Lungs — represents oxygen utilization capacity
+        'VO₂max': '<svg class="pacey-icon"><use href="#pacey-icon-lungs"/></svg>',
+        // Thumbs-up — represents how ready the body is to take on load
+        'Readiness': '<svg class="pacey-icon"><use href="#pacey-icon-readiness-score"/></svg>',
+        'Sleep': '<svg class="pacey-icon pacey-icon--stroke"><use href="#pacey-icon-sleep"/></svg>',
+        'Body Battery': '<svg class="pacey-icon pacey-icon--stroke"><use href="#pacey-icon-battery"/></svg>',
+        // Heartbeat trace — represents beat-to-beat variation
+        'HRV': '<svg class="pacey-icon"><use href="#pacey-icon-hrv"/></svg>',
+        'Resting HR': '<svg class="pacey-icon"><use href="#pacey-icon-heart"/></svg>',
+        // Dumbbell — represents stress burden/pressure
+        'Stress': '<svg class="pacey-icon pacey-icon--stroke"><use href="#pacey-icon-stress"/></svg>',
+        'Recovery': '<svg class="pacey-icon"><use href="#pacey-icon-stopwatch"/></svg>',
+        // Calendar — represents biological age relative to chronological age
+        'Fitness Age': '<svg class="pacey-icon"><use href="#pacey-icon-calendar"/></svg>',
     };
 
     // Metric metadata — min/max ranges, zone definitions, and explanations for the popup.

@@ -13,6 +13,72 @@
    ===================================================================== */
 
 
+/* ========== HAND-DRAWN ICONS ==========
+   Every sketch icon is a <symbol> in the sprite at the top of the page, pulled
+   in with <use>. CSS cannot select inside a <use> shadow tree, so the symbols
+   carry geometry only and everything visual is set here on the host <svg>.
+   That works because fill, stroke and stroke-width are inherited properties:
+   they cross into the shadow tree on their own.
+
+   The sprite holds two kinds of glyph, and they need opposite treatment.
+   Duma's shapes are closed ribbons that are meant to be filled, so stroking one
+   would trace its outline a second time; sketchyicons' shapes are open strokes,
+   so filling one would close it up. .pacey-icon is the filled kind and
+   .pacey-icon--stroke flips a glyph to the stroked kind.
+
+   Stroke widths are in viewBox units, and the two hands sit on very different
+   grids — Duma draws on a canvas around 160 units wide, sketchyicons on a 24
+   unit one — which is why the stroked kind carries its own width variable
+   rather than sharing the filled kind's. */
+
+/* The sprite itself: never painted, only referenced. Sized to zero rather than
+   display:none, which some engines refuse to resolve <use> targets from. */
+.pacey-icon-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* Default kind — a filled ribbon glyph (Duma). */
+.pacey-icon {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* Stroked kind — an open-path glyph (sketchyicons). */
+.pacey-icon--stroke {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--pacey-icon-stroke, 2);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Weight is set per context, because the two hands only have to agree with
+   whatever they are standing next to, and that differs by slot.
+
+   In the two navs the hexagon is the only stroked glyph, sitting among Duma's
+   filled ribbons, and its pen reads a touch heavier than theirs at that size.
+   So it gets a lighter one. The variable inherits, which means the active-tab
+   rule further down picks the lighter value up too. */
+.pacey-tab-item .pacey-icon--stroke,
+.pacey-nav-item .pacey-icon--stroke {
+    --pacey-icon-stroke: 1.4;
+}
+
+/* The metric row is the one place both hands share a row, and there the
+   relationship is the other way round: Duma's ribbons read lighter than the
+   stroked glyphs beside them. So the filled glyphs gain a stroke to bring them
+   up to the same weight. Stroked glyphs are excluded — they already carry the
+   weight this rule is chasing, and thickening them too would just invert the
+   problem. */
+.pacey-metric-icon .pacey-icon:not(.pacey-icon--stroke),
+.pacey-metric-popup-icon .pacey-icon:not(.pacey-icon--stroke) {
+    stroke: currentColor;
+    stroke-width: var(--pacey-icon-metric-ink, 3);
+}
+
 /* ========== LAYOUT SHELL ========== */
 /* Smooth color transition when switching themes */
 .pacey-main, .pacey-sidebar, .pacey-content, .pacey-readiness-card, .pacey-metric-tile,
@@ -471,12 +537,18 @@ header.pacey-header-offset.pacey-header-collapsed {
     box-shadow: none;
 }
 
-/* Filled icon toggle — inactive tabs show the outline SVG, active tabs
-   show the filled SVG. Each tab item contains both versions; CSS
-   controls which is visible based on the .active class. */
-.pacey-tab-item .pacey-tab-icon-filled { display: none; }
-.pacey-tab-item.active .pacey-tab-icon-outline { display: none; }
-.pacey-tab-item.active .pacey-tab-icon-filled { display: block; }
+/* Active tab — the icon is redrawn with a little more ink, so the selection
+   reads the moment you tap it rather than only once the pencil ring has
+   finished sketching in. A filled glyph fattens by gaining a stroke in its own
+   colour; a stroked glyph just takes a heavier stroke, and the multiplier is
+   what keeps the two hands gaining the same visual weight from one rule. */
+.pacey-tab-item.active .pacey-icon {
+    stroke: currentColor;
+    stroke-width: var(--pacey-tab-icon-ink, 5);
+}
+.pacey-tab-item.active .pacey-icon--stroke {
+    stroke-width: calc(var(--pacey-icon-stroke, 2) * 1.5);
+}
 
 .pacey-tab-item:hover { color: var(--pacey-navy); }
 .pacey-tab-item:active { transform: scale(0.92); }
