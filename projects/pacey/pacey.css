@@ -2246,13 +2246,15 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 /* Tag color variants — each workout type uses a tokenized colour so
-   dark mode overrides are handled by the token, not per-tag rules. */
-.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 42%, transparent); color: var(--pacey-run-lsd); }
-.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 34%, transparent); color: var(--pacey-run-easy); }
-.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 42%, transparent); color: var(--pacey-run-speedwork); }
-.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 42%, transparent); color: var(--pacey-run-tempo); }
-.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 42%, transparent); color: var(--pacey-run-warmup); }
-.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 42%, transparent); color: var(--pacey-run-cross-train); }
+   dark mode overrides are handled by the token, not per-tag rules.
+   The background keeps the bright token tint; the LABEL is mixed toward the
+   board ink so the small uppercase text clears contrast on that light tint. */
+.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-lsd) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 34%, transparent); color: color-mix(in srgb, var(--pacey-run-easy) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-speedwork) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-tempo) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-warmup) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-cross-train) 45%, var(--pinboard-ink)); }
 
 /* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
    Text colour is already handled by the dark-mode token overrides. */

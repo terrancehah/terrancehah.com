@@ -157,12 +157,14 @@
         --pacey-accent-green: #2f6a3f;
         --pacey-accent-amber: #7a5810;
         --pacey-accent-red: #a83b3b;
-        --pacey-run-easy: #174545;
-        --pacey-run-lsd: #33417a;
-        --pacey-run-tempo: #5f410b;
-        --pacey-run-speedwork: #7d2a2a;
-        --pacey-run-warmup: #3f3f3f;
-        --pacey-run-cross-train: #3f3f3f;
+        /* Run-type tags are the exception: they keep the app's brighter
+           light-mode colours so a tag reads the same on every surface. */
+        --pacey-run-easy: #43caca;
+        --pacey-run-lsd: #5a70ca;
+        --pacey-run-tempo: #8a6313;
+        --pacey-run-speedwork: #f14040;
+        --pacey-run-warmup: #e7d897;
+        --pacey-run-cross-train: #8a8a8a;
         --pacey-btn-primary-text: #ffffff;
         color: var(--pinboard-ink);
     }

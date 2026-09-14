@@ -1332,6 +1332,13 @@
     --pacey-accent-green: #2f6a3f;
     --pacey-accent-amber: #7a5810;
     --pacey-accent-red: #a83b3b;
+    /* Run-type tags use the app's light-mode colours, matching the board */
+    --pacey-run-easy: #43caca;
+    --pacey-run-lsd: #5a70ca;
+    --pacey-run-tempo: #8a6313;
+    --pacey-run-speedwork: #f14040;
+    --pacey-run-warmup: #e7d897;
+    --pacey-run-cross-train: #8a8a8a;
     /* A primary button inside the panel sits on the (dark) remapped navy, so
        its label must stay white in both themes */
     --pacey-btn-primary-text: #ffffff;
@@ -1674,6 +1681,13 @@
     --pacey-accent-green: #2f6a3f;
     --pacey-accent-amber: #7a5810;
     --pacey-accent-red: #a83b3b;
+    /* Run-type tags use the app's light-mode colours, matching the board */
+    --pacey-run-easy: #43caca;
+    --pacey-run-lsd: #5a70ca;
+    --pacey-run-tempo: #8a6313;
+    --pacey-run-speedwork: #f14040;
+    --pacey-run-warmup: #e7d897;
+    --pacey-run-cross-train: #8a8a8a;
     --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
 }
@@ -2031,6 +2045,13 @@
     --pacey-accent-green: #2f6a3f;
     --pacey-accent-amber: #7a5810;
     --pacey-accent-red: #a83b3b;
+    /* Run-type tags use the app's light-mode colours, matching the board */
+    --pacey-run-easy: #43caca;
+    --pacey-run-lsd: #5a70ca;
+    --pacey-run-tempo: #8a6313;
+    --pacey-run-speedwork: #f14040;
+    --pacey-run-warmup: #e7d897;
+    --pacey-run-cross-train: #8a8a8a;
     --pacey-btn-primary-text: #ffffff;
     color: var(--pinboard-ink);
     width: min(100%, 26rem);
