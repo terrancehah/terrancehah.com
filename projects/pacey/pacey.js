@@ -4794,33 +4794,58 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Focus management: store the triggering element and move focus
-        // to the close button so keyboard users can dismiss the popup
+        // to the close button so keyboard users can dismiss the panel
         settingsPopupTrigger = trigger || settingsBtn;
+        // Cancel any in-flight close so a quick re-open isn't hidden mid-way
+        if (settingsCloseTimer) { clearTimeout(settingsCloseTimer); settingsCloseTimer = null; }
         settingsPopup.hidden = false;
+        // Add the open class on the next frame so the entrance transition runs
+        // from the closed state (removing and re-adding it in the same frame
+        // would skip the animation).
+        requestAnimationFrame(() => settingsPopup.classList.add('pacey-settings-popup--open'));
         settingsPopupClose.focus();
     }
 
+    let settingsCloseTimer = null;
+
+    // Close the panel: the exit transition runs first (fade + scale on desktop,
+    // slide-down on mobile), then the element is hidden.
     function closeSettingsPopup() {
-        settingsPopup.hidden = true;
-        // Return focus to the settings button that opened the popup
+        if (!settingsPopup.classList.contains('pacey-settings-popup--open')) return;
+        settingsPopup.classList.remove('pacey-settings-popup--open');
+        // Return focus to the trigger while the panel is still on screen, so
+        // focus never lands on a hidden element.
         if (settingsPopupTrigger) settingsPopupTrigger.focus();
+        settingsCloseTimer = setTimeout(() => {
+            settingsPopup.hidden = true;
+            settingsCloseTimer = null;
+        }, 320);
     }
 
     let settingsPopupTrigger = null;
 
+    // The open class is the source of truth for "is it open" — the element
+    // stays visible during the exit transition, so `hidden` alone is not enough.
+    const isSettingsPopupOpen = () => settingsPopup.classList.contains('pacey-settings-popup--open');
+
     // The settings button toggles the panel: open when closed, close when it
     // is already open (so a second tap dismisses it).
     settingsBtn.addEventListener('click', () => {
-        if (settingsPopup.hidden) openSettingsPopup(settingsBtn);
-        else closeSettingsPopup();
+        if (isSettingsPopupOpen()) closeSettingsPopup();
+        else openSettingsPopup(settingsBtn);
     });
     settingsPopupClose.addEventListener('click', closeSettingsPopup);
-    // Close when clicking anywhere outside the panel. The popup element is
-    // only as large as the card (it is not a full-screen overlay), so this
-    // needs a document-level listener rather than a click on the popup. The
-    // two trigger buttons are exempt so their own click can toggle.
+    // Tapping the scrim closes the mobile bottom sheet. On desktop the popup is
+    // pointer-events:none, so this only fires for the card itself.
+    settingsPopup.addEventListener('click', (e) => {
+        if (e.target === settingsPopup) closeSettingsPopup();
+    });
+    // Close when clicking anywhere outside the panel. On desktop the popup is
+    // not a full-screen overlay, so this needs a document-level listener rather
+    // than a click on the popup. The two trigger buttons are exempt so their
+    // own click can toggle.
     document.addEventListener('click', (e) => {
-        if (settingsPopup.hidden) return;
+        if (!isSettingsPopupOpen()) return;
         if (settingsPopup.contains(e.target)) return;
         if (settingsBtn.contains(e.target)) return;
         const tabBtn = document.getElementById('pacey-tab-settings');
@@ -4829,7 +4854,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     // Close on Escape key — matches the login modal and metric popup behavior
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !settingsPopup.hidden) closeSettingsPopup();
+        if (e.key === 'Escape' && isSettingsPopupOpen()) closeSettingsPopup();
     });
 
     // Edit-goal popup Escape key handler
@@ -5033,8 +5058,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (tabSettingsBtn) {
         tabSettingsBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (settingsPopup.hidden) openSettingsPopup(tabSettingsBtn);
-            else closeSettingsPopup();
+            if (isSettingsPopupOpen()) closeSettingsPopup();
+            else openSettingsPopup(tabSettingsBtn);
         });
     }
 

@@ -302,15 +302,13 @@
     margin: 0;
 }
 
-/* ========== SETTINGS POPUP ========== */
-/* Popup anchored near the settings button, shows account details */
+/* ========== SETTINGS PANEL ========== */
+/* Presentation is defined by the media queries at the end of this file:
+   an anchored popover above the sidebar gear on desktop, and a bottom
+   sheet on mobile. This base only pins the stacking context. */
 .pacey-settings-popup {
     position: fixed;
-    z-index: 90;
-    /* Positioned near the sidebar settings button — centered on larger screens */
-    bottom: 5rem;
-    left: 50%;
-    transform: translateX(-50%);
+    z-index: 190;
 }
 
 .pacey-settings-popup[hidden] { display: none; }
@@ -2179,3 +2177,82 @@
 .pacey-settings-install-title { font-family: var(--font-fuzzy); font-weight: 700; font-size: var(--pacey-text-label); color: var(--pinboard-ink); }
 .pacey-settings-install-sub { font-family: var(--font-fuzzy); font-weight: 400; font-size: var(--pacey-text-caption); color: var(--pinboard-muted); }
 .pacey-settings-install-chevron { color: var(--pinboard-muted); flex-shrink: 0; }
+
+/* =====================================================================
+   SETTINGS PANEL — presentation
+   Desktop: an anchored popover that opens above the sidebar's gear, at the
+   sidebar's right edge, with a fade + scale from the bottom-left corner.
+   Mobile: a bottom sheet that slides up from the bottom edge with a scrim,
+   matching the workout detail sheet. Both share the paper-sheet card. These
+   rules live last so they win over the shared paper treatment above.
+   ===================================================================== */
+
+/* ---- Desktop: anchored popover ---- */
+@media (min-width: 48.0625rem) {
+    .pacey-settings-popup {
+        /* Just right of the sidebar, sitting above the gear */
+        left: calc(var(--pacey-sidebar-w) + 0.75rem);
+        bottom: 5.5rem;
+        /* No scrim: clicks pass through to the page so the existing
+           click-outside-to-close behaviour keeps working. The card itself
+           re-enables pointer events below. */
+        pointer-events: none;
+    }
+    /* Collapsed sidebar — tuck the popover closer to the rail */
+    html:has(.pacey-sidebar.collapsed) .pacey-settings-popup {
+        left: calc(var(--pacey-sidebar-collapsed) + 0.75rem);
+    }
+    .pacey-settings-popup-card {
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateY(0.4rem) scale(0.96);
+        transform-origin: bottom left;
+        transition: opacity 0.18s ease-out, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .pacey-settings-popup--open .pacey-settings-popup-card {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* ---- Mobile: bottom sheet ---- */
+@media (max-width: 48rem) {
+    .pacey-settings-popup {
+        inset: 0;
+        pointer-events: auto;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        background: rgba(29, 53, 87, 0);
+        backdrop-filter: blur(0);
+        -webkit-backdrop-filter: blur(0);
+        transition: background 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease;
+    }
+    .pacey-settings-popup--open {
+        background: rgba(29, 53, 87, 0.4);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+    }
+    .pacey-settings-popup-card {
+        width: 100%;
+        max-width: 100%;
+        max-height: 85dvh;
+        overflow-y: auto;
+        /* Bottom sheet shape: rounded top edge only */
+        border-radius: 1.25rem 1.25rem 0 0;
+        opacity: 1;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .pacey-settings-popup--open .pacey-settings-popup-card {
+        transform: translateY(0);
+    }
+    /* The pushpin belongs to the desktop popover — a sheet isn't pinned */
+    .pacey-settings-popup-card::before { content: none; }
+}
+
+/* Respect reduced-motion: cross-fade instead of slide/scale */
+@media (prefers-reduced-motion: reduce) {
+    .pacey-settings-popup,
+    .pacey-settings-popup-card { transition-duration: 0.001ms; }
+}
