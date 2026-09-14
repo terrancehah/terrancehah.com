@@ -900,7 +900,13 @@
 .pacey-cal-card--scheduled { border-color: var(--pacey-accent-green); }
 .pacey-cal-card--rest { background: var(--pacey-bg); border: 0.0625rem dashed var(--pacey-border); }
 .pacey-cal-card[draggable="true"] { cursor: grab; }
-.pacey-cal-card--dragging { opacity: 0.4; cursor: grabbing; }
+.pacey-cal-card--dragging {
+    opacity: 0.4;
+    cursor: grabbing;
+    /* No text selection while a drag is in flight */
+    user-select: none;
+    -webkit-user-select: none;
+}
 
 /* Editing variant — expanded form (hidden in UI but code preserved) */
 .pacey-cal-card--editing {
@@ -962,9 +968,25 @@
     transform: translateY(-50%);
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     color: var(--pacey-muted);
     opacity: 0.5;
     transition: opacity 0.15s ease;
+    /* Touch drag initiator. The browser must not scroll, zoom or select text
+       when a gesture starts here — otherwise it cancels the pointer stream
+       (pointercancel) and the drag never begins. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    /* A comfortable touch target on phones without moving the icon: the
+       padding grows the hit area and the negative margin cancels it out. */
+    padding: 0.6rem;
+    margin: -0.6rem;
+}
+/* No hover on touch, so keep the handle visible there */
+@media (pointer: coarse) {
+    .pacey-drag-handle { opacity: 0.85; }
 }
 .pacey-cal-card:hover .pacey-drag-handle { opacity: 1; }
 .pacey-drag-handle svg { display: block; }

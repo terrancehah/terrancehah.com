@@ -6565,6 +6565,99 @@ document.addEventListener('DOMContentLoaded', function () {
         dragDate = null;
     });
 
+    // --- Touch drag ---------------------------------------------------------
+    // The HTML5 drag-and-drop above is mouse-only, so on a phone the browser's
+    // own gestures (scroll, text selection, the long-press callout) win and the
+    // drag never starts. Touch therefore uses Pointer Events with a
+    // press-and-hold activation, started from the drag handle — the one region
+    // that opts out of the browser's touch behaviour via `touch-action: none`
+    // (putting that on the whole card would break scrolling over the calendar).
+    const TOUCH_DRAG_HOLD_MS = 300;      // press-and-hold before a drag begins
+    const TOUCH_DRAG_TOLERANCE_PX = 8;   // movement allowed during the hold
+    let touchDrag = null;
+
+    function clearDropHighlight() {
+        coachCalendarEl.querySelectorAll('.pacey-cal-row--drop-target')
+            .forEach(r => r.classList.remove('pacey-cal-row--drop-target'));
+    }
+
+    coachCalendarEl.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse') return;   // mouse keeps the HTML5 path
+        const handle = e.target.closest('.pacey-drag-handle');
+        if (!handle) return;
+        const card = handle.closest('.pacey-cal-card[draggable="true"]');
+        if (!card) return;
+        // Stop the native drag from also starting on a long-press
+        card.setAttribute('draggable', 'false');
+        // Keep receiving moves even if the finger leaves the handle
+        try { handle.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+        touchDrag = {
+            pointerId: e.pointerId,
+            startX: e.clientX, startY: e.clientY,
+            card, date: card.getAttribute('data-date'),
+            timer: null, active: false, targetRow: null,
+        };
+        touchDrag.timer = setTimeout(() => {
+            if (!touchDrag) return;
+            touchDrag.active = true;
+            touchDrag.timer = null;
+            touchDrag.card.classList.add('pacey-cal-card--dragging');
+            dragDate = touchDrag.date;
+            // A short buzz confirms the drag has engaged, where supported
+            if (navigator.vibrate) { try { navigator.vibrate(10); } catch (err) { /* ignore */ } }
+        }, TOUCH_DRAG_HOLD_MS);
+    });
+
+    coachCalendarEl.addEventListener('pointermove', (e) => {
+        if (!touchDrag || e.pointerId !== touchDrag.pointerId) return;
+        if (!touchDrag.active) {
+            // Moved before the hold completed — the runner meant to scroll
+            if (Math.abs(e.clientX - touchDrag.startX) > TOUCH_DRAG_TOLERANCE_PX
+                    || Math.abs(e.clientY - touchDrag.startY) > TOUCH_DRAG_TOLERANCE_PX) {
+                clearTimeout(touchDrag.timer);
+                touchDrag.card.setAttribute('draggable', 'true');
+                touchDrag = null;
+            }
+            return;
+        }
+        e.preventDefault();
+        // Highlight whichever day row sits under the finger
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const row = el && el.closest ? el.closest('.pacey-cal-row') : null;
+        if (row !== touchDrag.targetRow) {
+            clearDropHighlight();
+            if (row) row.classList.add('pacey-cal-row--drop-target');
+            touchDrag.targetRow = row;
+        }
+    });
+
+    function endTouchDrag(e, commit) {
+        if (!touchDrag || (e && e.pointerId !== touchDrag.pointerId)) return;
+        const state = touchDrag;
+        touchDrag = null;
+        if (state.timer) clearTimeout(state.timer);
+        state.card.classList.remove('pacey-cal-card--dragging');
+        state.card.setAttribute('draggable', 'true');
+        clearDropHighlight();
+        dragDate = null;
+        if (!state.active) return;
+        // A drag just ended — swallow the click that follows, so releasing
+        // doesn't also open the workout sheet.
+        coachLastDragEnd = Date.now();
+        if (commit) {
+            const targetDate = state.targetRow && state.targetRow.getAttribute('data-date');
+            if (targetDate) moveWorkout(state.date, targetDate);
+        }
+    }
+
+    coachCalendarEl.addEventListener('pointerup', (e) => endTouchDrag(e, true));
+    coachCalendarEl.addEventListener('pointercancel', (e) => endTouchDrag(e, false));
+
+    // Long-pressing the handle on Android would otherwise raise the context menu
+    coachCalendarEl.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('.pacey-drag-handle')) e.preventDefault();
+    });
+
     function moveWorkout(sourceDate, targetDate) {
         if (!coachPlanData || !coachPlanData.plan || sourceDate === targetDate) return;
         const days = coachPlanData.plan.days;
