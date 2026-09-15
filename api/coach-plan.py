@@ -890,16 +890,19 @@ def _build_course_insight_prompt(course: dict, race_goal: dict | None, training_
 Write 4-5 sentences of plain prose — no lists, no headings, no bullet points — in this order:
 
 1. What kind of race this is, in one sentence. Plain language rather than numbers.
-2. One or two sentences on what to notice out on the course: a particular climb, a descent worth
-   running, the stretch where the race will be decided. Only the parts that actually matter.
+2. One or two sentences on what to notice out on the course — the stretch that will decide the
+   race, and any descent worth running. Name the stretch and give its numbers: where it starts,
+   how much it climbs, how steep. This is what the runner will remember on the day, so the figures
+   earn their place even when they are small — 20 m in the final kilometre is a real feature of a
+   flat half.
 3. One sentence on how it compares with what the runner already does. If the course is hillier
    than their training, say so plainly — their usual runs are flatter and this will ask more of
    them. If it is NOT hillier, reassure them instead: the climbing is within what they already do.
 4. One closing sentence with the suggestion: add hill work, or keep doing what they are doing.
 
 Rules:
-- Quote a number only when it changes the advice. A flat course does not need five figures to
-  describe it, and too many numbers bury the point.
+- Quote numbers for the stretch you name, and for the training comparison if there is one. Leave
+  the rest out — too many figures bury the point, and a flat course does not need five of them.
 - Never write "your own terrain", "the runner's terrain" or "flat-equivalent" — those are our
   internal labels, not something a coach would say.
 - Do not repeat the race date or goal time as filler. Never write m/s.

@@ -758,14 +758,18 @@
                                     <div class="pacey-course-stats" id="pacey-course-stats"></div>
 
                                     <!-- The coach's read on the course. Filled from the
-                                         AI; the loading line covers the wait on a cold
-                                         cache, and the whole block stays hidden when
+                                         AI; a shimmering skeleton covers the wait on a
+                                         cold cache, and the whole block stays hidden when
                                          there is nothing to say. -->
                                     <div class="pacey-course-insight" id="pacey-course-insight" hidden>
                                         <p class="pacey-course-insight-label">Coach's read on this course</p>
                                         <p class="pacey-course-insight-text" id="pacey-course-insight-text" hidden></p>
-                                        <p class="pacey-course-insight-loading pacey-shimmer-text"
-                                           id="pacey-course-insight-loading" hidden>Reading your course…</p>
+                                        <div class="pacey-course-insight-skeleton" id="pacey-course-insight-loading"
+                                             hidden aria-hidden="true">
+                                            <span class="pacey-course-insight-skeleton-line"></span>
+                                            <span class="pacey-course-insight-skeleton-line"></span>
+                                            <span class="pacey-course-insight-skeleton-line pacey-course-insight-skeleton-line--short"></span>
+                                        </div>
                                     </div>
 
                                     <div class="pacey-course-actions">

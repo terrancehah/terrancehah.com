@@ -2353,15 +2353,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // fixed read written against the sample course.
 
     // Written against the real KL Standard Chartered Half route the demo loads
-    // (21.4 km, 314 m of climbing, 14.7 m/km — hilly on the road scale), and
+    // (21.4 km, 314 m of climbing, 14.7 m/km — hilly on the road scale; hardest
+    // kilometre 3.5–4.5 km at 38 m, fastest descent 8.8–9.8 km at 41 m), and
     // shaped like the read the coach now produces: overview, what to notice,
     // how it compares with the runner's training, and what to do about it.
     const DEMO_COURSE_INSIGHT =
-        'This is a hilly half by road standards — 314 m of climbing across 21.4 km. The gain comes in '
-        + 'bumps rather than one hill, so the grade almost never settles, and there are a couple of sharp '
-        + 'pitches, one over 18%, to save something for. Your recent runs have been far flatter than this, '
-        + 'so the hills will ask more of you than your training has. Get some hill work in before race day, '
-        + 'and keep the effort even through the rollers rather than chasing the early ones.';
+        'This is a hilly half by road standards — 314 m of climbing across 21.4 km. The hardest kilometre '
+        + 'comes early, between 3.5 and 4.5 km, climbing 38 m at nearly 4%, and there is a fast descent '
+        + 'around 9 km worth running rather than braking down. Your recent runs have been far flatter than '
+        + 'this, so the hills will ask more of you than your training has. Get some hill work in before '
+        + 'race day.';
 
     function renderCourseInsight(rec) {
         const el = courseEls();

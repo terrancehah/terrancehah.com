@@ -739,9 +739,19 @@ def _course_prompt_block(course: dict | None, training_gain_per_km: float | None
     if shape.get("character"):
         lines.append(
             f"- Shape: {shape.get('character')}. {shape.get('gain_first_half_m')} m of the gain falls in the "
-            f"first half and {shape.get('gain_last_third_m')} m in the last third. The course finishes "
+            f"first half and {shape.get('gain_last_third_m')} m ({shape.get('gain_last_third_pct')}% of the "
+            f"course's climbing) in the last third. The course finishes "
             f"{shape.get('net_elevation_m')} m relative to the start."
         )
+        # A late concentration is the thing most worth naming, and it matters
+        # most on a course whose absolute numbers are small: 20 m in the final
+        # kilometre of a flat half is over 40% of that course's total climbing.
+        ltp = shape.get("gain_last_third_pct")
+        if ltp is not None and ltp >= 45:
+            lines.append(
+                "- The climbing is concentrated late — most of it sits in the last third. Name that, with "
+                "its numbers, as the stretch that will decide the race."
+            )
         # A high point inside the closing few percent is an artefact of where
         # the trace ends, not a climb — on a closed loop it is the finish line,
         # and describing it as a "rise to watch" is nonsense.
@@ -750,6 +760,24 @@ def _course_prompt_block(course: dict | None, training_gain_per_km: float | None
             lines.append(
                 f"- The high point is at {shape.get('high_point_km')} km, {hp}% of the way in."
             )
+
+    # The hardest kilometre in each direction, found by a sliding window rather
+    # than the climb thresholds — so a decisive rise is still named on a course
+    # too flat to register any "climbs" at all.
+    steepest = summary.get("steepest_km") or {}
+    if steepest.get("gain_m"):
+        lines.append(
+            f"- Hardest kilometre: {steepest.get('start_km')}–{steepest.get('end_km')} km, climbing "
+            f"{steepest.get('gain_m')} m at {steepest.get('avg_grade_pct')}% average. This is the steepest "
+            "single kilometre anywhere on the course — if the runner should know about one stretch in "
+            "particular, it is this one, so give it its numbers."
+        )
+    descent = summary.get("steepest_descent_km") or {}
+    if descent.get("gain_m"):
+        lines.append(
+            f"- Fastest descent: {descent.get('start_km')}–{descent.get('end_km')} km, dropping "
+            f"{descent.get('gain_m')} m at {descent.get('avg_grade_pct')}% — a stretch worth running."
+        )
 
     alt = summary.get("altitude_m") or {}
     if alt.get("max") is not None:

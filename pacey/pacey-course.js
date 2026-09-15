@@ -436,7 +436,14 @@
             .slice(0, 5);
     }
 
-    /** Distance (km) spent in each grade band — the course's "shape". */
+    /**
+     * Distance (km) spent in each grade band — the course's "shape".
+     *
+     * Walks NON-OVERLAPPING ~200 m windows, so the bands sum to roughly the
+     * course distance. An earlier version used a sliding window and added the
+     * run length at every point, which inflated the total about twentyfold —
+     * a 21 km course reported 410 km of "flat".
+     */
     function gradeBuckets(smoothed, dist) {
         const bands = [
             { label: 'Steep down (< -6%)', test: g => g < -6, km: 0 },
@@ -445,17 +452,62 @@
             { label: 'Up (2% to 6%)', test: g => g > 2 && g <= 6, km: 0 },
             { label: 'Steep up (> 6%)', test: g => g > 6, km: 0 },
         ];
-        let lo = 0;
+        let start = 0;
         for (let hi = 1; hi < smoothed.length; hi++) {
-            if (smoothed[hi] === null || smoothed[lo] === null) { lo = hi; continue; }
-            while (dist[hi] - dist[lo] > GRADE_WINDOW_M) lo++;
-            const run = dist[hi] - dist[lo];
-            if (run < 50) continue;
-            const grade = ((smoothed[hi] - smoothed[lo]) / run) * 100;
-            const band = bands.find(b => b.test(grade));
-            if (band) band.km += run / 1000;
+            const run = dist[hi] - dist[start];
+            const last = hi === smoothed.length - 1;
+            if (run < GRADE_WINDOW_M && !last) continue;
+            if (run <= 0) { start = hi; continue; }
+            if (smoothed[hi] !== null && smoothed[start] !== null) {
+                const grade = ((smoothed[hi] - smoothed[start]) / run) * 100;
+                const band = bands.find(b => b.test(grade));
+                if (band) band.km += run / 1000;
+            }
+            start = hi;
         }
         return bands.map(b => ({ label: b.label, km: b.km }));
+    }
+
+    /**
+     * The kilometre that climbs the most (and the one that descends the most),
+     * with where each falls.
+     *
+     * This is the "notable stretch" detector, and it is deliberately separate
+     * from detectClimbs. The climb thresholds exist to keep noise out, but they
+     * also hide a genuinely decisive rise: 20 m in the final kilometre of a
+     * flat half is over 40% of that course's total gain, and it sits under
+     * every threshold. A sliding 1 km window always finds the hardest stretch,
+     * whatever its absolute size, and reports where it is.
+     */
+    function steepestKilometre(smoothed, dist, wantDescent) {
+        const WINDOW_M = 1000;
+        let best = null;
+        let lo = 0;
+        for (let hi = 1; hi < dist.length; hi++) {
+            while (dist[hi] - dist[lo] > WINDOW_M) lo++;
+            const run = dist[hi] - dist[lo];
+            if (run < WINDOW_M * 0.9) continue;
+            if (smoothed[hi] === null || smoothed[lo] === null) continue;
+            const change = smoothed[hi] - smoothed[lo];
+            const score = wantDescent ? -change : change;
+            if (!best || score > best.score) {
+                best = {
+                    score,
+                    startKm: dist[lo] / 1000,
+                    endKm: dist[hi] / 1000,
+                    lengthKm: run / 1000,
+                    gainM: wantDescent ? -change : change,
+                    avgGradePct: ((wantDescent ? -change : change) / run) * 100,
+                };
+            }
+        }
+        if (!best) return null;
+        delete best.score;
+        // If the "steepest descent" actually gains height, the course has no
+        // meaningful descent at all — report nothing rather than a negative
+        // climb dressed up as a drop. Same the other way round.
+        if (best.gainM <= 0) return null;
+        return best;
     }
 
     /** Downsample the elevation series into distance buckets for the chart. */
@@ -522,8 +574,10 @@
                 climbs: [], gradeBuckets: [], profile: [], difficulty: null,
                 startAltM: null, endAltM: null, netElevationM: null,
                 gainFirstHalfM: null, gainLastThirdM: null, shape: null,
+                gainLastThirdPct: null,
                 highPointKm: null, highPointPct: null, rollingIndex: null,
                 flatEquivalentKm: null, hillPenaltyPct: null,
+                steepestClimbKm: null, steepestDescentKm: null,
             };
         }
 
@@ -564,6 +618,11 @@
         const flatEquivalentKm = flatEquivalentM(smoothed, dist, options.gapWindow) / 1000;
         const hillPenaltyPct = distanceKm > 0 ? ((flatEquivalentKm / distanceKm) - 1) * 100 : 0;
 
+        // The hardest single kilometre in each direction. These bypass the
+        // climb thresholds on purpose — see steepestKilometre.
+        const steepestClimbKm = steepestKilometre(smoothed, dist, false);
+        const steepestDescentKm = steepestKilometre(smoothed, dist, true);
+
         return {
             distanceKm,
             pointCount: points.length,
@@ -586,6 +645,10 @@
             netElevationM,
             gainFirstHalfM,
             gainLastThirdM,
+            // Share of the climbing that falls in the last third. On a flat
+            // course this can be 100% off a tiny absolute number, which is
+            // exactly the case worth naming.
+            gainLastThirdPct: gain > 0 ? (gainLastThirdM / gain) * 100 : 0,
             shape,
             highPointKm,
             highPointPct: distanceKm > 0 ? (highPointKm / distanceKm) * 100 : 0,
@@ -593,6 +656,8 @@
             rollingIndex: rollingIndex(smoothed, distanceKm),
             flatEquivalentKm,
             hillPenaltyPct,
+            steepestClimbKm,
+            steepestDescentKm,
         };
     }
 
@@ -667,6 +732,7 @@
             character: course.shape,
             gain_first_half_m: Math.round(course.gainFirstHalfM),
             gain_last_third_m: Math.round(course.gainLastThirdM),
+            gain_last_third_pct: round(course.gainLastThirdPct, 0),
             high_point_km: round(course.highPointKm, 1),
             high_point_pct: round(course.highPointPct, 0),
             net_elevation_m: Math.round(course.netElevationM),
@@ -681,6 +747,19 @@
         summary.rolling_index_per_km = round(course.rollingIndex, 1);
         summary.flat_equivalent_km = round(course.flatEquivalentKm, 2);
         summary.hill_penalty_pct = round(course.hillPenaltyPct, 1);
+
+        // The hardest single kilometre each way, with where it falls. This is
+        // what lets the coach name a specific stretch with numbers even when
+        // the course as a whole is too flat to register any "climbs".
+        const kmWindow = (w) => (w ? {
+            start_km: round(w.startKm, 1),
+            end_km: round(w.endKm, 1),
+            length_km: round(w.lengthKm, 1),
+            gain_m: Math.round(w.gainM),
+            avg_grade_pct: round(w.avgGradePct, 1),
+        } : null);
+        summary.steepest_km = kmWindow(course.steepestClimbKm);
+        summary.steepest_descent_km = kmWindow(course.steepestDescentKm);
 
         // --- The climbs that will shape the race ---
         // These carry a grade floor, a length floor, a max grade and their

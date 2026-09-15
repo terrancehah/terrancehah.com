@@ -381,11 +381,32 @@
     color: rgba(244, 241, 232, 0.92);
 }
 
-.pacey-course-insight-loading {
-    margin: 0;
-    font-family: var(--font-fuzzy);
-    font-size: 0.88rem;
-    color: rgba(244, 241, 232, 0.6);
+/* Loading skeleton — three bars standing in for the coach's read, shimmering
+   on the board's chalk palette so it reads as text about to arrive. */
+.pacey-course-insight-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.pacey-course-insight-skeleton-line {
+    height: 0.72rem;
+    border-radius: 3px;
+    background-image: linear-gradient(90deg,
+        rgba(244, 241, 232, 0.09) 0%,
+        rgba(244, 241, 232, 0.24) 50%,
+        rgba(244, 241, 232, 0.09) 100%);
+    background-size: 220% 100%;
+    animation: pacey-course-skeleton-sweep 1.7s ease-in-out infinite;
+}
+
+.pacey-course-insight-skeleton-line--short {
+    width: 62%;
+}
+
+@keyframes pacey-course-skeleton-sweep {
+    from { background-position: 140% 0; }
+    to { background-position: -40% 0; }
 }
 
 /* ---- Actions and error ---- */
@@ -681,5 +702,12 @@
     .pacey-course-drop,
     .pacey-goal-map-note {
         transition: none;
+    }
+
+    /* Hold the skeleton bars still rather than sweeping them. */
+    .pacey-course-insight-skeleton-line {
+        animation: none;
+        background-image: none;
+        background-color: rgba(244, 241, 232, 0.16);
     }
 }
