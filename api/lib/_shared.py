@@ -605,6 +605,241 @@ def _get_fitness_snapshot(email: str) -> dict | None:
         return _local_sessions.get(key)
 
 
+# --- Persistent race course (Redis, keyed by email) ---
+#
+# An uploaded GPX is parsed in the browser and the file itself is never sent
+# anywhere. What we store is the distilled record the UI renders and the coach
+# reads: distance, the hysteresis-filtered elevation gain/loss, the grade
+# distribution, a downsampled elevation profile, and a simplified route outline.
+#
+# Keyed by email rather than session token so a course added on one device is
+# available on the runner's other devices, matching the fitness snapshot.
+COURSE_CACHE_PREFIX = "race:course:"
+# 90 days — a race course does not change; it only needs to outlive the training
+# block it belongs to. The frontend clears it explicitly on removal.
+COURSE_CACHE_TTL = 90 * 24 * 3600
+
+
+def _save_persistent_course(email: str, course: dict | None):
+    """Store (or clear) the runner's race course record, keyed by email.
+
+    Passing None removes the stored course — the frontend calls this when the
+    runner removes the course from the Race Goal card.
+    """
+    if not email:
+        return
+    key = f"{COURSE_CACHE_PREFIX}{email}"
+    if course is None:
+        if _redis:
+            _redis.delete(key)
+        else:
+            _local_sessions.pop(key, None)
+        return
+    if _redis:
+        _redis.set(key, json.dumps(course), ex=COURSE_CACHE_TTL)
+    else:
+        _local_sessions[key] = course
+
+
+def _get_persistent_course(email: str) -> dict | None:
+    """Read the stored race course for an email, or None if there is none."""
+    if not email:
+        return None
+    key = f"{COURSE_CACHE_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        return json.loads(raw)
+    else:
+        return _local_sessions.get(key)
+
+
+def _training_gain_per_km(activities: list) -> float | None:
+    """Median metres of climb per kilometre across the runner's recent runs.
+
+    This is what makes the course comparison land: a runner whose long runs
+    average 5 m/km is not prepared for a 22 m/km course, and that is more
+    useful to say than any description of the course on its own.
+    """
+    ratios = []
+    for a in activities or []:
+        if not isinstance(a, dict):
+            continue
+        gain = a.get("elevation_gain")
+        # Two activity shapes reach this helper: the slim UI list uses
+        # "distance", the AI activity list uses "distance_km". Reading only one
+        # of them silently disables the comparison for the other.
+        dist = a.get("distance")
+        if dist is None:
+            dist = a.get("distance_km")
+        # Runs only, and long enough for the ratio to mean anything.
+        if not gain or not dist or dist < 3:
+            continue
+        ratios.append(gain / dist)
+    if not ratios:
+        return None
+    ratios.sort()
+    mid = len(ratios) // 2
+    return ratios[mid] if len(ratios) % 2 else (ratios[mid - 1] + ratios[mid]) / 2
+
+
+def _course_prompt_block(course: dict | None, training_gain_per_km: float | None = None) -> str:
+    """Format a stored race course for a coach prompt.
+
+    The course tells the coach the terrain the runner will actually race on, so
+    hill work and late-race advice can be specific instead of generic. The
+    structure handed over is deliberately derived rather than raw: distance,
+    filtered gain, where the climbing falls, how rolling the course is, what the
+    hills cost in flat-equivalent terms, and the climbs with their position.
+
+    It is advisory only — it must not change the goal time or the pace zones,
+    which the runner set explicitly.
+
+    Returns "" when no course has been uploaded, so prompts are unchanged for
+    runners who have not used the feature.
+    """
+    if not course:
+        return ""
+    summary = course.get("aiSummary") or {}
+    if not summary:
+        return ""
+
+    if not summary.get("has_elevation"):
+        return (
+            "RACE COURSE (the runner uploaded their race route):\n"
+            f"- Distance: {summary.get('distance_km')} km.\n"
+            "- The file carried NO elevation data, so do not comment on hills, grades or climbing."
+        )
+
+    lines = [
+        "RACE COURSE (the runner uploaded their race route — this is the terrain they will race on):",
+        f"- Distance: {summary.get('distance_km')} km.",
+        f"- Climbing: {summary.get('elevation_gain_m')} m of gain and {summary.get('elevation_loss_m')} m of "
+        f"loss ({summary.get('gain_per_km')} m per km — {summary.get('terrain')} terrain).",
+        f"- Grades: average {summary.get('avg_grade_pct')}%, steepest sustained {summary.get('max_grade_pct')}%.",
+    ]
+
+    shape = summary.get("shape") or {}
+    if shape.get("character"):
+        lines.append(
+            f"- Shape: {shape.get('character')}. {shape.get('gain_first_half_m')} m of the gain falls in the "
+            f"first half and {shape.get('gain_last_third_m')} m in the last third. The high point is at "
+            f"{shape.get('high_point_km')} km ({shape.get('high_point_pct')}% of the race), and the course "
+            f"finishes {shape.get('net_elevation_m')} m relative to the start."
+        )
+
+    alt = summary.get("altitude_m") or {}
+    if alt.get("max") is not None:
+        lines.append(
+            f"- Altitude: starts at {alt.get('start')} m, ranges from {alt.get('min')} m to {alt.get('max')} m."
+        )
+
+    if summary.get("rolling_index_per_km") is not None:
+        lines.append(
+            f"- Rolling index: {summary.get('rolling_index_per_km')} direction changes per km. A high number "
+            "means repeated rollers rather than one climb — rhythm-breaking, and harder than the raw gain "
+            "figure suggests."
+        )
+
+    if summary.get("flat_equivalent_km") is not None:
+        lines.append(
+            f"- Flat-equivalent distance: {summary.get('flat_equivalent_km')} km, i.e. the hills make this "
+            f"course cost roughly {summary.get('hill_penalty_pct')}% more effort than the same distance on "
+            "the flat (Minetti energy-cost model)."
+        )
+
+    climbs = summary.get("climbs") or []
+    if climbs:
+        lines.append("- Climbs that will shape the race (each with where it falls):")
+        for c in climbs:
+            lines.append(
+                f"    - {c.get('start_km')}–{c.get('end_km')} km ({c.get('position_pct')}% into the race): "
+                f"{c.get('gain_m')} m over {c.get('length_km')} km at {c.get('avg_grade_pct')}% average, "
+                f"steepest sustained {c.get('max_grade_pct')}%."
+            )
+
+    dist = summary.get("grade_distribution") or []
+    if dist:
+        lines.append("- Distance by gradient: " + ", ".join(
+            f"{d.get('km')} km {str(d.get('band', '')).lower()}" for d in dist
+        ) + ".")
+
+    # The course against the terrain they actually train on. This is usually
+    # the most actionable line in the block.
+    course_gain_per_km = summary.get("gain_per_km")
+    if training_gain_per_km is not None and course_gain_per_km:
+        if training_gain_per_km > 0:
+            ratio = course_gain_per_km / training_gain_per_km
+            comparison = f" That is about {ratio:.1f}x the climbing they train on."
+        else:
+            comparison = " Their recent runs have been essentially flat."
+        lines.append(
+            f"- THE RUNNER'S OWN TERRAIN: their recent runs average "
+            f"{round(training_gain_per_km, 1)} m of climb per km; this course is {course_gain_per_km} m per km."
+            + comparison
+            + " If the gap is large, say so plainly — it is the most useful thing you can tell them."
+        )
+
+    lines.append(
+        "- Use the course: tie pacing advice to WHERE the climbing falls (a climb at 30 km of a marathon is "
+        "the decisive point of the race; the same climb at 5 km is not), and say what kind of hill work would "
+        "help them get ready for it."
+    )
+    lines.append(
+        "- The course is ADVISORY. Do NOT change the goal time or the pace zones because of it."
+    )
+    return "\n".join(lines)
+
+
+# --- Course insight cache (Redis, keyed by email) ---
+#
+# The coach's read on the uploaded race course. Cached so the card does not
+# re-run the model on every page load, and keyed by a fingerprint of the course
+# record (its savedAt) so re-uploading a course regenerates the read rather
+# than serving the old one.
+COURSE_INSIGHT_PREFIX = "race:course-insight:"
+COURSE_INSIGHT_TTL = 90 * 24 * 3600
+
+
+def _save_course_insight(email: str, insight: str, fingerprint: str):
+    """Cache the coach's read on the course, keyed by email."""
+    if not email or not insight:
+        return
+    key = f"{COURSE_INSIGHT_PREFIX}{email}"
+    entry = {
+        "insight": insight,
+        "fingerprint": fingerprint or "",
+        "generated_at": datetime.now().isoformat(),
+    }
+    if _redis:
+        _redis.set(key, json.dumps(entry), ex=COURSE_INSIGHT_TTL)
+    else:
+        _local_sessions[key] = entry
+
+
+def _get_course_insight(email: str, fingerprint: str) -> str | None:
+    """Read the cached course insight, or None if absent or stale.
+
+    A fingerprint mismatch means the course was replaced, so the cached read
+    describes a course the runner no longer has.
+    """
+    if not email:
+        return None
+    key = f"{COURSE_INSIGHT_PREFIX}{email}"
+    raw = _redis.get(key) if _redis else _local_sessions.get(key)
+    if not raw:
+        return None
+    if isinstance(raw, bytes):
+        raw = raw.decode()
+    entry = json.loads(raw) if isinstance(raw, str) else raw
+    if not isinstance(entry, dict) or entry.get("fingerprint") != (fingerprint or ""):
+        return None
+    return entry.get("insight")
+
+
 def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", preferences: dict = None, race_date: str = ""):
     """Store a coach plan keyed by email so it syncs across devices.
 

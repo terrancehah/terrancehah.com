@@ -87,7 +87,7 @@
     flex: 1;
     align-content: center;
     /* Add top padding so stats don't overlap with the countdown highlight */
-    padding-top: clamp(2.5rem, 4vw, 3rem);
+    padding-top: clamp(4.5rem, 5.5vw, 6rem);
 }
 
 .pacey-goal-stat {

@@ -27,6 +27,8 @@ from lib._shared import (
     _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _get_fitness_snapshot,
+    _save_persistent_course, _get_persistent_course, _course_prompt_block,
+    _training_gain_per_km, _save_course_insight, _get_course_insight,
     _call_ai, _phase_for_days_left,
     _median, _fitness_medians, _fitness_samples, _long_run_samples, _cap_recent,
     _pace_str_sec, _pace_range_sec,
@@ -549,7 +551,7 @@ def _history_from_garmin_cache(cached, days=14):
     return history, physio
 
 
-def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, phase_text,
+def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, course_text, phase_text,
                         progression_text, week_position_text, window_structure_text, coach_insight_text,
                         intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
                         history, week_targets_text, goal_pace_text, honesty_rules):
@@ -564,6 +566,8 @@ def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text
 This is one week inside a longer marathon block — progress it, do not reset it.
 
 {race_goal_text}
+
+{course_text}
 
 PLAN WINDOW (this week):
 - {week_position_text}
@@ -728,6 +732,8 @@ PLAN: {ctx.get('race_phase', '')} phase, {ctx.get('days_to_race', '')} days to r
 
 TRAJECTORY: {trajectory_status}. {trajectory_note}
 
+{ctx.get('course_text', '')}
+
 Write the line so it:
 - names the gap or the strength in ONE concrete number where useful ("your recent quality pace is 20s off the goal", "your long runs already sit at goal shape"),
 - says what this week's focus is (from the phase),
@@ -798,14 +804,36 @@ class CoachPlanRequest(BaseModel):
     date: str = ""
     context: Optional[dict] = None
     kind: str = "workout"         # "workout" (single session) | "plan" (race card line)
+    # --- course ---
+    # The distilled race-course record (or None to clear it). The GPX itself is
+    # parsed in the browser and never uploaded; this carries only the summary.
+    course: Optional[dict] = None
+
+
+@app.get("/")
+async def coach_plan_get(token: str = "", action: str = ""):
+    """GET side of the plan cluster — currently only the race course.
+
+    The course is fetched on dashboard load so a course added on one device
+    appears on the runner's other devices. Everything else in this cluster is
+    a POST.
+    """
+    if (action or "").strip().lower() != "course":
+        return JSONResponse(status_code=400, content={"error": "Unsupported action for GET."})
+    try:
+        sess = _get_session(token) or {}
+    except Exception:
+        sess = {}
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    return JSONResponse(content={"course": _get_persistent_course(email)})
 
 
 @app.post("/")
 async def coach_plan(body: CoachPlanRequest):
     """Plan-cluster endpoint — dispatches on `action` (see CoachPlanRequest).
 
-    Plan / compile / schedule / insight share this one function so the plan
-    cluster stays within the Vercel Hobby function limit. The heavy plan
+    Plan / compile / schedule / insight / course share this one function so the
+    plan cluster stays within the Vercel Hobby function limit. The heavy plan
     generation lives in _generate_plan below.
     """
     action = (body.action or "plan").strip().lower()
@@ -815,7 +843,103 @@ async def coach_plan(body: CoachPlanRequest):
         return await _schedule_plan_action(body)
     if action == "insight":
         return await _workout_insight_action(body)
+    if action == "course":
+        return await _save_course_action(body)
+    if action == "course-insight":
+        return await _course_insight_action(body)
     return await _generate_plan(body)
+
+
+async def _save_course_action(body: CoachPlanRequest):
+    """Store (or clear) the runner's race course.
+
+    The GPX is parsed in the browser, so only the distilled record arrives here
+    (distance, filtered elevation, climbs, profile, route outline). Keyed by
+    email so the course follows the runner across devices. Passing a null
+    course clears the stored one.
+    """
+    sess = _get_session(body.token) or {}
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    if not email:
+        return JSONResponse(status_code=401, content={"error": "Session expired."})
+    _save_persistent_course(email, body.course)
+    return JSONResponse(content={"ok": True, "saved": body.course is not None})
+
+
+def _build_course_insight_prompt(course: dict, race_goal: dict | None, training_gain_per_km: float | None) -> str:
+    """Prompt for the coach's read on the race course.
+
+    Deliberately short output: this sits in the course card, so it has to read
+    as a coach's aside rather than a report. The course structure itself comes
+    from _course_prompt_block so the coached numbers cannot drift from the
+    numbers shown on the card.
+    """
+    goal_text = ""
+    if race_goal:
+        goal_text = (
+            f"RACE GOAL: {race_goal.get('purpose', 'N/A')} in "
+            f"{race_goal.get('time_target', 'N/A')} on {race_goal.get('race_date', 'N/A')}."
+        )
+
+    return f"""You are an expert running coach. Write your read on the runner's race course.
+
+{_course_prompt_block(course, training_gain_per_km)}
+
+{goal_text}
+
+Write 2-3 sentences, plain prose, no lists and no headings:
+- name the course's character in plain language — what kind of race this is,
+- say where the race will be decided and how to pace it,
+- name the single thing they should train for or watch on the day.
+
+If the runner's own terrain is much flatter than the course, say that plainly — it is the most
+useful thing you can tell them. Use the numbers you were given; never invent any. Do not repeat
+the race date or goal time as filler. Never write m/s.
+
+Return ONLY valid JSON:
+{{"insight": "..."}}"""
+
+
+async def _course_insight_action(body: CoachPlanRequest):
+    """Write (or return the cached) coach's read on the uploaded race course.
+
+    The course comes from the request when the frontend just uploaded one, so
+    this cannot race the save; otherwise it falls back to the stored copy.
+    """
+    sess = _get_session(body.token)
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    race_goal = sess.get("race_goal") if isinstance(sess, dict) else None
+
+    course = body.course or _get_persistent_course(email)
+    if not course or not (course.get("aiSummary") or {}):
+        return JSONResponse(status_code=404, content={"error": "No race course uploaded."})
+
+    # The course record's savedAt changes on every upload, so a re-upload
+    # regenerates the read rather than serving one for a course they replaced.
+    fingerprint = course.get("savedAt") or ""
+
+    if not body.force:
+        cached = _get_course_insight(email, fingerprint)
+        if cached:
+            return JSONResponse(content={"insight": cached, "cached": True})
+
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    training = _training_gain_per_km((_get_fitness_snapshot(email) or {}).get("ui_activities"))
+    prompt = _build_course_insight_prompt(course, race_goal, training)
+
+    try:
+        result = await _call_ai(prompt, api_key)
+        insight = (result.get("insight") or "").strip()
+    except Exception:
+        insight = ""
+    if not insight:
+        return JSONResponse(status_code=500, content={"error": "Could not read the course."})
+
+    _save_course_insight(email, insight, fingerprint)
+    return JSONResponse(content={"insight": insight, "cached": False})
 
 
 async def _compile_workout_action(body: CoachPlanRequest):
@@ -895,7 +1019,14 @@ async def _workout_insight_action(body: CoachPlanRequest):
     """
     sess = _get_session(body.token)
     if body.kind == "plan":
-        return await _plan_overview_insight(body.context or {})
+        # The race course (when uploaded) is advisory context for the plan line.
+        plan_ctx = dict(body.context or {})
+        plan_email = sess.get("email", "") if isinstance(sess, dict) else ""
+        plan_ctx["course_text"] = _course_prompt_block(
+            _get_persistent_course(plan_email),
+            _training_gain_per_km((_get_fitness_snapshot(plan_email) or {}).get("ui_activities")),
+        )
+        return await _plan_overview_insight(plan_ctx)
     race_goal = sess.get("race_goal")
     email = sess.get("email", "")
     workout = body.workout or {}
@@ -1004,6 +1135,13 @@ async def _workout_insight_action(body: CoachPlanRequest):
             + "recent pace on the same type of run, or note HR drift late in a long run. Never invent numbers."
         )
 
+    # The uploaded race course, when there is one — lets a hill session say
+    # which climb it is preparing for. Advisory only; it never changes paces.
+    course_line = _course_prompt_block(
+        _get_persistent_course(email),
+        _training_gain_per_km((_get_fitness_snapshot(email) or {}).get("ui_activities")),
+    )
+
     prompt = f"""You are an expert running coach. Write ONE coach insight paragraph for a single workout.
 
 PLAN CONTEXT (this is the heart of the insight — write for the week, not the workout in isolation):
@@ -1015,6 +1153,8 @@ PLAN CONTEXT (this is the heart of the insight — write for the week, not the w
 
 RACE CONTEXT (internal reference only — do not lead with numbers from this):
 - {goal_text}
+
+{course_line}
 
 WORKOUT:
 {json.dumps(workout_spec, indent=2)}
@@ -1247,6 +1387,14 @@ async def _generate_plan(body: CoachPlanRequest):
             f"Current weekly mileage: {race_goal.get('weekly_mileage', 'N/A')} "
             f"{race_goal.get('mileage_unit', 'km')}."
         )
+
+    # Race course context — the uploaded GPX summary, when there is one. This
+    # is advisory: it sharpens hill and late-race advice but never changes the
+    # goal time or the pace zones.
+    course_text = _course_prompt_block(
+        _get_persistent_course(email),
+        _training_gain_per_km(history),
+    )
 
     # --- Race phase detection ---
     # Determine which training phase the runner is in based on days remaining
@@ -1572,7 +1720,7 @@ async def _generate_plan(body: CoachPlanRequest):
             return JSONResponse(status_code=400, content={"error": "week_start does not match the plan block."})
         w_start, w_end, chunk_days_count, phase_text_chunk, progression_text, targets_text, week_position_text, window_structure_text, chunk_zones = entry
         prompt = _build_chunk_prompt(
-            w_start, w_end, chunk_days_count, race_goal_text, phase_text_chunk,
+            w_start, w_end, chunk_days_count, race_goal_text, course_text, phase_text_chunk,
             progression_text, week_position_text, window_structure_text, coach_insight_text,
             intensity_text, days_per_week, mix_guide, distance_guide, physio_text, chunk_zones,
             history, targets_text, goal_pace_text, _honesty_rules(peak_long_km),

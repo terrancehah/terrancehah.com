@@ -21,6 +21,7 @@ const mimeTypes = {
   '.jpg': 'image/jpg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
+  '.gpx': 'application/gpx+xml',
   '.ico': 'image/x-icon',
   '.webp': 'image/webp',
   '.woff': 'font/woff',
@@ -76,8 +77,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve static files
-  let filePath = '.' + req.url;
+  // Serve static files. The path is percent-decoded so filenames containing
+  // escaped characters resolve — without this, '%20' is treated as literal
+  // text and the request 404s even though the file exists.
+  let reqPath = req.url;
+  try {
+    reqPath = decodeURIComponent(reqPath);
+  } catch (e) {
+    // Malformed escape sequence — fall back to the raw path.
+  }
+  let filePath = '.' + reqPath;
   if (filePath === './') {
     filePath = './index.html';
   }
