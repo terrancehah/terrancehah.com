@@ -104,6 +104,10 @@
     <link href="/pacey/pinboard-readiness.css" rel="stylesheet">
     <link href="/pacey/pinboard-plan.css" rel="stylesheet">
     <link href="/pacey/pinboard-overlays.css" rel="stylesheet">
+    <link href="/pacey/pinboard-course.css" rel="stylesheet">
+    <!-- MapLibre GL — the race-course map. Raster/vector basemap tiles come
+         from OpenFreeMap (free, no key); MapLibre renders and styles them. -->
+    <link href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 </head>
 
 <body class="m-0 relative h-full bg-white overflow-x-hidden">
@@ -611,6 +615,16 @@
                                         <span class="pacey-countdown-value" id="pacey-countdown-value">--</span>
                                         <span class="pacey-countdown-label" id="pacey-countdown-label">days to go</span>
                                     </div>
+                                    <!-- The race route, taped into the goal card as a
+                                         sticky note, sitting under the countdown. A
+                                         tiny, non-interactive preview — the coach has
+                                         put the course next to the goal it belongs to.
+                                         Clicking it goes to the full card below.
+                                         Hidden until a course exists. -->
+                                    <div class="pacey-goal-map-note" id="pacey-goal-map-note" hidden>
+                                        <div class="pacey-goal-map" id="pacey-goal-map"></div>
+                                    </div>
+
                                     <div class="pacey-goal-specifics-grid" id="pacey-goal-specifics-grid"></div>
                                 </div>
                                 <!-- Race Readiness radar — right column on laptop, bottom on mobile -->
@@ -628,6 +642,144 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </section>
+
+                        <!-- ===== 1b. Race Course =====
+                             Optional GPX upload. The course is advisory: it is
+                             displayed and handed to the coach so race-day advice
+                             can account for the terrain, but it does not change the
+                             goal time or the pace zones.
+
+                             Three states share this card — an empty drop zone, a
+                             loaded view (hand-drawn route trace + elevation profile
+                             + statistics), and an error line for files we can't read. -->
+                        <section class="pacey-section pacey-section--spaced" id="pacey-course-section">
+                            <h2 class="pacey-section-title"><span class="pacey-section-title-text">Race Course</span></h2>
+                            <div class="pacey-course-card" id="pacey-course-card">
+
+                                <!-- Empty state: the drop target -->
+                                <div class="pacey-course-drop" id="pacey-course-drop" role="button" tabindex="0"
+                                     aria-label="Upload a GPX file of your race course">
+                                    <svg class="pacey-course-drop-icon" viewBox="0 0 48 48" aria-hidden="true">
+                                        <path d="M8 34c6-10 10 4 16-6s10-2 16-8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                                        <circle cx="8" cy="34" r="3.2" fill="currentColor"/>
+                                        <circle cx="40" cy="20" r="3.2" fill="currentColor"/>
+                                    </svg>
+                                    <p class="pacey-course-drop-title">Add your race course</p>
+                                    <p class="pacey-course-drop-sub">
+                                        Drop a <strong>.gpx</strong> file here, or
+                                        <span class="pacey-course-drop-link">browse</span>.
+                                        We'll read the route and the elevation so the coach can plan your race day.
+                                    </p>
+                                    <input class="pacey-course-input" id="pacey-course-input" type="file"
+                                           accept=".gpx,application/gpx+xml" hidden>
+                                </div>
+
+                                <!-- Loaded state -->
+                                <div class="pacey-course-loaded" id="pacey-course-loaded" hidden>
+                                    <!-- Shared sketch filter. It lives in its own
+                                         zero-size SVG rather than inside the route trace,
+                                         because a filter defined inside a display:none
+                                         element is not reliably resolved — and the trace
+                                         is hidden whenever the map is showing. -->
+                                    <svg class="pacey-course-defs" width="0" height="0" aria-hidden="true" focusable="false">
+                                        <defs>
+                                            <filter id="pacey-course-sketch" x="-10%" y="-10%" width="120%" height="120%">
+                                                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="7" result="paceyCourseNoise"/>
+                                                <feDisplacementMap in="SourceGraphic" in2="paceyCourseNoise" scale="2.5"
+                                                                   xChannelSelector="R" yChannelSelector="G"/>
+                                            </filter>
+                                            <!-- Start/finish dot for a course that closes on
+                                                 itself: one circle, half green, half red. The
+                                                 doubled 50% stop is what makes the edge hard
+                                                 rather than a blend. Used by the fallback SVG
+                                                 trace; the map builds its own per marker, since
+                                                 several maps can be on screen at once. -->
+                                            <linearGradient id="pacey-course-split" x1="0" y1="0" x2="1" y2="0">
+                                                <stop offset="0" stop-color="#2f8f4e"/>
+                                                <stop offset="0.5" stop-color="#2f8f4e"/>
+                                                <stop offset="0.5" stop-color="#b83b2e"/>
+                                                <stop offset="1" stop-color="#b83b2e"/>
+                                            </linearGradient>
+                                        </defs>
+                                    </svg>
+                                    <div class="pacey-course-head">
+                                        <p class="pacey-course-name" id="pacey-course-name"></p>
+                                        <p class="pacey-course-meta" id="pacey-course-meta"></p>
+                                    </div>
+
+                                    <div class="pacey-course-visual">
+                                        <!-- Hand-drawn route trace. The sketch filter
+                                             (feTurbulence + feDisplacementMap) wobbles the
+                                             line so it reads as pencil, matching the
+                                             rough.js styling used on the charts. -->
+                                        <!-- Race route. The MapLibre map is primary;
+                                             the hand-drawn SVG trace below it is the
+                                             fallback when the map library is unavailable
+                                             or the stored record has no coordinates. JS
+                                             shows exactly one. The frame is a
+                                             hand-drawn chalk outline around whichever
+                                             of the two is showing. -->
+                                        <figure class="pacey-course-route">
+                                            <div class="pacey-course-map-wrap">
+                                                <div class="pacey-course-map" id="pacey-course-map" hidden></div>
+                                                <svg class="pacey-course-route-svg" id="pacey-course-route-svg"
+                                                     viewBox="0 0 300 200" preserveAspectRatio="xMidYMid meet"
+                                                     role="img" aria-labelledby="pacey-course-route-label">
+                                                    <path class="pacey-course-route-line" id="pacey-course-route-line" d=""
+                                                          filter="url(#pacey-course-sketch)"/>
+                                                    <path class="pacey-course-route-pin pacey-course-route-pin--start"
+                                                          id="pacey-course-route-start" d=""/>
+                                                    <path class="pacey-course-route-pin pacey-course-route-pin--end"
+                                                          id="pacey-course-route-end" d=""/>
+                                                </svg>
+                                                <svg class="pacey-course-frame" viewBox="0 0 300 200"
+                                                     preserveAspectRatio="none" aria-hidden="true">
+                                                    <rect x="4" y="4" width="292" height="192" rx="4"
+                                                          filter="url(#pacey-course-sketch)"/>
+                                                </svg>
+                                            </div>
+                                            <figcaption class="pacey-course-caption" id="pacey-course-route-label">Race route</figcaption>
+                                        </figure>
+
+                                        <!-- Elevation profile. The canvas sits in a
+                                             fixed-height wrapper because Chart.js sizes
+                                             the canvas from its parent — against an
+                                             auto-height parent the two grow each other. -->
+                                        <figure class="pacey-course-elevation">
+                                            <div class="pacey-course-chart-wrap">
+                                                <canvas id="pacey-course-chart" aria-label="Elevation profile across the course" role="img"></canvas>
+                                            </div>
+                                            <figcaption class="pacey-course-caption">Elevation profile</figcaption>
+                                        </figure>
+                                    </div>
+
+                                    <div class="pacey-course-stats" id="pacey-course-stats"></div>
+
+                                    <!-- The coach's read on the course. Filled from the
+                                         AI; a shimmering skeleton covers the wait on a
+                                         cold cache, and the whole block stays hidden when
+                                         there is nothing to say. -->
+                                    <div class="pacey-course-insight" id="pacey-course-insight" hidden>
+                                        <p class="pacey-course-insight-label">Coach's read on this course</p>
+                                        <p class="pacey-course-insight-text" id="pacey-course-insight-text" hidden></p>
+                                        <div class="pacey-course-insight-skeleton" id="pacey-course-insight-loading"
+                                             hidden aria-hidden="true">
+                                            <span class="pacey-course-insight-skeleton-line"></span>
+                                            <span class="pacey-course-insight-skeleton-line"></span>
+                                            <span class="pacey-course-insight-skeleton-line pacey-course-insight-skeleton-line--short"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="pacey-course-actions">
+                                        <button class="pacey-course-btn" id="pacey-course-replace" type="button">Replace file</button>
+                                        <button class="pacey-course-btn pacey-course-btn--quiet" id="pacey-course-remove" type="button">Remove</button>
+                                    </div>
+                                </div>
+
+                                <!-- Error line -->
+                                <div class="pacey-course-error" id="pacey-course-error" hidden role="alert"></div>
                             </div>
                         </section>
 
@@ -1388,6 +1540,24 @@
             </div>
         </div>
 
+        <!-- Course map modal — the inline map on the Race Course card is a static
+             picture (an interactive map inside a scrolling page traps the page's
+             own gestures), so this is where the route is actually readable.
+             Dismissed by the close button, a click on the backdrop, or Escape. -->
+        <div class="pacey-modal-overlay pacey-course-map-modal-overlay"
+             id="pacey-course-map-modal" hidden role="dialog" aria-modal="true"
+             aria-label="Race course map">
+            <div class="pacey-course-map-modal-card">
+                <button class="pacey-modal-close" id="pacey-course-map-modal-close"
+                        title="Close" aria-label="Close the course map">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <p class="pacey-course-map-modal-title" id="pacey-course-map-modal-title"></p>
+                <div class="pacey-course-map-modal-map" id="pacey-course-map-modal-map"></div>
+                <p class="pacey-course-map-modal-hint">Pinch or scroll to zoom, drag to move.</p>
+            </div>
+        </div>
+
         <!-- Workout detail — bottom sheet on mobile/tablet, centered modal on desktop -->
         <div class="pacey-sheet-overlay" id="pacey-workout-sheet" hidden>
             <div class="pacey-workout-sheet">
@@ -1430,6 +1600,13 @@
     <!-- Deferred so it downloads in parallel without blocking render.
          Execution order is guaranteed: Chart.js (deferred in <head>)
          runs first, then this script, then DOMContentLoaded fires. -->
+    <!-- MapLibre GL JS must be present before pacey.js builds the course map.
+         Deferred, so execution order is preserved. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <!-- Course analysis (GPX parsing + elevation filtering) must load before
+         pacey.js, which reads the window.PaceyCourse global. Classic script,
+         so defer preserves execution order. -->
+    <script defer src="/pacey/pacey-course.js"></script>
     <script defer src="/pacey/pacey.js"></script>
 </body>
 </html>

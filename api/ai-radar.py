@@ -15,6 +15,7 @@ from lib._shared import (
     _get_cached_garmin_data, _fetch_physio_trends, _fetch_activities_for_ai,
     _compute_goal_pace_ms,
     _get_persistent_ai_cache, _save_persistent_ai_cache, _delete_persistent_ai_cache,
+    _get_persistent_course, _course_prompt_block, _training_gain_per_km,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -280,6 +281,14 @@ async def ai_radar(token: str = "", force: str = ""):
 
     physio_text = "\n\n".join(physio_parts) if physio_parts else "No physiological trend data available."
 
+    # Race course (when uploaded) — the terrain the runner will race on. Used to
+    # judge whether the durability work matches the course's demands. Advisory
+    # only: it never changes the goal time or the scoring scale.
+    course_text = _course_prompt_block(
+        _get_persistent_course(email),
+        _training_gain_per_km(activities_data),
+    )
+
     prompt = f"""You are a running coach. Rate this runner's readiness for their race goal across 6 dimensions on a 0–10 integer scale. Address the runner as "you".
 
     {race_goal_text}
@@ -289,6 +298,8 @@ async def ai_radar(token: str = "", force: str = ""):
 
     PHYSIOLOGICAL DATA (60-day trends):
     {physio_text}
+
+    {course_text}
 
 SCORING
     - Conservative and evidence-based. Do not inflate scores.

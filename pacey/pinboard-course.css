@@ -1,0 +1,713 @@
+/* =====================================================================
+   PACEY — RACE COURSE (GPX)
+   ---------------------------------------------------------------------
+   The optional race-course card: the drop target, the hand-drawn route
+   trace, the elevation profile and the course statistics.
+
+   The card is a blackboard (chalk on slate in a wooden frame); the route
+   trace and the elevation profile are post-it notes taped to it, which
+   keeps the GPX feature visually distinct from the paper cards around it
+   while still belonging to the board. Tokens are inherited, never
+   redefined here.
+   ===================================================================== */
+
+
+/* ---------------------------------------------------------------------
+   BASE STYLES
+   --------------------------------------------------------------------- */
+
+/* The card itself is only a positioning shell — the blackboard treatment is
+   applied in the scoped block below. */
+/* .pacey-course-card {
+    margin-top: clamp(1rem, 2vw, 1.5rem);
+} */
+
+/* The three states (drop / loaded / error) are toggled with the `hidden`
+   attribute. Without this, a `display: flex` rule out-specifies the UA's
+   `[hidden] { display: none }` and the drop target stays visible after a
+   course has loaded. */
+.pacey-course-card [hidden] {
+    display: none !important;
+}
+
+/* ---- Empty state: the drop target ---- */
+.pacey-course-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: clamp(1.6rem, 4vw, 2.6rem) clamp(1rem, 3vw, 2rem);
+    text-align: center;
+    cursor: pointer;
+    border: 2px dashed rgba(244, 241, 232, 0.4);
+    border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
+    background: transparent;
+    transition: border-color 0.18s ease-out, background-color 0.18s ease-out;
+}
+
+.pacey-course-drop:hover,
+.pacey-course-drop:focus-visible {
+    border-color: rgba(244, 241, 232, 0.85);
+    background-color: rgba(255, 255, 255, 0.06);
+    outline: none;
+}
+
+/* Dragover is toggled by JS while a file is held over the card */
+.pacey-course-drop.is-dragover {
+    border-color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.pacey-course-drop-icon {
+    width: 3rem;
+    height: 3rem;
+    color: rgba(244, 241, 232, 0.8);
+    opacity: 0.9;
+}
+
+.pacey-course-drop-title {
+    margin: 0;
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: clamp(1.3rem, 2.4vw, 1.7rem);
+    color: #f4f1e8;
+}
+
+.pacey-course-drop-sub {
+    margin: 0;
+    max-width: 34rem;
+    font-family: var(--font-fuzzy);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: rgba(244, 241, 232, 0.75);
+}
+
+.pacey-course-drop-link {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    font-weight: 700;
+}
+
+/* ---- Loaded state ---- */
+.pacey-course-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 1.4rem;
+}
+
+.pacey-course-name {
+    margin: 0;
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: clamp(1.25rem, 2.2vw, 1.6rem);
+    color: #f4f1e8;
+}
+
+.pacey-course-meta {
+    margin: 0;
+    font-family: var(--font-fuzzy);
+    font-size: 0.85rem;
+    color: rgba(244, 241, 232, 0.7);
+}
+
+/* Route trace and elevation profile sit side by side as two taped notes,
+   stacking on narrow screens. The row carries ONE bounded height: Chart.js
+   sizes the canvas from its container, so an unbounded row lets the canvas
+   and the container grow each other until the chart is taller than the
+   screen. */
+.pacey-course-visual {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: clamp(1.1rem, 2.4vw, 1.7rem);
+    height: clamp(11rem, 25vw, 15rem);
+    align-items: stretch;
+    /* Room for the tape strips that overhang the top of each note. */
+    margin-top: 0.9rem;
+}
+
+/* ---- The route panel and the elevation chart ----
+   Neither is a sticky note. The route is drawn like chalk on the board — a
+   white hand-drawn frame around the map — and the elevation chart sits bare on
+   the board. Layout is shared; the look is set per element below. */
+.pacey-course-route,
+.pacey-course-elevation {
+    position: relative;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+/* --- Route: white hand-drawn chalk panel --- */
+.pacey-course-route {
+    padding: 1.05rem 1.05rem 0.6rem;
+    transform: rotate(-0.35deg);
+    /* background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0.3rem 0.7rem rgba(0, 0, 0, 0.22); */
+}
+
+/* --- Elevation: the bare chart on the board --- */
+.pacey-course-elevation {
+    padding: 0.25rem 0.15rem 0;
+}
+
+/* The sketch filter's own SVG. Zero-sized but positioned (not display:none),
+   so its filter stays resolvable. */
+.pacey-course-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* The MapLibre map and the fallback SVG trace share one box; JS shows exactly
+   one of them. The wrap deliberately does NOT clip, so the hand-drawn frame
+   can wobble past the map's edge into the panel's padding. */
+.pacey-course-map-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+/* Higher specificity than MapLibre's own `.maplibregl-map { position: relative }`,
+   which would otherwise win on source order. */
+.pacey-course-map-wrap .pacey-course-map {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: 2px;
+    /* Warm the basemap toward the board's paper tones — Positron is already
+       light and minimal, so a light touch is all it needs. */
+    filter: sepia(0.22) saturate(0.92) contrast(0.96);
+}
+
+/* The hand-drawn frame: a chalk-white outline run through the same sketch
+   filter the route trace uses, stretched to the map box. */
+.pacey-course-frame {
+    position: absolute;
+    top: -0.7rem;
+    left: -0.7rem;
+    width: calc(100% + 1.4rem);
+    height: calc(100% + 1.4rem);
+    pointer-events: none;
+    overflow: visible;
+}
+
+.pacey-course-frame rect {
+    fill: none;
+    stroke: #f4f1e8;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.pacey-course-route-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* The fallback trace is chalk too — it sits on the dark board, not on paper */
+.pacey-course-route-line {
+    fill: none;
+    stroke: #f4f1e8;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.pacey-course-route-pin {
+    stroke: #2f3b35;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.pacey-course-route-pin--start {
+    fill: #2f8f4e;
+}
+
+.pacey-course-route-pin--end {
+    fill: #b83b2e;
+}
+
+/* Start / end dots on the map. MapLibre positions the element; the sketched
+   outline lives in the path itself, so it stays crisp at every zoom (a
+   MapLibre layer would scale with the map and blur into a blob). */
+.pacey-course-marker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Never swallow a map gesture. */
+    pointer-events: none;
+}
+
+.pacey-course-marker path {
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.pacey-course-marker--start path {
+    fill: #2f8f4e;
+    stroke: #1c5c32;
+}
+
+.pacey-course-marker--end path {
+    fill: #b83b2e;
+    stroke: #7d2a2a;
+}
+
+/* A loop's start/finish is a single dot split down the middle, so its outline
+   is one neutral stroke rather than either dot's colour. The fill comes from a
+   per-marker gradient set as an attribute. */
+.pacey-course-marker--split path {
+    stroke: #3a2f28;
+}
+
+/* The coach's red pen mark, circling the start/finish on the route. Hollow and
+   sketched like the dots, so the two read as the same hand. */
+.pacey-course-ring {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.pacey-course-ring path {
+    fill: none;
+    stroke: #c0392b;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.92;
+}
+
+/* The chart wrapper owns a definite height, which is what breaks the growth
+   loop — Chart.js measures this element to size the canvas. */
+.pacey-course-chart-wrap {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.pacey-course-elevation canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.pacey-course-caption {
+    margin-top: 0.4rem;
+    font-family: var(--font-fuzzy);
+    font-size: 0.78rem;
+    letter-spacing: 0.01em;
+    text-align: center;
+    color: var(--pinboard-muted, #5f5546);
+}
+
+/* ---- Course statistics ---- */
+.pacey-course-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(6.5rem, 1fr));
+    gap: 0.6rem;
+    margin-top: 1.3rem;
+}
+
+.pacey-course-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pacey-course-stat-label {
+    font-family: var(--font-fuzzy);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(244, 241, 232, 0.7);
+}
+
+.pacey-course-stat-value {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.35rem;
+    line-height: 1.1;
+    color: #f4f1e8;
+}
+
+.pacey-course-stat-unit {
+    font-family: var(--font-fuzzy);
+    font-size: 0.78rem;
+    font-weight: 400;
+    margin-left: 0.15rem;
+    color: rgba(244, 241, 232, 0.7);
+}
+
+/* ---- The coach's read on the course ---- */
+/* Sits under the metrics, ruled off like a note added below the numbers. */
+.pacey-course-insight {
+    margin-top: 1.3rem;
+    padding-top: 1rem;
+    border-top: 1px dashed rgba(244, 241, 232, 0.22);
+}
+
+.pacey-course-insight-label {
+    margin: 0 0 0.4rem;
+    font-family: var(--font-fuzzy);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(244, 241, 232, 0.7);
+}
+
+.pacey-course-insight-text {
+    margin: 0;
+    /* max-width: 62ch; */
+    font-family: var(--font-fuzzy);
+    font-size: 0.94rem;
+    line-height: 1.65;
+    color: rgba(244, 241, 232, 0.92);
+}
+
+/* Loading skeleton — three bars standing in for the coach's read, shimmering
+   on the board's chalk palette so it reads as text about to arrive. */
+.pacey-course-insight-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.pacey-course-insight-skeleton-line {
+    height: 0.72rem;
+    border-radius: 3px;
+    background-image: linear-gradient(90deg,
+        rgba(244, 241, 232, 0.09) 0%,
+        rgba(244, 241, 232, 0.24) 50%,
+        rgba(244, 241, 232, 0.09) 100%);
+    background-size: 220% 100%;
+    animation: pacey-course-skeleton-sweep 1.7s ease-in-out infinite;
+}
+
+.pacey-course-insight-skeleton-line--short {
+    width: 62%;
+}
+
+@keyframes pacey-course-skeleton-sweep {
+    from { background-position: 140% 0; }
+    to { background-position: -40% 0; }
+}
+
+/* ---- Actions and error ---- */
+.pacey-course-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.2rem;
+}
+
+/* Chalk-outline buttons so they read as drawn on the board */
+.pacey-course-btn {
+    padding: 0.4rem 0.95rem;
+    font-family: var(--font-fuzzy);
+    font-size: 0.82rem;
+    color: #f4f1e8;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(244, 241, 232, 0.45);
+    border-radius: 2px 8px 3px 9px / 9px 3px 8px 2px;
+    cursor: pointer;
+    transition: transform 0.15s ease-out, background-color 0.15s ease-out;
+}
+
+.pacey-course-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.pacey-course-btn--quiet {
+    background: transparent;
+    border-color: rgba(244, 241, 232, 0.28);
+}
+
+.pacey-course-btn--quiet:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.pacey-course-error {
+    margin-top: 0.9rem;
+    padding: 0.6rem 0.8rem;
+    font-family: var(--font-fuzzy);
+    font-size: 0.88rem;
+    color: #ffc4b8;
+    background: rgba(255, 155, 143, 0.12);
+    border-left: 3px solid #ff9b8f;
+    border-radius: 2px 6px 2px 6px;
+}
+
+/* ---- Busy state while parsing ---- */
+.pacey-course-card.is-busy .pacey-course-drop-sub {
+    opacity: 0.5;
+}
+
+
+/* ---------------------------------------------------------------------
+   BLACKBOARD TREATMENT — scoped to the board like the other card themes
+   --------------------------------------------------------------------- */
+
+/* A slate board in a wooden frame: dark, matte, and chalk-written. The inset
+   shadows give the frame depth and the faint sheen keeps it from reading as
+   a flat dark rectangle. */
+#pacey-content .pacey-course-card {
+    position: relative;
+    padding: clamp(1.4rem, 3vw, 2.1rem);
+    /* Chart colours for the elevation profile. The board is dark, so the
+       chart reads chalk-on-slate rather than the ink-on-paper used elsewhere
+       — these are read by renderCourseChart, which is why they live here
+       rather than being hard-coded in JS. */
+    --pacey-course-chart-text: #f4f1e8;
+    --pacey-course-chart-grid: rgba(244, 241, 232, 0.18);
+    --pacey-course-chart-surface: #2f3b35;
+    --pacey-course-chart-line: #8fc4ea;
+    --pacey-course-chart-fill: rgba(143, 196, 234, 0.18);
+    background-color: #2f3b35;
+    background-image:
+        radial-gradient(120% 90% at 30% 8%, rgba(255, 255, 255, 0.07), transparent 62%),
+        var(--pinboard-paper-noise);
+    background-size: auto, 140px 140px;
+    background-repeat: no-repeat, repeat;
+    border: 0.5rem solid #6d4b2f;
+    border-radius: 4px;
+    box-shadow:
+        inset 0 0 3.5rem rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+        0 0.35rem 0.8rem rgba(0, 0, 0, 0.35);
+}
+
+/* Chalk is never pure white on a board — a hair of glow sells the dust */
+#pacey-content .pacey-course-name,
+#pacey-content .pacey-course-drop-title,
+#pacey-content .pacey-course-stat-value {
+    text-shadow: 0 0 0.35rem rgba(255, 255, 255, 0.25);
+}
+
+/* Both the route panel and the elevation chart sit directly on the dark board,
+   so their captions are chalk rather than ink. */
+#pacey-content .pacey-course-caption {
+    color: rgba(244, 241, 232, 0.75);
+}
+
+
+/* ---------------------------------------------------------------------
+   FULL-SCREEN COURSE MAP
+   --------------------------------------------------------------------- */
+
+/* The inline map is a static picture, so it advertises itself as clickable. */
+.pacey-course-map-wrap .pacey-course-map {
+    cursor: pointer;
+}
+
+/* Above the board's other overlays, so the map is never behind one. */
+.pacey-course-map-modal-overlay {
+    z-index: 220;
+}
+
+/* A blackboard card, matching the race-course card it came from. */
+.pacey-course-map-modal-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 64rem);
+    height: min(100%, 44rem);
+    padding: 1rem 1rem 0.85rem;
+    background-color: #2f3b35;
+    border: 0.5rem solid #6d4b2f;
+    border-radius: 4px;
+    box-shadow:
+        inset 0 0 3.5rem rgba(0, 0, 0, 0.55),
+        0 0.35rem 0.8rem rgba(0, 0, 0, 0.35);
+}
+
+.pacey-course-map-modal-title {
+    margin: 0 0 0.6rem;
+    /* Clear the close button sitting in the top-right corner. */
+    padding-right: 2.5rem;
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+    color: #f4f1e8;
+    text-shadow: 0 0 0.35rem rgba(255, 255, 255, 0.25);
+}
+
+/* Flex basis 0 so the map takes the card's leftover height; without a
+   definite height MapLibre measures a zero-height box. */
+.pacey-course-map-modal-map {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.pacey-course-map-modal-hint {
+    margin: 0.6rem 0 0;
+    font-family: var(--font-fuzzy);
+    font-size: 0.8rem;
+    text-align: center;
+    color: rgba(244, 241, 232, 0.65);
+}
+
+/* The close button is styled for light cards; on the board it needs chalk. */
+.pacey-course-map-modal-card .pacey-modal-close {
+    color: rgba(244, 241, 232, 0.75);
+}
+
+.pacey-course-map-modal-card .pacey-modal-close:hover {
+    color: #f4f1e8;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+
+/* ---------------------------------------------------------------------
+   PINNED MINI MAP (Race Goal card)
+   --------------------------------------------------------------------- */
+
+/* A sticky note carrying the route, pinned into the goal card — the coach's
+   copy of the course, sitting beside the goal it belongs to. No caption: the
+   note is the label. */
+.pacey-goal-map-note {
+    /* Map height drives the note's width, which is set in JS — so it lives in
+       a custom property the JS can read. Laptop by default, halved on phones,
+       matching the breakpoint where the readiness row stacks. */
+    --pacey-goal-map-h: 7rem;
+    /* Pinned to the right edge of the goal card, under the countdown. `top` is
+       measured in JS: the countdown's height is viewport-clamped (its padding
+       and font size both scale), so it can't be expressed in CSS without
+       duplicating those clamps. The 6rem here is only the pre-measure fallback. */
+    position: absolute;
+    right: clamp(0.75rem, 1.5vw, 1rem);
+    top: 6rem;
+    z-index: 3;
+    /* Width is set per-route in JS so the note hugs the map. */
+    max-width: 70%;
+    padding: 0.4rem 0.4rem 0.35rem;
+    background-color: var(--pinboard-note-yellow);
+    background-image: var(--pinboard-paper-noise);
+    background-size: 140px 140px;
+    background-repeat: repeat;
+    /* Tilted, so it reads as a note laid on the card rather than a panel. */
+    transform: rotate(-1.3deg);
+    box-shadow: 0 0.35rem 0.7rem rgba(0, 0, 0, 0.28), 0 0.9rem 1.4rem rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+    transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+}
+
+.pacey-goal-map-note:hover {
+    transform: rotate(-1.3deg) translateY(-2px);
+    box-shadow: 0 0.5rem 0.9rem rgba(0, 0, 0, 0.3), 0 1.1rem 1.7rem rgba(0, 0, 0, 0.18);
+}
+
+.pacey-goal-map-note:focus-visible {
+    outline: 0.125rem solid var(--pinboard-pin-blue);
+    outline-offset: 0.15rem;
+}
+
+/* Washi tape at opposite corners, holding the note down. */
+.pacey-goal-map-note::before,
+.pacey-goal-map-note::after {
+    content: "";
+    position: absolute;
+    width: 2rem;
+    height: 0.75rem;
+    background: var(--pinboard-tape);
+    border-left: 1px dashed rgba(255, 255, 255, 0.7);
+    border-right: 1px dashed rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0.1rem 0.2rem rgba(0, 0, 0, 0.18);
+    opacity: 0.95;
+    z-index: 4;
+}
+
+.pacey-goal-map-note::before {
+    top: -0.35rem;
+    left: -0.5rem;
+    transform: rotate(-38deg);
+}
+
+.pacey-goal-map-note::after {
+    bottom: -0.35rem;
+    right: -0.5rem;
+    transform: rotate(-38deg);
+}
+
+.pacey-goal-map {
+    position: relative;
+    height: var(--pacey-goal-map-h);
+    overflow: hidden;
+    border-radius: 2px;
+}
+
+/* Clears the sticky demo banner when the mini note scrolls here. */
+#pacey-course-section {
+    scroll-margin-top: 4rem;
+}
+
+
+/* ---------------------------------------------------------------------
+   RESPONSIVE
+   --------------------------------------------------------------------- */
+@media (max-width: 48rem) {
+    /* Stack the route above the profile. The shared row height no longer
+       applies (two stacked rows would fight it), so each note takes its own
+       bounded height instead. */
+    .pacey-course-visual {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+    }
+
+    .pacey-course-route,
+    .pacey-course-elevation {
+        height: clamp(10rem, 46vw, 13rem);
+    }
+
+    .pacey-course-stats {
+        grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+    }
+
+    /* Phones get the thumbnail at half the laptop size. */
+    .pacey-goal-map-note {
+        --pacey-goal-map-h: 3.5rem;
+    }
+
+    /* Give the modal map as much of the small screen as possible. */
+    .pacey-course-map-modal-card {
+        width: 100%;
+        height: 100%;
+        padding: 0.75rem 0.75rem 0.6rem;
+        border-width: 0.3rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pacey-course-btn,
+    .pacey-course-drop,
+    .pacey-goal-map-note {
+        transition: none;
+    }
+
+    /* Hold the skeleton bars still rather than sweeping them. */
+    .pacey-course-insight-skeleton-line {
+        animation: none;
+        background-image: none;
+        background-color: rgba(244, 241, 232, 0.16);
+    }
+}

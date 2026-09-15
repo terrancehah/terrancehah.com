@@ -344,6 +344,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (lastHrPaceActivities) {
                 renderHrPaceScatter(lastHrPaceActivities);
             }
+            // Course elevation profile — re-render so its grid/label colours
+            // follow the new theme like the other charts.
+            if (courseRecord) {
+                renderCourseChart(courseRecord);
+            }
         }
     }
 
@@ -976,6 +981,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show demo CTAs across all pages
         const demoCta = $('#pacey-demo-cta');
         if (demoCta) demoCta.hidden = false;
+        // Fill the race-course card with the generated demo course, so the
+        // feature is visible without an upload.
+        loadDemoCourse();
         showDashboard();
     }
 
@@ -1034,6 +1042,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // edit, or replace it. Otherwise go to onboarding as before.
             closeLoginModal();
             window.__demoMode = false;
+            // Drop the demo course from memory (never from the server) so the
+            // runner's own course can load in its place.
+            resetCourseLocal();
             if (data.has_race_goal && data.race_goal) {
                 // Show the reminder popup instead of going straight to the
                 // dashboard or onboarding — the user should consciously
@@ -1298,8 +1309,17 @@ document.addEventListener('DOMContentLoaded', function () {
             sidebarGoalEl.textContent = `${raceGoal.purpose} - ${raceGoal.time_target}`;
             renderGoalSpecifics(raceGoal);
         }
+        // The course is titled after the race goal, and a cached course is
+        // restored before the goal is known — re-title it now.
+        if (courseRecord) updateCourseHead();
+        // The board was hidden when the map was built, so re-measure it now
+        // that it has a real size.
+        requestAnimationFrame(resizeCourseMap);
 
         loadAllData(forceAIRefresh);
+        // Pull any course stored against this account (cross-device). No-op
+        // when a local copy already exists or the user is signed out.
+        loadCourseRemote();
         // If the user landed directly on the Plan page, kick off its load too
         if (getPageFromHash() === 'plan') openPlanPage();
 
@@ -1376,7 +1396,1334 @@ document.addEventListener('DOMContentLoaded', function () {
         const countdownLabelEl = $('#pacey-countdown-label');
         if (countdownValueEl) countdownValueEl.textContent = countdownDays;
         if (countdownLabelEl) countdownLabelEl.textContent = countdownDays === 1 ? 'day to go' : 'days to go';
+
+        // The countdown just changed, and the mini note sits under it — so
+        // re-measure once that has laid out.
+        requestAnimationFrame(layoutGoalNote);
     }
+
+    // =========================================================================
+    // Race Course (GPX)
+    // =========================================================================
+    //
+    // Optional GPX upload. The file is parsed entirely in the browser by
+    // PaceyCourse (pacey-course.js) — the raw track never leaves the device.
+    // Only a distilled record (distance, filtered elevation, a simplified
+    // route outline) is persisted and handed to the coach.
+    //
+    // The course is advisory: it is displayed and informs race-day advice, but
+    // it deliberately does not change the goal time or the pace zones.
+
+    const COURSE_CACHE_KEY = 'pacey_course_v1';
+    // Larger files freeze the tab while parsing; a real course export is far
+    // smaller than this.
+    const COURSE_MAX_BYTES = 15 * 1024 * 1024;
+    // The route is drawn into a fixed viewBox and scaled by CSS.
+    const COURSE_VIEW_W = 300;
+    const COURSE_VIEW_H = 200;
+    // Points kept for the route trace. A 300x200 box can't resolve more, and
+    // it keeps the stored record (local + server) small.
+    const COURSE_ROUTE_POINTS = 200;
+
+    let courseRecord = null;   // compact, renderable course record
+    let courseChart = null;    // Chart.js elevation-profile instance
+    let courseMap = null;      // MapLibre instance for the route map
+    let goalMap = null;        // the pinned mini map in the Race Goal card
+    let courseMapObserver = null;  // keeps the map canvases matched to their boxes
+    let courseInsight = null;  // { text, fingerprint } — the coach's read
+
+    // Resolve the course DOM lazily so a missing card can never throw.
+    function courseEls() {
+        return {
+            card: $('#pacey-course-card'),
+            drop: $('#pacey-course-drop'),
+            input: $('#pacey-course-input'),
+            loaded: $('#pacey-course-loaded'),
+            name: $('#pacey-course-name'),
+            meta: $('#pacey-course-meta'),
+            routeLine: $('#pacey-course-route-line'),
+            routeStart: $('#pacey-course-route-start'),
+            routeEnd: $('#pacey-course-route-end'),
+            map: $('#pacey-course-map'),
+            routeSvg: $('#pacey-course-route-svg'),
+            goalMapNote: $('#pacey-goal-map-note'),
+            goalMap: $('#pacey-goal-map'),
+            mapModal: $('#pacey-course-map-modal'),
+            mapModalMap: $('#pacey-course-map-modal-map'),
+            mapModalTitle: $('#pacey-course-map-modal-title'),
+            mapModalClose: $('#pacey-course-map-modal-close'),
+            chart: $('#pacey-course-chart'),
+            stats: $('#pacey-course-stats'),
+            insight: $('#pacey-course-insight'),
+            insightText: $('#pacey-course-insight-text'),
+            insightLoading: $('#pacey-course-insight-loading'),
+            replace: $('#pacey-course-replace'),
+            remove: $('#pacey-course-remove'),
+            error: $('#pacey-course-error'),
+        };
+    }
+
+    /** Thin the point list for the route trace (first and last always kept). */
+    function downsamplePoints(points, max) {
+        const limit = max || COURSE_ROUTE_POINTS;
+        if (points.length <= limit) return points;
+        const step = points.length / limit;
+        const out = [];
+        for (let i = 0; i < limit; i++) out.push(points[Math.floor(i * step)]);
+        out.push(points[points.length - 1]);
+        return out;
+    }
+
+    /**
+     * Turn a computed course into the compact record we render and store.
+     *
+     * The record is deliberately self-contained — it carries the projected
+     * route path and the downsampled profile, so it renders without the raw
+     * track points and stays small enough for localStorage and Redis.
+     */
+    function makeCourseRecord(course, points, meta) {
+        const routePoints = downsamplePoints(points);
+        const route = PaceyCourse.buildRoutePath(routePoints, COURSE_VIEW_W, COURSE_VIEW_H, 12);
+        return {
+            version: 1,
+            savedAt: new Date().toISOString(),
+            meta: {
+                name: meta.name || '',
+                fileName: meta.fileName || '',
+                hasElevation: !!course.hasElevation,
+                source: meta.source || 'track',
+                pointCount: course.pointCount,
+            },
+            stats: {
+                distanceKm: PaceyCourse.round(course.distanceKm, 2),
+                gainM: course.gainM === null ? null : Math.round(course.gainM),
+                lossM: course.lossM === null ? null : Math.round(course.lossM),
+                minEleM: course.minEleM === null ? null : Math.round(course.minEleM),
+                maxEleM: course.maxEleM === null ? null : Math.round(course.maxEleM),
+                avgGradePct: PaceyCourse.round(course.avgGradePct, 1),
+                maxGradePct: PaceyCourse.round(course.maxGradePct, 1),
+                gainPerKm: PaceyCourse.round(course.gainPerKm, 1),
+                difficulty: course.difficulty,
+            },
+            gradeBuckets: course.gradeBuckets || [],
+            profile: course.profile || [],
+            route,
+            // [longitude, latitude] pairs — the order GeoJSON and MapLibre use,
+            // and the OPPOSITE of the GPX's own [lat, lon]. Rounded to ~1 m,
+            // which is far tighter than any basemap, and keeps the record small.
+            coords: routePoints.map(p => [PaceyCourse.round(p.lon, 5), PaceyCourse.round(p.lat, 5)]),
+            aiSummary: PaceyCourse.buildAiSummary(course),
+        };
+    }
+
+    /**
+     * The course is titled after the race goal. The GPX's own <name> is an
+     * export artefact ("Morning Run", a timestamp) and the file name is no
+     * better, so neither is used.
+     */
+    function courseDisplayName() {
+        if (raceGoal && (raceGoal.race_name || raceGoal.purpose)) {
+            return raceGoal.race_name || raceGoal.purpose;
+        }
+        return 'Race course';
+    }
+
+    /** Name + one-line summary. Split out so the goal can re-title a course
+        that was restored from cache before the goal was known. */
+    function updateCourseHead() {
+        const el = courseEls();
+        if (!el.name || !courseRecord) return;
+        el.name.textContent = courseDisplayName();
+        const bits = [`${courseRecord.stats.distanceKm.toFixed(2)} km`];
+        bits.push(courseRecord.meta.hasElevation
+            ? `${Math.round(courseRecord.stats.gainM)} m gain`
+            : 'no elevation data');
+        el.meta.textContent = bits.join(' · ');
+    }
+
+    /** Paint the card from the current record. Single render path — the
+        freshly parsed course and the restored one both go through here. */
+    function renderCourseRecord() {
+        const el = courseEls();
+        if (!el.card || !courseRecord) return;
+        const rec = courseRecord;
+
+        el.drop.hidden = true;
+        el.error.hidden = true;
+        el.loaded.hidden = false;
+
+        updateCourseHead();
+
+        if (rec.route && rec.route.d) {
+            el.routeLine.setAttribute('d', rec.route.d);
+            // Sketched dots, matching the markers on the map. The radius is in
+            // the trace's own 300x200 viewBox units, not screen pixels.
+            el.routeStart.setAttribute('d', sketchyCirclePath(rec.route.start.x, rec.route.start.y, 6.5));
+            el.routeEnd.setAttribute('d', sketchyCirclePath(rec.route.end.x, rec.route.end.y, 6.5));
+
+            // Same split treatment as the map: on a loop the two dots would sit
+            // on top of each other, so the start dot takes the half-and-half
+            // fill and the end dot is dropped. Set via style, because the class
+            // rule for the start pin would otherwise win over an attribute.
+            const closed = routeCloses(rec.coords);
+            el.routeEnd.hidden = closed;
+            el.routeStart.style.fill = closed ? 'url(#pacey-course-split)' : '';
+        }
+
+        renderCourseStats(rec);
+        renderCourseChart(rec);
+        renderCourseMap(rec);
+        renderGoalMap(rec);
+        renderCourseInsight(rec);
+    }
+
+    /** Course statistic tiles. */
+    function renderCourseStats(rec) {
+        const el = courseEls();
+        const s = rec.stats;
+        const tiles = [{ label: 'Distance', value: s.distanceKm.toFixed(2), unit: 'km' }];
+
+        if (rec.meta.hasElevation) {
+            const cap = (w) => w ? w.charAt(0).toUpperCase() + w.slice(1) : '--';
+            tiles.push({ label: 'Elevation gain', value: Math.round(s.gainM).toLocaleString(), unit: 'm' });
+            tiles.push({ label: 'Elevation loss', value: Math.round(s.lossM).toLocaleString(), unit: 'm' });
+            tiles.push({ label: 'High point', value: Math.round(s.maxEleM).toLocaleString(), unit: 'm' });
+            tiles.push({ label: 'Low point', value: Math.round(s.minEleM).toLocaleString(), unit: 'm' });
+            tiles.push({ label: 'Avg grade', value: s.avgGradePct.toFixed(1), unit: '%' });
+            tiles.push({ label: 'Max grade', value: s.maxGradePct.toFixed(1), unit: '%' });
+            tiles.push({ label: 'Terrain', value: cap(s.difficulty), unit: '' });
+        }
+
+        el.stats.innerHTML = tiles.map(t => `
+            <div class="pacey-course-stat">
+                <span class="pacey-course-stat-label">${t.label}</span>
+                <span class="pacey-course-stat-value">${t.value}${t.unit ? `<span class="pacey-course-stat-unit">${t.unit}</span>` : ''}</span>
+            </div>
+        `).join('');
+    }
+
+    /** Elevation profile. Uses the board's chart fonts and paper tokens so it
+        matches the other charts, and the global roughness plugin supplies the
+        hand-drawn stroke. */
+    function renderCourseChart(rec) {
+        const el = courseEls();
+        if (!el.chart || typeof Chart === 'undefined') return;
+        if (courseChart) { courseChart.destroy(); courseChart = null; }
+        if (!rec.meta.hasElevation || !rec.profile.length) return;
+
+        const canvas = el.chart;
+        const style = getComputedStyle(canvas);
+        const chartFonts = pinboardChartFonts(canvas);
+        // The chart sits directly on the dark board, so it reads chalk-on-slate
+        // rather than the ink-on-paper tokens the other charts use. The palette
+        // is defined on the card in pinboard-course.css.
+        const chartText = style.getPropertyValue('--pacey-course-chart-text').trim() || '#f4f1e8';
+        const chartGrid = style.getPropertyValue('--pacey-course-chart-grid').trim() || 'rgba(244, 241, 232, 0.18)';
+        const chartSurface = style.getPropertyValue('--pacey-course-chart-surface').trim() || '#2f3b35';
+        const accent = style.getPropertyValue('--pacey-course-chart-line').trim() || '#8fc4ea';
+        const chartFill = style.getPropertyValue('--pacey-course-chart-fill').trim() || 'rgba(143, 196, 234, 0.18)';
+
+        courseChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    data: rec.profile.map(p => ({ x: p.km, y: p.ele })),
+                    fill: true,
+                    backgroundColor: chartFill,
+                    borderColor: accent,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHitRadius: 12,
+                    tension: 0.2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 600, easing: 'easeOutQuart' },
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: 0,
+                        // End the axis where the course ends. Without an explicit
+                        // max, Chart.js extends the scale to the next round tick
+                        // (a 21.1 km course would run to 25), leaving dead space
+                        // past the finish line.
+                        max: rec.stats.distanceKm,
+                        title: { display: true, text: 'km', color: chartText, font: { family: chartFonts.body, size: 11 } },
+                        ticks: { color: chartText, font: { family: chartFonts.body, size: 10 }, maxTicksLimit: 6 },
+                        grid: { color: chartGrid, drawTicks: false },
+                        border: { color: chartGrid },
+                    },
+                    y: {
+                        title: { display: true, text: 'm', color: chartText, font: { family: chartFonts.body, size: 11 } },
+                        ticks: { color: chartText, font: { family: chartFonts.body, size: 10 }, maxTicksLimit: 5 },
+                        grid: { color: chartGrid, drawTicks: false },
+                        border: { color: chartGrid },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        displayColors: false,
+                        padding: 8,
+                        cornerRadius: 3,
+                        backgroundColor: chartSurface,
+                        titleColor: chartText,
+                        bodyColor: chartText,
+                        borderColor: chartGrid,
+                        borderWidth: 1,
+                        titleFont: { family: chartFonts.heading, size: 12 },
+                        bodyFont: { family: chartFonts.body, size: 13 },
+                        titleSpacing: 4,
+                        titleMarginBottom: 10,
+                        bodySpacing: 10,
+                        callbacks: {
+                            title: (items) => items.length ? `${items[0].parsed.x.toFixed(1)} km` : '',
+                            label: (item) => `${Math.round(item.parsed.y)} m`,
+                        },
+                    },
+                },
+            },
+        });
+    }
+
+    /**
+     * A hachure tile for MapLibre's fill-pattern / background-pattern.
+     *
+     * Parallel pencil strokes over a base colour — the same treatment
+     * chartjs-plugin-roughness gives the charts, which fill with rough.js
+     * hachure by default. A pattern REPLACES a layer's fill-colour rather than
+     * compositing over it, so the base colour is baked into the tile.
+     *
+     * `size` and `step` must divide evenly, and size must be a power of two,
+     * or the tile will not repeat seamlessly.
+     */
+    function makeHachureImage(baseColor, strokeColor, size, step) {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, size, size);
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        // 45° strokes. Drawing the family past both edges keeps each stroke
+        // continuous across the tile seam.
+        for (let i = -size; i < size * 2; i += step) {
+            ctx.beginPath();
+            // Vary the alpha a little so the shading reads as hand-drawn
+            // rather than a machine-made hatch.
+            ctx.globalAlpha = 0.45 + ((i / step) % 3) * 0.15;
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i + size, size);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        return ctx.getImageData(0, 0, size, size);
+    }
+
+    /**
+     * Close MapLibre's attribution panel.
+     *
+     * MapLibre's compact control opens itself on init — AttributionControl
+     * ._updateCompact sets the `open` attribute, and only removes the compact
+     * class when the map is narrower than 640px. On a wide panel that means the
+     * full credit line sits on screen permanently. Closing it leaves the small
+     * ⓘ button, so the credit is one tap away rather than hidden.
+     */
+    function collapseCourseAttribution(map) {
+        if (!map) return;
+        const attrib = map.getContainer().querySelector('.maplibregl-ctrl-attrib');
+        if (!attrib) return;
+        attrib.removeAttribute('open');
+        attrib.classList.remove('maplibregl-compact-show');
+    }
+
+    /**
+     * Re-measure the map canvas against its container.
+     *
+     * The card is often laid out before the board is revealed — a course
+     * restored from cache renders while the dashboard is still hidden — so
+     * MapLibre can latch a stale canvas width and leave a gap down its right
+     * edge. Guarded on a real size, because resizing a hidden container would
+     * zero the canvas instead of fixing it.
+     */
+    function resizeCourseMap() {
+        const el = courseEls();
+        [
+            [courseMap, el.map],
+            [goalMap, el.goalMap],
+            [courseModalMap, el.mapModalMap],
+        ].forEach(([map, node]) => {
+            if (!map || !node || !node.clientWidth || !node.clientHeight) return;
+            map.resize();
+
+            // Maps are built during page init, while the dashboard can still be
+            // hidden — and a `display: none` container measures 0x0, so
+            // MapLibre's fitBounds has no box to work with and latches a
+            // nonsense camera. resize() fixes the canvas but NOT the camera,
+            // which is why a cached course came back zoomed in. Re-apply the
+            // original framing the first time we have a real box.
+            const fit = map.__paceyFit;
+            if (fit && !map.__paceyFitted) {
+                map.fitBounds(fit.bounds, fit.options);
+                map.__paceyFitted = true;
+            }
+        });
+    }
+
+    /**
+     * Keep every course map's canvas matched to its box.
+     *
+     * Created once and pointed at all three containers: they are stable for the
+     * life of the page, and resizeCourseMap no-ops for a map that doesn't
+     * exist or a container with no size yet.
+     */
+    function observeCourseMapBoxes() {
+        if (typeof ResizeObserver === 'undefined' || courseMapObserver) return;
+        const el = courseEls();
+        courseMapObserver = new ResizeObserver(() => requestAnimationFrame(resizeCourseMap));
+        [el.map, el.goalMap, el.mapModalMap].forEach((node) => {
+            if (node) courseMapObserver.observe(node);
+        });
+    }
+
+    /**
+     * A hand-drawn-looking circle as an SVG path.
+     *
+     * The wobble is baked into the path rather than run through the sketch
+     * filter, because that filter is tuned for the 300x200 route viewBox and
+     * would be almost invisible at marker size.
+     */
+    function sketchyCirclePath(cx, cy, r) {
+        // Radii around the circle, nudged so it reads as drawn by hand rather
+        // than as a perfect dot.
+        const radii = [1.0, 0.92, 1.07, 0.94, 1.08, 0.91, 1.04, 0.96];
+        const n = radii.length;
+        const pts = radii.map((k, i) => {
+            const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+            return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k];
+        });
+        // Smooth through the points with quadratic segments anchored at the
+        // midpoints, so the outline curves instead of faceting.
+        let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+        for (let i = 1; i <= n; i++) {
+            const cur = pts[i % n];
+            const next = pts[(i + 1) % n];
+            const mx = (cur[0] + next[0]) / 2;
+            const my = (cur[1] + next[1]) / 2;
+            d += ` Q${cur[0].toFixed(2)} ${cur[1].toFixed(2)} ${mx.toFixed(2)} ${my.toFixed(2)}`;
+        }
+        return d + ' Z';
+    }
+
+    /**
+     * A deliberately rough ring — the mark a coach makes circling something
+     * with a pen.
+     *
+     * Rougher than sketchyCirclePath on purpose: the radius swings much
+     * further, the shape is slightly elliptical, and the sweep laps past its
+     * own start, which is what a hand-drawn circle actually looks like.
+     */
+    function sketchyRingPath(cx, cy, r) {
+        // Fixed jitter, so the ring looks identical on every render rather
+        // than twitching each time the card repaints.
+        const jitter = [0.03, -0.21, 0.14, -0.07, 0.22, -0.17, 0.05, -0.23, 0.18, -0.03, 0.21, -0.11];
+        const n = jitter.length;
+        const turns = 1.12;   // laps past the start, like a real pen circle
+        const pts = [];
+        for (let i = 0; i <= n; i++) {
+            const a = (i / n) * Math.PI * 2 * turns - Math.PI / 2;
+            const rr = r * (1 + jitter[i % n]);
+            pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.88]);
+        }
+        let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
+        for (let i = 1; i < pts.length - 1; i++) {
+            const cur = pts[i];
+            const next = pts[i + 1];
+            const mx = (cur[0] + next[0]) / 2;
+            const my = (cur[1] + next[1]) / 2;
+            d += ` Q${cur[0].toFixed(2)} ${cur[1].toFixed(2)} ${mx.toFixed(2)} ${my.toFixed(2)}`;
+        }
+        const last = pts[pts.length - 1];
+        d += ` L${last[0].toFixed(2)} ${last[1].toFixed(2)}`;
+        return d;
+    }
+
+    /**
+     * Whether a route starts and finishes in the same place.
+     *
+     * 150 m is comfortably inside the GPS drift of a closed course and far
+     * below the length of any real point-to-point race, so it separates the two
+     * shapes reliably. Shared by the map markers and the fallback trace so both
+     * treat a loop the same way.
+     */
+    function routeCloses(coords) {
+        if (!Array.isArray(coords) || coords.length < 2) return false;
+        const a = coords[0];
+        const b = coords[coords.length - 1];
+        return PaceyCourse.haversineM(a[1], a[0], b[1], b[0]) < 150;
+    }
+
+    /** A start or end dot for a MapLibre marker, drawn as a sketched circle. */
+    function makeCourseMarkerElement(kind, size) {
+        const px = size || 18;
+        const wrap = document.createElement('div');
+        wrap.className = `pacey-course-marker pacey-course-marker--${kind}`;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', String(px));
+        svg.setAttribute('height', String(px));
+        svg.setAttribute('aria-hidden', 'true');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', sketchyCirclePath(12, 12, 7.6));
+        svg.appendChild(path);
+        wrap.appendChild(svg);
+        return wrap;
+    }
+
+    // SVG ids are document-global, and several maps can be on the page at once,
+    // so each split dot's gradient needs its own.
+    let splitGradientSeq = 0;
+
+    /**
+     * A single dot for a course that closes on itself.
+     *
+     * A loop starts and finishes in the same place, so two dots would simply
+     * stack there with the red hiding the green. This splits the one dot down
+     * the middle instead — green for the start, red for the finish — using a
+     * hard-stop gradient, so the sketchy outline stays a single hand-drawn
+     * stroke rather than two clipped halves.
+     */
+    function makeCourseSplitMarkerElement(size) {
+        const px = size || 18;
+        const wrap = document.createElement('div');
+        wrap.className = 'pacey-course-marker pacey-course-marker--split';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 24 24');
+        svg.setAttribute('width', String(px));
+        svg.setAttribute('height', String(px));
+        svg.setAttribute('aria-hidden', 'true');
+
+        const gradId = `pacey-course-split-${splitGradientSeq++}`;
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+        grad.setAttribute('id', gradId);
+        grad.setAttribute('x1', '0');
+        grad.setAttribute('y1', '0');
+        grad.setAttribute('x2', '1');
+        grad.setAttribute('y2', '0');
+        // The doubled 50% stop is what makes the edge hard rather than a blend.
+        [['0', '#2f8f4e'], ['0.5', '#2f8f4e'], ['0.5', '#b83b2e'], ['1', '#b83b2e']]
+            .forEach(([offset, color]) => {
+                const stop = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+                stop.setAttribute('offset', offset);
+                stop.setAttribute('stop-color', color);
+                grad.appendChild(stop);
+            });
+        defs.appendChild(grad);
+        svg.appendChild(defs);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', sketchyCirclePath(12, 12, 7.6));
+        path.setAttribute('fill', `url(#${gradId})`);
+        svg.appendChild(path);
+
+        wrap.appendChild(svg);
+        return wrap;
+    }
+
+    /**
+     * A hand-drawn red ring — the coach's pen mark circling a point on the
+     * route. Hollow, and sketched like the dots so the two match.
+     */
+    function makeCourseRingElement(size) {
+        const px = size || 44;
+        const wrap = document.createElement('div');
+        wrap.className = 'pacey-course-ring';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 56 56');
+        svg.setAttribute('width', String(px));
+        svg.setAttribute('height', String(px));
+        svg.setAttribute('aria-hidden', 'true');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        // Sits well inside the viewBox: the exaggerated wobble needs room, or
+        // the stroke clips at the edge.
+        path.setAttribute('d', sketchyRingPath(28, 28, 19));
+        svg.appendChild(path);
+        wrap.appendChild(svg);
+        return wrap;
+    }
+
+    /**
+     * Add the course route and the coloured-pencil shading to a loaded map.
+     *
+     * Shared by the inline card map and the full-screen modal so the two can
+     * never drift apart.
+     */
+    function applyCourseRouteLayers(map, coords, opts) {
+        const options = opts || {};
+        map.addSource('pacey-course-route', {
+            type: 'geojson',
+            data: {
+                type: 'Feature',
+                properties: {},
+                geometry: { type: 'LineString', coordinates: coords },
+            },
+        });
+        map.addLayer({
+            id: 'pacey-course-route',
+            type: 'line',
+            source: 'pacey-course-route',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: { 'line-color': '#2f6fb0', 'line-width': 3 },
+        });
+
+        // Start and end dots. DOM markers rather than a MapLibre layer, so the
+        // sketchy outline stays crisp at every zoom (a layer would scale with
+        // the map) and the colours match the fallback trace's pins. They are
+        // torn down with the map, so nothing leaks between renders.
+        const markerSize = options.markerSize || 18;
+        // Bigger than the dots by design: the ring is a pen mark drawn around
+        // them, and the exaggerated wobble needs the clearance.
+        const ringSize = options.ringSize || 44;
+        const start = coords[0];
+        const end = coords[coords.length - 1];
+
+        // A loop starts and finishes in the same place, so two dots would stack
+        // with the red hiding the green. A closed course gets one dot split
+        // down the middle instead.
+        const closes = routeCloses(coords);
+
+        if (closes) {
+            new maplibregl.Marker({ element: makeCourseSplitMarkerElement(markerSize) })
+                .setLngLat(start)
+                .addTo(map);
+        } else {
+            new maplibregl.Marker({ element: makeCourseMarkerElement('start', markerSize) })
+                .setLngLat(start)
+                .addTo(map);
+            new maplibregl.Marker({ element: makeCourseMarkerElement('end', markerSize) })
+                .setLngLat(end)
+                .addTo(map);
+        }
+
+        // The coach's pen mark: one ring when the course closes on itself, two
+        // when it is point-to-point, where a single ring could not cover both.
+        new maplibregl.Marker({ element: makeCourseRingElement(ringSize) })
+            .setLngLat(start)
+            .addTo(map);
+        if (!closes) {
+            new maplibregl.Marker({ element: makeCourseRingElement(ringSize) })
+                .setLngLat(end)
+                .addTo(map);
+        }
+
+        // Shade the basemap like coloured pencil. Each surface gets a hachure
+        // tile ([base colour, stroke]) built at runtime, then the layer is
+        // switched to it via fill-pattern / background-pattern. Every step is
+        // matched on the paint property the layer actually declares, so a style
+        // revision is a no-op rather than a throw.
+        const SURFACES = {
+            paper: ['#f3eee3', '#e7dfcd'],
+            water: ['#cfe3f1', '#a9c8dd'],
+            park: ['#e6e8d4', '#c6cba9'],
+            landcover: ['#e9e1cf', '#cec2a2'],
+            landuse: ['#eee6d5', '#d6cbb0'],
+            building: ['#e5dcc6', '#cbbfa3'],
+        };
+        Object.entries(SURFACES).forEach(([key, [base, stroke]]) => {
+            map.addImage(`pacey-hachure-${key}`, makeHachureImage(base, stroke, 32, 8), { pixelRatio: 2 });
+        });
+
+        map.getStyle().layers.forEach((layer) => {
+            try {
+                const src = layer['source-layer'];
+                const paint = layer.paint || {};
+                if (layer.type === 'background' && 'background-color' in paint) {
+                    map.setPaintProperty(layer.id, 'background-color', SURFACES.paper[0]);
+                    map.setPaintProperty(layer.id, 'background-pattern', 'pacey-hachure-paper');
+                } else if ('fill-color' in paint && SURFACES[src]) {
+                    map.setPaintProperty(layer.id, 'fill-color', SURFACES[src][0]);
+                    map.setPaintProperty(layer.id, 'fill-pattern', `pacey-hachure-${src}`);
+                } else if ('line-color' in paint && src === 'transportation') {
+                    map.setPaintProperty(layer.id, 'line-color', '#d8c9a8');
+                }
+            } catch (e) {
+                // Style revision without this property — leave it alone.
+            }
+        });
+    }
+
+    /**
+     * Build a MapLibre map for a course record.
+     *
+     * `interactive` is off for the inline card map, which stays a picture — an
+     * embedded map otherwise swallows the page's own scrolling and pinch-zoom
+     * on a phone. The modal map turns interaction back on for real exploring.
+     */
+    function buildCourseMap(container, rec, opts) {
+        const options = opts || {};
+        const coords = rec.coords;
+        const bounds = coords.reduce(
+            (b, c) => b.extend(c), new maplibregl.LngLatBounds(coords[0], coords[0])
+        );
+
+        const map = new maplibregl.Map({
+            container,
+            style: 'https://tiles.openfreemap.org/styles/positron',
+            bounds,
+            fitBoundsOptions: { padding: options.padding || 26 },
+            // OpenFreeMap's style JSON ships NO attribution of its own, so it is
+            // set explicitly here — OSM data is ODbL and credit is required.
+            // The thumbnail turns it off: at ~100px wide the control covers a
+            // quarter of the map, and the credit is carried by the full card
+            // map directly below it on the same screen.
+            attributionControl: options.showAttribution === false
+                ? false
+                : {
+                    compact: true,
+                    customAttribution: '© OpenFreeMap © OpenMapTiles © OpenStreetMap contributors',
+                },
+            interactive: options.interactive !== false,
+            // One finger scrolls the page, two fingers move the map. Only
+            // meaningful when the map is interactive at all.
+            cooperativeGestures: options.interactive !== false,
+        });
+
+        // Remember how the map was framed so it can be re-applied if the
+        // container turns out to have had no size at construction (see
+        // resizeCourseMap). One re-fit only, so it can never fight a user who
+        // has since panned the modal map.
+        map.__paceyFit = { bounds, options: { padding: options.padding || 26 } };
+        map.__paceyFitted = false;
+
+        // Collapse the attribution panel, and again on resize — MapLibre
+        // re-runs _updateCompact on resize.
+        collapseCourseAttribution(map);
+        map.on('resize', () => collapseCourseAttribution(map));
+        map.on('load', () => applyCourseRouteLayers(map, coords, options));
+
+        return map;
+    }
+
+    /**
+     * The inline card map.
+     *
+     * Deliberately NOT interactive: it is a picture of the route, and a map
+     * that pans and zooms inside a scrolling page traps the page's own
+     * gestures. A click opens the full-screen modal, where the map is
+     * genuinely usable.
+     */
+    function renderCourseMap(rec) {
+        const el = courseEls();
+        if (!el.map || !el.routeSvg) return;
+
+        if (courseMap) { courseMap.remove(); courseMap = null; }
+
+        const coords = rec.coords;
+        // `coords` is [longitude, latitude] — the order GeoJSON, LngLatBounds
+        // and MapLibre all use, and the opposite of the [lat, lon] order the
+        // GPX itself is written in. Range-checked before use because MapLibre
+        // throws on an out-of-range latitude, and a malformed record should
+        // fall back to the drawn trace rather than break the card.
+        const validCoords = Array.isArray(coords) && coords.length > 1 && coords.every(
+            (c) => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])
+                && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90
+        );
+
+        if (typeof maplibregl === 'undefined' || !validCoords) {
+            el.map.hidden = true;
+            el.routeSvg.hidden = false;
+            return;
+        }
+
+        el.routeSvg.hidden = true;
+        el.map.hidden = false;
+
+        try {
+            courseMap = buildCourseMap(el.map, rec, { interactive: false });
+        } catch (err) {
+            // MapLibre refused the map — show the drawn trace instead of
+            // leaving an empty panel.
+            el.map.hidden = true;
+            el.routeSvg.hidden = false;
+            courseMap = null;
+            return;
+        }
+
+        // Re-measure once laid out, and again on every real size change. The
+        // observer is created once: the container element is stable for the
+        // life of the page, and resizeCourseMap no-ops while no map exists.
+        requestAnimationFrame(resizeCourseMap);
+        observeCourseMapBoxes();
+    }
+
+    /**
+     * Pin the mini note under the countdown.
+     *
+     * The countdown's height is viewport-clamped — its padding and font size
+     * both scale with width — so its lower edge can't be expressed in CSS
+     * without duplicating those clamps. Measuring it is the reliable option,
+     * and it re-runs on resize.
+     */
+    function positionGoalNote() {
+        const el = courseEls();
+        if (!el.goalMapNote || el.goalMapNote.hidden) return;
+        const countdown = $('#pacey-countdown-highlight');
+        if (!countdown || !countdown.offsetHeight) return;
+        // offsetTop is relative to the card, which is also the note's offset
+        // parent, so the two share a coordinate space.
+        const below = countdown.offsetTop + countdown.offsetHeight;
+        el.goalMapNote.style.top = `${Math.round(below + 10)}px`;
+    }
+
+    /**
+     * Re-run both halves of the mini note's layout: its width (which follows
+     * the map's responsive height) and its position under the countdown.
+     *
+     * Both depend on the viewport, so this is what the resize handler and the
+     * post-render hooks call.
+     */
+    function layoutGoalNote() {
+        const el = courseEls();
+        if (!el.goalMapNote || el.goalMapNote.hidden) return;
+        if (courseRecord && Array.isArray(courseRecord.coords)) {
+            sizeGoalMapToRoute(courseRecord.coords);
+        }
+        positionGoalNote();
+    }
+
+    /** Scroll the runner down to the full Race Course card. */
+    function goToCourseSection() {
+        const section = $('#pacey-course-section');
+        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /**
+     * Size the mini note to the route's own shape.
+     *
+     * A fixed box would leave a tall loop as a thin line down the middle of a
+     * wide map with dead space either side — KLSCM's route is 2.6 km by 4.8 km,
+     * so it needs a portrait note. The note's height is fixed in CSS and the
+     * width follows from the route's aspect, clamped so an extreme course
+     * can't produce a silly shape.
+     */
+    function sizeGoalMapToRoute(coords) {
+        const el = courseEls();
+        if (!el.goalMapNote || !el.goalMap) return;
+
+        let minLat = Infinity, maxLat = -Infinity, minLon = Infinity, maxLon = -Infinity;
+        for (const c of coords) {
+            if (c[1] < minLat) minLat = c[1];
+            if (c[1] > maxLat) maxLat = c[1];
+            if (c[0] < minLon) minLon = c[0];
+            if (c[0] > maxLon) maxLon = c[0];
+        }
+
+        // A degree of longitude is shorter away from the equator, so scale the
+        // width before taking the ratio or every route comes out too wide.
+        const k = Math.cos(((minLat + maxLat) / 2) * Math.PI / 180);
+        const spanW = (maxLon - minLon) * k;
+        const spanH = maxLat - minLat;
+        const aspect = spanH > 0 ? Math.max(0.7, Math.min(2.1, spanW / spanH)) : 1.6;
+
+        // The map height is responsive — doubled on laptops — and it is read
+        // from the CSS custom property rather than the element's computed
+        // height. A course restored from cache renders while the dashboard is
+        // still hidden, and a display:none element reports a zero box in some
+        // browsers, which would collapse the note's width along with it.
+        const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        const rawHeight = getComputedStyle(el.goalMapNote)
+            .getPropertyValue('--pacey-goal-map-h').trim();
+        let mapH = parseFloat(rawHeight) || 3.5 * rootFont;
+        if (rawHeight.endsWith('rem')) mapH *= rootFont;
+
+        const noteStyle = getComputedStyle(el.goalMapNote);
+        const padX = ((parseFloat(noteStyle.paddingLeft) || 0)
+            + (parseFloat(noteStyle.paddingRight) || 0)) || 0.8 * rootFont;
+
+        el.goalMapNote.style.width = `${Math.round(mapH * aspect + padX)}px`;
+    }
+
+    /**
+     * The pinned mini map in the Race Goal card.
+     *
+     * A deliberately tiny, non-interactive preview of the same route, on a
+     * sticky note — so the goal card shows the course the runner is training
+     * for without duplicating the full Race Course card below it. Hidden
+     * entirely when there is no course.
+     */
+    function renderGoalMap(rec) {
+        const el = courseEls();
+        if (!el.goalMapNote || !el.goalMap) return;
+
+        if (goalMap) { goalMap.remove(); goalMap = null; }
+
+        const coords = rec.coords;
+        const validCoords = Array.isArray(coords) && coords.length > 1 && coords.every(
+            (c) => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1])
+                && Math.abs(c[0]) <= 180 && Math.abs(c[1]) <= 90
+        );
+
+        if (typeof maplibregl === 'undefined' || !validCoords) {
+            el.goalMapNote.hidden = true;
+            return;
+        }
+
+        el.goalMapNote.hidden = false;
+        sizeGoalMapToRoute(coords);
+
+        // The dots and the ring scale with the map, which doubles at the laptop
+        // breakpoint — a fixed size would look undersized there.
+        const mapH = parseFloat(getComputedStyle(el.goalMap).height) || 56;
+        const scale = Math.max(1, mapH / 56);
+
+        // The note is absolutely positioned under the countdown, so its top
+        // depends on the countdown's measured height.
+        requestAnimationFrame(layoutGoalNote);
+        try {
+            goalMap = buildCourseMap(el.goalMap, rec, {
+                interactive: false,
+                // A thumbnail: no attribution control, which would otherwise
+                // cover a quarter of it. The card map below carries the credit.
+                showAttribution: false,
+                padding: Math.round(8 * scale),
+                markerSize: Math.round(6 * scale),
+                ringSize: Math.round(15 * scale),
+            });
+        } catch (e) {
+            goalMap = null;
+            el.goalMapNote.hidden = true;
+            return;
+        }
+
+        requestAnimationFrame(resizeCourseMap);
+        observeCourseMapBoxes();
+    }
+
+    // --- Full-screen course map ------------------------------------------
+    //
+    // The inline map is a static picture, so this is where the route can
+    // actually be read: panned, zoomed and scrolled at a useful size.
+
+    let courseModalMap = null;
+
+    function isCourseMapModalOpen() {
+        const el = courseEls();
+        return !!(el.mapModal && !el.mapModal.hidden);
+    }
+
+    function openCourseMapModal() {
+        const el = courseEls();
+        if (!el.mapModal || !el.mapModalMap || !courseRecord) return;
+        if (!Array.isArray(courseRecord.coords) || courseRecord.coords.length < 2) return;
+
+        el.mapModal.hidden = false;
+        if (el.mapModalTitle) el.mapModalTitle.textContent = courseDisplayName();
+
+        // Built only once the modal has a real size, or MapLibre measures a
+        // zero-height box and the canvas comes out wrong.
+        requestAnimationFrame(() => {
+            if (courseModalMap) { courseModalMap.remove(); courseModalMap = null; }
+            try {
+                courseModalMap = buildCourseMap(el.mapModalMap, courseRecord, {
+                    interactive: true,
+                    padding: 48,
+                });
+            } catch (e) {
+                courseModalMap = null;
+            }
+        });
+    }
+
+    function closeCourseMapModal() {
+        const el = courseEls();
+        if (el.mapModal) el.mapModal.hidden = true;
+        if (courseModalMap) { courseModalMap.remove(); courseModalMap = null; }
+    }
+
+    // --- The coach's read on the course ----------------------------------
+    //
+    // Generated server-side from the same course structure the card displays,
+    // and cached there by email. Demo mode has no server, so it stands in a
+    // fixed read written against the sample course.
+
+    // Written against the real KL Standard Chartered Half route the demo loads
+    // (21.4 km, 314 m of climbing, 14.7 m/km — hilly on the road scale; hardest
+    // kilometre 3.5–4.5 km at 38 m, fastest descent 8.8–9.8 km at 41 m), and
+    // shaped like the read the coach now produces: overview, what to notice,
+    // how it compares with the runner's training, and what to do about it.
+    const DEMO_COURSE_INSIGHT =
+        'This is a hilly half by road standards — 314 m of climbing across 21.4 km. The hardest kilometre '
+        + 'comes early, between 3.5 and 4.5 km, climbing 38 m at nearly 4%, and there is a fast descent '
+        + 'around 9 km worth running rather than braking down. Your recent runs have been far flatter than '
+        + 'this, so the hills will ask more of you than your training has. Get some hill work in before '
+        + 'race day.';
+
+    function renderCourseInsight(rec) {
+        const el = courseEls();
+        if (!el.insight) return;
+        el.insight.hidden = false;
+
+        const fingerprint = rec.savedAt || '';
+
+        // Already have the read for this exact course.
+        if (courseInsight && courseInsight.fingerprint === fingerprint) {
+            el.insightText.textContent = courseInsight.text;
+            el.insightText.hidden = false;
+            el.insightLoading.hidden = true;
+            return;
+        }
+
+        if (window.__demoMode) {
+            courseInsight = { text: DEMO_COURSE_INSIGHT, fingerprint };
+            el.insightText.textContent = DEMO_COURSE_INSIGHT;
+            el.insightText.hidden = false;
+            el.insightLoading.hidden = true;
+            return;
+        }
+
+        el.insightText.hidden = true;
+        el.insightLoading.hidden = false;
+        loadCourseInsight(rec);
+    }
+
+    async function loadCourseInsight(rec) {
+        const el = courseEls();
+        try {
+            // The record is sent with the request so the read can't race the
+            // save of a course that was just uploaded.
+            const resp = await apiCallWithAuthRetry('POST', 'coach-plan', {
+                action: 'course-insight',
+                course: rec,
+            });
+            const data = await resp.json();
+            if (resp.ok && data && data.insight) {
+                courseInsight = { text: data.insight, fingerprint: rec.savedAt || '' };
+                // The card may have been cleared or replaced mid-flight, so
+                // only paint if the same course is still on screen.
+                if (courseRecord === rec) {
+                    el.insightText.textContent = data.insight;
+                    el.insightText.hidden = false;
+                    el.insightLoading.hidden = true;
+                }
+                return;
+            }
+        } catch (e) {
+            // Offline or signed out — fall through and hide the block.
+        }
+        if (courseRecord === rec && el.insight) el.insight.hidden = true;
+    }
+
+    function showCourseError(msg) {
+        const el = courseEls();
+        if (!el.error) return;
+        el.error.textContent = msg;
+        el.error.hidden = false;
+    }
+
+    /** Read, parse and display a dropped or chosen GPX file. */
+    async function handleCourseFile(file) {
+        const el = courseEls();
+        if (!file) return;
+        if (!/\.gpx$/i.test(file.name)) {
+            showCourseError('That is not a .gpx file. Export your course as GPX and try again.');
+            return;
+        }
+        if (file.size > COURSE_MAX_BYTES) {
+            showCourseError('That file is larger than 15 MB. Try exporting a simplified course.');
+            return;
+        }
+        if (!window.PaceyCourse) {
+            showCourseError('The course reader did not load. Please refresh the page.');
+            return;
+        }
+
+        el.error.hidden = true;
+        el.card.classList.add('is-busy');
+        try {
+            const text = await file.text();
+            const parsed = PaceyCourse.parseGpx(text);
+            const course = PaceyCourse.computeCourse(parsed.points);
+            courseRecord = makeCourseRecord(course, parsed.points, {
+                name: parsed.name, fileName: file.name, source: parsed.source,
+            });
+            renderCourseRecord();
+            persistCourseLocal();
+            saveCourseRemote();
+        } catch (err) {
+            showCourseError(err && err.message ? err.message : 'Could not read that GPX file.');
+        } finally {
+            el.card.classList.remove('is-busy');
+        }
+    }
+
+    function clearCourse() {
+        const el = courseEls();
+        courseRecord = null;
+        courseInsight = null;
+        if (courseChart) { courseChart.destroy(); courseChart = null; }
+        if (courseMap) { courseMap.remove(); courseMap = null; }
+        if (goalMap) { goalMap.remove(); goalMap = null; }
+        if (el.goalMapNote) el.goalMapNote.hidden = true;
+        if (el.insight) el.insight.hidden = true;
+        closeCourseMapModal();
+        if (el.loaded) el.loaded.hidden = true;
+        if (el.drop) el.drop.hidden = false;
+        if (el.error) el.error.hidden = true;
+        if (el.input) el.input.value = '';
+        localStorage.removeItem(COURSE_CACHE_KEY);
+        saveCourseRemote(); // null record clears the server copy too
+    }
+
+    function persistCourseLocal() {
+        try {
+            if (courseRecord) localStorage.setItem(COURSE_CACHE_KEY, JSON.stringify(courseRecord));
+            else localStorage.removeItem(COURSE_CACHE_KEY);
+        } catch (e) {
+            // Quota exceeded — the course still renders for this session.
+        }
+    }
+
+    function restoreCourseLocal() {
+        try {
+            const raw = localStorage.getItem(COURSE_CACHE_KEY);
+            if (!raw) return false;
+            const rec = JSON.parse(raw);
+            if (!rec || rec.version !== 1) return false;
+            courseRecord = rec;
+            renderCourseRecord();
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Cross-device sync, keyed by Garmin email server-side (same pattern as
+    // the fitness snapshot). Only the distilled record is sent — never the file.
+    async function saveCourseRemote() {
+        if (window.__demoMode) return;
+        try {
+            await apiCall('POST', 'coach-plan', { action: 'course', course: courseRecord });
+        } catch (e) {
+            // Offline or signed out — the local copy still stands.
+        }
+    }
+
+    async function loadCourseRemote() {
+        if (window.__demoMode || courseRecord) return;
+        try {
+            const resp = await apiCallWithAuthRetry('GET', 'coach-plan?action=course');
+            const data = await resp.json();
+            if (resp.ok && data && data.course && data.course.version === 1) {
+                courseRecord = data.course;
+                renderCourseRecord();
+                persistCourseLocal();
+            }
+        } catch (e) {
+            // No stored course, or offline — the empty state stays.
+        }
+    }
+
+    /**
+     * Fallback demo course, used only when the real demo GPX can't be fetched
+     * (offline, or the asset is missing).
+     *
+     * A generated hilly half, run through the real PaceyCourse pipeline rather
+     * than hand-written, so the demo exercises the same code as a real upload.
+     */
+    function buildDemoCoursePoints() {
+        const points = [];
+        const n = 1500;
+        const lat0 = 3.1390;
+        const lon0 = 101.6869;
+        let seed = 7;
+        const rnd = () => {
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            return seed / 0x7fffffff;
+        };
+        // Tuned to a realistic back-loaded half: 21.1 km, 338 m of climbing, one
+        // 270 m climb at 6.8% (peaking near 10%) starting 14 km in, with the
+        // descent returning to the start height so the loop closes.
+        const climbStart = 0.72;
+        const climbEnd = 0.86;
+        const climbRate = 1800;
+        const climbDrop = (climbEnd - climbStart) * climbRate;
+
+        for (let i = 0; i < n; i++) {
+            const t = i / (n - 1);
+            const angle = t * Math.PI * 2.4;
+            const radius = 0.0235 + 0.004 * Math.sin(t * Math.PI * 3);
+
+            let ele = 40 + 14 * Math.sin(t * Math.PI * 8);          // gentle rollers
+            if (t > climbStart && t < climbEnd) ele += (t - climbStart) * climbRate;
+            if (t >= climbEnd) ele += climbDrop - ((t - climbEnd) / (1 - climbEnd)) * climbDrop;
+            ele += (rnd() - 0.5) * 2.4;   // altimeter jitter, so the filter earns its keep
+
+            points.push({
+                lat: lat0 + radius * Math.sin(angle),
+                lon: lon0 + radius * Math.cos(angle) * 1.05,
+                ele,
+            });
+        }
+        return points;
+    }
+
+    // The demo course is the real KL Standard Chartered Half route, fetched
+    // from the site's own assets so the demo shows genuine data rather than a
+    // generated stand-in.
+    const DEMO_COURSE_URL = '/pacey/assets/klscm26-21km.gpx';
+
+    async function loadDemoCourse() {
+        if (!window.PaceyCourse) return;
+
+        let points = null;
+        let fileName = 'klscm26-21km.gpx';
+        try {
+            const resp = await fetch(DEMO_COURSE_URL);
+            if (resp.ok) {
+                const parsed = PaceyCourse.parseGpx(await resp.text());
+                if (parsed.points.length) points = parsed.points;
+            }
+        } catch (e) {
+            // Offline, or the asset is missing — fall through to the generator.
+        }
+        if (!points) {
+            points = buildDemoCoursePoints();
+            fileName = 'demo-course.gpx';
+        }
+
+        const course = PaceyCourse.computeCourse(points);
+        courseRecord = makeCourseRecord(course, points, {
+            name: 'Demo Half Course',
+            fileName,
+            source: 'track',
+        });
+        // Deliberately not persisted — demo data must not become the runner's
+        // stored course.
+        renderCourseRecord();
+    }
+
+    /**
+     * Drop the in-memory course WITHOUT touching the server copy. Used when
+     * leaving demo mode: the real course (if the runner has one) is fetched
+     * afterwards, and clearing remotely here would delete it.
+     */
+    function resetCourseLocal() {
+        const el = courseEls();
+        courseRecord = null;
+        courseInsight = null;
+        if (courseChart) { courseChart.destroy(); courseChart = null; }
+        if (courseMap) { courseMap.remove(); courseMap = null; }
+        if (goalMap) { goalMap.remove(); goalMap = null; }
+        if (el.goalMapNote) el.goalMapNote.hidden = true;
+        if (el.loaded) el.loaded.hidden = true;
+        if (el.insight) el.insight.hidden = true;
+        if (el.drop) el.drop.hidden = false;
+        if (el.error) el.error.hidden = true;
+        closeCourseMapModal();
+    }
+
+    /** Wire the card once. Safe to call before any course exists. */
+    function initCourseCard() {
+        const el = courseEls();
+        if (!el.card) return;
+
+        // Restore before wiring so a reload lands in the loaded state.
+        restoreCourseLocal();
+
+        if (el.drop) {
+            el.drop.addEventListener('click', () => el.input && el.input.click());
+            el.drop.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.input && el.input.click();
+                }
+            });
+        }
+        if (el.input) {
+            el.input.addEventListener('change', (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (f) handleCourseFile(f);
+            });
+        }
+
+        // Drag and drop. dragenter and dragover must both preventDefault, or
+        // the browser navigates to the file instead of firing drop.
+        ['dragenter', 'dragover'].forEach((evt) => {
+            el.card.addEventListener(evt, (e) => {
+                if (!e.dataTransfer) return;
+                e.preventDefault();
+                if (el.drop) el.drop.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach((evt) => {
+            el.card.addEventListener(evt, (e) => {
+                e.preventDefault();
+                if (el.drop) el.drop.classList.remove('is-dragover');
+            });
+        });
+        el.card.addEventListener('drop', (e) => {
+            const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (f) handleCourseFile(f);
+        });
+
+        if (el.replace) el.replace.addEventListener('click', () => el.input && el.input.click());
+        if (el.remove) el.remove.addEventListener('click', clearCourse);
+
+        // The inline map is a picture, so a click (or Enter/Space, since it is
+        // reachable by keyboard) opens the full-screen one.
+        if (el.map) {
+            el.map.setAttribute('role', 'button');
+            el.map.setAttribute('tabindex', '0');
+            el.map.setAttribute('aria-label', 'Open the full-screen race course map');
+            el.map.addEventListener('click', openCourseMapModal);
+            el.map.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    openCourseMapModal();
+                }
+            });
+        }
+
+        // The mini note is a pointer to the full card, so a click takes the
+        // runner there instead of doing nothing. Reachable by keyboard too.
+        if (el.goalMapNote) {
+            el.goalMapNote.setAttribute('role', 'button');
+            el.goalMapNote.setAttribute('tabindex', '0');
+            el.goalMapNote.setAttribute('aria-label', 'Go to the race course');
+            el.goalMapNote.addEventListener('click', goToCourseSection);
+            el.goalMapNote.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    goToCourseSection();
+                }
+            });
+        }
+
+        // Modal dismissal: the close button, a click on the backdrop, or Escape.
+        if (el.mapModalClose) el.mapModalClose.addEventListener('click', closeCourseMapModal);
+        if (el.mapModal) {
+            el.mapModal.addEventListener('click', (e) => {
+                if (e.target === el.mapModal) closeCourseMapModal();
+            });
+        }
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isCourseMapModalOpen()) closeCourseMapModal();
+        });
+
+        // The countdown above the note is sized in viewport units, and the map
+        // itself doubles at the laptop breakpoint, so both have to be
+        // re-measured when the layout changes.
+        window.addEventListener('resize', layoutGoalNote);
+    }
+
+    // The card lives in the dashboard markup, so wire it immediately.
+    initCourseCard();
 
     async function loadAllData(forceAIRefresh = false) {
         const isDemo = window.__demoMode;
@@ -4670,6 +6017,9 @@ document.addEventListener('DOMContentLoaded', function () {
             sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
             // Update the goal specifics panel
             renderGoalSpecifics(raceGoal);
+            // The course is titled after the race goal, so an edited goal
+            // re-titles it.
+            updateCourseHead();
             // Reload all data with the new goal (charts, radar, insights).
             // Pass forceAIRefresh=true so the server regenerates AI insights
             // against the new goal instead of returning the stale cache.
