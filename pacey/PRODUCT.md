@@ -2,7 +2,7 @@
 
 Source of truth for what Pacey is and is not. Update this file when product consensus changes. User-facing voice still follows `pacey-writing-style.md`.
 
-Last updated: 2026-09-06.
+Last updated: 2026-09-15.
 
 ## One-line job
 
@@ -10,34 +10,42 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 
 ## What it is
 
-- A **pre-race companion** for marathon prep: diagnosis plus a training plan that covers the weeks/season from today to the entered race date, then updates as training and body-signal data change.
+- A **pre-race companion** for marathon prep: diagnosis plus a training plan covering the full remaining block from today to the entered race date, re-projected as training and body-signal data change.
 - Six-area fitness score **against the time the runner typed in**, from recent runs plus Garmin body-signal trends.
-- A calm coach verdict first, charts second.
-- Plan is the **prescription for the limiter**, not a second Garmin calendar of “how hard today.”
+- A calm coach verdict, with the radar and charts as the evidence behind it.
+- The plan is the **prescription for the diagnosed limiter** — the top gap from the readiness read is injected into every week of generation.
 
-## What it is not (now)
+## What it is not
 
-- Not an in-run / on-watch product. No live coaching during the session.
+- Not an in-run / on-watch product. No live coaching during the session. The conversational coach surface exists in the UI but stays locked.
 - Not a clone of Garmin Run Coach (daily adaptive week, no goal-time limiter map).
-- Not Expert Coach’s colour gauge (workout adherence on Expert plans, 5K–half only).
-- Not a current-fitness race predictor (COROS EvoLab, Polar Running Index, VDOT).
-- Not competing with Runna on polish, Strava on distribution, or TrainingPeaks on CTL / human-coach marketplace.
+- Not Expert Coach's colour gauge (that one measures workout adherence on 5K–half plans; Pacey's scores are goal readiness against the typed time).
+- Not a finish-time predictor. The trajectory verdict (ahead / on track / behind / not proven) is a goal-relative readiness judgement from current fitness. It never outputs a predicted race time — that is what COROS EvoLab, Polar Running Index and VDOT do.
+- Not a second Garmin calendar. Workouts reach Connect only when the runner presses sync, and what they carry is the limiter prescription for the block. Pacey never reschedules the runner's Garmin calendar on its own.
+- Not competing with Strava on distribution, TrainingPeaks on CTL / human-coach marketplace, or Runna on plan-catalogue breadth.
 
 ## Race and plan
 
 - Primary distance: **marathon**. Race date and goal time are first-class inputs.
-- Plan length: **full remaining block** to race day (countdown, phases: build / specificity / sharpen / taper), not a one-week answer.
+- Plan length: **full remaining block** to race day, generated one chunk at a time, capped at 26 weeks. When the race is further out than 26 weeks the block ends mid-season and does not reach race day; the runner is shown the block, not promised the race.
+- Phases: build / specificity / sharpen / taper. The final chunk is always the 7 days before race day; the chunk before it is always sharpen.
 - Plan must stay honest vs amateur complaints:
-  - Long runs must grow toward a traditional peak (about 18–20 miles / 2–3 hours), not stay short forever.
-  - Race week must not stack a long or hard session next to the race.
-  - Illness / injury should pause or rebuild the remaining block, not keep the old week.
-  - Marathon-pace work must not be inferred only from short tempos then auto-shifted by RPE so MP sessions feel fake.
-- Do not invent Garmin-calendar rescheduling as the product. If workouts are sent to Connect, they are the limiter prescription for this block.
+  - Long runs grow toward a distance-aware peak (marathon ~30 km / 18.6 mi), ramped about 10% per week from the runner's real long-run baseline. A duration ceiling (about 2–3 hours) is not yet enforced — see Open items.
+  - Race week never stacks a long or hard session next to the race; race day itself is the Race workout.
+  - Marathon-pace work must be real: genuine 15–30 minute blocks at goal pace, verified from lap-level work paces. There is no RPE mechanism anywhere in the pipeline, so MP sessions cannot be faked by auto-shifting effort.
+  - Poor recovery signals (HRV down, RHR up, sleep poor) downgrade the week's quality session and keep the long run conversational.
+  - Illness / injury should pause or rebuild the remaining block, not keep the old week. **Not implemented** — see Open items.
+
+## Behaviour to be deliberate about
+
+- **The block is re-projected daily.** The plan cache is keyed on tomorrow's date, so each new day regenerates every chunk. This is how the plan stays current, but it also means the plan has no stable identity across days, and a workout already synced to Garmin can change underneath the runner.
+- The overview leads with the Race Goal card and the readiness radar; the verdict sits in The Big Picture directly beneath them.
+- **Demo mode** is the default landing state for a visitor with no session. It is a real acquisition surface, not a placeholder.
 
 ## Garmin
 
-- Official path is **OAuth / Connected Apps** and the Training API onto the Connect calendar.
-- Unofficial `python-garminconnect` email+password is a wedge, not the scale path. Do not deepen password-dump login as strategy.
+- Official path is **OAuth / Connected Apps** and the Training API onto the Connect calendar. Not yet built — still first on the list.
+- Unofficial `python-garminconnect` email+password is a wedge, not the scale path. The current implementation already stores serialised OAuth tokens instead of the password and rotates them on re-auth; do not deepen password login further.
 - Runna, TrainingPeaks, TrainAsONE, RunMotion all go through Connect permissions. Match that bar when auth is rebuilt.
 
 ## Competitive notes (verified 2026 research, status: partial)
@@ -51,14 +59,18 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 
 Official OAuth at Garmin-partner scale, native watch glance, full-block periodization as a standalone coaching brand, community.
 
+## Open items
+
+1. **Illness / injury state** — an explicit honesty rule with no implementation. Needs an input surface (something like "I'm out this week"), not just prompting.
+2. **Official Garmin Connect OAuth.**
+3. **Stable plan identity** — decide whether daily re-projection is the product or an artefact of the cache key, so a committed plan stops moving under the runner.
+4. **Long-run duration ceiling** (about 2–3 hours), not just distance.
+5. **Phase proportions** are fixed thresholds (42 / 20 / 7 days) and do not scale with block length; a 26-week block gets roughly 3 weeks of specificity.
+
 ## Implementation order
 
 1. Official Garmin Connect OAuth (when tackling auth).
-2. Overview as diagnosis of **this race** (verdict first, charts second).
-3. Plan page: full marathon block from race date + progress + countdown; long-run and race-week honesty.
-4. Still no in-run features.
-
-## Current code vs this scope
-
-- `api/coach-plan.py` still generates a short window (about 7–13 days from tomorrow through next Sunday). That is the gap to close: remaining-block plan keyed on race date, not “next week.”
-- Radar / readiness vs typed goal time stays the diagnosis layer. Plan must serve that diagnosis across the season.
+2. Overview as diagnosis of **this race** — verdict ahead of the radar.
+3. Plan page: block identity and progress, so a synced plan stays put.
+4. Illness / injury pause and rebuild.
+5. Still no in-run features.
