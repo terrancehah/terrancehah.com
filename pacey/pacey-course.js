@@ -64,6 +64,13 @@
     // The rolling index only counts a direction change once it clears this
     // band, so jitter can't inflate the count.
     const ROLLING_THRESHOLD_M = 4;
+    // Gain per km at which a ROAD course counts as hilly. The widely quoted
+    // bands (hilly at 9.5 m/km and up) were built for trail and ultra running
+    // and compress every World Marathon Major into their bottom two — Boston
+    // and New York are only ~6 m/km yet are the hilliest majors there are. On
+    // the road scale this is the familiar rule of thumb: gain (m) / distance
+    // (km) >= 10. Reference points: Berlin 1.7, London 3.0, Boston 5.9.
+    const HILLY_GAIN_PER_KM = 10;
 
     const EARTH_RADIUS_M = 6371008.8;
 
@@ -475,11 +482,15 @@
         return out;
     }
 
-    /** Classify overall hilliness from gain per kilometre. */
+    /**
+     * Classify overall hilliness from gain per kilometre, on the road scale
+     * (see HILLY_GAIN_PER_KM). Road runners feel hills far sooner than the
+     * trail bands suggest, so "hilly" starts at 10 m/km rather than 15.
+     */
     function difficulty(gainPerKm) {
-        if (gainPerKm < 5) return 'flat';
-        if (gainPerKm < 15) return 'rolling';
-        if (gainPerKm < 30) return 'hilly';
+        if (gainPerKm < 3) return 'flat';
+        if (gainPerKm < HILLY_GAIN_PER_KM) return 'rolling';
+        if (gainPerKm < HILLY_GAIN_PER_KM * 2) return 'hilly';
         return 'mountainous';
     }
 
@@ -714,5 +725,6 @@
         round,
         ELEVATION_THRESHOLD_M,
         SMOOTHING_WINDOW,
+        HILLY_GAIN_PER_KM,
     };
 });

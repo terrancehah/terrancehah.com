@@ -1753,8 +1753,26 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function resizeCourseMap() {
         const el = courseEls();
-        if (courseMap && el.map && el.map.clientWidth && el.map.clientHeight) courseMap.resize();
-        if (goalMap && el.goalMap && el.goalMap.clientWidth && el.goalMap.clientHeight) goalMap.resize();
+        [
+            [courseMap, el.map],
+            [goalMap, el.goalMap],
+            [courseModalMap, el.mapModalMap],
+        ].forEach(([map, node]) => {
+            if (!map || !node || !node.clientWidth || !node.clientHeight) return;
+            map.resize();
+
+            // Maps are built during page init, while the dashboard can still be
+            // hidden — and a `display: none` container measures 0x0, so
+            // MapLibre's fitBounds has no box to work with and latches a
+            // nonsense camera. resize() fixes the canvas but NOT the camera,
+            // which is why a cached course came back zoomed in. Re-apply the
+            // original framing the first time we have a real box.
+            const fit = map.__paceyFit;
+            if (fit && !map.__paceyFitted) {
+                map.fitBounds(fit.bounds, fit.options);
+                map.__paceyFitted = true;
+            }
+        });
     }
 
     /**
@@ -2076,6 +2094,13 @@ document.addEventListener('DOMContentLoaded', function () {
             cooperativeGestures: options.interactive !== false,
         });
 
+        // Remember how the map was framed so it can be re-applied if the
+        // container turns out to have had no size at construction (see
+        // resizeCourseMap). One re-fit only, so it can never fight a user who
+        // has since panned the modal map.
+        map.__paceyFit = { bounds, options: { padding: options.padding || 26 } };
+        map.__paceyFitted = false;
+
         // Collapse the attribution panel, and again on resize — MapLibre
         // re-runs _updateCompact on resize.
         collapseCourseAttribution(map);
@@ -2206,15 +2231,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const spanH = maxLat - minLat;
         const aspect = spanH > 0 ? Math.max(0.7, Math.min(2.1, spanW / spanH)) : 1.6;
 
-        // The map height is responsive — doubled on laptops — so read it rather
-        // than assuming, and derive the note's width from whatever the current
-        // breakpoint set. getComputedStyle resolves the length even while the
-        // note is hidden, which matters because a restored course renders
-        // before the board is revealed.
-        const mapH = parseFloat(getComputedStyle(el.goalMap).height) || 56;
+        // The map height is responsive — doubled on laptops — and it is read
+        // from the CSS custom property rather than the element's computed
+        // height. A course restored from cache renders while the dashboard is
+        // still hidden, and a display:none element reports a zero box in some
+        // browsers, which would collapse the note's width along with it.
+        const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        const rawHeight = getComputedStyle(el.goalMapNote)
+            .getPropertyValue('--pacey-goal-map-h').trim();
+        let mapH = parseFloat(rawHeight) || 3.5 * rootFont;
+        if (rawHeight.endsWith('rem')) mapH *= rootFont;
+
         const noteStyle = getComputedStyle(el.goalMapNote);
-        const padX = (parseFloat(noteStyle.paddingLeft) || 0)
-            + (parseFloat(noteStyle.paddingRight) || 0);
+        const padX = ((parseFloat(noteStyle.paddingLeft) || 0)
+            + (parseFloat(noteStyle.paddingRight) || 0)) || 0.8 * rootFont;
+
         el.goalMapNote.style.width = `${Math.round(mapH * aspect + padX)}px`;
     }
 
@@ -2322,14 +2353,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // fixed read written against the sample course.
 
     // Written against the real KL Standard Chartered Half route the demo loads
-    // (21.4 km, 314 m of climbing, rolling, high point before halfway).
+    // (21.4 km, 314 m of climbing, 14.7 m/km — hilly on the road scale), and
+    // shaped like the read the coach now produces: overview, what to notice,
+    // how it compares with the runner's training, and what to do about it.
     const DEMO_COURSE_INSIGHT =
-        'This is a rolling half: 21.4 km with 314 m of climbing, and the gain comes in bumps rather '
-        + 'than one hill — the high point arrives before halfway and the grade almost never settles. '
-        + 'That makes it a rhythm race, so keep the effort even through the rollers and resist chasing '
-        + 'the early ones; there are a couple of sharp pitches, one over 18%, to save something for. '
-        + 'Your recent runs have been far flatter than this course, so hill endurance is the thing '
-        + 'worth training before race day.';
+        'This is a hilly half by road standards — 314 m of climbing across 21.4 km. The gain comes in '
+        + 'bumps rather than one hill, so the grade almost never settles, and there are a couple of sharp '
+        + 'pitches, one over 18%, to save something for. Your recent runs have been far flatter than this, '
+        + 'so the hills will ask more of you than your training has. Get some hill work in before race day, '
+        + 'and keep the effort even through the rollers rather than chasing the early ones.';
 
     function renderCourseInsight(rec) {
         const el = courseEls();

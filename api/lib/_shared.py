@@ -619,6 +619,19 @@ COURSE_CACHE_PREFIX = "race:course:"
 # block it belongs to. The frontend clears it explicitly on removal.
 COURSE_CACHE_TTL = 90 * 24 * 3600
 
+# How much hillier than the runner's own training a course must be before the
+# coach mentions the gap. The comparison is deliberately one-directional: a
+# course hillier than their training is the case where they are underprepared
+# and it matters; a course FLATTER than their training is good news and warning
+# them about it is noise.
+COURSE_TERRAIN_GAP = 1.5
+
+# Gain per km at which a road course counts as hilly, matching
+# HILLY_GAIN_PER_KM in pacey-course.js. Below this the coach is told not to
+# prescribe hill work, because there is nothing on the course it would prepare
+# the runner for.
+COURSE_HILLY_GAIN_PER_KM = 10
+
 
 def _save_persistent_course(email: str, course: dict | None):
     """Store (or clear) the runner's race course record, keyed by email.
@@ -726,10 +739,17 @@ def _course_prompt_block(course: dict | None, training_gain_per_km: float | None
     if shape.get("character"):
         lines.append(
             f"- Shape: {shape.get('character')}. {shape.get('gain_first_half_m')} m of the gain falls in the "
-            f"first half and {shape.get('gain_last_third_m')} m in the last third. The high point is at "
-            f"{shape.get('high_point_km')} km ({shape.get('high_point_pct')}% of the race), and the course "
-            f"finishes {shape.get('net_elevation_m')} m relative to the start."
+            f"first half and {shape.get('gain_last_third_m')} m in the last third. The course finishes "
+            f"{shape.get('net_elevation_m')} m relative to the start."
         )
+        # A high point inside the closing few percent is an artefact of where
+        # the trace ends, not a climb — on a closed loop it is the finish line,
+        # and describing it as a "rise to watch" is nonsense.
+        hp = shape.get("high_point_pct")
+        if hp is not None and hp < 95:
+            lines.append(
+                f"- The high point is at {shape.get('high_point_km')} km, {hp}% of the way in."
+            )
 
     alt = summary.get("altitude_m") or {}
     if alt.get("max") is not None:
@@ -767,26 +787,45 @@ def _course_prompt_block(course: dict | None, training_gain_per_km: float | None
             f"{d.get('km')} km {str(d.get('band', '')).lower()}" for d in dist
         ) + ".")
 
-    # The course against the terrain they actually train on. This is usually
-    # the most actionable line in the block.
+    # The course against the terrain they actually train on. Deliberately
+    # one-directional and only on a material gap: a course HILLIER than their
+    # training is where they are underprepared and it matters; a course flatter
+    # than their training is good news, and warning them about it is noise.
+    # Phrased from the runner's side, in plain words — an earlier version said
+    # "0.5x the climbing they train on" under a heading of "THE RUNNER'S OWN
+    # TERRAIN", and the model echoed the heading straight back at the runner.
     course_gain_per_km = summary.get("gain_per_km")
-    if training_gain_per_km is not None and course_gain_per_km:
-        if training_gain_per_km > 0:
-            ratio = course_gain_per_km / training_gain_per_km
-            comparison = f" That is about {ratio:.1f}x the climbing they train on."
-        else:
-            comparison = " Their recent runs have been essentially flat."
+    hillier_than_training = (
+        training_gain_per_km is not None
+        and training_gain_per_km > 0
+        and course_gain_per_km
+        and course_gain_per_km >= training_gain_per_km * COURSE_TERRAIN_GAP
+    )
+    if hillier_than_training:
         lines.append(
-            f"- THE RUNNER'S OWN TERRAIN: their recent runs average "
-            f"{round(training_gain_per_km, 1)} m of climb per km; this course is {course_gain_per_km} m per km."
-            + comparison
-            + " If the gap is large, say so plainly — it is the most useful thing you can tell them."
+            f"- This course is noticeably hillier than the runner's recent training: their runs average "
+            f"{round(training_gain_per_km, 1)} m of climb per km, this course is {course_gain_per_km}. Say "
+            "that plainly, in those terms, and treat it as the one thing most likely to catch them out."
+        )
+
+    # Hill work is only worth prescribing when the course actually demands it.
+    if course_gain_per_km and course_gain_per_km >= COURSE_HILLY_GAIN_PER_KM:
+        lines.append(
+            "- This course is hilly enough to reward hill work, so say what kind would help."
+        )
+    else:
+        lines.append(
+            "- This is a flat or rolling course. Do NOT suggest hill training — there is nothing on it that "
+            "hill work would prepare them for."
         )
 
     lines.append(
-        "- Use the course: tie pacing advice to WHERE the climbing falls (a climb at 30 km of a marathon is "
-        "the decisive point of the race; the same climb at 5 km is not), and say what kind of hill work would "
-        "help them get ready for it."
+        "- Where the climbing falls is what makes it matter: a climb at 30 km of a marathon is the decisive "
+        "point of the race; the same climb at 5 km is not. Tie any pacing advice to that."
+    )
+    lines.append(
+        "- Keep it readable. Quote a number only when it changes the advice — a course with 47 m of climbing "
+        "does not need five figures to describe it."
     )
     lines.append(
         "- The course is ADVISORY. Do NOT change the goal time or the pace zones because of it."
