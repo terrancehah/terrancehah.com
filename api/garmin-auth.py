@@ -146,8 +146,8 @@ def _stash_mfa_client(client, email: str) -> str:
 def _mfa_challenge_response(client, email: str):
     """The password step succeeded, but Garmin wants a two-factor code."""
     return JSONResponse(status_code=409, content={
-        "error": "Garmin sent you a two-factor code.",
-        "detail": "Enter the code Garmin just sent you to finish signing in.",
+        "error": "That code didn't work.",
+        "detail": "Garmin may have sent a fresh one — check your email or phone for the latest code and try again.",
         "mfa_required": True,
         "mfa_token": _stash_mfa_client(client, email),
     })
@@ -155,8 +155,8 @@ def _mfa_challenge_response(client, email: str):
 
 def _mfa_expired_response():
     return JSONResponse(status_code=409, content={
-        "error": "That two-factor step expired.",
-        "detail": "Please enter your email and password again to get a new code.",
+        "error": "That code expired.",
+        "detail": "Pop your email and password in again and Garmin will send a fresh one.",
         "mfa_expired": True,
     })
 
