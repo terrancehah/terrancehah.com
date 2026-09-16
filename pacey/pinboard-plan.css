@@ -1310,17 +1310,69 @@
 }
 
 /* Past runs read as old history: greyer, flatter stock and muted ink so
-   they recede against the live/suggested sessions. */
+   they recede against the live/suggested sessions.
+
+   The stock is crumpled rather than flat. The texture is a seamless tile, so
+   it repeats across any card width without a visible join — which matters
+   here, because these cards are wide short strips (roughly 12:1 on desktop,
+   5:1 on mobile) and that is precisely the shape a single non-tiling crumple
+   photo would smear into horizontal streaks.
+
+   The tile is high contrast on its own, so a wash of the card's own grey sits
+   over it as the top background layer. That wash is the strength dial: raise
+   the alpha to push the crumple back, lower it to bring the folds up. Using a
+   layer rather than background-blend-mode keeps the card's grey exactly where
+   it was, instead of letting the texture's light average shift the whole card.
+
+   The alpha is set by the ink rather than by taste. The card's text is
+   #6e6657, which sits around 103 in luminance, and the texture's folds run
+   down to near 0 — so at a light wash the creases come out at roughly the same
+   tone as the words and the text stops reading. At 0.8 the darkest a fold can
+   render is about 181, which clears the text by nearly eighty levels and still
+   leaves a good fifty levels of range for the crumple to show in. That is
+   comfortable headroom, so if you darken the ink further the crumple can come
+   back up a little in exchange.
+
+   background-size sets the fold scale, and it is a relationship rather than a
+   number: the tile is 180px, so the folds land around 30px, which is about a
+   fold and a half of relief across a 50px-tall card. A smaller tile reads as
+   finer, more tissue-like creasing; a larger one as fewer, deeper folds. */
 #pacey-content .pacey-cal-card--past {
     background-color: #e6e2d7;
-    background-image: none;
+    background-image:
+        linear-gradient(rgba(230, 226, 215, 0.8), rgba(230, 226, 215, 0.8)),
+        url("/pacey/assets/textures/paper-crumple.jpg");
+    background-size: auto, 180px 180px;
+    background-repeat: no-repeat, repeat;
     box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08), 0 0.25rem 0.4rem rgba(0, 0, 0, 0.1);
 }
+
+/* Wrinkle variation. A background always starts at its own element's origin,
+   so without this every card would show the identical patch of the tile and
+   the board would read as one pattern stamped out rather than a pile of
+   separate scraps. Offsetting where each row's tile begins hands each card a
+   different patch. Any offset is safe because the tile is seamless, so the
+   phase can start anywhere without a join appearing.
+
+   The offsets are deliberately irregular. Evenly stepping them would just walk
+   the same fold diagonally down the board, which reads as a pattern rather
+   than as chance. Six variants against a seven-day week means the cycle drifts
+   by a day each week, so no two weeks line up.
+
+   Position is set per layer: the wash stays pinned at 0 0 (shifting it would
+   slide it off the corner and leave that strip of texture undimmed), and only
+   the texture moves. */
+#pacey-content .pacey-cal-row:nth-child(6n+2) .pacey-cal-card--past { background-position: 0 0, 37px 112px; }
+#pacey-content .pacey-cal-row:nth-child(6n+3) .pacey-cal-card--past { background-position: 0 0, 118px 41px; }
+#pacey-content .pacey-cal-row:nth-child(6n+4) .pacey-cal-card--past { background-position: 0 0, 64px 156px; }
+#pacey-content .pacey-cal-row:nth-child(6n+5) .pacey-cal-card--past { background-position: 0 0, 151px 88px; }
+#pacey-content .pacey-cal-row:nth-child(6n+6) .pacey-cal-card--past { background-position: 0 0, 92px 19px; }
+#pacey-content .pacey-cal-row:nth-child(6n+7) .pacey-cal-card--past { background-position: 0 0, 12px 73px; }
 #pacey-content .pacey-cal-card--past .pacey-cal-card-title,
 #pacey-content .pacey-cal-card--past .pacey-cal-card-meta,
 #pacey-content .pacey-cal-card--past .pacey-cal-card-desc,
-#pacey-content .pacey-cal-card--past .pacey-cal-card-pace { color: #8a867f; }
-#pacey-content .pacey-cal-card--past .pacey-run-tag { filter: saturate(0.7); opacity: 0.9; }
+#pacey-content .pacey-cal-card--past .pacey-cal-card-pace { color: #6e6657; }
+#pacey-content .pacey-cal-card--past .pacey-run-tag { filter: saturate(0.8); opacity: 0.9; }
 
 /* Rest days are not cards: just the word sitting on the cork, so the board
    stays uncluttered. */
