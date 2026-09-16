@@ -81,6 +81,12 @@ document.addEventListener('DOMContentLoaded', function () {
     let displayName = '';
     let raceGoal = null;
     let raceGoalPaceMs = 0; // race goal pace in m/s — used for run classification
+    // Two-factor login state, declared with the rest of the module state rather
+    // than down in the login section: closeLoginModal() resets it, and that
+    // function is defined earlier, so a `let` down there could be read before
+    // its declaration runs.
+    let mfaToken = '';
+    let mfaEmail = '';
     let mileageChart = null;
     let lastMileageWeeks = null; // stored for theme-change re-render
     let radarCharts = []; // multiple instances — overview + readiness pages
@@ -259,6 +265,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function closeLoginModal() {
         loginModal.hidden = true;
         authError.hidden = true;
+        // Drop any half-finished two-factor step, so reopening the modal starts
+        // from the password rather than showing a stale code field.
+        resetMfaStep();
         // Return focus to the element that opened the modal
         if (loginModalTrigger) loginModalTrigger.focus();
     }
@@ -991,26 +1000,74 @@ document.addEventListener('DOMContentLoaded', function () {
     // Login (modal form submission)
     // =========================================================================
 
+    function setLoginButtonLabel(label) {
+        const text = loginBtn && loginBtn.querySelector('.pacey-btn-text');
+        if (text) text.textContent = label;
+    }
+
+    function showMfaStep(token, email) {
+        mfaToken = token;
+        mfaEmail = email;
+        const step = $('#pacey-mfa-step');
+        if (step) step.hidden = false;
+        setLoginButtonLabel('Verify code');
+        const code = $('#pacey-mfa-code');
+        if (code) code.focus();
+    }
+
+    function resetMfaStep() {
+        mfaToken = '';
+        mfaEmail = '';
+        const step = $('#pacey-mfa-step');
+        if (step) step.hidden = true;
+        const code = $('#pacey-mfa-code');
+        if (code) code.value = '';
+        setLoginButtonLabel('Connect Garmin');
+    }
+
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         authError.hidden = true;
         setButtonLoading(loginBtn, true);
         const email = $('#pacey-email').value.trim();
         const password = $('#pacey-password').value;
+        const mfaCode = $('#pacey-mfa-code') ? $('#pacey-mfa-code').value.trim() : '';
+        // Second pass: send the code against the token Garmin handed back,
+        // rather than the password again.
+        const payload = mfaToken
+            ? { email: mfaEmail, mfa_token: mfaToken, mfa_code: mfaCode }
+            : { email, password };
         try {
             const resp = await fetch(`${API_BASE}/garmin-auth`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(payload)
             });
             const data = await resp.json();
             if (!resp.ok) {
-                let msg = data.error || 'Authentication failed.';
-                if (typeof data.detail === 'string') msg += ' ' + data.detail;
-                if (resp.status === 429) msg = 'Too many login attempts. Garmin temporarily blocked the request. Please wait 10–15 minutes and try again.';
-                authError.textContent = msg;
+                // Garmin wants a two-factor code — or the one just entered was
+                // wrong. Either way this is not a failure to report, it is the
+                // next step to show.
+                if (data.mfa_required) {
+                    const wasInMfa = !!mfaToken;
+                    showMfaStep(data.mfa_token, email);
+                    if (wasInMfa) {
+                        authError.textContent = data.error || 'That code did not work.';
+                        authError.hidden = false;
+                    }
+                    return;
+                }
+                if (data.mfa_expired) resetMfaStep();
+                // The server distinguishes the cases — bad credentials, a
+                // locked account, Garmin's rate limit, its bot protection — so
+                // its copy is used as-is.
+                const msg = [data.error, data.detail]
+                    .filter(s => typeof s === 'string' && s.trim())
+                    .join(' ');
+                authError.textContent = msg || 'Could not sign in. Please try again.';
                 authError.hidden = false;
                 return;
             }
+            resetMfaStep();
             sessionToken = data.session_token;
             displayName = data.display_name;
             profileImageUrl = data.profile_image_url || '';

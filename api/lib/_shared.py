@@ -123,8 +123,17 @@ load_dotenv()
 # --- Pydantic models ---
 
 class GarminAuthRequest(BaseModel):
-    email: str
-    password: str
+    """Credentials for a fresh login, or a code for the second step.
+
+    Two-factor accounts take two calls: the password step answers with
+    mfa_required plus an mfa_token, and the code step sends that token back with
+    the code. Only one pair is used per request, so all four are optional and
+    the endpoint validates.
+    """
+    email: str = ""
+    password: str = ""
+    mfa_token: str = ""
+    mfa_code: str = ""
 
 class RaceGoalRequest(BaseModel):
     purpose: str

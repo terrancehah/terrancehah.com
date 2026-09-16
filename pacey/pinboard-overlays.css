@@ -1881,6 +1881,16 @@
 #pacey-edit-goal-popup .pacey-edit-goal-header { padding: 1.05rem 0.8rem 0.55rem; }
 #pacey-edit-goal-popup .pacey-input { padding: 0.5em 0.7em; }
 #pacey-edit-goal-popup .pacey-label { line-height: 1.2; }
+
+/* Two-factor step in the login modal. Sits under the code field and explains
+   what to do with it, since the code arrives out-of-band from Garmin. */
+.pacey-mfa-hint {
+    margin: 0.4rem 0 0;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    line-height: 1.4;
+    color: var(--pacey-muted);
+}
 #pacey-edit-goal-popup .pacey-btn { padding: 0.55rem 1rem; }
 
 /* Live sentence under the race-result inputs */

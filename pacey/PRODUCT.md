@@ -45,7 +45,7 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 ## Garmin
 
 - Official path is **OAuth / Connected Apps** and the Training API onto the Connect calendar. Not yet built — still first on the list.
-- Unofficial `python-garminconnect` email+password is a wedge, not the scale path. The current implementation already stores serialised OAuth tokens instead of the password and rotates them on re-auth; do not deepen password login further.
+- Unofficial `python-garminconnect` email+password is a wedge, not the scale path. The current implementation already stores serialised OAuth tokens instead of the password and rotates them on re-auth; do not deepen password login further. The one deliberate exception is two-factor sign-in (see Open items), added because 2FA accounts could not sign in at all.
 - Runna, TrainingPeaks, TrainAsONE, RunMotion all go through Connect permissions. Match that bar when auth is rebuilt.
 
 ## Competitive notes (verified 2026 research, status: partial)
@@ -66,6 +66,7 @@ Official OAuth at Garmin-partner scale, native watch glance, full-block periodiz
 3. **Stable plan identity** — decide whether daily re-projection is the product or an artefact of the cache key, so a committed plan stops moving under the runner.
 4. **Long-run duration ceiling** (about 2–3 hours), not just distance.
 5. **Phase proportions** are fixed thresholds (42 / 20 / 7 days) and do not scale with block length; a 26-week block gets roughly 3 weeks of specificity.
+6. **Garmin two-factor sign-in is built, but best-effort.** The two-step flow exists: the password step answers 409 with an `mfa_token` and the code step completes it with `resume_login()`. It requires `garminconnect>=0.3.13`, which keeps the pending session alive after a wrong code so a mistyped code is retryable instead of restarting the whole login. The remaining gap is state — `resume_login()` completes on the same client instance, which holds the live TLS-impersonating session from the password step and is not serialisable, so the pending login is held in memory on the function instance (5-minute TTL, capped). That works when the same warm instance serves both requests and fails otherwise, in which case the runner is asked to start again rather than told their password is wrong. A reliable version needs a stateful service, or official OAuth (item 2).
 
 ## Implementation order
 

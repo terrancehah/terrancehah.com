@@ -195,6 +195,14 @@
                         <label for="pacey-password" class="pacey-label">Garmin Password</label>
                         <input type="password" id="pacey-password" class="pacey-input" placeholder="Enter your password" required autocomplete="current-password">
                     </div>
+                    <!-- Two-factor step. Revealed only when Garmin asks for a
+                         code, so accounts without 2FA never see it. -->
+                    <div class="pacey-field" id="pacey-mfa-step" hidden>
+                        <label for="pacey-mfa-code" class="pacey-label">Two-factor code</label>
+                        <input type="text" id="pacey-mfa-code" class="pacey-input" placeholder="123456"
+                               inputmode="numeric" autocomplete="one-time-code" spellcheck="false">
+                        <p class="pacey-mfa-hint">Garmin sent you a code. Enter it to finish connecting.</p>
+                    </div>
                     <div class="pacey-auth-error" id="pacey-auth-error" hidden></div>
                     <button type="submit" class="pacey-btn pacey-btn-primary" id="pacey-login-btn">
                         <span class="pacey-btn-text">Connect Garmin</span>
