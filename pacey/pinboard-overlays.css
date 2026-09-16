@@ -36,6 +36,68 @@
 
 .pacey-modal-overlay[hidden] { display: none; }
 
+/* ---- Modal enter / exit -----------------------------------------------
+   Every modal in the app is shown and hidden by toggling the `hidden`
+   attribute, which is `display: none` — and a transition cannot start from
+   `display: none` unless it is told to. Two things fix that here:
+
+   `allow-discrete` lets `display` take part in the transition, so the switch
+   to `none` is deferred to the end and the fade-out is actually seen rather
+   than the modal vanishing mid-fade. `@starting-style` supplies the state to
+   fade in from, because an element that has just appeared has no previous
+   style to come from.
+
+   Between them the nine modals animate with no JavaScript at all, and any
+   modal added later inherits it for free. The three overlays that already
+   animate — the chat popup, the workout sheet and the settings popup — keep
+   their own scripts, because their motion is shape-specific: one grows out of
+   the FAB it belongs to, two slide up as sheets.
+
+   Declaration order matters here. `transition-behavior` is written as its own
+   declaration *after* the shorthand, because the shorthand resets it: putting
+   it first, or folding `allow-discrete` into the shorthand, makes a browser
+   that doesn't understand the value throw away the whole transition. Written
+   this way, older browsers keep the fade and merely miss the deferred display,
+   so the modal still opens and closes exactly as it does today. */
+.pacey-modal-overlay {
+    /* Exit state — the overlay fades back down to here, and `display` is held
+       open until that fade finishes. */
+    opacity: 0;
+    transition: opacity 0.22s ease, display 0.22s;
+    transition-behavior: allow-discrete;
+}
+
+.pacey-modal-overlay:not([hidden]) { opacity: 1; }
+
+@starting-style {
+    .pacey-modal-overlay:not([hidden]) { opacity: 0; }
+}
+
+/* The card rises a little and settles, rather than only fading with the
+   backdrop. Only `transform` is animated, so a card's own colour transitions
+   have to be restated: a transition shorthand replaces the whole list rather
+   than adding to it, and the metric popup card relies on its own pair for
+   theme switching. */
+.pacey-modal-overlay > * {
+    transform: translateY(0.5rem) scale(0.97);
+    transition:
+        transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 0.3s ease,
+        border-color 0.3s ease;
+}
+
+.pacey-modal-overlay:not([hidden]) > * { transform: none; }
+
+@starting-style {
+    .pacey-modal-overlay:not([hidden]) > * { transform: translateY(0.5rem) scale(0.97); }
+}
+
+/* Reduced motion: the fade carries no vestibular risk, so it stays; the
+   movement does not, so the card simply appears with the backdrop. */
+@media (prefers-reduced-motion: reduce) {
+    .pacey-modal-overlay > * { transition: none; }
+}
+
 .pacey-modal-close {
     position: absolute;
     top: 0.75rem;

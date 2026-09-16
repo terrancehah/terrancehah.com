@@ -529,6 +529,14 @@
     flex-direction: column;
     width: min(100%, 64rem);
     height: min(100%, 44rem);
+    /* This app has no global border-box reset, so without this the card's own
+       padding and wooden frame are added on top of the height instead of
+       counted inside it. At 100% that made the box taller than the space the
+       overlay gave it — enough that, being centred, it overflowed by half the
+       padding-plus-frame on each side and cancelled the overlay's 16px of
+       breathing room completely, leaving the blackboard flush against both
+       screen edges. */
+    box-sizing: border-box;
     padding: 1rem 1rem 0.85rem;
     background-color: #2f3b35;
     border: 0.5rem solid #6d4b2f;
@@ -688,10 +696,20 @@
         --pacey-goal-map-h: 3.5rem;
     }
 
-    /* Give the modal map as much of the small screen as possible. */
+    /* Deliberately well under full height. At nearly the whole screen the
+       blackboard stopped reading as a card pinned to the board and just became
+       the screen, so it is capped at 60% of the visible height and left
+       floating with cork showing above and below it.
+
+       Measured in dvh rather than %: a percentage height on a fixed element
+       resolves against the viewport with the browser chrome retracted, which
+       is taller than what you can actually see, so the bottom of the card (the
+       hint line) ended up behind the URL bar. The vh line is the fallback for
+       engines that don't know dvh. */
     .pacey-course-map-modal-card {
         width: 100%;
-        height: 100%;
+        height: 60vh;
+        height: 60dvh;
         padding: 0.75rem 0.75rem 0.6rem;
         border-width: 0.3rem;
     }
