@@ -1005,11 +1005,27 @@ document.addEventListener('DOMContentLoaded', function () {
         if (text) text.textContent = label;
     }
 
+    /**
+     * Lock the credential fields while a two-factor code is pending.
+     *
+     * Disabled rather than merely hidden: a `required` input that is not
+     * rendered still blocks submission in browsers ("An invalid form control is
+     * not focusable"), and `disabled` bars it from validation while keeping the
+     * value the second step needs.
+     */
+    function setLoginFieldsLocked(locked) {
+        ['#pacey-email', '#pacey-password'].forEach((sel) => {
+            const field = $(sel);
+            if (field) field.disabled = locked;
+        });
+    }
+
     function showMfaStep(token, email) {
         mfaToken = token;
         mfaEmail = email;
         const step = $('#pacey-mfa-step');
         if (step) step.hidden = false;
+        setLoginFieldsLocked(true);
         setLoginButtonLabel('Verify code');
         const code = $('#pacey-mfa-code');
         if (code) code.focus();
@@ -1022,6 +1038,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (step) step.hidden = true;
         const code = $('#pacey-mfa-code');
         if (code) code.value = '';
+        setLoginFieldsLocked(false);
         setLoginButtonLabel('Connect Garmin');
     }
 

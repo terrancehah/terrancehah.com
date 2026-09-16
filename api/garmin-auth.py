@@ -179,11 +179,14 @@ async def garmin_auth(body: GarminAuthRequest):
         })
 
     try:
-        client = Garmin(body.email, body.password)
-        # return_on_mfa=True makes the library RETURN ("needs_mfa", None) rather
-        # than raising, so two-factor is a value we handle rather than an error
-        # we have to interpret.
-        outcome, _ = client.login(return_on_mfa=True)
+        # return_on_mfa is a CONSTRUCTOR argument on Garmin, not a login() one:
+        # the wrapper stores it and forwards it to the inner client's login().
+        # Calling client.login(return_on_mfa=True) raises TypeError.
+        client = Garmin(body.email, body.password, return_on_mfa=True)
+        # In this mode the wrapper returns early with ("needs_mfa", None) when
+        # Garmin wants a code, instead of blocking on a prompt. So two-factor is
+        # a value we handle rather than an error we have to interpret.
+        outcome, _ = client.login()
     except GarminConnectAuthenticationError as e:
         return _auth_error_response(e)
     except GarminConnectTooManyRequestsError:

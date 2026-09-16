@@ -103,6 +103,15 @@
 
 .pacey-screen[hidden] { display: none; }
 
+/* Global guard for the hidden attribute.
+   `[hidden]` only sets display:none through the browser's own stylesheet, so
+   ANY component rule that sets a display value silently defeats it. That has
+   bitten twice now — the race-course drop target, and the two-factor field in
+   the login modal, which was visible from the start because .pacey-field is
+   display:flex. The per-component overrides further down this file predate this
+   rule and are now redundant, but harmless. */
+[hidden] { display: none !important; }
+
 /* ========== FORMS ========== */
 .pacey-auth-form,
 .pacey-onboard-form {
