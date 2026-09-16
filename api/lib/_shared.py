@@ -186,8 +186,9 @@ def _save_session(token: str, data: dict, ttl: int = SESSION_TTL):
     """Save a session to Redis (or local fallback).
 
     Strips the garmin_client field before saving since the Garmin client
-    object is not JSON-serializable. The client is lazily re-created from
-    stored credentials by _get_garmin_client when needed.
+    object is not JSON-serializable. The client is lazily re-created from the
+    session's stored OAuth token bundle by _get_garmin_client when needed — a
+    password is never part of a session.
     """
     # Remove any non-serializable fields before persisting
     clean = {k: v for k, v in data.items() if k != "garmin_client"}
@@ -270,18 +271,21 @@ def _get_garmin_client(token: str) -> Garmin:
     Redis. Sessions store the serialized OAuth token bundle (di_token +
     di_refresh_token) instead of the password; the client is re-created from
     tokens via login(tokenstore=...), which never sends the password and
-    auto-refreshes the DI token. This avoids credential logins that trip
-    Garmin's login-attempt rate limit.
+    auto-refreshes the DI token.
 
-    Legacy sessions created before token storage still carry a password and
-    fall back to credential login for backward compatibility.
+    There is deliberately NO credential fallback here. A credential login is
+    the only thing that can trigger Garmin's two-factor challenge, and this
+    function runs on every background data fetch — so a fallback would mean a
+    runner being asked for a code in the middle of a page refresh, for a fetch
+    they never asked for. It also keeps us off Garmin's login-attempt rate
+    limit. When the tokens cannot be used, this raises 401 and the runner logs
+    in again through the modal, which is the one place a code is expected.
 
     Raises HTTPException(401) if session state is missing or login fails.
     """
     sess = _get_session(token)
     email = sess.get("email", "")
     tokens_json = sess.get("tokens")
-    password = sess.get("password", "")  # legacy sessions only
 
     if not email:
         raise HTTPException(
@@ -290,34 +294,29 @@ def _get_garmin_client(token: str) -> Garmin:
         )
 
     try:
-        if tokens_json:
-            # Token-based re-auth — no password involved. If the tokens are
-            # rejected/expired, login() raises and the user re-logs in.
-            client = Garmin(email)
-            client.login(tokenstore=tokens_json)
-            # Persist the rotated token bundle. garminconnect refreshes AND
-            # rotates the DI refresh token on login, but only writes it back
-            # when it was given a file path — we pass inline JSON, so without
-            # this the stored refresh token would go stale and every later
-            # request would fail re-auth. Best-effort, and only written when
-            # it actually changed (avoids a Redis write on every request).
-            try:
-                refreshed = client.client.dumps()
-                if refreshed and refreshed != tokens_json:
-                    sess["tokens"] = refreshed
-                    _save_session(token, sess)
-            except Exception:
-                pass
-            return client
-        if password:
-            # Legacy session (created before OAuth token storage)
-            client = Garmin(email, password)
-            client.login()
-            return client
-        raise HTTPException(
-            status_code=401,
-            detail="Garmin session has no credentials. Please log in again."
-        )
+        if not tokens_json:
+            raise HTTPException(
+                status_code=401,
+                detail="Garmin session has no credentials. Please log in again."
+            )
+        # Token-based re-auth — no password involved. If the tokens are
+        # rejected/expired, login() raises and the user re-logs in.
+        client = Garmin(email)
+        client.login(tokenstore=tokens_json)
+        # Persist the rotated token bundle. garminconnect refreshes AND
+        # rotates the DI refresh token on login, but only writes it back
+        # when it was given a file path — we pass inline JSON, so without
+        # this the stored refresh token would go stale and every later
+        # request would fail re-auth. Best-effort, and only written when
+        # it actually changed (avoids a Redis write on every request).
+        try:
+            refreshed = client.client.dumps()
+            if refreshed and refreshed != tokens_json:
+                sess["tokens"] = refreshed
+                _save_session(token, sess)
+        except Exception:
+            pass
+        return client
     except HTTPException:
         raise
     except GarminConnectTooManyRequestsError:

@@ -168,6 +168,11 @@ async def garmin_auth(body: GarminAuthRequest):
     Two calls for an account with two-factor enabled: the password step answers
     409 with an mfa_token, and the code step sends that token back along with
     the code. Accounts without 2FA finish in one call, exactly as before.
+
+    This is the ONLY place a password is ever sent, and therefore the only place
+    Garmin can ask for a two-factor code — every later request re-creates the
+    client from the session's stored OAuth token bundle instead
+    (see _get_garmin_client).
     """
     # Second step — a code for a login already in progress.
     if body.mfa_token:
