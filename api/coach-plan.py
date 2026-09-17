@@ -29,6 +29,7 @@ from lib._shared import (
     _get_persistent_ai_cache, _get_cached_garmin_data, _get_fitness_snapshot,
     _save_persistent_course, _get_persistent_course, _course_prompt_block,
     _training_gain_per_km, _save_course_insight, _get_course_insight,
+    _mileage_prompt_lines,
     _call_ai, _phase_for_days_left,
     _median, _fitness_medians, _fitness_samples, _long_run_samples, _cap_recent,
     _pace_str_sec, _pace_range_sec,
@@ -1393,11 +1394,19 @@ async def _generate_plan(body: CoachPlanRequest):
     # Race goal context
     race_goal_text = ""
     if race_goal:
+        # Both the reported and the computed weekly mileage go in — see
+        # _mileage_prompt_lines. Note this is prompt context only: the reported
+        # figure stays in the plan cache key (current_prefs), so the cached
+        # block does not churn every time the computed figure moves.
+        mileage_lines = _mileage_prompt_lines(
+            race_goal,
+            (cached_garmin or {}).get("weekly_mileage"),
+            history,
+        )
         race_goal_text = (
             f"RACE GOAL: {race_goal.get('purpose', 'N/A')} in "
-            f"{race_goal.get('time_target', 'N/A')} on {race_goal.get('race_date', 'N/A')}. "
-            f"Current weekly mileage: {race_goal.get('weekly_mileage', 'N/A')} "
-            f"{race_goal.get('mileage_unit', 'km')}."
+            f"{race_goal.get('time_target', 'N/A')} on {race_goal.get('race_date', 'N/A')}.\n"
+            + "\n".join(mileage_lines)
         )
 
     # Race course context — the uploaded GPX summary, when there is one. This

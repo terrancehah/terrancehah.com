@@ -1483,6 +1483,90 @@ def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
     return result
 
 
+# How many recent weeks feed the mileage median handed to the coach prompts.
+RECENT_MILEAGE_WEEKS = 6
+
+
+def _recent_mileage_median(weekly_mileage=None, activities=None,
+                           weeks: int = RECENT_MILEAGE_WEEKS):
+    """Median weekly running distance over the most recent `weeks` weeks.
+
+    Median rather than mean on purpose: a taper, an injury layoff or post-race
+    down weeks all drag a mean below the runner's real base, and the coach would
+    then be handed a figure they have already moved past. Weeks with no running
+    are skipped rather than counted as zero, for the same reason.
+
+    Accepts either the pre-bucketed `weekly_mileage` list from the Garmin cache
+    or a flat activity list to bucket here — the AI radar's cache-miss path has
+    the activities but not the buckets, and an extra Garmin call just to get
+    them would not be worth it. Returns None when there is nothing to measure.
+    """
+    distances = []
+    if weekly_mileage:
+        distances = [w.get("mileage_km") or 0 for w in weekly_mileage]
+    elif activities:
+        buckets = {}
+        for a in activities:
+            # Two activity shapes reach here: _fetch_activities_for_ai emits
+            # date/distance_km, _slim_activity emits start_time/distance.
+            day = (a.get("date") or a.get("start_time") or "")[:10]
+            km = a.get("distance_km")
+            if km is None:
+                km = a.get("distance")
+            if not day or km is None:
+                continue
+            try:
+                d = datetime.strptime(day, "%Y-%m-%d").date()
+            except ValueError:
+                continue
+            monday = (d - timedelta(days=d.weekday())).isoformat()
+            buckets[monday] = buckets.get(monday, 0) + km
+        distances = [buckets[k] for k in sorted(buckets)]
+
+    nonzero = [d for d in distances if d > 0]
+    if not nonzero:
+        return None
+    recent = sorted(nonzero[-weeks:])
+    mid = len(recent) // 2
+    return recent[mid] if len(recent) % 2 else (recent[mid - 1] + recent[mid]) / 2
+
+
+def _mileage_prompt_lines(race_goal: dict | None, weekly_mileage=None, activities=None) -> list[str]:
+    """The weekly-mileage lines handed to a coach prompt.
+
+    Both figures are passed because they routinely disagree, and each is wrong
+    in a different direction. The reported one is what the runner typed at
+    onboarding — possibly aspirational, possibly remembered wrong. The computed
+    one is what their activities actually show, which under-counts for anyone
+    who does not wear the watch for every run, or whose treadmill sessions
+    record no distance.
+
+    Giving the model a single number invites it to reason from a fact that may
+    be false; giving it both lets it see the gap and decide which to lean on.
+    """
+    goal = race_goal or {}
+    lines = []
+
+    stated = goal.get("weekly_mileage")
+    if stated:
+        lines.append(f"- Weekly mileage the runner reported: {stated} {goal.get('mileage_unit', 'km')}")
+
+    actual = _recent_mileage_median(weekly_mileage, activities)
+    if actual is not None:
+        lines.append(
+            f"- Weekly mileage their recent activities show: {round(actual, 1)} km "
+            f"(median of the last {RECENT_MILEAGE_WEEKS} weeks that had any running)"
+        )
+
+    if len(lines) == 2:
+        lines.append(
+            "- These are given separately on purpose. Where they disagree, treat the activity "
+            "figure as what the runner has actually been doing and the reported one as intent — "
+            "do not average them, and do not assume either is wrong."
+        )
+    return lines
+
+
 # How many speedwork sessions we fetch lap details for (keeps Garmin request
 # count low — details are per-activity API calls)
 LAP_DETAIL_CAP = 10

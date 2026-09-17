@@ -16,6 +16,7 @@ from lib._shared import (
     _compute_goal_pace_ms,
     _get_persistent_ai_cache, _save_persistent_ai_cache, _delete_persistent_ai_cache,
     _get_persistent_course, _course_prompt_block, _training_gain_per_km,
+    _mileage_prompt_lines,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -208,13 +209,24 @@ async def ai_radar(token: str = "", force: str = ""):
     # Build race goal context for the prompt if the user has set one
     race_goal_text = ""
     if race_goal:
+        # Both the runner's reported mileage and what their activities actually
+        # show go in — see _mileage_prompt_lines for why they are given
+        # separately rather than reconciled into one number. The computed figure
+        # comes from the Garmin cache when metrics.py has populated it, and is
+        # bucketed from the activities already fetched when it has not.
+        mileage_lines = _mileage_prompt_lines(
+            race_goal,
+            (cached or {}).get("weekly_mileage"),
+            activities_data,
+        )
+        mileage_text = "\n".join("            " + line for line in mileage_lines)
         race_goal_text = f"""
             RACE GOAL (this is the target the runner is training toward — evaluate all dimensions in context of this goal):
             - Race Type: {race_goal.get('purpose', 'N/A')}
             - Distance: {race_goal.get('distance', 'N/A')}
             - Time Target: {race_goal.get('time_target', 'N/A')}
             - Race Date: {race_goal.get('race_date', 'N/A')}
-            - Current Weekly Mileage: {race_goal.get('weekly_mileage', 'N/A')} {race_goal.get('mileage_unit', 'km')}
+{mileage_text}
         """
 
     # Build physiological data text for the prompt — only include sections
