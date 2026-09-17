@@ -2271,10 +2271,47 @@ document.addEventListener('DOMContentLoaded', function () {
         positionGoalNote();
     }
 
-    /** Scroll the runner down to the full Race Course card. */
+    /**
+     * Scroll the runner down to the full Race Course card, then flash it.
+     *
+     * The flash is a CSS class on the card, added once the smooth scroll
+     * lands. There is no reliable cross-browser "scroll finished" event, so
+     * the scroll listener waits for 150ms of quiet; the outer timeout is
+     * the fallback for a no-op scroll (the card was already in view), which
+     * produces no scroll events at all.
+     */
     function goToCourseSection() {
+        const el = courseEls();
         const section = $('#pacey-course-section');
-        if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!section || !el.card) return;
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        let landed = false;
+        let scrolled = false;
+        let settle = null;
+        const land = () => {
+            if (landed) return;
+            landed = true;
+            document.removeEventListener('scroll', onScroll);
+            // Reflow between remove and add so a re-click while the class
+            // is still on replays the animation rather than doing nothing.
+            el.card.classList.remove('pacey-course-card--arrive');
+            void el.card.offsetWidth;
+            el.card.classList.add('pacey-course-card--arrive');
+            el.card.addEventListener('animationend',
+                () => el.card.classList.remove('pacey-course-card--arrive'),
+                { once: true });
+        };
+        const onScroll = () => {
+            scrolled = true;
+            clearTimeout(settle);
+            settle = setTimeout(land, 150);
+        };
+        document.addEventListener('scroll', onScroll, { passive: true });
+        // No scroll events at all means the section was already in view —
+        // land promptly rather than waiting out a long fallback, which
+        // would also risk firing mid-scroll on a long smooth scroll.
+        setTimeout(() => { if (!scrolled) land(); }, 400);
     }
 
     /**

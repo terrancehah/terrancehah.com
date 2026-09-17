@@ -613,16 +613,18 @@
     background-image: var(--pinboard-paper-noise);
     background-size: 140px 140px;
     background-repeat: repeat;
-    /* Tilted, so it reads as a note laid on the card rather than a panel. */
+    /* Tilted, so it reads as a note laid on the card rather than a panel.
+       The shadow stays low and tight — a note pressed onto the card, not
+       floating above it. */
     transform: rotate(-1.3deg);
-    box-shadow: 0 0.35rem 0.7rem rgba(0, 0, 0, 0.28), 0 0.9rem 1.4rem rgba(0, 0, 0, 0.16);
+    box-shadow: 0 0.15rem 0.35rem rgba(0, 0, 0, 0.2);
     cursor: pointer;
     transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
 }
 
 .pacey-goal-map-note:hover {
     transform: rotate(-1.3deg) translateY(-2px);
-    box-shadow: 0 0.5rem 0.9rem rgba(0, 0, 0, 0.3), 0 1.1rem 1.7rem rgba(0, 0, 0, 0.18);
+    box-shadow: 0 0.3rem 0.6rem rgba(0, 0, 0, 0.24);
 }
 
 .pacey-goal-map-note:focus-visible {
@@ -664,9 +666,65 @@
     border-radius: 2px;
 }
 
+/* Hand-drawn red circle scribbled around the note — the coach circling
+   the pinned course for attention, same pen as the sketch marks elsewhere
+   on the board. Bleeds past the note's edges like a real pen mark. */
+.pacey-goal-map-scribble {
+    position: absolute;
+    /* Larger than the note on every side — a hand-drawn circle runs wide
+       of what it rings, and the uneven insets keep it off-centre like a
+       real pen sweep rather than a frame. */
+    inset: -0.8rem -0.95rem -0.6rem -0.75rem;
+    width: auto;
+    height: auto;
+    /* Scaled a touch past the bleed — non-scaling-stroke on the path keeps
+       the pen weight the same while the circle itself grows. */
+    transform: scale(1.1);
+    /* Decorative — the note's click must never be blocked. */
+    pointer-events: none;
+}
+
+/* Stroked like the coach's ring around the start/finish: hollow, round
+   caps, the same red. */
+.pacey-goal-map-scribble path {
+    fill: none;
+    stroke: #c0392b;
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.9;
+    /* The viewBox stretches to whatever shape the note's JS width gives
+       it; non-scaling-stroke keeps the pen weight constant rather than
+       letting it squash with the box. */
+    vector-effect: non-scaling-stroke;
+}
+
 /* Clears the sticky demo banner when the mini note scrolls here. */
 #pacey-course-section {
     scroll-margin-top: 4rem;
+}
+
+/* Arrival flash: the mini note's smooth scroll lands and the course card
+   gives one quick pulse — a small scale beat plus a soft ring of chalk
+   blue (the elevation line's colour) that expands and dies. The class is
+   added by JS on landing and removed when the animation ends, so a
+   re-click replays it. */
+@keyframes pacey-course-arrive {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(143, 196, 234, 0.4);
+    }
+    35% {
+        transform: scale(1.012);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 1.4rem rgba(143, 196, 234, 0);
+    }
+}
+
+.pacey-course-card--arrive {
+    animation: pacey-course-arrive 0.7s ease-out;
 }
 
 
@@ -720,6 +778,12 @@
     .pacey-course-drop,
     .pacey-goal-map-note {
         transition: none;
+    }
+
+    /* The arrival flash is motion — reduced-motion users get the scroll
+       with no pulse at all. */
+    .pacey-course-card--arrive {
+        animation: none;
     }
 
     /* Hold the skeleton bars still rather than sweeping them. */
