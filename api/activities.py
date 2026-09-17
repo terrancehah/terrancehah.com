@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_garmin_client, _get_session, _get_cached_garmin_data,
-    _slim_activity, _compute_goal_pace_ms, ALLOWED_ACTIVITY_TYPES, create_app,
+    _slim_activity, _compute_goal_pace_ms, ALLOWED_ACTIVITY_TYPES, RUNNING_TYPES, create_app,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -44,7 +44,11 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0, mode: st
         start_str = start_date.isoformat()
         end_str = today.isoformat()
         try:
-            mileage_activities = client.get_activities_by_date(start_str, end_str, activitytype="running")
+            # No activitytype filter — see _compute_weekly_mileage in
+            # lib/_shared.py. Garmin's semantics for it are ambiguous and it was
+            # dropping treadmill runs from this chart; filtering on typeKey
+            # below keeps this in step with the activities list.
+            mileage_activities = client.get_activities_by_date(start_str, end_str)
         except Exception as e:
             return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
 
@@ -57,6 +61,11 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0, mode: st
                 "run_count": 0,
             }
         for a in mileage_activities:
+            # Only runs count toward running mileage — the typeKey check is the
+            # source of truth now that Garmin is no longer filtering for us.
+            type_key = ((a.get("activityType") or {}).get("typeKey") or "").lower()
+            if type_key not in RUNNING_TYPES:
+                continue
             start_time = a.get("startTimeLocal") or a.get("startTimeGMT") or ""
             try:
                 act_dt = datetime.strptime(start_time[:19], "%Y-%m-%d %H:%M:%S")

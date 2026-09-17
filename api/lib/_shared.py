@@ -1294,7 +1294,28 @@ def _parse_float(val) -> float | None:
 # Running activity types — shared across activities.py, _slim_activity,
 # _fetch_recent_activities_with_laps, and the coach plan. Defined here so
 # _slim_activity can reference it without forward-dependency concerns.
-RUNNING_TYPES = {"running", "trail_running", "track_running", "treadmill_running", "virtual_run"}
+#
+# These are Garmin's own typeKeys, taken from
+# connect.garmin.com/activity-service/activity/activityTypes, where everything
+# running sits under parentTypeId 1: running (1), trail_running (6),
+# street_running (7), treadmill_running (18), virtual_run (153),
+# indoor_running (156), ultra_run (181). Note the keys are NOT the tidy names
+# third-party APIs use — Garmin says "virtual_run", not "virtual_running", and
+# "ultra_run", not "ultra_running".
+RUNNING_TYPES = {
+    "running",
+    "street_running",
+    "trail_running",
+    "track_running",
+    "treadmill_running",
+    "indoor_running",
+    "virtual_run",
+    "ultra_run",
+    # Obstacle racing ships under both spellings depending on where Garmin
+    # surfaces it; neither costs anything to list.
+    "obstacle_run",
+    "obstacle_course_racing",
+}
 
 # Activity types shown in the activities list. This is a running-focused app,
 # so we include running plus cross-training that runners commonly do:
@@ -1415,7 +1436,15 @@ def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
     end_str = today.isoformat()
 
     try:
-        activities = client.get_activities_by_date(start_str, end_str, activitytype="running")
+        # No activitytype filter here on purpose. Garmin's semantics for that
+        # parameter are ambiguous — the library docstring lists top-level groups
+        # (running, cycling, …), but 'running' is also a concrete typeKey, and
+        # the endpoint does not clearly say which it matches. It was silently
+        # dropping treadmill runs from this chart while the activities list,
+        # which has never used the filter, still showed them. Fetching the range
+        # and filtering on typeKey below makes the chart and the list agree by
+        # construction instead of by Garmin's interpretation.
+        activities = client.get_activities_by_date(start_str, end_str)
     except Exception:
         return []
 
@@ -1429,6 +1458,9 @@ def _compute_weekly_mileage(client, weeks: int = 12) -> list[dict]:
         }
 
     for a in activities:
+        type_key = ((a.get("activityType") or {}).get("typeKey") or "").lower()
+        if type_key not in RUNNING_TYPES:
+            continue
         start_time = a.get("startTimeLocal") or a.get("startTimeGMT") or ""
         try:
             act_dt = _dt.strptime(start_time[:19], "%Y-%m-%d %H:%M:%S")
@@ -1678,7 +1710,10 @@ def _fetch_recent_activities_with_laps(client, days: int = 14, goal_pace_ms: flo
     start_str = (today - timedelta(days=days - 1)).isoformat()
     end_str = today.isoformat()
     try:
-        activities = client.get_activities_by_date(start_str, end_str, activitytype="running")
+        # No activitytype filter — see _compute_weekly_mileage. The typeKey
+        # check in the loop below is the single source of truth for what counts
+        # as a run, so a Garmin-side filter can only ever disagree with it.
+        activities = client.get_activities_by_date(start_str, end_str)
     except Exception:
         return []
 
