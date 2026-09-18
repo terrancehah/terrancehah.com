@@ -552,6 +552,33 @@ def _history_from_garmin_cache(cached, days=14):
     return history, physio
 
 
+def _ui_history_from_cache(cached):
+    """Every activity the Garmin cache holds, for the calendar to page through.
+
+    Deliberately separate from `_history_from_garmin_cache`, which feeds the
+    plan prompt. That history is two weeks, and every number derived from it —
+    pace zones, previous weekly mileage, training gain — is computed over the
+    same window, so widening it would change the plan itself. Browsing back
+    through old weeks must not do that.
+
+    The calendar only needs these for display, and having them up front is what
+    lets the past-history window extend without a round trip. The cache is
+    already populated with the last 60 activities by the metrics call, so this
+    costs nothing extra: no Garmin login, no AI call.
+
+    Laps are left alone — the client-facing payload strips them anyway.
+    """
+    if not cached:
+        return None
+    out = []
+    for a in cached.get("ui_activities") or []:
+        type_key = (a.get("type") or "").lower()
+        if type_key and type_key not in RUNNING_TYPES and type_key != "unknown":
+            continue
+        out.append(dict(a))
+    return out or None
+
+
 def _build_chunk_prompt(chunk_start, chunk_end, chunk_days_count, race_goal_text, course_text, phase_text,
                         progression_text, week_position_text, window_structure_text, coach_insight_text,
                         intensity_text, days_per_week, mix_guide, distance_guide, physio_text, pace_zones,
@@ -1323,6 +1350,14 @@ async def _generate_plan(body: CoachPlanRequest):
                                 data["plan"]["trajectory"] = trajectory
                             if fitness:
                                 data["plan"]["fitness"] = fitness
+                    # A plan cached before the calendar could page back would
+                    # otherwise keep serving the old two-week history, so the
+                    # stored list is refreshed from the Garmin cache on the way
+                    # out. This is a cache read, not a Garmin call.
+                    wide = _ui_history_from_cache(_get_cached_garmin_data(token))
+                    if wide:
+                        data["history"] = [{k: v for k, v in a.items() if k != "laps"}
+                                           for a in wide]
                     return JSONResponse(content=data)
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -1341,6 +1376,11 @@ async def _generate_plan(body: CoachPlanRequest):
         except Exception as e:
             return JSONResponse(status_code=502, content={"error": f"Failed to fetch activities: {str(e)}"})
         physio = _fetch_physio_trends(client, days=60)
+
+    # The calendar gets its own, wider history — see _ui_history_from_cache for
+    # why it is not simply the prompt's window. Falls back to the prompt window
+    # when the Garmin cache was cold and we fetched from the API instead.
+    ui_history = _ui_history_from_cache(cached_garmin) or history
 
     # The fitness/trajectory read wants a longer window than the plan prompt's
     # 2 weeks. Prefer the cached window; fall back to the plan history when the
@@ -1812,7 +1852,9 @@ async def _generate_plan(body: CoachPlanRequest):
         if fitness_summary:
             plan["fitness"] = fitness_summary
 
-        slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
+# The calendar pages through ui_history (the whole cache), not the
+        # prompt's two-week window.
+        slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in ui_history]
         response_data = {"history": slim_history, "plan": plan}
 
         # Merge this week into the persistent email-keyed cache so the
@@ -1986,7 +2028,9 @@ Return ONLY valid JSON:
 
     # Strip lap detail from the history sent to the client — laps are only for
     # the AI analysis, not the calendar cards.
-    slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in history]
+    # The calendar pages through ui_history (the whole cache), not the
+    # prompt's two-week window.
+    slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in ui_history]
 
     response_data = {"history": slim_history, "plan": plan}
 

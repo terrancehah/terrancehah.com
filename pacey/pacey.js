@@ -3700,6 +3700,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return new Date(String(s).replace(' ', 'T'));
     }
 
+    // Monday of the week a date key ('YYYY-MM-DD') falls in, at local midnight.
+    // The plan calendar is laid out in Mon-Sun blocks, so anything that snaps a
+    // date to a week has to use the same origin or the blocks drift off the grid.
+    function mondayOfKey(key) {
+        const d = parseDate(key + 'T00:00:00');
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return d;
+    }
+
     // Pinboard theme helper — charts rendered inside the overview inherit the
     // handwriting faces from the scoped theme (via CSS custom properties on the
     // canvas); charts elsewhere fall back to the app's Raleway/Lato.
@@ -7635,9 +7644,20 @@ document.addEventListener('DOMContentLoaded', function () {
         // next-Monday anchor).
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const start = new Date(today);
-        start.setDate(start.getDate() - (planPastDays - 1));
-        start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); // back to Monday
+        // How far back the runner has paged to. Kept separate from `start`
+        // below, so the "Show more" gate can ask how far back it has *asked* to
+        // go independently of how far back there is data to show.
+        const desiredStart = new Date(today);
+        desiredStart.setDate(desiredStart.getDate() - (planPastDays - 1));
+        desiredStart.setDate(desiredStart.getDate() - ((desiredStart.getDay() + 6) % 7)); // back to Monday
+
+        // Oldest week we actually hold activities for. Rendering weeks before it
+        // would add blocks that can never hold a card, which is what made the
+        // top of the history look empty. The clamp stays Monday-aligned, or the
+        // week blocks and their "Week N" labels would drift off the Mon-Sun grid.
+        const oldestKey = Object.keys(historyByDate).sort()[0] || null;
+        const oldestMonday = oldestKey ? mondayOfKey(oldestKey) : null;
+        const start = oldestMonday && oldestMonday > desiredStart ? oldestMonday : desiredStart;
 
         const daysUntilMonday = ((8 - today.getDay()) % 7) || 7;
         const nextMonday = new Date(today);
@@ -7721,16 +7741,15 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
         renderPlanRaceCard(plan);
 
-        // Show the "Show more" button only if there's older history beyond
-        // the currently rendered past window. Determines the oldest history
-        // date and compares it against the rendered start.
+        // "Show more" appears while there are still older weeks to page back to.
+        // It compares the oldest week we hold against how far back the runner
+        // has *asked* to go, not against where the window ended up — those two
+        // used to be the same value, which is precisely why the button could
+        // never appear: the window start was always the Monday on or before the
+        // oldest date the server sent, so "is there anything older?" was false
+        // by construction.
         if (planShowMoreBtn) {
-            let oldestKey = null;
-            Object.keys(historyByDate).forEach(k => {
-                if (!oldestKey || k < oldestKey) oldestKey = k;
-            });
-            const startKey = localDateKey(start);
-            const hasOlder = oldestKey && oldestKey < startKey;
+            const hasOlder = !!(oldestMonday && oldestMonday < desiredStart);
             planShowMoreBtn.hidden = !hasOlder;
             planShowMoreBtn.textContent = 'Show more';
             planShowMoreBtn.disabled = false;
