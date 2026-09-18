@@ -2358,6 +2358,11 @@ document.addEventListener('DOMContentLoaded', function () {
             + (parseFloat(noteStyle.paddingRight) || 0)) || 0.8 * rootFont;
 
         el.goalMapNote.style.width = `${Math.round(mapH * aspect + padX)}px`;
+
+        // Portrait courses get the tall scribble: stretching the wide ring
+        // onto a tall note squashes its wobble into a different, sloppier
+        // hand. The class swaps which of the two drawn rings shows.
+        el.goalMapNote.classList.toggle('pacey-goal-map-note--portrait', aspect < 1);
     }
 
     /**

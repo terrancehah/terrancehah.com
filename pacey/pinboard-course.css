@@ -671,6 +671,7 @@
    on the board. Bleeds past the note's edges like a real pen mark. */
 .pacey-goal-map-scribble {
     position: absolute;
+    z-index: 4;
     /* Larger than the note on every side — a hand-drawn circle runs wide
        of what it rings, and the uneven insets keep it off-centre like a
        real pen sweep rather than a frame. */
@@ -697,6 +698,22 @@
        it; non-scaling-stroke keeps the pen weight constant rather than
        letting it squash with the box. */
     vector-effect: non-scaling-stroke;
+}
+
+/* Two scribbles ship in the note — a wide ring and a tall ring, drawn in
+   matching-aspect viewBoxes so the wobble reads as the same hand at any
+   shape. JS sets --portrait on the note for tall courses, swapping which
+   one shows. */
+.pacey-goal-map-scribble--portrait {
+    display: none;
+}
+
+.pacey-goal-map-note--portrait .pacey-goal-map-scribble {
+    display: none;
+}
+
+.pacey-goal-map-note--portrait .pacey-goal-map-scribble--portrait {
+    display: block;
 }
 
 /* Clears the sticky demo banner when the mini note scrolls here. */
