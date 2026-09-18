@@ -177,6 +177,7 @@
     #pacey-content .pacey-overall-insight-skeleton,
     #pacey-content .pacey-activity-item,
     #pacey-content .pacey-pillar-card,
+    #pacey-content .pacey-race-detail,
     #pacey-content .pacey-content-header {
         position: relative;
         background-color: var(--pinboard-paper);
@@ -243,6 +244,7 @@
     #pacey-content .pacey-overall-insight::before,
     #pacey-content .pacey-chart-card::after,
     #pacey-content .pacey-chart-card::before,
+    #pacey-content .pacey-race-detail::after,
     #pacey-content .pacey-content-header::before,
     #pacey-content .pacey-content-header::after {
         content: "";
@@ -263,6 +265,11 @@
     #pacey-content .pacey-content-header::before { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
     #pacey-content .pacey-overall-insight::before,
     #pacey-content .pacey-chart-card::before { bottom: -0.6rem; right: 1.6rem; transform: rotate(6deg); }
+
+    /* Race detail note — one strip on the top-left. The radar card directly
+       below it carries a centred strip, so giving this one a corner keeps the
+       two from reading as a repeat of the same gesture. */
+    #pacey-content .pacey-race-detail::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
 
     /* Pace card — two horizontals on opposite corners (top-left + bottom-right) */
     #pacey-content .pacey-chart-card--equal:nth-child(1)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }

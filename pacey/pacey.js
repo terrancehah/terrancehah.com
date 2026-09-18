@@ -976,7 +976,8 @@ document.addEventListener('DOMContentLoaded', function () {
         raceGoal = {
             race_name: 'Kuala Lumpur Standard Chartered Half Marathon',
             purpose: 'Half Marathon',
-            distance: 'Half Marathon',
+            distance: 21.1,
+            distance_unit: 'km',
             time_target: '02:10:00',
             race_date: '2026-10-03',
             weekly_mileage: '35',
@@ -1147,10 +1148,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const m = $('#pacey-time-m').value || '00';
         const s = $('#pacey-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
+        const purpose = $('#pacey-purpose').value;
+        const dist = formGoalDistance(purpose, $('#pacey-custom-distance').value, $('#pacey-custom-distance-unit').value);
         return {
             race_name: $('#pacey-race-name').value.trim(),
-            purpose: $('#pacey-purpose').value,
-            distance: $('#pacey-purpose').value,
+            // The type is kept so the forms can re-open on it, but every
+            // read-only view of the goal works from the distance instead.
+            purpose,
+            distance: dist ? dist.distance : 0,
+            distance_unit: dist ? dist.distance_unit : 'km',
             time_target: timeTarget,
             race_date: $('#pacey-race-date').value,
             weekly_mileage: $('#pacey-mileage').value,
@@ -1170,9 +1176,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const s = $('#pacey-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
 
+        const purposeValue = $('#pacey-purpose').value;
         const required = [
             { id: 'pacey-race-name', val: $('#pacey-race-name').value.trim() },
-            { id: 'pacey-purpose', val: $('#pacey-purpose').value },
+            { id: 'pacey-purpose', val: purposeValue },
+            // The custom distance only matters when Custom is picked. The field
+            // is hidden otherwise, so requiring it unconditionally would block
+            // the four standard types.
+            ...(purposeValue === 'Custom'
+                ? [{ id: 'pacey-custom-distance', val: $('#pacey-custom-distance').value }]
+                : []),
             { id: 'pacey-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
             { id: 'pacey-race-date', val: $('#pacey-race-date').value },
             { id: 'pacey-mileage', val: $('#pacey-mileage').value },
@@ -1380,8 +1393,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         if (raceGoal) {
-            sidebarGoalEl.textContent = `${raceGoal.purpose} - ${raceGoal.time_target}`;
+            sidebarGoalEl.textContent = `${goalDistanceLabel(raceGoal)} - ${raceGoal.time_target}`;
             renderGoalSpecifics(raceGoal);
+            renderRaceDetail(raceGoal);
         }
         // The course is titled after the race goal, and a cached course is
         // restored before the goal is known — re-title it now.
@@ -1405,6 +1419,106 @@ document.addEventListener('DOMContentLoaded', function () {
         requestAnimationFrame(() => positionIndicators());
     }
 
+    // Standard race distances in km, used to turn the race type picked in the
+    // two forms into a number. Everything outside those forms works in distance
+    // rather than type, so this table is the only place the type names live.
+    //
+    // Ultra and Triathlon are deliberately absent from the pickers — their
+    // distances vary too much to assume for the runner — but they stay listed
+    // here so goals saved before the pickers changed still resolve.
+    const RACE_DISTANCE_KM = {
+        '5K': 5, '10K': 10, 'Half Marathon': 21.1,
+        'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40,
+    };
+
+    const KM_PER_MILE = 1.609344;
+
+    // Distance in km for a goal, whichever shape it was saved in:
+    //   - current: goal.distance is a number, in goal.distance_unit
+    //   - legacy:  goal.distance (and goal.purpose) hold a race-type label
+    function goalDistanceKm(goal) {
+        const n = parseFloat(goal.distance);
+        if (isFinite(n) && n > 0) return goal.distance_unit === 'mi' ? n * KM_PER_MILE : n;
+        return RACE_DISTANCE_KM[goal.distance] || RACE_DISTANCE_KM[goal.purpose] || 0;
+    }
+
+    // The distance as it should read on screen. Always in km, so it agrees with
+    // the /km pace shown beside it and with the pace the API sends the plan page
+    // — the unit picker on the forms is an input convenience, not a display
+    // preference. Rounded to one decimal so a converted 13.1 mi does not read as
+    // 21.084096 km.
+    function goalDistanceLabel(goal) {
+        const km = goalDistanceKm(goal);
+        if (km > 0) return `${Math.round(km * 10) / 10} km`;
+        return goal.distance || goal.purpose || '';
+    }
+
+    // Turn the two form pickers into the stored pair. The four standard types
+    // carry their own distance; "Custom" takes the number and unit the runner
+    // typed. Returns null when Custom is picked with no usable number, so the
+    // caller fails validation rather than saving a zero distance.
+    function formGoalDistance(purposeValue, customValue, customUnit) {
+        if (purposeValue === 'Custom') {
+            const n = parseFloat(customValue);
+            if (!isFinite(n) || n <= 0) return null;
+            return { distance: n, distance_unit: customUnit || 'km' };
+        }
+        const km = RACE_DISTANCE_KM[purposeValue];
+        return km ? { distance: km, distance_unit: 'km' } : null;
+    }
+
+    // The custom distance field only exists for the "Custom" race type, so it is
+    // revealed on demand instead of sitting there for the four standard types.
+    function bindCustomDistanceToggle(selectId, fieldId) {
+        const select = document.getElementById(selectId);
+        const field = document.getElementById(fieldId);
+        if (!select || !field) return;
+        const sync = () => { field.hidden = select.value !== 'Custom'; };
+        select.addEventListener('change', sync);
+        sync();
+    }
+
+    bindCustomDistanceToggle('pacey-purpose', 'pacey-custom-distance-field');
+    bindCustomDistanceToggle('pacey-edit-purpose', 'pacey-edit-custom-distance-field');
+
+    // Target pace as M:SS per km, or '' when the distance or time is missing or
+    // unparseable — each caller decides what an absent pace should look like,
+    // rather than this having to guess for both of them.
+    function goalPacePerKm(goal) {
+        const distKm = goalDistanceKm(goal);
+        if (!(distKm > 0) || !goal.time_target) return '';
+        // Accepts H:MM:SS or MM:SS
+        const parts = goal.time_target.split(':').map(Number);
+        let totalSec = 0;
+        if (parts.length === 3) totalSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        else if (parts.length === 2) totalSec = parts[0] * 60 + parts[1];
+        if (!(totalSec > 0)) return '';
+        // Round to whole seconds before splitting. Rounding the remainder on its
+        // own can land on 60 and print a pace like "4:60".
+        const paceSec = Math.round(totalSec / distKm);
+        return `${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2, '0')}`;
+    }
+
+    // Race detail on the readiness page — the goal the six scores are measured
+    // against, so the radar below has something to be read against before it
+    // gives a verdict.
+    function renderRaceDetail(goal) {
+        const card = $('#pacey-race-detail');
+        if (!card) return;
+        if (!goal) { card.hidden = true; return; }
+
+        const pace = goalPacePerKm(goal);
+
+        $('#pacey-race-detail-name').textContent = goal.race_name || '—';
+        $('#pacey-race-detail-date').textContent = goal.race_date
+            ? new Date(goal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '—';
+        $('#pacey-race-detail-distance').textContent = goalDistanceLabel(goal) || '—';
+        $('#pacey-race-detail-pace').textContent = pace ? `${pace} /km` : '—';
+
+        card.hidden = false;
+    }
+
     // Render the Race Goal panel with key metrics + countdown
     function renderGoalSpecifics(goal) {
         const grid = $('#pacey-goal-specifics-grid');
@@ -1422,26 +1536,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Derive target pace from race distance + time target
-        // Standard distances in km for known race types
-        const distanceMap = {
-            '5K': 5, '10K': 10, 'Half Marathon': 21.1,
-            'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40,
-        };
-        const distKm = distanceMap[goal.purpose] || parseFloat(goal.distance) || 0;
-        let targetPace = '--';
-        if (distKm > 0 && goal.time_target) {
-            // Parse H:MM:SS or MM:SS
-            const parts = goal.time_target.split(':').map(Number);
-            let totalSec = 0;
-            if (parts.length === 3) totalSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
-            else if (parts.length === 2) totalSec = parts[0] * 60 + parts[1];
-            if (totalSec > 0) {
-                const paceSecPerKm = totalSec / distKm;
-                const min = Math.floor(paceSecPerKm / 60);
-                const sec = Math.round(paceSecPerKm % 60);
-                targetPace = `${min}:${String(sec).padStart(2, '0')}`;
-            }
-        }
+        const targetPace = goalPacePerKm(goal) || '--';
 
         // Build stat tiles — value and unit render inline on the same line
         // Weekly target removed per design decision; countdown is rendered separately as a highlight
@@ -1449,7 +1544,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // remaining stats fill the 2-column grid: 1-2-2 layout
         const stats = [
             ...(goal.race_name ? [{ label: 'Race Name', value: goal.race_name, unit: '', fullWidth: true }] : []),
-            { label: 'Race Type', value: goal.purpose || '--', unit: '' },
+            { label: 'Distance', value: goalDistanceLabel(goal) || '--', unit: '' },
             { label: 'Race Date', value: goal.race_date ? new Date(goal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '--', unit: '' },
             { label: 'Target Time', value: goal.time_target || '--', unit: '' },
             { label: 'Target Pace', value: targetPace, unit: targetPace === '--' ? '' : '/km' },
@@ -1596,9 +1691,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * better, so neither is used.
      */
     function courseDisplayName() {
-        if (raceGoal && (raceGoal.race_name || raceGoal.purpose)) {
-            return raceGoal.race_name || raceGoal.purpose;
-        }
+        if (raceGoal && raceGoal.race_name) return raceGoal.race_name;
         return 'Race course';
     }
 
@@ -4216,14 +4309,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // - LSD: slow pace (above median), long distance (>130% of median)
     // - Easy: slow pace, short distance, low HR
     // Compute race goal pace in m/s from the race goal data
-    // Uses the same distance mapping as renderGoalSpecifics
     function computeGoalPaceMs(goal) {
         if (!goal || !goal.time_target) return 0;
-        const distanceMap = {
-            '5K': 5, '10K': 10, 'Half Marathon': 21.1,
-            'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40,
-        };
-        const distKm = distanceMap[goal.purpose] || parseFloat(goal.distance) || 0;
+        const distKm = goalDistanceKm(goal);
         if (!distKm) return 0;
         // Parse H:MM:SS or MM:SS
         const parts = goal.time_target.split(':').map(Number);
@@ -6012,6 +6100,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (raceGoal) {
             $('#pacey-edit-race-name').value = raceGoal.race_name || '';
             $('#pacey-edit-purpose').value = raceGoal.purpose || '';
+            // A goal saved before the pickers changed can carry a type that no
+            // longer exists in the list (Ultra Marathon, Triathlon). Fall back to
+            // Custom and carry its distance across, so re-opening the modal
+            // never silently loses what the runner entered.
+            if (!$('#pacey-edit-purpose').value) $('#pacey-edit-purpose').value = 'Custom';
+            const editIsCustom = $('#pacey-edit-purpose').value === 'Custom';
+            $('#pacey-edit-custom-distance-field').hidden = !editIsCustom;
+            if (editIsCustom) {
+                const km = goalDistanceKm(raceGoal);
+                const inMiles = raceGoal.distance_unit === 'mi';
+                $('#pacey-edit-custom-distance').value = km
+                    ? Math.round((inMiles ? km / KM_PER_MILE : km) * 10) / 10
+                    : '';
+                $('#pacey-edit-custom-distance-unit').value = inMiles ? 'mi' : 'km';
+            }
             // Parse time target "HH:MM:SS" into separate fields
             const parts = (raceGoal.time_target || '00:00:00').split(':');
             $('#pacey-edit-time-h').value = parts[0] || '0';
@@ -6056,8 +6159,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const s = $('#pacey-edit-time-s').value || '00';
         const timeTarget = `${h.padStart(2, '0')}:${m.padStart(2, '0')}:${s.padStart(2, '0')}`;
 
+        const editPurposeValue = $('#pacey-edit-purpose').value;
         const required = [
-            { id: 'pacey-edit-purpose', val: $('#pacey-edit-purpose').value },
+            { id: 'pacey-edit-purpose', val: editPurposeValue },
+            // The custom distance only matters when Custom is picked. The field
+            // is hidden otherwise, so requiring it unconditionally would block
+            // the four standard types.
+            ...(editPurposeValue === 'Custom'
+                ? [{ id: 'pacey-edit-custom-distance', val: $('#pacey-edit-custom-distance').value }]
+                : []),
             { id: 'pacey-edit-time-h', val: timeTarget !== '00:00:00' ? timeTarget : '' },
             { id: 'pacey-edit-race-date', val: $('#pacey-edit-race-date').value },
             { id: 'pacey-edit-mileage', val: $('#pacey-edit-mileage').value },
@@ -6084,11 +6194,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (hasError) return;
 
+        const editDist = formGoalDistance(editPurposeValue, $('#pacey-edit-custom-distance').value, $('#pacey-edit-custom-distance-unit').value);
+
         setButtonLoading(editGoalBtn, true);
         const body = {
             race_name: $('#pacey-edit-race-name').value,
+            // The type is kept so the modal can re-open on it, but every
+            // read-only view of the goal works from the distance instead.
             purpose: $('#pacey-edit-purpose').value,
-            distance: $('#pacey-edit-purpose').value,
+            distance: editDist ? editDist.distance : 0,
+            distance_unit: editDist ? editDist.distance_unit : 'km',
             time_target: timeTarget,
             race_date: $('#pacey-edit-race-date').value,
             weekly_mileage: $('#pacey-edit-mileage').value,
@@ -6130,9 +6245,12 @@ document.addEventListener('DOMContentLoaded', function () {
             lastPaceDistActivities = null;
             lastHrPaceActivities = null;
             // Update the sidebar goal display
-            sidebarGoalEl.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
+            sidebarGoalEl.textContent = `${goalDistanceLabel(raceGoal)} — ${raceGoal.time_target}`;
             // Update the goal specifics panel
             renderGoalSpecifics(raceGoal);
+            // ...and the race detail note on the readiness page, which restates
+            // the same goal from the other end of the app.
+            renderRaceDetail(raceGoal);
             // The course is titled after the race goal, so an edited goal
             // re-titles it.
             updateCourseHead();
@@ -6186,7 +6304,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Build the summary rows — only show fields that have values
         const rows = [];
         if (goal.race_name) rows.push(['Race', goal.race_name]);
-        if (goal.distance) rows.push(['Distance', goal.distance]);
+        if (goal.distance) rows.push(['Distance', goalDistanceLabel(goal)]);
         if (goal.time_target) rows.push(['Time target', goal.time_target]);
         if (goal.race_date) rows.push(['Race date', goal.race_date]);
         if (goal.weekly_mileage) {
@@ -6328,7 +6446,7 @@ document.addEventListener('DOMContentLoaded', function () {
             settingsProfileName.textContent = displayName || 'Demo Runner';
         }
         if (settingsProfileGoal && raceGoal) {
-            settingsProfileGoal.textContent = `${raceGoal.purpose} — ${raceGoal.time_target}`;
+            settingsProfileGoal.textContent = `${goalDistanceLabel(raceGoal)} — ${raceGoal.time_target}`;
         } else if (settingsProfileGoal) {
             settingsProfileGoal.textContent = '';
         }
@@ -6970,8 +7088,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Race-day distance + pace from the typed goal (mirrors the backend's
         // _race_distance_km and the Race zone) so the demo race card is never
         // a marathon for a half-marathon goal, and always shows the goal pace.
-        const mockRaceDistances = { '5K': 5, '10K': 10, 'Half Marathon': 21.1, 'Marathon': 42.2, 'Ultra Marathon': 50, 'Triathlon': 40 };
-        const raceDistanceKm = (raceGoal && (mockRaceDistances[raceGoal.purpose] || Number(raceGoal.distance))) || 42.2;
+        const raceDistanceKm = (raceGoal && goalDistanceKm(raceGoal)) || 42.2;
         let racePace = null;
         if (raceGoal && raceGoal.time_target) {
             const parts = String(raceGoal.time_target).split(':').map(Number);
@@ -7632,13 +7749,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         const fitness = plan.fitness || {};
-        planRaceNameEl.textContent = raceGoal.race_name || raceGoal.purpose || 'Your goal race';
+        planRaceNameEl.textContent = raceGoal.race_name || 'Your goal race';
         const phaseLabel = String(plan.race_phase || 'build').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         const raceDateLabel = raceGoal.race_date
             ? new Date(raceGoal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
             : '';
         planRaceMetaEl.textContent = [
-            raceGoal.distance || raceGoal.purpose || '',
+            goalDistanceLabel(raceGoal),
             fitness.goal_pace ? `${fitness.goal_pace}/km` : '',
             raceDateLabel,
             `${daysToRace} ${daysToRace === 1 ? 'day' : 'days'} to race`,

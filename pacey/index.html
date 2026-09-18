@@ -246,10 +246,26 @@
                             <option value="10K">10K</option>
                             <option value="Half Marathon">Half Marathon</option>
                             <option value="Marathon">Marathon</option>
-                            <option value="Ultra Marathon">Ultra Marathon</option>
-                            <option value="Triathlon">Triathlon</option>
+                            <option value="Custom">Custom distance</option>
                         </select>
                         <span class="pacey-field-error" hidden>Please select a race type.</span>
+                    </div>
+
+                    <!-- Custom race distance — revealed only when Race Type is
+                         "Custom". Ultra and triathlon distances vary too much to
+                         assume for the runner (50 km could be 50k, 50mi or
+                         100k, and a triathlon is three sports), so they state the
+                         number and the unit it is in. -->
+                    <div class="pacey-field" id="pacey-custom-distance-field" hidden>
+                        <label for="pacey-custom-distance" class="pacey-label">Race Distance <span class="pacey-required">*</span></label>
+                        <div class="pacey-mileage-row">
+                            <input type="number" id="pacey-custom-distance" class="pacey-input pacey-mileage-input" placeholder="e.g. 50" min="1" max="1000" step="0.1" inputmode="decimal">
+                            <select id="pacey-custom-distance-unit" class="pacey-input pacey-select pacey-unit-select">
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                            </select>
+                        </div>
+                        <span class="pacey-field-error" hidden>Please enter your race distance.</span>
                     </div>
 
                     <!-- Target Time — duration picker H : M : S -->
@@ -973,6 +989,29 @@
                                 <span class="pacey-readiness-updated" id="pacey-readiness-updated" hidden></span>
                             </h2>
                             <p class="pacey-section-sub">How ready you are across six areas of fitness, based on your recent runs. Each score shows how close you are to where you need to be on race day. <span class="pacey-tap-hint">Select a label for details.</span></p>
+                            <!-- Race detail — states the goal the six scores below
+                                 are measured against, so the radar has something
+                                 to be read against before it gives a verdict.
+                                 Filled by renderRaceDetail(); stays hidden until
+                                 a race goal exists. -->
+                            <div class="pacey-race-detail" id="pacey-race-detail" hidden>
+                                <div class="pacey-race-detail-item pacey-race-detail-item--full">
+                                    <span class="pacey-race-detail-label">Race</span>
+                                    <span class="pacey-race-detail-value" id="pacey-race-detail-name">—</span>
+                                </div>
+                                <div class="pacey-race-detail-item">
+                                    <span class="pacey-race-detail-label">Date</span>
+                                    <span class="pacey-race-detail-value" id="pacey-race-detail-date">—</span>
+                                </div>
+                                <div class="pacey-race-detail-item">
+                                    <span class="pacey-race-detail-label">Distance</span>
+                                    <span class="pacey-race-detail-value" id="pacey-race-detail-distance">—</span>
+                                </div>
+                                <div class="pacey-race-detail-item">
+                                    <span class="pacey-race-detail-label">Target pace</span>
+                                    <span class="pacey-race-detail-value" id="pacey-race-detail-pace">—</span>
+                                </div>
+                            </div>
                             <div class="pacey-readiness-card">
                                 <div class="pacey-radar-wrap pacey-radar-wrap--full">
                                     <canvas class="pacey-radar-chart" height="400"></canvas>
@@ -1219,10 +1258,26 @@
                             <option value="10K">10K</option>
                             <option value="Half Marathon">Half Marathon</option>
                             <option value="Marathon">Marathon</option>
-                            <option value="Ultra Marathon">Ultra Marathon</option>
-                            <option value="Triathlon">Triathlon</option>
+                            <option value="Custom">Custom distance</option>
                         </select>
                         <span class="pacey-field-error" hidden>Please select a race type.</span>
+                    </div>
+
+                    <!-- Custom race distance — revealed only when Race Type is
+                         "Custom". Ultra and triathlon distances vary too much to
+                         assume for the runner (50 km could be 50k, 50mi or
+                         100k, and a triathlon is three sports), so they state the
+                         number and the unit it is in. -->
+                    <div class="pacey-field" id="pacey-edit-custom-distance-field" hidden>
+                        <label for="pacey-edit-custom-distance" class="pacey-label">Race Distance <span class="pacey-required">*</span></label>
+                        <div class="pacey-mileage-row">
+                            <input type="number" id="pacey-edit-custom-distance" class="pacey-input pacey-mileage-input" placeholder="e.g. 50" min="1" max="1000" step="0.1" inputmode="decimal">
+                            <select id="pacey-edit-custom-distance-unit" class="pacey-input pacey-select pacey-unit-select">
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                            </select>
+                        </div>
+                        <span class="pacey-field-error" hidden>Please enter your race distance.</span>
                     </div>
 
                     <!-- Target Time -->

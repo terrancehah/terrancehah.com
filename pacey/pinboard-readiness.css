@@ -79,6 +79,61 @@
     margin: 0;
 }
 
+/* ---------------------------------------------------------------------
+   Race detail — the goal, stated before the verdict
+   Sits above the radar on the readiness page so the six scores have
+   something to be read against. The rhythm is 1-then-3: the race name needs
+   a row of its own because it runs long, and the three facts underneath it
+   fit across. That is the same shape the overview's goal panel uses, so the
+   two read as the same kind of note.
+   --------------------------------------------------------------------- */
+.pacey-race-detail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.7rem 1.25rem;
+    padding: 1.15rem 1.3rem 1rem;
+    margin: 0 0 clamp(0.9rem, 1.8vw, 1.25rem);
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: var(--pacey-shadow);
+    font-family: var(--font-fuzzy);
+}
+
+.pacey-race-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    /* Let a long race name wrap instead of forcing the grid wider. */
+    min-width: 0;
+}
+
+.pacey-race-detail-item--full { grid-column: 1 / -1; }
+
+.pacey-race-detail-label {
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.pacey-race-detail-value {
+    font-size: var(--pacey-text-body);
+    font-weight: 600;
+    color: var(--pacey-navy);
+    line-height: 1.25;
+    overflow-wrap: break-word;
+}
+
+/* Phones: three columns of facts get cramped, so the facts go two-up and the
+   race name keeps its full row. */
+@media (max-width: 48rem) {
+    .pacey-race-detail {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding: 1rem 1.05rem 0.9rem;
+    }
+}
+
 /* Goal specifics stat grid — 2 columns, centered vertically with improved spacing */
 .pacey-goal-specifics-grid {
     display: grid;
