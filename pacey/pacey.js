@@ -7601,22 +7601,62 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // "Show more" on the plan page — extends the past history window by
-    // 2 weeks and re-renders. Keeps the scroll near the top of the
-    // calendar so the newly loaded older weeks are visible (does not
-    // jump back to today, since the user is deliberately browsing back).
+    // The plan calendar scrolls with the page rather than inside its own box, so
+    // a scroll correction has to be applied to whichever ancestor actually
+    // overflows rather than to the calendar itself.
+    function planScrollContainer() {
+        let el = coachCalendarEl.parentElement;
+        while (el && el !== document.body) {
+            const oy = getComputedStyle(el).overflowY;
+            if ((oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight) return el;
+            el = el.parentElement;
+        }
+        return document.scrollingElement || document.documentElement;
+    }
+
+    // data-date of the first day row still visible at the top of the scroller —
+    // the row the view is anchored to.
+    function planTopVisibleRowDate(scroller) {
+        const edge = scroller === document.scrollingElement
+            ? 0
+            : scroller.getBoundingClientRect().top;
+        for (const row of coachCalendarEl.querySelectorAll('.pacey-cal-row')) {
+            if (row.getBoundingClientRect().bottom > edge + 1) return row.dataset.date;
+        }
+        return null;
+    }
+
+    function planRowTop(date) {
+        const row = coachCalendarEl.querySelector(`.pacey-cal-row[data-date="${date}"]`);
+        return row ? row.getBoundingClientRect().top : null;
+    }
+
+    // "Show more" on the plan page — extends the past history window by 2 weeks
+    // and re-renders. Nothing is fetched: the activities for these weeks already
+    // arrived with the plan (see _ui_history_from_cache on the server), so this
+    // only reveals weeks the client was already holding.
+    //
+    // The older weeks are inserted ABOVE the current ones, which shifts the
+    // whole calendar down by their height. The view is re-anchored afterwards to
+    // the topmost visible row, so the dates under the runner's eyes stay put and
+    // the newly revealed weeks simply appear above them. Without that correction
+    // the content jumps and then a smooth scroll animates on top of the jump,
+    // which is what made this feel wrong.
     if (planShowMoreBtn) {
         planShowMoreBtn.addEventListener('click', () => {
             if (!coachPlanData) return;
-            planShowMoreBtn.textContent = 'Loading…';
-            planShowMoreBtn.disabled = true;
+
+            const scroller = planScrollContainer();
+            const anchorDate = planTopVisibleRowDate(scroller);
+            const before = anchorDate ? planRowTop(anchorDate) : null;
+
             planPastDays += 14;
             renderCoachCalendar(coachPlanData);
-            // Scroll the calendar top into view so the older weeks appear
-            requestAnimationFrame(() => {
-                const firstRow = coachCalendarEl.querySelector('.pacey-cal-row');
-                if (firstRow) firstRow.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
+
+            if (anchorDate && before !== null) {
+                const after = planRowTop(anchorDate);
+                if (after !== null) scroller.scrollTop += after - before;
+            }
         });
     }
 
