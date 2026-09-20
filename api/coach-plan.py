@@ -21,6 +21,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from lib._shared import (
     _get_session, _get_garmin_client, create_app,
+    _update_session, _save_persistent_race_goal,
     _compute_goal_pace_ms, _race_distance_km, _race_result_paces, _fetch_physio_trends,
     _fetch_recent_activities_with_laps,
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
@@ -31,6 +32,7 @@ from lib._shared import (
     _training_gain_per_km, _save_course_insight, _get_course_insight,
     _mileage_prompt_lines,
     _call_ai, _phase_for_days_left,
+    _goal_target_seconds, _format_finish_time, _format_pace_per_km,
     _median, _fitness_medians, _fitness_samples, _long_run_samples, _cap_recent,
     _pace_str_sec, _pace_range_sec,
     RUNNING_TYPES,
@@ -836,6 +838,13 @@ class CoachPlanRequest(BaseModel):
     # The distilled race-course record (or None to clear it). The GPX itself is
     # parsed in the browser and never uploaded; this carries only the summary.
     course: Optional[dict] = None
+    # --- race-recap ---
+    # The finished race's result, as the frontend has it: duration_min,
+    # distance_km, avg_pace_ms, avg_hr, elevation_gain. Sent rather than read
+    # from Garmin because the run may have been linked by hand (a watch that
+    # never synced, or an uploaded GPX), and because the recap must describe the
+    # race the runner acknowledged, not whatever sits on race day.
+    race_result: Optional[dict] = None
 
 
 @app.get("/")
@@ -875,6 +884,10 @@ async def coach_plan(body: CoachPlanRequest):
         return await _save_course_action(body)
     if action == "course-insight":
         return await _course_insight_action(body)
+    if action == "race-recap":
+        return await _race_recap_action(body)
+    if action == "race-result":
+        return await _save_race_result_action(body)
     return await _generate_plan(body)
 
 
@@ -980,6 +993,160 @@ async def _course_insight_action(body: CoachPlanRequest):
 
     _save_course_insight(email, insight, fingerprint)
     return JSONResponse(content={"insight": insight, "cached": False})
+
+
+def _race_delta_line(goal: dict | None, result: dict) -> str:
+    """How the finish compared to the target, as one phrase for the prompt.
+
+    Returns "" when either side is missing or nonsense, so the prompt omits the
+    comparison rather than asserting a delta that was never measured.
+    """
+    target_sec = _goal_target_seconds(goal)
+    try:
+        finish_sec = int(round(float(result.get("duration_min") or 0) * 60))
+    except (TypeError, ValueError):
+        return ""
+    if target_sec <= 0 or finish_sec <= 0:
+        return ""
+    delta = finish_sec - target_sec
+    # Under a minute reads as noise rather than a result worth naming.
+    if abs(delta) < 60:
+        return "level with the target."
+    return f"{_format_finish_time(abs(delta) / 60)} {'faster' if delta < 0 else 'slower'} than target."
+
+
+def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | None) -> str:
+    """Prompt for the coach's read on a finished race.
+
+    The one place the coach speaks after the race. It has the target, the actual
+    result and — when the runner uploaded one — the course, so a slow day can be
+    accounted for by the terrain instead of read as a fitness verdict.
+
+    Output is deliberately a single paragraph. The figures are already computed
+    and displayed beside this text, so the prose only has to say what they mean
+    and what comes next. Splits, weather and how the runner felt are not known
+    here and must not be invented.
+    """
+    goal = goal or {}
+    lines = [
+        "The runner has finished the race they were training for. Write the coach's read on it.",
+        "",
+        "THE GOAL THEY WERE TRAINING FOR:",
+        f"- Race: {goal.get('race_name') or goal.get('purpose') or 'their goal race'}.",
+    ]
+    if goal.get("distance"):
+        lines.append(f"- Distance: {goal['distance']} {goal.get('distance_unit') or 'km'}.")
+    if goal.get("time_target"):
+        lines.append(f"- Target time: {goal['time_target']}.")
+    if goal.get("race_date"):
+        lines.append(f"- Race date: {goal['race_date']}.")
+
+    lines += ["", "WHAT THEY ACTUALLY RAN:"]
+    finish = _format_finish_time(result.get("duration_min"))
+    lines.append(f"- Finish time: {finish or 'unknown'}.")
+    if result.get("distance_km"):
+        lines.append(f"- Distance covered: {result['distance_km']} km.")
+    pace = _format_pace_per_km(result.get("avg_pace_ms"))
+    if pace:
+        lines.append(f"- Average pace: {pace} per km.")
+    if result.get("avg_hr"):
+        lines.append(f"- Average heart rate: {result['avg_hr']} bpm.")
+    if result.get("elevation_gain"):
+        lines.append(f"- Elevation gain: {result['elevation_gain']} m.")
+
+    delta = _race_delta_line(goal, result)
+    if delta:
+        lines.append(f"- Against the target: {delta}")
+
+    course_block = _course_prompt_block(course)
+    if course_block:
+        lines += ["", course_block]
+
+    lines += [
+        "",
+        "Write ONE paragraph of 3-5 sentences, in the coach's voice:",
+        "- Say how the race went against the target, plainly. If they hit it, say so without overpraising. "
+        "If they missed it, be honest and proportionate — a few minutes on a half marathon is a normal day, "
+        "not a failure.",
+        "- If a course was provided, use the terrain to explain the result only where it genuinely explains it.",
+        "- This race is the END of the block the runner was following. Do NOT prescribe training: no next "
+        "block, no sessions, no paces, no \"work on this next\", and no advice about what to do from here. "
+        "The plan is over, and a new goal is set separately if the runner wants one. Close on the race itself.",
+        "- Do not invent splits, weather, race conditions, or how the runner felt. None of that is known here.",
+        "- Do not restate the finish time or the goal time as a list — those figures are displayed beside this text.",
+        "",
+        'Return JSON: {"recap": "<the paragraph>"}',
+    ]
+    return "\n".join(lines)
+
+
+async def _race_recap_action(body: CoachPlanRequest):
+    """Write the coach's read on a finished race.
+
+    The result arrives in the request rather than being looked up, because a race
+    can be linked by hand — a watch that never synced, or an uploaded GPX — and
+    the recap has to describe the race the runner acknowledged rather than
+    whatever activity happens to sit on race day.
+
+    Not cached server-side: it is one paragraph against a fixed result, and the
+    frontend keys its own cache on that result, so a second device regenerating
+    once is cheaper than another Redis surface to keep in step.
+    """
+    sess = _get_session(body.token) or {}
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    race_goal = sess.get("race_goal") if isinstance(sess, dict) else None
+
+    result = body.race_result or {}
+    if not result.get("duration_min"):
+        return JSONResponse(status_code=400, content={"error": "Race result required."})
+
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    course = body.course or _get_persistent_course(email)
+    prompt = _build_race_recap_prompt(race_goal, result, course)
+
+    try:
+        parsed = await _call_ai(prompt, api_key)
+        recap = (parsed.get("recap") or "").strip()
+    except Exception as e:
+        # Logged, unlike the AI-radar handler: a bare 500 with no trace made that
+        # failure undiagnosable from the server side.
+        print(f"race-recap failed: {e}")
+        recap = ""
+    if not recap:
+        return JSONResponse(status_code=500, content={"error": "Could not write the race recap."})
+
+    return JSONResponse(content={"recap": recap})
+
+
+async def _save_race_result_action(body: CoachPlanRequest):
+    """Attach the finished race's result to the runner's goal.
+
+    Stored on the goal rather than in a store of its own so it travels with the
+    goal through the existing session and persistent-goal paths — which already
+    sync across devices via check-session — instead of adding another key to keep
+    in step. Passing a null result clears it, which is what happens when a new
+    goal is set and the old race is filed to history.
+    """
+    sess = _get_session(body.token) or {}
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    if not email:
+        return JSONResponse(status_code=401, content={"error": "Session expired."})
+    goal = sess.get("race_goal") if isinstance(sess, dict) else None
+    if not goal:
+        return JSONResponse(status_code=400, content={"error": "No race goal set."})
+
+    updated = dict(goal)
+    if body.race_result:
+        updated["race_result"] = body.race_result
+    else:
+        updated.pop("race_result", None)
+
+    _update_session(body.token, {"race_goal": updated})
+    _save_persistent_race_goal(email, updated)
+    return JSONResponse(content={"ok": True, "goal": updated})
 
 
 async def _compile_workout_action(body: CoachPlanRequest):

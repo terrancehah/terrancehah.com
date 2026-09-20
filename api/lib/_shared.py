@@ -1281,6 +1281,55 @@ def _compute_goal_pace_ms(goal: dict | None) -> float:
     return (dist_km * 1000) / total_sec
 
 
+def _goal_target_seconds(goal: dict | None) -> int:
+    """The goal's target time in seconds, from H:MM:SS or MM:SS.
+
+    Shares its parsing with _compute_goal_pace_ms. Returns 0 when there is no
+    usable target, so callers can treat "no target set" and "unparseable" alike
+    and skip the comparison rather than report a bogus delta.
+    """
+    if not goal or not goal.get("time_target"):
+        return 0
+    try:
+        vals = [int(x) for x in str(goal["time_target"]).split(":")]
+    except (ValueError, TypeError):
+        return 0
+    if len(vals) == 3:
+        return vals[0] * 3600 + vals[1] * 60 + vals[2]
+    if len(vals) == 2:
+        return vals[0] * 60 + vals[1]
+    return 0
+
+
+def _format_finish_time(duration_min) -> str:
+    """A finish time as H:MM:SS (MM:SS under an hour) from stored minutes.
+
+    Returns "" when the figure is missing or nonsense, so a prompt can drop the
+    line instead of stating a time that was never run.
+    """
+    try:
+        total = int(round(float(duration_min) * 60))
+    except (TypeError, ValueError):
+        return ""
+    if total <= 0:
+        return ""
+    hours, rem = divmod(total, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{hours}:{minutes:02d}:{seconds:02d}" if hours else f"{minutes}:{seconds:02d}"
+
+
+def _format_pace_per_km(pace_ms) -> str:
+    """Average pace as M:SS per km from m/s. Empty when the figure is unusable."""
+    try:
+        ms = float(pace_ms)
+    except (TypeError, ValueError):
+        return ""
+    if ms <= 0:
+        return ""
+    sec = int(round(1000 / ms))
+    return f"{sec // 60}:{sec % 60:02d}"
+
+
 def _parse_float(val) -> float | None:
     """Safely parse a value to float, returning None on failure."""
     try:

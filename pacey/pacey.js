@@ -74,6 +74,11 @@ document.addEventListener('DOMContentLoaded', function () {
     const ACTIVITIES_PAGE_SIZE = 20;
     let activitiesOffset = 0;      // Garmin API offset for next fetch
     let fullActivitiesLoaded = []; // accumulated activities on the full page
+    // Whether the first activity batch has arrived. Post-race detection needs it:
+    // before the fetch, "no run matched the goal" and "no data yet" are
+    // indistinguishable, and the recap should not ask a question the data may
+    // already answer.
+    let activitiesLoaded = false;
     let isLoadingMore = false;     // prevents duplicate concurrent fetches
 
     // State
@@ -403,6 +408,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // one now that the page is visible and the canvas has a size.
         if (lastRadarData && radarCanvasesToRender().some(c => !Chart.getChart(c))) {
             renderRadarChart(lastRadarData);
+        }
+        // Post-race the course preview lives in the recap, and there is a recap
+        // on each of the two pages — so it follows the runner across. Guarded on
+        // the mode because pre-race it stays put in the goal card.
+        if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
+            placeGoalMapNote(true);
         }
         // Scroll to the top of the new page. The window is the actual scroll
         // container (.pacey-content has overflow:clip — the page scrolls
@@ -865,6 +876,36 @@ document.addEventListener('DOMContentLoaded', function () {
                 elapsed_duration: parseFloat((durMin + Math.random() * 8).toFixed(1)), // minutes
             });
         }
+
+        // The race itself, dated today. The demo's goal is a half marathon run
+        // today, so the post-race recap has something to recognise — and it is
+        // what makes the demo land in recap mode rather than on a countdown.
+        //
+        // Figures are the real ones from the Brooks Half Marathon GPX that also
+        // supplies the demo course, so the activity list, the recap and the
+        // course card all describe the same run: 21.27 km in 1:49:47.
+        activities.unshift({
+            id: 24000001,
+            name: 'Brooks Half Marathon',
+            type: 'running',
+            start_time: `${localDateIso(now)} 07:15:00`,
+            distance: 21.27,
+            duration: 109.8,                                    // minutes
+            avg_pace: 3.23,                                     // m/s
+            max_pace: 3.9,
+            avg_hr: 172,
+            max_hr: 184,
+            calories: 1480,
+            elevation_gain: 63,
+            training_effect: 4.6,
+            anaerobic_training_effect: 1.8,
+            avg_cadence: 178,
+            // Over 12 km and run at goal pace, which is what the server's
+            // classifier calls a long run with quality. Hardcoded because demo
+            // mode has no server to run the classifier.
+            run_tag: 'Tempo Long',
+            elapsed_duration: 110.5,
+        });
         return activities;
     }
 
@@ -969,17 +1010,33 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
+    // Mock race recap — the coach's read on a finished race, for demo mode. The
+    // real one is written by the race-recap action on the backend from the target,
+    // the result and the uploaded course; this stands in for it because demo mode
+    // makes no API calls. Written against the demo's own numbers: the Brooks Half
+    // Marathon, 1:49:47 against a 1:52:00 target, on a course with 63 m of climb.
+    //
+    // It closes on the race and prescribes nothing. The race is the end of the
+    // plan, so advice about "the next block" would be advice about a block that
+    // does not exist.
+    function getMockRaceRecap() {
+        return 'Two minutes and thirteen seconds under your target, on a course that barely rises — 63 metres of climbing across the whole half, which makes this a clean read on what you actually had. You held 5:10 per kilometre for twenty-one of them, and the back half did not fall away the way it did in your long runs earlier in the block. That is the fitness arriving, and it arrived on the day that counted.';
+    }
+
     // Start demo mode — used as the default landing and after logout
     function startDemoMode() {
         sessionToken = 'demo';
         displayName = 'Demo Runner';
         raceGoal = {
-            race_name: 'Kuala Lumpur Standard Chartered Half Marathon',
+            race_name: 'Brooks Half Marathon',
             purpose: 'Half Marathon',
             distance: 21.1,
             distance_unit: 'km',
-            time_target: '02:10:00',
-            race_date: '2026-10-03',
+            time_target: '01:52:00',
+            // Today, so the demo lands in post-race mode — the race has been run
+            // and the recap is what there is to show. Computed rather than
+            // hardcoded so the demo does not go stale after this week.
+            race_date: localDateIso(),
             weekly_mileage: '35',
             mileage_unit: 'km',
             gender: 'male',
@@ -1218,6 +1275,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('POST', 'onboarding', body, true);
             const data = await resp.json();
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
+            fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Proceed to Step 3 — latest race result (current fitness)
@@ -1314,6 +1372,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('POST', 'onboarding', body, true);
             const data = await resp.json();
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
+            fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Proceed to Step 4 — planning preferences
@@ -1393,9 +1452,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         if (raceGoal) {
-            sidebarGoalEl.textContent = `${goalDistanceLabel(raceGoal)} - ${raceGoal.time_target}`;
+            sidebarGoalEl.textContent = `${goalTypeLabel(raceGoal)} - ${raceGoal.time_target}`;
             renderGoalSpecifics(raceGoal);
             renderRaceDetail(raceGoal);
+            // Post-race the readiness elements give way to the recap. Applied here
+            // as well as from loadAISummary so demo mode and the session-restore
+            // path — neither of which reaches the AI fetch — land in the same mode.
+            applyRaceRecapMode(postRaceState(raceGoal, fullActivitiesLoaded), raceGoal);
         }
         // The course is titled after the race goal, and a cached course is
         // restored before the goal is known — re-title it now.
@@ -1452,6 +1515,701 @@ document.addEventListener('DOMContentLoaded', function () {
         if (km > 0) return `${Math.round(km * 10) / 10} km`;
         return goal.distance || goal.purpose || '';
     }
+
+    // The sidebar and the settings panel name the race by its TYPE ("Half
+    // Marathon") rather than a bare distance, because that is what the runner
+    // recognises at a glance — a number needs reading, the type does not.
+    // "Custom" is a picker value rather than a race type, so it falls through to
+    // the distance the runner actually entered instead of showing the word.
+    function goalTypeLabel(goal) {
+        const type = goal.purpose;
+        if (type && type !== 'Custom') return type;
+        return goalDistanceLabel(goal) || '';
+    }
+
+    // How far the race run's distance may sit from the goal and still count as
+    // the race itself. GPS-measured courses read 1-3% long routinely (a marathon
+    // logs 42.4-42.6 km), so exact equality would never fire; 5% accepts a
+    // properly measured course while still rejecting a short shakeout run on the
+    // same morning.
+    const RACE_DISTANCE_TOLERANCE = 0.05;
+
+    // The goal's target time in seconds, from H:MM:SS or MM:SS.
+    function goalTargetSeconds(goal) {
+        if (!goal || !goal.time_target) return 0;
+        const parts = String(goal.time_target).split(':').map(Number);
+        let totalSec = 0;
+        if (parts.length === 3) totalSec = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        else if (parts.length === 2) totalSec = parts[0] * 60 + parts[1];
+        return totalSec > 0 ? totalSec : 0;
+    }
+
+    // Local YYYY-MM-DD. toISOString() is UTC, which would put a runner in UTC+8
+    // on the previous day for the first eight hours of their race morning.
+    function localDateIso(d = new Date()) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // A race finish time as H:MM:SS (MM:SS under an hour), which is how runners
+    // read a result — not the "1h 58m" shape formatDuration uses for the
+    // activity list, where the seconds are noise.
+    function formatFinishTime(totalSeconds) {
+        const sec = Math.max(0, Math.round(totalSeconds));
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        const mm = String(m).padStart(2, '0');
+        const ss = String(s).padStart(2, '0');
+        return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+    }
+
+    // The run that was the race: on race day, a running activity, within the
+    // distance tolerance of the goal. Deliberately no date window — a watch that
+    // syncs late, or a runner who uploads afterwards, does not move the race to
+    // another day, and the runner's own race-day upload is authoritative.
+    function findRaceActivity(goal, activities) {
+        if (!goal || !goal.race_date || !Array.isArray(activities)) return null;
+        const goalKm = goalDistanceKm(goal);
+        if (!(goalKm > 0)) return null;
+        const raceDay = String(goal.race_date).slice(0, 10);
+        const tolerance = goalKm * RACE_DISTANCE_TOLERANCE;
+        return activities.find(a => {
+            if (!isRunningActivity(a)) return false;
+            if (String(a.start_time || '').slice(0, 10) !== raceDay) return false;
+            const km = parseFloat(a.distance);
+            return isFinite(km) && Math.abs(km - goalKm) <= tolerance;
+        }) || null;
+    }
+
+    // Normalise a slim activity into the race-result shape we persist, so a
+    // linked result and a matched one are interchangeable downstream.
+    function raceResultFromActivity(a) {
+        return {
+            activity_id: a.id || null,
+            date: String(a.start_time || '').slice(0, 10),
+            distance_km: parseFloat(a.distance) || 0,
+            duration_min: parseFloat(a.duration) || 0,
+            avg_pace_ms: parseFloat(a.avg_pace) || 0,
+            avg_hr: a.avg_hr || null,
+            elevation_gain: a.elevation_gain || 0,
+            source: 'garmin',
+            linked_at: new Date().toISOString(),
+        };
+    }
+
+    // Where the goal sits relative to today. Post-race is a distinct mode: the
+    // readiness analysis scores six areas of fitness against a race that has
+    // already happened, so the radar, the six areas and the Big Picture are
+    // replaced by the race recap.
+    //
+    //   detected — we have a result, either linked by the runner or matched from
+    //              the activity list. False after race day means "ask them".
+    //   achieved — finish time at or under the target; null when there is no
+    //              target to compare against.
+    function postRaceState(goal, activities) {
+        if (!goal || !goal.race_date) return { isPostRace: false };
+        const raceDay = String(goal.race_date).slice(0, 10);
+        const today = localDateIso();
+        if (raceDay > today) return { isPostRace: false };
+        // Race day itself counts only once the race has been run. A matching run
+        // dated race day is proof it is over — nobody logs their goal distance on
+        // race morning by accident — and until then the countdown is still the
+        // right thing to show, because race morning is when it matters most.
+        if (raceDay === today) {
+            const done = (goal.race_result && goal.race_result.date === raceDay)
+                || !!findRaceActivity(goal, activities);
+            if (!done) return { isPostRace: false };
+        }
+
+        // A persisted result wins. It is what the runner explicitly linked, and
+        // it survives the activity ageing out of the cached first page.
+        let result = goal.race_result || null;
+        if (!result) {
+            const matched = findRaceActivity(goal, activities);
+            if (matched) result = raceResultFromActivity(matched);
+        }
+        if (!result) {
+            // Before the activity fetch lands, "no run matched" and "no data yet"
+            // are the same state — reporting the first would ask the runner a
+            // question the data may already answer. `pending` lets the caller hold
+            // the recap back instead of flashing a prompt it has to retract.
+            return { isPostRace: true, detected: false, pending: !activitiesLoaded, raceResult: null };
+        }
+
+        const targetSec = goalTargetSeconds(goal);
+        const finishSec = Math.round((result.duration_min || 0) * 60);
+        const comparable = targetSec > 0 && finishSec > 0;
+        return {
+            isPostRace: true,
+            detected: true,
+            raceResult: result,
+            achieved: comparable ? finishSec <= targetSec : null,
+            deltaSeconds: comparable ? finishSec - targetSec : null,
+        };
+    }
+
+    // =========================================================================
+    // Race Recap (post-race mode)
+    // =========================================================================
+    //
+    // Once race day passes the readiness analysis has nothing left to measure:
+    // the six areas score fitness toward a race that has already happened, and
+    // the countdown counts nothing. In its place the overview and the readiness
+    // page show the result — or, when no run could be matched, ask the runner
+    // to link one.
+    //
+    // The figures here are arithmetic, not AI. Only the written paragraph comes
+    // from the backend's race-recap action, so the numbers appear instantly and
+    // the prose fills in when it arrives.
+
+    // Average pace in min/km from a stored m/s figure.
+    function paceFromMs(ms) {
+        if (!(ms > 0)) return '';
+        const paceSec = Math.round(1000 / ms);
+        return `${Math.floor(paceSec / 60)}:${String(paceSec % 60).padStart(2, '0')}`;
+    }
+
+    // The goal's own facts, kept after the race because they are what the result
+    // is read against — a finish time means nothing without the target it was
+    // chasing, and the recap replaces the card that used to carry them.
+    function raceGoalFacts(goal) {
+        const facts = [];
+        if (goal.race_name) facts.push({ label: 'Race', value: goal.race_name });
+        if (goal.race_date) {
+            facts.push({
+                label: 'Date',
+                value: new Date(goal.race_date + 'T00:00:00')
+                    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            });
+        }
+        const distance = goalDistanceLabel(goal);
+        if (distance) facts.push({ label: 'Distance', value: distance });
+        if (goal.time_target) {
+            // The target pace sits with the target time — it is the same fact in
+            // the unit the runner actually ran in.
+            const pace = goalPacePerKm(goal);
+            facts.push({
+                label: 'Target',
+                value: pace ? `${goal.time_target} · ${pace} /km` : goal.time_target,
+            });
+        }
+        return facts;
+    }
+
+    // The figures the run produced, in the order a runner reads them. Distance
+    // is deliberately absent: the goal group already carries the race distance,
+    // and printing the GPS-measured one beside it reads as a discrepancy rather
+    // than as information.
+    function raceRecapStats(state) {
+        const r = state.raceResult || {};
+        const finishSec = Math.round((r.duration_min || 0) * 60);
+        const stats = [];
+        if (finishSec) stats.push({ label: 'Finish time', value: formatFinishTime(finishSec) });
+        const pace = paceFromMs(r.avg_pace_ms);
+        if (pace) stats.push({ label: 'Average pace', value: `${pace} /km` });
+        if (r.avg_hr) stats.push({ label: 'Average HR', value: `${r.avg_hr} bpm` });
+        if (r.elevation_gain) stats.push({ label: 'Elevation gain', value: `${Math.round(r.elevation_gain)} m` });
+        return stats;
+    }
+
+    // The delta against the target, phrased the way a runner would say it. A
+    // margin under a minute is not worth a sentence — it reads as noise.
+    function raceVerdict(state) {
+        if (state.deltaSeconds === null || state.achieved === null) return '';
+        const d = Math.abs(state.deltaSeconds);
+        if (d < 60) return 'Goal achieved';
+        return state.achieved
+            ? `Goal achieved — ${formatFinishTime(d)} under target`
+            : `Missed target by ${formatFinishTime(d)}`;
+    }
+
+    // One recap, rendered in two places: the overview's goal section (which it
+    // replaces outright) and the whole Readiness page. Both get the same markup
+    // so the two can never report different numbers.
+    function raceRecapHtml(state, goal) {
+        if (!state.detected) {
+            return `
+                <p class="pacey-race-recap-question">Did you run the race?</p>
+                <p class="pacey-race-recap-note">We couldn't find a run on race day that matches your goal distance.</p>
+                <button class="pacey-btn pacey-btn-primary pacey-race-recap-link-btn" type="button" data-recap-action="link">Link your race</button>
+            `;
+        }
+        const r = state.raceResult || {};
+        const verdict = raceVerdict(state);
+
+        // One labelled block per question: what the runner set out to do, and
+        // what they actually did. Keeping them apart is the point — the gap
+        // between the two is the story the recap tells.
+        const group = (label, facts) => facts.length ? `
+            <div class="pacey-race-recap-group">
+                <span class="pacey-race-recap-group-label">${label}</span>
+                <div class="pacey-race-recap-stats">${facts.map(s => `
+                    <div class="pacey-race-recap-stat">
+                        <span class="pacey-race-recap-stat-label">${escapeHtml(s.label)}</span>
+                        <span class="pacey-race-recap-stat-value">${escapeHtml(s.value)}</span>
+                    </div>`).join('')}
+                </div>
+            </div>` : '';
+
+        // Reading order: which race it was, then how it went, then the figures,
+        // then the coach's prose. The course preview takes the top-right corner
+        // beside the race name — it is what the runner raced, so it belongs with
+        // the identity of the race rather than buried among the numbers.
+        return `
+            <div class="pacey-race-recap-top">
+                <div class="pacey-race-recap-id">
+                    <span class="pacey-race-recap-name">${escapeHtml(goal.race_name || goalTypeLabel(goal) || 'Your race')}</span>
+                    ${verdict ? `<span class="pacey-race-recap-verdict${state.achieved ? ' is-achieved' : ''}">${escapeHtml(verdict)}</span>` : ''}
+                </div>
+                <!-- The course preview is moved in here from the goal card by
+                     placeGoalMapNote() — it holds a live map, so it cannot be
+                     duplicated and has to be relocated rather than rebuilt. -->
+                <div class="pacey-race-recap-map" data-recap-map></div>
+            </div>
+            ${group('The goal', raceGoalFacts(goal))}
+            ${group('The result', raceRecapStats(state))}
+            <!-- The coach's read closes the recap: it is the only prose here, and
+                 it reads as the last word rather than as an introduction. Filled
+                 by loadRaceRecapProse(); the placeholder holds the block's shape
+                 while the paragraph is written. -->
+            <div class="pacey-race-recap-read">
+                <span class="pacey-race-recap-group-label">The coach's read</span>
+                <div class="pacey-race-recap-prose" data-recap-prose><span class="pacey-shimmer-text">Reading your race…</span></div>
+            </div>
+            <div class="pacey-race-recap-actions">
+                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="new-goal">Set a new goal</button>
+            </div>
+        `;
+    }
+
+    // Put the overview and the readiness page into post-race mode, or back out of
+    // it. Driven from one place so the two pages cannot disagree about which mode
+    // they are in — the elements they swap are the same ones the readiness
+    // analysis fills, so this has to run before that analysis renders.
+    function applyRaceRecapMode(state, goal) {
+        const post = !!(state && state.isPostRace);
+        // The readiness elements give way as soon as race day passes — there is
+        // nothing left for them to measure. The recap itself waits for the
+        // activity fetch, so it never shows a prompt it may have to retract.
+        const showRecap = post && !state.pending;
+        const recapHtml = showRecap ? raceRecapHtml(state, goal) : '';
+
+        // Both recap containers are rebuilt below. The course preview holds a live
+        // map, so it would be destroyed if it happened to be inside one — it is
+        // moved home first and re-placed at the end.
+        const note = $('#pacey-goal-map-note');
+        const mapHome = $('#pacey-goal-map-home');
+        if (note && mapHome && note.parentElement !== mapHome) mapHome.appendChild(note);
+
+        // --- Overview: one section replaces both cards ---
+        const goalRow = $('#pacey-goal-row');
+        if (goalRow) goalRow.hidden = post;
+        const goalTitle = $('#pacey-goal-section-title');
+        if (goalTitle) goalTitle.textContent = post ? 'Race Recap' : 'Race Goal & Readiness';
+        const overviewRecap = $('#pacey-overview-recap');
+        if (overviewRecap) {
+            overviewRecap.innerHTML = recapHtml;
+            overviewRecap.hidden = !showRecap;
+        }
+        // The six-area verdict and the pillars are what the recap replaces.
+        // Only ever hidden here — renderOverallInsight decides their pre-race
+        // visibility, and forcing it back would race with the AI fetch.
+        if (post) {
+            const overallInsight = $('#pacey-overall-insight');
+            if (overallInsight) overallInsight.hidden = true;
+            const overallSkeleton = $('#pacey-overall-insight-skeleton');
+            if (overallSkeleton) overallSkeleton.hidden = true;
+        }
+        // The Big Picture is the six-area verdict in prose, so it goes with them.
+        const bigPicture = $('#pacey-big-picture-section');
+        if (bigPicture) bigPicture.hidden = post;
+        const pillarsSection = $('#pacey-overview-pillars-section');
+        if (pillarsSection) pillarsSection.hidden = post;
+
+        // --- Readiness page: the whole analysis becomes the recap ---
+        const readinessTitle = $('#pacey-readiness-title');
+        if (readinessTitle) readinessTitle.textContent = post ? 'Recap' : 'Race Readiness';
+        const readinessSub = $('#pacey-readiness-sub');
+        if (readinessSub) {
+            if (!readinessSub.dataset.defaultHtml) readinessSub.dataset.defaultHtml = readinessSub.innerHTML;
+            readinessSub.innerHTML = post
+                ? 'How the race went, and what comes next.'
+                : readinessSub.dataset.defaultHtml;
+        }
+        // The six-dimension explainer has nothing to explain once the six areas
+        // are gone; the summary mark takes its place beside the title.
+        const dimensionBtn = $('#pacey-dimension-info-btn');
+        if (dimensionBtn) dimensionBtn.hidden = post;
+        const recapMark = $('#pacey-recap-mark');
+        if (recapMark) recapMark.hidden = !post;
+        // The "last analysed" stamp belongs to the six-area analysis, not the recap.
+        const readinessUpdated = $('#pacey-readiness-updated');
+        if (readinessUpdated && post) readinessUpdated.hidden = true;
+        const readinessRecap = $('#pacey-readiness-recap');
+        if (readinessRecap) {
+            readinessRecap.innerHTML = recapHtml;
+            readinessRecap.hidden = !showRecap;
+        }
+        const readinessAnalysis = $('#pacey-readiness-analysis');
+        if (readinessAnalysis) readinessAnalysis.hidden = post;
+
+        // The nav points at the same page under both names, so its glyph and
+        // label follow the mode rather than being fixed to one of them — a tab
+        // reading "Readiness" that opens a recap would be a lie. Both glyphs are
+        // stroked sketchyicons shapes on the same 24-unit grid, so they share the
+        // nav's weight rule and swap cleanly.
+        const navLabel = $('#pacey-nav-readiness-label');
+        if (navLabel) navLabel.textContent = post ? 'Recap' : 'Readiness';
+        ['#pacey-nav-readiness-icon', '#pacey-tab-readiness-icon'].forEach((sel) => {
+            const use = document.querySelector(`${sel} use`);
+            if (use) use.setAttribute('href', post ? '#pacey-icon-recap' : '#pacey-icon-readiness');
+        });
+
+        // Finally, put the course preview in whichever recap is on screen.
+        placeGoalMapNote(showRecap);
+    }
+
+    /**
+     * Move the course preview into the recap, or back into the goal card.
+     *
+     * The preview holds a live MapLibre instance, so there is exactly one of it
+     * and it cannot be shown in two places. Only one page is ever visible, so
+     * relocating the node is the honest way to do this rather than a compromise —
+     * and courseEls() re-queries the DOM on every call, so the map code follows
+     * it without knowing it moved.
+     */
+    function placeGoalMapNote(useRecapHost) {
+        const note = $('#pacey-goal-map-note');
+        const home = $('#pacey-goal-map-home');
+        if (!note || !home) return;
+
+        let host = home;
+        if (useRecapHost) {
+            // Whichever recap sits on a visible page. Array.from because $$ is
+            // querySelectorAll — a NodeList has forEach but no filter.
+            const recaps = Array.from($$('[data-recap-map]')).filter((el) => {
+                const page = el.closest('.pacey-page');
+                return !page || !page.hidden;
+            });
+            if (recaps.length) host = recaps[0];
+        }
+        if (note.parentElement === host) return;
+
+        const moved = host !== home;
+        host.appendChild(note);
+        note.classList.toggle('pacey-goal-map-note--recap', moved);
+        // The map measures its container, so it has to be told the box changed.
+        // layoutGoalNote re-runs the note's own sizing and position.
+        requestAnimationFrame(() => {
+            layoutGoalNote();
+            resizeCourseMap();
+        });
+    }
+
+    // The written recap, cached in localStorage against the result it describes.
+    // Keyed on the result rather than the goal so linking a different run
+    // regenerates, and so a stale paragraph cannot follow a corrected time.
+    const RACE_RECAP_CACHE_KEY = 'pacey_race_recap_v1';
+
+    // Shown in place of the coach's read when it cannot be written. Deliberately
+    // plain and short: the result figures beside it are the substance, so this
+    // only has to say why the paragraph is missing rather than apologise at length.
+    const RACE_RECAP_UNAVAILABLE = "The coach's read isn't available right now.";
+
+    function raceRecapCacheKey(state) {
+        const r = state.raceResult || {};
+        return `${r.date || ''}|${r.duration_min || ''}|${r.distance_km || ''}`;
+    }
+
+    function readRaceRecapCache(state) {
+        try {
+            const raw = localStorage.getItem(RACE_RECAP_CACHE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed && parsed.key === raceRecapCacheKey(state) ? parsed.text : null;
+        } catch (err) {
+            return null;
+        }
+    }
+
+    function writeRaceRecapCache(state, text) {
+        try {
+            localStorage.setItem(RACE_RECAP_CACHE_KEY, JSON.stringify({
+                key: raceRecapCacheKey(state),
+                text,
+            }));
+        } catch (err) {
+            // Quota or private mode — the recap simply regenerates next time.
+        }
+    }
+
+    // Fill the recap paragraph. Both the overview and the readiness page carry a
+    // [data-recap-prose] container, so one fetch fills whichever is on screen.
+    //
+    // The container starts with a placeholder rather than being hidden, because
+    // the coach's read is a labelled part of the recap — leaving it out entirely
+    // made the whole thing read as a results table. So every exit path here has
+    // to replace that placeholder, including the failure one.
+    async function loadRaceRecapProse(state, goal) {
+        if (!state.detected) return;
+        const targets = $$('[data-recap-prose]');
+        if (!targets.length) return;
+
+        const setText = (text) => targets.forEach(el => { el.textContent = text; });
+
+        const cached = readRaceRecapCache(state);
+        if (cached) {
+            setText(cached);
+            return;
+        }
+
+        // Demo mode has no server to write the paragraph, so the showcase uses a
+        // fixed one — the rest of the demo's AI content is mocked the same way.
+        if (window.__demoMode) {
+            setText(getMockRaceRecap());
+            return;
+        }
+
+        try {
+            const resp = await apiCall('POST', 'coach-plan', {
+                action: 'race-recap',
+                race_result: state.raceResult,
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.recap) {
+                setText(RACE_RECAP_UNAVAILABLE);
+                return;
+            }
+            writeRaceRecapCache(state, data.recap);
+            setText(data.recap);
+        } catch (err) {
+            // The figures stand on their own, so this is not worth an alert — but
+            // it should not leave the block shimmering forever either.
+            console.warn('Race recap unavailable:', err);
+            setText(RACE_RECAP_UNAVAILABLE);
+        }
+    }
+
+    // =========================================================================
+    // Linking a race result
+    // =========================================================================
+    //
+    // Reached from the recap when no run matched the goal: the runner points at
+    // the right activity, or uploads the GPX for a run that never reached
+    // Garmin. Either way the result is theirs rather than an inference from a
+    // date, and it is attached to the goal so it survives the activity ageing
+    // out of the cached first page — and reaches their other devices through the
+    // existing goal sync.
+
+    // Attach a result to the goal, locally and on the server, then re-render the
+    // recap in place. The local copy is written first so the UI is correct even
+    // if the sync fails.
+    async function saveRaceResult(result) {
+        if (!raceGoal) return;
+        if (result) raceGoal.race_result = result;
+        else delete raceGoal.race_result;
+        try {
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+        } catch (err) {
+            // Quota or private mode — the server copy below is the durable one.
+        }
+
+        const state = postRaceState(raceGoal, fullActivitiesLoaded);
+        renderGoalSpecifics(raceGoal);
+        applyRaceRecapMode(state, raceGoal);
+        loadRaceRecapProse(state, raceGoal);
+
+        if (window.__demoMode) return;
+        try {
+            await apiCall('POST', 'coach-plan', { action: 'race-result', race_result: result });
+        } catch (err) {
+            // Offline — the local copy stands and the next link retries.
+        }
+    }
+
+    // Keep a finished race when the runner moves on to a new goal. The goal is
+    // overwritten on every save, so without this the result would vanish the
+    // moment they set the next target — and the race they just ran is exactly
+    // what they would want to look back at.
+    const RACE_HISTORY_KEY = 'pacey_race_history_v1';
+
+    function fileRaceResultToHistory(goal) {
+        if (!goal || !goal.race_result) return;
+        try {
+            const raw = localStorage.getItem(RACE_HISTORY_KEY);
+            const parsed = raw ? JSON.parse(raw) : [];
+            const history = Array.isArray(parsed) ? parsed : [];
+            const entry = {
+                ...goal.race_result,
+                race_name: goal.race_name || goal.purpose || '',
+                time_target: goal.time_target || '',
+            };
+            // Keyed on date + finish time so re-saving an unchanged goal does not
+            // stack duplicates.
+            const key = `${entry.date}|${entry.duration_min}`;
+            if (!history.some(h => `${h.date}|${h.duration_min}` === key)) {
+                history.push(entry);
+                localStorage.setItem(RACE_HISTORY_KEY, JSON.stringify(history));
+            }
+        } catch (err) {
+            // Quota or private mode — the recap simply does not carry forward.
+        }
+    }
+
+    // Candidate runs for the manual link: running activities within a week of
+    // race day, whether or not they matched the distance. The point of this
+    // screen is that the automatic match found nothing, so it deliberately does
+    // not pre-filter by distance — it flags a close one instead.
+    function raceLinkCandidates(goal) {
+        if (!goal || !goal.race_date) return [];
+        const raceMs = new Date(String(goal.race_date).slice(0, 10) + 'T00:00:00').getTime();
+        const dayMs = 86400000;
+        const dayOf = (a) => new Date(String(a.start_time || '').slice(0, 10) + 'T00:00:00').getTime();
+        return fullActivitiesLoaded
+            .filter(a => {
+                if (!isRunningActivity(a) || !a.start_time) return false;
+                const t = dayOf(a);
+                return isFinite(t) && Math.abs(t - raceMs) <= 7 * dayMs;
+            })
+            .sort((a, b) => {
+                // Nearest to race day first, then longest — the race is both.
+                const da = Math.abs(dayOf(a) - raceMs);
+                const db = Math.abs(dayOf(b) - raceMs);
+                return da !== db ? da - db : (b.distance || 0) - (a.distance || 0);
+            });
+    }
+
+    function openLinkRaceModal() {
+        const modal = $('#pacey-link-race-modal');
+        const list = $('#pacey-link-race-list');
+        if (!modal || !list) return;
+
+        const goalKm = raceGoal ? goalDistanceKm(raceGoal) : 0;
+        const candidates = raceLinkCandidates(raceGoal);
+
+        if (!candidates.length) {
+            list.innerHTML = '<p class="pacey-link-race-empty">No runs from that week are loaded. Upload the GPX below, or open Activities and load more first.</p>';
+        } else {
+            list.innerHTML = candidates.map(a => {
+                const km = parseFloat(a.distance) || 0;
+                // Flagged, not filtered — the runner decides, but the goal
+                // distance is the likeliest one so it should not need hunting for.
+                const near = goalKm > 0 && Math.abs(km - goalKm) <= goalKm * RACE_DISTANCE_TOLERANCE;
+                const date = a.start_time ? parseDate(a.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                return `
+                    <button class="pacey-link-race-item${near ? ' is-near' : ''}" type="button" data-link-index="${fullActivitiesLoaded.indexOf(a)}">
+                        <span class="pacey-link-race-item-date">${escapeHtml(date)}</span>
+                        <span class="pacey-link-race-item-name">${escapeHtml(a.name || 'Run')}</span>
+                        <span class="pacey-link-race-item-meta">${km ? `${Math.round(km * 10) / 10} km` : '—'} · ${formatDuration(a.duration)}</span>
+                    </button>`;
+            }).join('');
+        }
+
+        const status = $('#pacey-link-race-status');
+        if (status) status.hidden = true;
+        modal.hidden = false;
+    }
+
+    function closeLinkRaceModal() {
+        const modal = $('#pacey-link-race-modal');
+        if (modal) modal.hidden = true;
+    }
+
+    // A run recorded on something that never reached Garmin. Parsed in the
+    // browser with the same parser as the course card, and the finish time is
+    // taken from the first and last trackpoint timestamps.
+    async function linkRaceFromGpx(file) {
+        const status = $('#pacey-link-race-status');
+        const setStatus = (msg) => {
+            if (!status) return;
+            status.textContent = msg;
+            status.hidden = !msg;
+        };
+        if (!file || !window.PaceyCourse) return;
+        if (file.size > COURSE_MAX_BYTES) {
+            setStatus('That file is too large to read.');
+            return;
+        }
+
+        setStatus('Reading the file…');
+        try {
+            const parsed = PaceyCourse.parseGpx(await file.text());
+            if (!parsed.points || parsed.points.length < 2) {
+                setStatus('That file has no track points we can read.');
+                return;
+            }
+            // computeCourse takes the point list, not the parse result.
+            const course = PaceyCourse.computeCourse(parsed.points);
+            const times = parsed.points.map(p => p.time).filter(Boolean);
+            const startMs = times.length ? Date.parse(times[0]) : NaN;
+            const endMs = times.length ? Date.parse(times[times.length - 1]) : NaN;
+            const durationMin = isFinite(startMs) && isFinite(endMs) && endMs > startMs
+                ? (endMs - startMs) / 60000
+                : 0;
+            if (!durationMin) {
+                setStatus('That file has no timestamps, so we cannot read a finish time from it.');
+                return;
+            }
+
+            const distanceKm = course.distanceKm || 0;
+            await saveRaceResult({
+                activity_id: null,
+                date: times.length ? String(times[0]).slice(0, 10) : localDateIso(),
+                distance_km: distanceKm,
+                duration_min: durationMin,
+                avg_pace_ms: distanceKm > 0 ? (distanceKm * 1000) / (durationMin * 60) : 0,
+                avg_hr: null,
+                elevation_gain: course.gainM || 0,
+                source: 'gpx',
+                linked_at: new Date().toISOString(),
+            });
+            closeLinkRaceModal();
+        } catch (err) {
+            setStatus('We could not read that file.');
+        }
+    }
+
+    // Wiring — the recap blocks are re-rendered on every mode change, so the
+    // buttons are handled by delegation rather than bound per render.
+    (function bindRaceRecapControls() {
+        document.addEventListener('click', (e) => {
+            const actionBtn = e.target.closest('[data-recap-action]');
+            if (actionBtn) {
+                const action = actionBtn.getAttribute('data-recap-action');
+                if (action === 'link') openLinkRaceModal();
+                if (action === 'new-goal') openEditGoalPopup();
+                return;
+            }
+            // A candidate run in the link modal — the index points back into the
+            // loaded list, so the result carries the activity's own figures.
+            const item = e.target.closest('[data-link-index]');
+            if (item) {
+                const activity = fullActivitiesLoaded[Number(item.getAttribute('data-link-index'))];
+                if (activity) {
+                    saveRaceResult(raceResultFromActivity(activity));
+                    closeLinkRaceModal();
+                }
+            }
+        });
+
+        const closeBtn = $('#pacey-link-race-close');
+        if (closeBtn) closeBtn.addEventListener('click', closeLinkRaceModal);
+        const modal = $('#pacey-link-race-modal');
+        if (modal) {
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeLinkRaceModal(); });
+        }
+        const skipBtn = $('#pacey-link-race-skip');
+        if (skipBtn) skipBtn.addEventListener('click', () => { closeLinkRaceModal(); openEditGoalPopup(); });
+        const fileInput = $('#pacey-link-race-file');
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files && fileInput.files[0];
+                // Reset so re-picking the same file fires change again.
+                fileInput.value = '';
+                if (file) linkRaceFromGpx(file);
+            });
+        }
+    })();
 
     // Turn the two form pickers into the stored pair. The four standard types
     // carry their own distance; "Custom" takes the number and unit the runner
@@ -1524,15 +2282,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const grid = $('#pacey-goal-specifics-grid');
         if (!grid) return;
 
-        // Compute countdown days to race date
-        let countdownDays = '--';
+        // Compute countdown days to race date. This card is hidden entirely once
+        // the race is done — the recap replaces it — so the countdown only ever
+        // needs to count forward.
+        let countdownValue = '--';
+        let countdownLabel = 'days to go';
         if (goal.race_date) {
             const raceDate = new Date(goal.race_date + 'T00:00:00');
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const diffMs = raceDate - today;
             const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-            countdownDays = diffDays >= 0 ? diffDays : '0';
+            countdownValue = diffDays;
+            countdownLabel = diffDays === 1 ? 'day to go' : 'days to go';
         }
 
         // Derive target pace from race distance + time target
@@ -1563,8 +2325,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Populate the countdown highlight in the top-right corner
         const countdownValueEl = $('#pacey-countdown-value');
         const countdownLabelEl = $('#pacey-countdown-label');
-        if (countdownValueEl) countdownValueEl.textContent = countdownDays;
-        if (countdownLabelEl) countdownLabelEl.textContent = countdownDays === 1 ? 'day to go' : 'days to go';
+        if (countdownValueEl) countdownValueEl.textContent = countdownValue;
+        if (countdownLabelEl) countdownLabelEl.textContent = countdownLabel;
 
         // The countdown just changed, and the mini note sits under it — so
         // re-measure once that has laid out.
@@ -2785,13 +3547,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // The demo course is the real KL Standard Chartered Half route, fetched
     // from the site's own assets so the demo shows genuine data rather than a
     // generated stand-in.
-    const DEMO_COURSE_URL = '/pacey/assets/klscm26-21km.gpx';
+    // The demo course is the race the demo runner just ran, so the course card,
+    // the activity list and the recap all describe the same event. This is the
+    // real Garmin export of that half marathon — 6,587 trackpoints, 21.27 km,
+    // 63 m of climb. It is the largest asset the demo fetches (~2.6 MB); the
+    // generated fallback below covers the offline case.
+    const DEMO_COURSE_URL = '/pacey/assets/activity_24425014019.gpx';
 
     async function loadDemoCourse() {
         if (!window.PaceyCourse) return;
 
         let points = null;
-        let fileName = 'klscm26-21km.gpx';
+        let fileName = 'activity_24425014019.gpx';
         try {
             const resp = await fetch(DEMO_COURSE_URL);
             if (resp.ok) {
@@ -2808,7 +3575,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const course = PaceyCourse.computeCourse(points);
         courseRecord = makeCourseRecord(course, points, {
-            name: 'Demo Half Course',
+            name: 'Brooks Half Marathon',
             fileName,
             source: 'track',
         });
@@ -2944,13 +3711,22 @@ document.addEventListener('DOMContentLoaded', function () {
             // before their values appear.
             renderMetrics(getMockMetrics());
             const mockActs = generateMockActivities();
+            // Seed the shared activity store — the post-race detection reads it,
+            // and without this the demo could never recognise its own race.
+            fullActivitiesLoaded = mockActs;
+            activitiesLoaded = true;
             // Overview shows 5 latest; full page shows all mock activities
             renderActivities(mockActs);
             renderCalendar(mockActs);
-            // Hide the "Load more" button in demo mode — all 20 mock
+            // Hide the "Load more" button in demo mode — the whole mock list,
+            // race included, is already shown
             // activities are already shown
             const loadMoreBtn = $('#pacey-load-more-activities');
             if (loadMoreBtn) loadMoreBtn.hidden = true;
+            // The demo's race is dated today and the mock list carries the run, so
+            // this lands in post-race mode and the recap replaces the six areas.
+            const demoPostRace = postRaceState(raceGoal, fullActivitiesLoaded);
+            applyRaceRecapMode(demoPostRace, raceGoal);
             // Charts + pillars load after a simulated 3s delay in demo mode
             setDemoChartsLoading(true);
             showPillarsSkeleton();
@@ -2962,6 +3738,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 renderMileageChart(getMockWeeklyMileage());
                 renderPaceDistribution(mockActs);
                 renderHrPaceScatter(mockActs);
+                // Post-race there is no six-area analysis left to show: the radar
+                // and the pillars stay down and the recap paragraph takes their
+                // place. Demo mode never reaches loadAISummary, which is where the
+                // real app fills this, so it is done here.
+                if (demoPostRace.isPostRace) {
+                    showRadarSkeleton(false);
+                    showOverallInsightSkeleton(false);
+                    loadRaceRecapProse(demoPostRace, raceGoal);
+                    return;
+                }
                 renderRadarChart(getMockRadarData());
                 renderPillars(getMockPillars());
                 renderOverallInsight(getMockOverallInsight());
@@ -3035,6 +3821,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const acts = activitiesData.activities;
                 // Store for the activities page pagination
                 fullActivitiesLoaded = acts;
+                activitiesLoaded = true;
                 activitiesOffset = acts.length; // advance offset by count returned
                 renderActivities(acts);
                 // Charts use the initial batch only — never updated by "Load more"
@@ -5361,6 +6148,21 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadAISummary(forceRefresh = false) {
+        // Post-race the six-area analysis has nothing left to measure: it scores
+        // fitness toward a race that has already happened. The recap takes its
+        // place and the AI call is skipped entirely. This is the single place the
+        // decision is made, so pressing Refresh cannot resurrect the analysis —
+        // and it runs before any cache read, so a cached pre-race payload cannot
+        // repaint the radar either.
+        const postRace = postRaceState(raceGoal, fullActivitiesLoaded);
+        applyRaceRecapMode(postRace, raceGoal);
+        if (postRace.isPostRace) {
+            showRadarSkeleton(false);
+            pillarsContents.forEach(el => el.hidden = true);
+            loadRaceRecapProse(postRace, raceGoal);
+            return;
+        }
+
         if (forceRefresh) clearAICache();
 
         // Check cache first — if valid, render immediately without API call
@@ -6225,6 +7027,9 @@ document.addEventListener('DOMContentLoaded', function () {
             age: $('#pacey-edit-age').value,
         };
         try {
+            // A new goal replaces the old one, so a finished race on the old goal
+            // is filed to history before it is overwritten.
+            fileRaceResultToHistory(raceGoal);
             // In demo mode, save locally without an API call
             if (window.__demoMode) {
                 raceGoal = { ...body, saved_at: new Date().toISOString() };
@@ -6254,7 +7059,7 @@ document.addEventListener('DOMContentLoaded', function () {
             lastPaceDistActivities = null;
             lastHrPaceActivities = null;
             // Update the sidebar goal display
-            sidebarGoalEl.textContent = `${goalDistanceLabel(raceGoal)} — ${raceGoal.time_target}`;
+            sidebarGoalEl.textContent = `${goalTypeLabel(raceGoal)} — ${raceGoal.time_target}`;
             // Update the goal specifics panel
             renderGoalSpecifics(raceGoal);
             // ...and the race detail note on the readiness page, which restates
@@ -6455,7 +7260,7 @@ document.addEventListener('DOMContentLoaded', function () {
             settingsProfileName.textContent = displayName || 'Demo Runner';
         }
         if (settingsProfileGoal && raceGoal) {
-            settingsProfileGoal.textContent = `${goalDistanceLabel(raceGoal)} — ${raceGoal.time_target}`;
+            settingsProfileGoal.textContent = `${goalTypeLabel(raceGoal)} — ${raceGoal.time_target}`;
         } else if (settingsProfileGoal) {
             settingsProfileGoal.textContent = '';
         }
@@ -7444,6 +8249,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function generateCoachPlan(prefs, force) {
+        // Post-race there is no block left to build. Guarded here as well as at
+        // the callers so nothing — a prefs save, a stale auto-load — can spend an
+        // AI call generating workouts for a race that has already happened.
+        if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
+            renderCoachCalendar({ history: (coachPlanData && coachPlanData.history) || [], plan: {} });
+            return;
+        }
         // Auto-load is guarded; an explicit Save & Rebuild always regenerates.
         if ((coachLoaded || coachGenerating) && !force) return;
         if (prefs) {
@@ -7594,6 +8406,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // top (navigateTo resets the window scroll), led by the race card.
     function openPlanPage() {
         planPastDays = 14;
+        // Post-race there is no block left to build. Generating one would produce
+        // recovery sessions the runner never asked for and cannot act on, and it
+        // would spend an AI call doing it. The calendar still renders — it is the
+        // training log now rather than a schedule — from whatever history we
+        // already hold.
+        if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
+            let source = coachPlanData || readCoachCache();
+            // Demo mode never builds a real plan, so its history comes from the
+            // mock; without this the calendar would be empty.
+            if (!source && window.__demoMode) source = { history: getMockCoachHistory() };
+            coachLoaded = true;
+            renderCoachCalendar({ history: (source && source.history) || [], plan: {} });
+            return;
+        }
         if (coachLoaded && coachPlanData) {
             renderCoachCalendar(coachPlanData);
         } else {
@@ -7664,7 +8490,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!coachCalendarEl) return;
         const history = data.history || [];
         const plan = data.plan || {};
-        const planDays = plan.days || [];
+        // Post-race the block is over, so the calendar carries no workouts. It
+        // still renders — the training history is what it is for now — but the
+        // race was the last thing in the plan, and a session after it would be
+        // advice about a block that no longer exists.
+        const planDays = postRaceState(raceGoal, fullActivitiesLoaded).isPostRace ? [] : (plan.days || []);
 
         // Index history and plan by local date
         const historyByDate = {};
@@ -7802,7 +8632,39 @@ document.addEventListener('DOMContentLoaded', function () {
     // for the short-window fallback (a plan with no race target).
     function renderPlanRaceCard(plan) {
         if (!planRaceCardEl) return;
+        const postRace = postRaceState(raceGoal, fullActivitiesLoaded);
         const daysToRace = plan.days_to_race;
+
+        // Post-race the card summarises the race instead of counting down to it,
+        // and it no longer depends on a plan — there is no plan to depend on, so
+        // every figure comes from the goal and the result instead.
+        if (postRace.isPostRace) {
+            planRaceNameEl.textContent = (raceGoal && raceGoal.race_name) || 'Your race';
+            planRaceMetaEl.textContent = [
+                raceGoal ? goalDistanceLabel(raceGoal) : '',
+                raceGoal && raceGoal.race_date
+                    ? new Date(raceGoal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : '',
+                postRace.detected
+                    ? `${formatFinishTime((postRace.raceResult.duration_min || 0) * 60)} finish`
+                    : 'race day passed',
+                raceVerdict(postRace),
+            ].filter(Boolean).join(' · ');
+            // The drawer showed the paces the block was built around, and the
+            // trajectory projected whether the goal was reachable — both are moot
+            // now. renderFitnessDrawer hides itself on an empty object.
+            renderFitnessDrawer({});
+            renderTrajectoryNote({});
+            if (planInsightEl) { planInsightEl.hidden = true; planInsightEl.textContent = ''; }
+            // "Customize plan" opens the prefs modal that rebuilds the block.
+            // There is no block to rebuild, so the control goes with it.
+            if (planEditBtn) planEditBtn.hidden = true;
+            planRaceCardEl.hidden = false;
+            return;
+        }
+
+        if (planEditBtn) planEditBtn.hidden = false;
+
         if (daysToRace == null || !plan.race_date || !raceGoal) {
             planRaceCardEl.hidden = true;
             return;

@@ -173,6 +173,7 @@
        rather than flat rectangles */
     #pacey-content .pacey-readiness-card,
     #pacey-content .pacey-chart-card,
+    #pacey-content .pacey-race-recap,
     #pacey-content .pacey-overall-insight,
     #pacey-content .pacey-overall-insight-skeleton,
     #pacey-content .pacey-activity-item,
@@ -196,6 +197,7 @@
     /* Pins sit well in from the edge so they don't look like they would
        tear the corner off */
     #pacey-content .pacey-readiness-card::before,
+    #pacey-content .pacey-race-recap::before,
     #pacey-content .pacey-pillar-card::before {
         content: "";
         position: absolute;
@@ -365,6 +367,9 @@
     /* Slight scatter for the pinned sheets */
     #pacey-content .pacey-readiness-row > .pacey-readiness-card:nth-child(1) { --tilt: -0.5deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-readiness-row > .pacey-readiness-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
+    /* The recap replaces that row once the race is done, so it takes the same
+       laid-on-the-board treatment — a sheet pinned slightly off-square. */
+    #pacey-content .pacey-race-recap { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-charts-row > .pacey-chart-card:nth-child(1) { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-charts-row > .pacey-chart-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-activity-item { --tilt: -0.25deg; transform: rotate(var(--tilt)); }

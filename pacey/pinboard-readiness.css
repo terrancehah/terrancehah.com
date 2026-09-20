@@ -557,3 +557,174 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
 @media (prefers-reduced-motion: reduce) {
     #pacey-content .pacey-pillar-card.pacey-pillar-highlight { animation: none; }
 }
+
+/* ---------------------------------------------------------------------
+   8. Race recap — post-race mode.
+   ---------------------------------------------------------------------
+   Once race day passes the six areas have nothing left to measure, so the
+   radar, the pillars and the Big Picture give way to the result. The recap
+   renders in two places from one builder: the overview's goal section, which
+   it replaces outright, and the whole Readiness page.
+
+   The figures are computed in the browser and appear immediately; only the
+   paragraph is generated, and it fills in beneath them.
+
+   Type follows the board's convention rather than the page default: coach
+   copy and figures are Fuzzy Bubbles, the same face the goal card, the metric
+   values and the pillar summaries use. Headings stay in Caveat, which is what
+   .pacey-section-title already carries.
+   --------------------------------------------------------------------- */
+
+#pacey-content .pacey-race-recap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+    font-family: var(--font-fuzzy);
+    /* The paper, pin and tilt come from the board's shared card treatment in
+       pinboard-theme.css; this is the sheet's own breathing room, with extra
+       at the top so the pushpin clears the headline. */
+    padding: clamp(1.5rem, 2.6vw, 2rem) clamp(1rem, 1.8vw, 1.35rem) clamp(1rem, 1.8vw, 1.35rem);
+}
+
+/* The top row: which race it was on the left, the course preview in the
+   top-right corner beside it. Wraps rather than squeezing on a narrow sheet —
+   the note has a per-route width, so it cannot simply be shrunk. */
+#pacey-content .pacey-race-recap-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--pacey-space-md);
+    flex-wrap: wrap;
+}
+
+#pacey-content .pacey-race-recap-id {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    /* Takes the slack so the note is pushed hard against the right edge. */
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+/* The race name leads the recap — it is what everything below is about. */
+#pacey-content .pacey-race-recap-name {
+    font-size: var(--pacey-text-heading);
+    line-height: 1.2;
+    color: var(--pinboard-ink);
+}
+
+#pacey-content .pacey-race-recap-verdict {
+    font-size: 1.05rem;
+    color: var(--pacey-accent-amber);
+}
+
+/* Hitting the target is the one outcome worth a colour of its own. */
+#pacey-content .pacey-race-recap-verdict.is-achieved {
+    color: var(--pacey-accent-green);
+}
+
+/* The goal, the result and the coach's read are kept apart on purpose — the gap
+   between what was set and what was run is the story, and the read is what
+   explains it. Folding them into one block would lose both. */
+#pacey-content .pacey-race-recap-group,
+#pacey-content .pacey-race-recap-read {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+#pacey-content .pacey-race-recap-group-label {
+    font-size: var(--pacey-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--pinboard-muted);
+}
+
+#pacey-content .pacey-race-recap-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    gap: var(--pacey-space-sm);
+}
+
+#pacey-content .pacey-race-recap-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+#pacey-content .pacey-race-recap-stat-label {
+    font-size: var(--pacey-text-caption);
+    color: var(--pinboard-muted);
+}
+
+#pacey-content .pacey-race-recap-stat-value {
+    font-size: 1.15rem;
+    color: var(--pinboard-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+#pacey-content .pacey-race-recap-prose {
+    font-size: 1.02rem;
+    line-height: 1.5;
+    color: var(--pinboard-ink);
+}
+
+#pacey-content .pacey-race-recap-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pacey-space-sm);
+}
+
+/* ---- The course preview, relocated from the goal card ----
+   The note is absolutely positioned in the goal card, pinned under the
+   countdown, and its width is measured per route in JS. In the recap there is
+   no countdown to sit under, so it joins the flow at the top-right corner and
+   keeps only its sticky-note dressing — the tape, the tilt and the scribble all
+   still apply. */
+#pacey-content .pacey-race-recap-map {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    /* Carries a per-route width from JS, so it must not be stretched or shrunk
+       by the flex row it sits in. */
+    flex: 0 0 auto;
+}
+
+/* An empty host takes no space, so the top row closes up when no course has been
+   uploaded rather than leaving a gap where the note would have been. */
+#pacey-content .pacey-race-recap-map:empty { display: none; }
+
+#pacey-content .pacey-goal-map-note--recap {
+    position: static;
+    max-width: 100%;
+    margin: 0;
+}
+
+/* ---- The "did you run it?" prompt ---- */
+#pacey-content .pacey-race-recap-question {
+    margin: 0;
+    font-size: 1.15rem;
+    color: var(--pinboard-ink);
+}
+
+#pacey-content .pacey-race-recap-note {
+    margin: 0.25rem 0 0;
+    font-size: 1.02rem;
+    color: var(--pinboard-muted);
+}
+
+#pacey-content .pacey-race-recap-link-btn {
+    align-self: flex-start;
+}
+
+/* ---- The summary mark beside the Readiness page title ----
+   Sketchyicons' "summary", standing in for the six-dimension explainer button
+   once there are no dimensions left to explain. Sized to match that button so
+   the title row does not shift when the mode changes. */
+#pacey-content .pacey-recap-mark {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-left: 0.4rem;
+    color: var(--pinboard-ink);
+}

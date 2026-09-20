@@ -2359,3 +2359,132 @@
     .pacey-settings-popup,
     .pacey-settings-popup-card { transition-duration: 0.001ms; }
 }
+
+/* ---------------------------------------------------------------------
+   Link-the-race modal
+   ---------------------------------------------------------------------
+   Reached from the race recap when no run matched the goal. The runner
+   points at the right activity or uploads the GPX for a run that never
+   reached Garmin, so the result is theirs rather than an inference from a
+   date. Unscoped: the modal sits at body level, outside #pacey-content.
+   --------------------------------------------------------------------- */
+
+.pacey-link-race-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    box-shadow: 0 0.5rem 2rem rgba(29, 53, 87, 0.15), 0 0.125rem 0.5rem rgba(29, 53, 87, 0.08);
+    width: min(100%, 32rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    position: relative;
+}
+
+.pacey-link-race-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-sm);
+    padding: var(--pacey-space-md) var(--pacey-space-md) 0;
+}
+
+.pacey-link-race-title {
+    margin: 0;
+    font-size: var(--pacey-text-subheading);
+    font-weight: 700;
+    color: var(--pacey-navy);
+}
+
+.pacey-link-race-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-sm);
+    padding: var(--pacey-space-md);
+}
+
+.pacey-link-race-intro,
+.pacey-link-race-empty {
+    margin: 0;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-muted);
+}
+
+.pacey-link-race-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    /* Long activity histories would push the upload option off screen. */
+    max-height: 18rem;
+    overflow-y: auto;
+}
+
+.pacey-link-race-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: var(--pacey-space-sm);
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: var(--pacey-bg);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius-sm);
+    font: inherit;
+    color: var(--pacey-text);
+    text-align: left;
+    cursor: pointer;
+    transition: var(--pacey-transition);
+}
+
+.pacey-link-race-item:hover {
+    border-color: var(--pacey-blue);
+}
+
+/* A candidate within the goal distance. Flagged, not filtered — the runner is
+   the one who knows which run was the race. */
+.pacey-link-race-item.is-near {
+    border-color: var(--pacey-accent-green);
+}
+
+.pacey-link-race-item-date {
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    white-space: nowrap;
+}
+
+.pacey-link-race-item-name {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pacey-link-race-item-meta {
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.pacey-link-race-upload {
+    display: block;
+    cursor: pointer;
+}
+
+.pacey-link-race-upload-label {
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-blue);
+    text-decoration: underline;
+}
+
+.pacey-link-race-status {
+    margin: 0;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-muted);
+}
+
+.pacey-link-race-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pacey-space-sm);
+    padding: 0 var(--pacey-space-md) var(--pacey-space-md);
+}
