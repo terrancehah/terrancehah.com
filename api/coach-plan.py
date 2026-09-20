@@ -1015,7 +1015,69 @@ def _race_delta_line(goal: dict | None, result: dict) -> str:
     return f"{_format_finish_time(abs(delta) / 60)} {'faster' if delta < 0 else 'slower'} than target."
 
 
-def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | None) -> str:
+# Sessions worth naming when crediting the training behind a race result. The
+# recap's middle sentences point at the work that produced the result, and these
+# are the sessions a runner would recognise as having done it: the long runs that
+# built the endurance, the threshold and interval work that built the pace.
+_RECAP_CREDITABLE_TAGS = ("LSD", "Tempo", "Tempo Long", "Speedwork")
+# How far back to look for those sessions, and how many to name. This block is a
+# credit, not a training log — a handful of the freshest sessions before race day
+# is enough to give the coach something specific to point at.
+_RECAP_TRAINING_WEEKS = 10
+_RECAP_TRAINING_LIMIT = 6
+
+
+def _race_training_block(activities: list[dict], race_date: str) -> str:
+    """The sessions that built the race, formatted for the recap prompt.
+
+    The recap is meant to reassure the runner that the result came out of their
+    own work, which only means anything if the coach can name that work. This
+    lists the notable sessions from the weeks leading into race day — long runs
+    and quality work — with dates, distances and paces, so the praise can be tied
+    to something real rather than invented.
+
+    Returns "" when there is nothing to cite, so the prompt can tell the model to
+    skip the credit rather than praise training it cannot see.
+    """
+    if not activities or not race_date:
+        return ""
+    try:
+        cutoff = (date.fromisoformat(race_date) - timedelta(days=_RECAP_TRAINING_WEEKS * 7)).isoformat()
+    except ValueError:
+        return ""
+
+    rows = []
+    for a in activities:
+        if (a.get("type") or "").lower() not in RUNNING_TYPES:
+            continue
+        day = (a.get("start_time") or "")[:10]
+        # Only the build into this race: nothing after race day, and nothing from
+        # before the window, or the credit would reach back into another season.
+        if not day or day > race_date or day < cutoff:
+            continue
+        tag = a.get("run_tag") or ""
+        if tag not in _RECAP_CREDITABLE_TAGS:
+            continue
+        km = a.get("distance") or 0
+        pace = _format_pace_per_km(a.get("avg_pace"))
+        if not km or not pace:
+            continue
+        rows.append((day, f"- {day} · {a.get('name') or 'Run'} · {km} km at {pace}/km ({tag})"))
+
+    if not rows:
+        return ""
+    # Newest first, then capped — the freshest sessions are the ones that built
+    # the race the runner just ran.
+    rows.sort(key=lambda r: r[0], reverse=True)
+    return (
+        "THE TRAINING THAT LED INTO IT (the runner's own sessions, most recent "
+        "first — cite these specifically, and only these):\n"
+        + "\n".join(r[1] for r in rows[:_RECAP_TRAINING_LIMIT])
+    )
+
+
+def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | None,
+                             training_block: str = "") -> str:
     """Prompt for the coach's read on a finished race.
 
     The one place the coach speaks after the race. It has the target, the actual
@@ -1062,17 +1124,29 @@ def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | Non
     if course_block:
         lines += ["", course_block]
 
+    if training_block:
+        lines += ["", training_block]
+
     lines += [
         "",
-        "Write ONE paragraph of 3-5 sentences, in the coach's voice:",
-        "- Say how the race went against the target, plainly. If they hit it, say so without overpraising. "
-        "If they missed it, be honest and proportionate — a few minutes on a half marathon is a normal day, "
-        "not a failure.",
+        "Write ONE paragraph of 4-6 sentences, in the coach's voice:",
+        "- Open on how the race went against the target, and sound like a coach who is pleased to be "
+        "reading it. If they hit the target, say so warmly and without hedging. If they missed it, be "
+        "honest and proportionate — a few minutes on a half marathon is a normal day, not a failure — "
+        "and lead with what the result does show rather than what it lacks.",
+        "- Then spend one or two sentences connecting the result back to the training listed above. This "
+        "is the reassurance, and it needs to be earned: name the specific sessions that built this race "
+        "and say what each one bought them — the long runs that built the endurance to hold pace late, "
+        "the threshold work that made the pace sustainable, the intervals that gave them the speed "
+        "reserve. Quote the distances and paces from the list so the credit has proof behind it, and "
+        "make clear the result came out of that work rather than out of luck or a good day.",
         "- If a course was provided, use the terrain to explain the result only where it genuinely explains it.",
         "- This race is the END of the block the runner was following. Do NOT prescribe training: no next "
         "block, no sessions, no paces, no \"work on this next\", and no advice about what to do from here. "
         "The plan is over, and a new goal is set separately if the runner wants one. Close on the race itself.",
         "- Do not invent splits, weather, race conditions, or how the runner felt. None of that is known here.",
+        "- Only cite sessions from the training list above, and only if it is present. If it is absent, "
+        "skip the credit sentences entirely rather than praising training you cannot see.",
         "- Do not restate the finish time or the goal time as a list — those figures are displayed beside this text.",
         "",
         'Return JSON: {"recap": "<the paragraph>"}',
@@ -1105,7 +1179,15 @@ async def _race_recap_action(body: CoachPlanRequest):
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
 
     course = body.course or _get_persistent_course(email)
-    prompt = _build_race_recap_prompt(race_goal, result, course)
+    # The sessions that built the race, so the coach's reassurance can point at
+    # real work. Read from the email-keyed fitness snapshot rather than Garmin:
+    # it is already warm from the dashboard load, so this costs no fetch and no
+    # chance of tripping the rate limit for a paragraph.
+    training_block = _race_training_block(
+        (_get_fitness_snapshot(email) or {}).get("ui_activities") or [],
+        (race_goal or {}).get("race_date", ""),
+    )
+    prompt = _build_race_recap_prompt(race_goal, result, course, training_block)
 
     try:
         parsed = await _call_ai(prompt, api_key)

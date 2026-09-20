@@ -1012,15 +1012,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Mock race recap — the coach's read on a finished race, for demo mode. The
     // real one is written by the race-recap action on the backend from the target,
-    // the result and the uploaded course; this stands in for it because demo mode
-    // makes no API calls. Written against the demo's own numbers: the Brooks Half
-    // Marathon, 1:49:47 against a 1:52:00 target, on a course with 63 m of climb.
+    // the result, the uploaded course and the runner's own recent sessions; this
+    // stands in for it because demo mode makes no API calls. Written against the
+    // demo's own numbers: the Brooks Half Marathon, 1:49:47 against a 1:52:00
+    // target, on a course with 63 m of climb, off 18 km long runs and threshold
+    // work at 5:50/km.
     //
-    // It closes on the race and prescribes nothing. The race is the end of the
-    // plan, so advice about "the next block" would be advice about a block that
-    // does not exist.
+    // The middle credits the training by name, which is what the real prompt asks
+    // for — the reassurance only means something if it points at work the runner
+    // recognises. It closes on the race and prescribes nothing: the race is the
+    // end of the plan, so advice about "the next block" would be advice about a
+    // block that does not exist.
     function getMockRaceRecap() {
-        return 'Two minutes and thirteen seconds under your target, on a course that barely rises — 63 metres of climbing across the whole half, which makes this a clean read on what you actually had. You held 5:10 per kilometre for twenty-one of them, and the back half did not fall away the way it did in your long runs earlier in the block. That is the fitness arriving, and it arrived on the day that counted.';
+        return 'Two minutes and thirteen seconds under your target, on a course that barely rises — 63 metres of climbing across the whole half, which makes this a clean read on what you actually had. That margin was not luck. The 18 km long runs through August are what let you hold 5:10 through the closing kilometres instead of fading the way you did earlier in the block, and the threshold blocks at 5:50 are why race pace felt sustainable rather than something you were hanging on to. You did that work, and this is what it bought.';
     }
 
     // Start demo mode — used as the default landing and after logout
@@ -1672,9 +1676,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // The goal's own facts, kept after the race because they are what the result
     // is read against — a finish time means nothing without the target it was
     // chasing, and the recap replaces the card that used to carry them.
+    //
+    // The race name is deliberately absent: it is the recap's heading, and
+    // printing it again as a labelled row below itself would just be repetition.
     function raceGoalFacts(goal) {
         const facts = [];
-        if (goal.race_name) facts.push({ label: 'Race', value: goal.race_name });
         if (goal.race_date) {
             facts.push({
                 label: 'Date',
@@ -1684,14 +1690,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         const distance = goalDistanceLabel(goal);
         if (distance) facts.push({ label: 'Distance', value: distance });
+        // The target time and the target pace are separate figures to a runner —
+        // one is the goal, the other is what it demands per kilometre — so they
+        // get their own labels rather than sharing one row.
         if (goal.time_target) {
-            // The target pace sits with the target time — it is the same fact in
-            // the unit the runner actually ran in.
+            facts.push({ label: 'Target time', value: goal.time_target });
             const pace = goalPacePerKm(goal);
-            facts.push({
-                label: 'Target',
-                value: pace ? `${goal.time_target} · ${pace} /km` : goal.time_target,
-            });
+            if (pace) facts.push({ label: 'Target pace', value: `${pace} /km` });
         }
         return facts;
     }
