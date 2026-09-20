@@ -623,26 +623,75 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: var(--pacey-accent-green);
 }
 
-/* The goal, the result and the coach's read are kept apart on purpose — the gap
-   between what was set and what was run is the story, and the read is what
-   explains it. Folding them into one block would lose both. */
+/* The goal and the result are kept apart on purpose — the gap between what was
+   set and what was run is the story. Side by side the comparison is direct, and
+   each one being its own panel is what stops eight figures reading as a single
+   list. Stacks on a phone, where there is no width to compare across. */
+#pacey-content .pacey-race-recap-figures {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--pacey-space-md);
+}
+
+@media (max-width: 48rem) {
+    #pacey-content .pacey-race-recap-figures { grid-template-columns: 1fr; }
+}
+
 #pacey-content .pacey-race-recap-group,
 #pacey-content .pacey-race-recap-read {
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.4rem;
+}
+
+/* Each group is a panel in its own right: a slightly darker sheet, hand-cut
+   corners and a soft edge, so the two blocks are separated by shape rather than
+   by a gap the eye can miss. */
+#pacey-content .pacey-race-recap-group {
+    padding: 0.7rem 0.85rem 0.85rem;
+    background-color: var(--pinboard-paper-2);
+    border: 0.0625rem solid var(--pinboard-line);
+    border-radius: 3px 10px 4px 11px / 11px 4px 10px 3px;
 }
 
 #pacey-content .pacey-race-recap-group-label {
+    position: relative;
+    align-self: flex-start;
+    padding-bottom: 0.35rem;
     font-size: var(--pacey-text-caption);
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--pinboard-muted);
+    /* Ink rather than muted: the label heads a panel now, so it has to read as
+       a heading rather than as another row of the table. */
+    color: var(--pinboard-ink);
 }
 
+/* A short hand-drawn rule under each heading — the same pen as the section
+   underlines, at a smaller size so it marks the block without competing with
+   the sheet's own title. */
+#pacey-content .pacey-race-recap-group-label::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0.35rem;
+    background-image: var(--pinboard-sketch-underline);
+    background-repeat: no-repeat;
+    background-position: left bottom;
+    background-size: 100% 100%;
+    opacity: 0.6;
+}
+
+/* Two per row, at every width. Each panel is half the sheet on a laptop and the
+   full width on a phone, and a fixed pair reads correctly in both — an auto-fit
+   track would pack three into a phone and four into the wider panel, which is
+   exactly the crowding this replaced. */
 #pacey-content .pacey-race-recap-stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+    /* minmax(0, 1fr) rather than 1fr: a long value like "1:49:48" would otherwise
+       push its track past half the row and squeeze the other column. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--pacey-space-sm);
 }
 
@@ -667,6 +716,17 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     font-size: 1.02rem;
     line-height: 1.5;
     color: var(--pinboard-ink);
+}
+
+/* The read is a paragraph, so its placeholder is a paragraph's shape — a few
+   full lines and a short last one, matching the length the prompt asks for so
+   the block barely changes height when the prose lands. Same animated shimmer
+   the board's other loading states use; the lines take the surrounding ink, so
+   they sit correctly on the paper in either theme. */
+#pacey-content .pacey-race-recap-prose-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
 }
 
 #pacey-content .pacey-race-recap-actions {

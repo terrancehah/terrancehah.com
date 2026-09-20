@@ -1771,15 +1771,30 @@ document.addEventListener('DOMContentLoaded', function () {
                      duplicated and has to be relocated rather than rebuilt. -->
                 <div class="pacey-race-recap-map" data-recap-map></div>
             </div>
-            ${group('The goal', raceGoalFacts(goal))}
-            ${group('The result', raceRecapStats(state))}
+            <!-- Goal and result sit side by side so the comparison is direct —
+                 what was set against what was run. Each is its own panel, so
+                 eight figures read as two answers rather than one list. -->
+            <div class="pacey-race-recap-figures">
+                ${group('The goal', raceGoalFacts(goal))}
+                ${group('The result', raceRecapStats(state))}
+            </div>
             <!-- The coach's read closes the recap: it is the only prose here, and
                  it reads as the last word rather than as an introduction. Filled
-                 by loadRaceRecapProse(); the placeholder holds the block's shape
-                 while the paragraph is written. -->
+                 by loadRaceRecapProse(). -->
             <div class="pacey-race-recap-read">
                 <span class="pacey-race-recap-group-label">The coach's read</span>
-                <div class="pacey-race-recap-prose" data-recap-prose><span class="pacey-shimmer-text">Reading your race…</span></div>
+                <!-- The placeholder is the paragraph's own shape rather than a
+                     label: a few full lines and a short last one, so the block
+                     does not change height when the prose lands. -->
+                <div class="pacey-race-recap-prose" data-recap-prose>
+                    <div class="pacey-race-recap-prose-skeleton">
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line pacey-skeleton-line--short"></div>
+                    </div>
+                </div>
             </div>
             <div class="pacey-race-recap-actions">
                 <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="new-goal">Set a new goal</button>
