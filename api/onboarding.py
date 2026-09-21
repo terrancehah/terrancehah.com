@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_session, _update_session, _save_persistent_race_goal, create_app,
     _delete_persistent_ai_cache, _delete_persistent_coach_cache,
+    _get_persistent_race_goal, _archive_race_goal,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -67,6 +68,11 @@ async def onboarding(
     # and the user skips onboarding.
     email = sess.get("email", "")
     if email:
+        # A new goal replaces the old one. If the old goal was actually raced,
+        # file it to history first so its result, the coach's read and the
+        # pre-race readiness survive the overwrite — the goal is the only place
+        # they are kept, so this is the last chance to save them.
+        _archive_race_goal(email, _get_persistent_race_goal(email))
         _save_persistent_race_goal(email, goal)
         # A changed goal invalidates every DERIVED analysis: the AI readiness
         # scores and the coach plan were both generated against the old goal,

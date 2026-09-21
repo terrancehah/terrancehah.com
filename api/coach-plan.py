@@ -28,6 +28,7 @@ from lib._shared import (
     _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
     _get_persistent_ai_cache, _get_cached_garmin_data, _get_fitness_snapshot,
+    _get_race_history,
     _save_persistent_course, _get_persistent_course, _course_prompt_block,
     _training_gain_per_km, _save_course_insight, _get_course_insight,
     _mileage_prompt_lines,
@@ -849,19 +850,25 @@ class CoachPlanRequest(BaseModel):
 
 @app.get("/")
 async def coach_plan_get(token: str = "", action: str = ""):
-    """GET side of the plan cluster — currently only the race course.
+    """GET side of the plan cluster — the race course and the race history.
 
     The course is fetched on dashboard load so a course added on one device
-    appears on the runner's other devices. Everything else in this cluster is
-    a POST.
+    appears on the runner's other devices. The history is fetched when the
+    runner opens the past-races list, since it carries full recaps and is only
+    needed on demand. Everything else in this cluster is a POST.
     """
-    if (action or "").strip().lower() != "course":
-        return JSONResponse(status_code=400, content={"error": "Unsupported action for GET."})
+    action_name = (action or "").strip().lower()
     try:
         sess = _get_session(token) or {}
     except Exception:
         sess = {}
     email = sess.get("email", "") if isinstance(sess, dict) else ""
+    if action_name == "history":
+        # Newest first: the archive appends, so the most recent race is the last
+        # entry — the list reads best with it on top.
+        return JSONResponse(content={"history": list(reversed(_get_race_history(email)))})
+    if action_name != "course":
+        return JSONResponse(status_code=400, content={"error": "Unsupported action for GET."})
     return JSONResponse(content={"course": _get_persistent_course(email)})
 
 
@@ -1253,18 +1260,28 @@ async def _race_recap_action(body: CoachPlanRequest):
 
     key = _race_recap_key(result)
 
-    # Freeze the pre-race readiness before anything else, and before the cached
-    # early return, so it is captured even when the paragraph was written on a
-    # previous load. Only taken once — a snapshot already on the goal is left
-    # alone, because the cache it is copied from can expire while the runner is
-    # still looking back at it.
-    if race_goal and email and not (race_goal.get("race_readiness") or {}).get("data"):
-        snapshot = _race_readiness_snapshot(email)
-        if snapshot:
-            race_goal = dict(race_goal)
-            race_goal["race_readiness"] = snapshot
-            _update_session(body.token, {"race_goal": race_goal})
-            _save_persistent_race_goal(email, race_goal)
+    # Make the goal self-describing before anything else, and before the cached
+    # early return, so both are captured even when the paragraph was written on a
+    # previous load. Two things are written here:
+    #   - the result, because an auto-detected race never goes through the
+    #     race-result action, and the history archive keys on the result — without
+    #     it the race would be dropped when the next goal replaced this one;
+    #   - the pre-race readiness, once, because the cache it is copied from can
+    #     expire while the runner is still looking back at it.
+    if race_goal and email:
+        updated = dict(race_goal)
+        changed = updated.get("race_result") != result
+        if changed:
+            updated["race_result"] = result
+        if not (updated.get("race_readiness") or {}).get("data"):
+            snapshot = _race_readiness_snapshot(email)
+            if snapshot:
+                updated["race_readiness"] = snapshot
+                changed = True
+        if changed:
+            _update_session(body.token, {"race_goal": updated})
+            _save_persistent_race_goal(email, updated)
+            race_goal = updated
 
     # A paragraph written for this exact result is served as-is — that is what
     # makes a second device instant instead of spending an AI call to rewrite

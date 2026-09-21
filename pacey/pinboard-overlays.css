@@ -1723,7 +1723,8 @@
 #pacey-goal-reminder-popup .pacey-goal-reminder-card,
 #pacey-workout-sheet .pacey-workout-sheet,
 #pacey-login-modal .pacey-auth-card,
-#pacey-readiness-review-modal .pacey-readiness-review-card {
+#pacey-readiness-review-modal .pacey-readiness-review-card,
+#pacey-past-races-modal .pacey-past-races-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -1740,6 +1741,7 @@
     --pacey-border: var(--pinboard-line);
     --pacey-muted: var(--pinboard-muted);
     --pacey-light: var(--pinboard-paper-2);
+    --pacey-sky: var(--pinboard-note-blue);
     --pacey-blue: #2a5169;
     --pacey-accent-green: #2f6a3f;
     --pacey-accent-amber: #7a5810;
@@ -1760,7 +1762,8 @@
 #pacey-goal-reminder-popup .pacey-goal-reminder-card::before,
 #pacey-workout-sheet .pacey-workout-sheet::before,
 #pacey-login-modal .pacey-auth-card::before,
-#pacey-readiness-review-modal .pacey-readiness-review-card::before {
+#pacey-readiness-review-modal .pacey-readiness-review-card::before,
+#pacey-past-races-modal .pacey-past-races-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -1778,7 +1781,8 @@
 #pacey-goal-reminder-popup .pacey-goal-reminder-title,
 #pacey-plan-prefs-modal .pacey-metric-popup-title,
 #pacey-login-modal .pacey-auth-title,
-#pacey-readiness-review-modal .pacey-readiness-review-title {
+#pacey-readiness-review-modal .pacey-readiness-review-title,
+#pacey-past-races-modal .pacey-past-races-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     letter-spacing: 0;
@@ -1805,12 +1809,14 @@
 #pacey-edit-goal-popup .pacey-modal-close,
 #pacey-goal-reminder-popup .pacey-modal-close,
 #pacey-workout-sheet .pacey-modal-close,
-#pacey-readiness-review-modal .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-readiness-review-modal .pacey-modal-close,
+#pacey-past-races-modal .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
 #pacey-plan-prefs-modal .pacey-modal-close:hover,
 #pacey-edit-goal-popup .pacey-modal-close:hover,
 #pacey-goal-reminder-popup .pacey-modal-close:hover,
 #pacey-workout-sheet .pacey-modal-close:hover,
-#pacey-readiness-review-modal .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+#pacey-readiness-review-modal .pacey-modal-close:hover,
+#pacey-past-races-modal .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
 
 /* =====================================================================
    READINESS REVIEW MODAL — the six-area analysis as it stood before the
@@ -1819,6 +1825,11 @@
    the same paper sheet language as the other modals; the body scrolls and
    the sheet is capped so nothing pushes past the viewport.
    ===================================================================== */
+/* Opened from a past race, the review must sit above the past-races list — both
+   overlays share the base z-index and the list comes later in the DOM. Closing
+   it returns to the list underneath. */
+#pacey-readiness-review-modal { z-index: 210; }
+
 .pacey-readiness-review-card {
     width: min(100%, 46rem);
     max-height: calc(100vh - 4rem);
@@ -1927,6 +1938,188 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
 #pacey-readiness-review-modal .pacey-overall-insight-score-max {
     font-size: 0.95rem;
     color: var(--pinboard-muted);
+}
+
+/* =====================================================================
+   PAST RACES — the entrance and its list. The button sits at the right of
+   a section title row (the Readiness/Recap page, and the overview's goal
+   section), quiet by design so it never competes with the current goal;
+   the modal carries the archived races.
+   ===================================================================== */
+.pacey-past-races-btn {
+    /* A plain, low-key control — no card and no fill, just a quiet way back.
+       The auto margin parks it at the right end of the title row. */
+    margin-left: auto;
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    font-weight: 400;
+    color: var(--pacey-muted);
+    text-decoration: underline;
+    text-underline-offset: 0.25rem;
+    cursor: pointer;
+}
+/* The readiness "last updated" stamp owns the right alignment while it is
+   showing, so the button tucks in beside it rather than splitting the gap. */
+.pacey-readiness-updated:not([hidden]) ~ .pacey-past-races-btn { margin-left: 0; }
+
+.pacey-past-races-btn:hover { color: var(--pacey-navy); }
+.pacey-past-races-btn:focus-visible {
+    outline: 0.125rem solid var(--pacey-blue);
+    outline-offset: 0.125rem;
+    border-radius: 0.25rem;
+}
+
+.pacey-past-races-card {
+    width: min(100%, 40rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding: var(--pacey-space-md);
+}
+
+.pacey-past-races-header { margin-top: 0.35rem; padding-right: 2rem; }
+.pacey-past-races-title { margin: 0; font-size: 1.5rem; }
+
+.pacey-past-races-sub {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+
+.pacey-past-races-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+    margin-top: var(--pacey-space-md);
+}
+
+/* Each race is a post-it on the sheet — the same materials as the board's
+   pillar cards, so the list belongs to the app rather than reading as a plain
+   dialog list. Alternating notes and a slight tilt keep them from looking
+   stamped. */
+.pacey-past-race {
+    position: relative;
+    background-color: var(--pinboard-note-blue);
+    background-image: none;
+    border-radius: 1px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.6rem 1.6rem -1.6rem rgba(0, 0, 0, 0.12);
+    padding: 1.05rem 0.95rem 0.95rem;
+    --tilt: -0.5deg;
+    transform: rotate(var(--tilt));
+}
+.pacey-past-race:nth-child(2n) { --tilt: 0.6deg; background-color: var(--pinboard-note-blue-2); }
+.pacey-past-race:nth-child(3n) { --tilt: -0.2deg; }
+
+/* Pushpin, matching the board's post-its. Never swallows a click meant for the
+   head button underneath it. */
+.pacey-past-race::before {
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    left: 50%;
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-left: -0.35rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #ff9b8f 0%, var(--pinboard-pin) 58%, #6f1f17 100%);
+    box-shadow: 0 0.18rem 0.25rem rgba(0, 0, 0, 0.4), inset 0 -0.08rem 0.1rem rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* The whole head is the toggle, so the row is one big hit target. */
+.pacey-past-race-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--pacey-space-sm);
+    width: 100%;
+    padding: 0;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+}
+
+.pacey-past-race-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--pinboard-ink);
+}
+
+.pacey-past-race-meta {
+    /* Pushes the meta and the chevron to the right, leaving the name left. */
+    margin-left: auto;
+    font-family: var(--font-fuzzy);
+    font-size: 0.95rem;
+    color: var(--pinboard-muted);
+    white-space: nowrap;
+}
+
+.pacey-past-race-chevron {
+    width: 1.1rem;
+    height: 1.1rem;
+    flex: none;
+    align-self: center;
+    color: var(--pinboard-muted);
+    transition: transform 0.28s ease;
+}
+.pacey-past-race.is-open .pacey-past-race-chevron { transform: rotate(180deg); }
+
+/* Expand/collapse — grid-template-rows 0fr→1fr animates to the content's own
+   height, so nothing has to measure the panel in JS. The inner clips the
+   content while collapsed, which is also what hides the panel's top gap. */
+.pacey-past-race-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s ease;
+}
+.pacey-past-race.is-open .pacey-past-race-panel { grid-template-rows: 1fr; }
+
+.pacey-past-race-panel-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    overflow: hidden;
+}
+/* A margin rather than padding, so the gap is inside the clipped content and
+   disappears cleanly when the panel is shut. */
+.pacey-past-race-panel-inner > :first-child { margin-top: 0.5rem; }
+
+.pacey-past-race-recap {
+    margin: 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1.02rem;
+    line-height: 1.5;
+    color: var(--pinboard-ink);
+}
+
+.pacey-past-race-review { align-self: flex-start; }
+
+/* The review button sits on a blue note, so it reads as a small paper chip
+   rather than the sheet's own secondary fill — and it never borrows the sky
+   token for its hover, which would land on the note's own blue and vanish. */
+#pacey-past-races-modal .pacey-past-race-review {
+    background: var(--pinboard-paper);
+    color: var(--pinboard-ink);
+    border: 0.0625rem solid var(--pinboard-line);
+}
+#pacey-past-races-modal .pacey-past-race-review:hover { background: var(--pinboard-paper-2); }
+
+@media (prefers-reduced-motion: reduce) {
+    .pacey-past-race-panel,
+    .pacey-past-race-chevron { transition: none; }
+}
+
+.pacey-past-races-empty {
+    margin: 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+    text-align: center;
 }
 
 /* =====================================================================

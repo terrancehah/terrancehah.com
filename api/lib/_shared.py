@@ -453,6 +453,98 @@ def _get_persistent_race_goal(email: str) -> dict | None:
         return _local_sessions.get(key)
 
 
+# --- Persistent race history (Redis, keyed by email) ---
+#
+# A finished race is archived here the moment a new goal replaces the old one,
+# because the recap and the pre-race readiness live ON the goal and would
+# otherwise be lost with it. Stored as one list under a single key rather than a
+# key per race: the list is small, read whole, and capped, so a single key is
+# simpler to keep in step than an index plus per-race entries.
+#
+# No TTL — a race the runner has run is theirs to keep.
+
+RACE_HISTORY_PREFIX = "race:history:"
+RACE_HISTORY_LIMIT = 20
+
+
+def _race_history_key(goal: dict) -> str:
+    """Stable identity for a race, so re-archiving never stacks duplicates."""
+    goal = goal or {}
+    result = goal.get("race_result") or {}
+    if result:
+        return "|".join([
+            str(goal.get("race_date") or ""),
+            str(result.get("date") or ""),
+            str(result.get("duration_min") or ""),
+        ])
+    # A goal saved before the result was persisted can still carry a recap, whose
+    # key is the result fingerprint (date|duration|distance) — use that instead.
+    # Empty when there is no identity to match on at all.
+    recap_key = (goal.get("race_recap") or {}).get("key") or ""
+    return f"recap:{recap_key}" if recap_key else ""
+
+
+def _save_race_history(email: str, history: list):
+    """Write the whole history list back to Redis (or the local fallback)."""
+    if not email:
+        return
+    key = f"{RACE_HISTORY_PREFIX}{email}"
+    if _redis:
+        _redis.set(key, json.dumps(history))
+    else:
+        _local_sessions[key] = history
+
+
+def _get_race_history(email: str) -> list:
+    """The runner's archived races, oldest first (the order they were run in)."""
+    if not email:
+        return []
+    key = f"{RACE_HISTORY_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return []
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        try:
+            data = json.loads(raw)
+        except (ValueError, TypeError):
+            return []
+        return data if isinstance(data, list) else []
+    else:
+        data = _local_sessions.get(key)
+        return data if isinstance(data, list) else []
+
+
+def _archive_race_goal(email: str, goal: dict | None):
+    """File a finished race to the runner's history, newest last.
+
+    Called just before a new goal overwrites the old one. Anything that shows the
+    race was run and seen is archived — the result, the coach's read, or the
+    readiness snapshot — because a goal the runner set but never raced has
+    nothing to look back at. The whole goal is stored as it stood, so all three
+    travel together.
+    """
+    if not email or not goal:
+        return
+    if not (goal.get("race_result") or goal.get("race_recap") or goal.get("race_readiness")):
+        return
+    entry = dict(goal)
+    entry["archived_at"] = datetime.now().isoformat()
+    # Drop any entry with the same identity first, so re-archiving the same race
+    # replaces it rather than stacking a duplicate. With no identity to match on
+    # (a legacy goal carrying only a readiness snapshot), it is simply appended.
+    key = _race_history_key(goal)
+    history = _get_race_history(email)
+    if key:
+        history = [h for h in history if _race_history_key(h) != key]
+    history.append(entry)
+    # Trim from the front — the oldest races fall off the end of the log.
+    if len(history) > RACE_HISTORY_LIMIT:
+        history = history[-RACE_HISTORY_LIMIT:]
+    _save_race_history(email, history)
+
+
 # --- Persistent AI radar cache (Redis, keyed by email) ---
 #
 # Stores the full AI response (six dimensions + overall insight) so it can be

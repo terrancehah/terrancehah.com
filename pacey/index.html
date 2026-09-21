@@ -646,7 +646,12 @@
                              goal card has nothing left to say, and its facts (name, date,
                              distance, target) fold into the result. -->
                         <section class="pacey-section" id="pacey-goal-section">
-                            <h2 class="pacey-section-title"><span class="pacey-section-title-text" id="pacey-goal-section-title">Race Goal &amp; Readiness</span></h2>
+                            <h2 class="pacey-section-title"><span class="pacey-section-title-text" id="pacey-goal-section-title">Race Goal &amp; Readiness</span>
+                                <!-- Past races — the same quiet entrance as the Readiness
+                                     page title, so the way back is in one consistent place
+                                     whichever page the runner is on. -->
+                                <button class="pacey-past-races-btn" data-past-races-open type="button" hidden>Past races</button>
+                            </h2>
                             <div class="pacey-readiness-row" id="pacey-goal-row">
                                 <!-- Race Goal — left column on laptop, top on mobile -->
                                 <div class="pacey-readiness-card" id="pacey-goal-specifics">
@@ -1033,6 +1038,11 @@
                                      stays untouched). Populated from the AI cache's
                                      generated_at timestamp. -->
                                 <span class="pacey-readiness-updated" id="pacey-readiness-updated" hidden></span>
+                                <!-- Past races — a quiet way back to races already run.
+                                     Right-aligned in the title row, but kept plain so it
+                                     never competes with the current goal. Shown only
+                                     when history exists, in both readiness and recap mode. -->
+                                <button class="pacey-past-races-btn" data-past-races-open type="button" hidden>Past races</button>
                             </h2>
                             <p class="pacey-section-sub" id="pacey-readiness-sub">How ready you are across six areas of fitness, based on your recent runs. Each score shows how close you are to where you need to be on race day. <span class="pacey-tap-hint">Select a label for details.</span></p>
                             <!-- Post-race the whole analysis is replaced by the race recap:
@@ -1647,6 +1657,26 @@
                     <div class="pacey-pillars-grid" id="pacey-readiness-review-pillars"></div>
                     <p class="pacey-readiness-review-empty" id="pacey-readiness-review-empty" hidden>We don't have a copy of your pre-race readiness for this race.</p>
                 </div>
+            </div>
+        </div>
+
+        <!-- ========== PAST RACES MODAL ========== -->
+        <!-- Every race the runner has finished and then moved on from. Each
+             entry carries the result, the coach's read and the pre-race
+             readiness, so a past race can be revisited in full — the goal it
+             belonged to is long gone, overwritten by the next one. Filled by
+             openPastRacesModal() from the server-side history. -->
+        <div class="pacey-modal-overlay" id="pacey-past-races-modal" hidden role="dialog" aria-modal="true" aria-label="Your past races">
+            <div class="pacey-past-races-card">
+                <button class="pacey-modal-close" id="pacey-past-races-close" title="Close" aria-label="Close past races dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="pacey-past-races-header">
+                    <h3 class="pacey-past-races-title">Past races</h3>
+                    <p class="pacey-past-races-sub">The races you've run, with the coach's read on each.</p>
+                </div>
+                <div class="pacey-past-races-body" id="pacey-past-races-list"></div>
+                <p class="pacey-past-races-empty" id="pacey-past-races-empty" hidden>No past races yet. Once you finish a race and set a new goal, it will show up here.</p>
             </div>
         </div>
 

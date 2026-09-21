@@ -644,7 +644,11 @@
     [data-theme="dark"] #pacey-content .pacey-metrics-date,
     [data-theme="dark"] #pacey-content .pacey-readiness-updated,
     [data-theme="dark"] #pacey-content .pacey-vitals-toggle,
+    [data-theme="dark"] #pacey-content .pacey-past-races-btn,
     [data-theme="dark"] #pacey-content .pacey-card-title--with-action { color: #e8dfca; }
+    /* The Past races link is a plain control, not a heading — its hover lifts it
+       to the brightest ink on the night board rather than darkening it. */
+    [data-theme="dark"] #pacey-content .pacey-past-races-btn:hover { color: #f2e9d7; }
     /* Footer note sits on cork */
     html:has(#pacey-dashboard-screen:not([hidden])) .pacey-demo-cta-text { color: #4a4235; }
     html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-demo-cta-text { color: #c3cfd8; }

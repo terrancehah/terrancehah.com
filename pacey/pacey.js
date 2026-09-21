@@ -1025,6 +1025,31 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'You ran this one the way you wanted to — under your target, and it never looked like slipping away. That margin was not luck. It came out of the long runs that taught your legs to keep going when the closing kilometres got hard, and the tempo work that made race pace feel like something you could hold rather than something you were clinging to. You did that work, and this is what it bought. Take the win — you earned it.';
     }
 
+    // Mock race history — one archived race for demo mode, shaped exactly like a
+    // server entry so the past-races list renders the same way it does for a real
+    // runner. Demo mode makes no API calls, so the fetch is skipped for this.
+    function getMockRaceHistory() {
+        return [{
+            race_name: 'Brooks Half Marathon',
+            purpose: 'Half Marathon',
+            race_date: localDateIso(),
+            time_target: '01:52:00',
+            race_result: {
+                date: localDateIso(),
+                duration_min: 109.78,
+                distance_km: 21.1,
+                avg_pace_ms: 3.2,
+                avg_hr: 168,
+                elevation_gain: 63,
+            },
+            race_recap: { text: getMockRaceRecap() },
+            race_readiness: {
+                data: { dimensions: getMockPillars().dimensions, overall: getMockOverallInsight() },
+                generated_at: new Date().toISOString(),
+            },
+        }];
+    }
+
     // Start demo mode — used as the default landing and after logout
     function startDemoMode() {
         sessionToken = 'demo';
@@ -1473,6 +1498,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Pull any course stored against this account (cross-device). No-op
         // when a local copy already exists or the user is signed out.
         loadCourseRemote();
+        // Pull the archived races and reveal the past-races entrance if there are
+        // any. Separate from the course because the history carries full recaps.
+        loadPastRaces();
         // If the user landed directly on the Plan page, kick off its load too
         if (getPageFromHash() === 'plan') openPlanPage();
 
@@ -2258,8 +2286,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // The date the analysis was written, as a short "Aug 30". Empty when the
     // timestamp is missing or unparseable, so the line simply omits it.
     function formatReviewDate(iso) {
-        const d = iso ? new Date(iso) : null;
-        if (!d || isNaN(d.getTime())) return '';
+        if (!iso) return '';
+        // A bare date (YYYY-MM-DD) is read as UTC midnight by the Date
+        // constructor, which lands on the previous day west of Greenwich — so it
+        // is parsed as local midnight instead, matching the rest of the app.
+        const d = new Date(String(iso).length === 10 ? `${iso}T00:00:00` : iso);
+        if (isNaN(d.getTime())) return '';
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }
 
@@ -2267,11 +2299,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // re-render can never tear it down. Destroyed when the modal closes.
     let reviewRadarChart = null;
 
-    function openReadinessReviewModal() {
+    function openReadinessReviewModal(override = null) {
         const modal = $('#pacey-readiness-review-modal');
         if (!modal) return;
 
-        const review = readinessReviewData();
+        // The live goal's snapshot by default. An archived race passes its own
+        // through `override`, so the same modal can review any past race.
+        const review = override || readinessReviewData();
         const empty = $('#pacey-readiness-review-empty');
         const radarWrap = modal.querySelector('.pacey-readiness-review-radar');
         const overallEl = $('#pacey-readiness-review-overall');
@@ -2315,6 +2349,95 @@ document.addEventListener('DOMContentLoaded', function () {
         if (reviewRadarChart) { reviewRadarChart.destroy(); reviewRadarChart = null; }
     }
 
+    // =========================================================================
+    // Past races
+    // =========================================================================
+    //
+    // A finished race is archived server-side when the next goal replaces it, so
+    // its recap and pre-race readiness survive the overwrite. This is that list,
+    // newest first — the way back to a race after the goal has moved on.
+
+    // The archived races, or null before the first fetch. Held in memory rather
+    // than localStorage: the server is the source of truth, so a local copy
+    // could only go stale across devices.
+    let pastRaces = null;
+
+    // Fetch the history and reveal the entrance when there is anything to show.
+    // Called on dashboard load; the list is small and read whole.
+    async function loadPastRaces() {
+        if (window.__demoMode) {
+            pastRaces = getMockRaceHistory();
+            syncPastRacesButton();
+            return;
+        }
+        try {
+            const resp = await apiCallWithAuthRetry('GET', 'coach-plan?action=history');
+            const data = await resp.json();
+            pastRaces = resp.ok && Array.isArray(data.history) ? data.history : [];
+        } catch (err) {
+            // Offline — leave the entrance hidden rather than open an empty list.
+            pastRaces = [];
+        }
+        syncPastRacesButton();
+    }
+
+    // The entrance stays out of sight until there is a race to look back at, so
+    // it never adds a dead control to a title row. There is one in each title
+    // row that carries it — the Readiness page and the overview's goal section.
+    function syncPastRacesButton() {
+        const hasRaces = !!(pastRaces && pastRaces.length);
+        $$('.pacey-past-races-btn').forEach(btn => { btn.hidden = !hasRaces; });
+    }
+
+    // One archived race: a collapsed row that expands to the coach's read and a
+    // way into the six-area review that stood before it. Collapsible because the
+    // list can hold many races — closed rows keep it scannable.
+    function pastRaceEntryHtml(goal, index) {
+        const r = goal.race_result || {};
+        const finish = r.duration_min ? formatFinishTime(Math.round(r.duration_min * 60)) : '';
+        const date = formatReviewDate(goal.race_date || r.date);
+        const meta = [date, finish].filter(Boolean).join(' · ');
+        const recap = (goal.race_recap || {}).text || '';
+        const readiness = (goal.race_readiness || {}).data || {};
+        const hasReadiness = !!(readiness.dimensions || []).length;
+        // The newest race opens on arrival, so the list has content to read
+        // rather than landing as a stack of closed rows.
+        const open = index === 0;
+        const panelId = `pacey-past-race-panel-${index}`;
+        return `
+            <article class="pacey-past-race${open ? ' is-open' : ''}">
+                <button class="pacey-past-race-head" type="button" data-past-race-toggle aria-expanded="${open}" aria-controls="${panelId}">
+                    <span class="pacey-past-race-name">${escapeHtml(goal.race_name || goal.purpose || 'Race')}</span>
+                    ${meta ? `<span class="pacey-past-race-meta">${escapeHtml(meta)}</span>` : ''}
+                    <svg class="pacey-past-race-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="pacey-past-race-panel" id="${panelId}">
+                    <div class="pacey-past-race-panel-inner">
+                        ${recap ? `<p class="pacey-past-race-recap">${escapeHtml(recap)}</p>` : ''}
+                        ${hasReadiness ? `<button class="pacey-btn pacey-btn-secondary pacey-past-race-review" type="button" data-past-race-index="${index}">Review readiness</button>` : ''}
+                    </div>
+                </div>
+            </article>`;
+    }
+
+    function openPastRacesModal() {
+        const modal = $('#pacey-past-races-modal');
+        const list = $('#pacey-past-races-list');
+        const empty = $('#pacey-past-races-empty');
+        if (!modal || !list) return;
+
+        const races = pastRaces || [];
+        list.innerHTML = races.map(pastRaceEntryHtml).join('');
+        list.hidden = !races.length;
+        if (empty) empty.hidden = !!races.length;
+        modal.hidden = false;
+    }
+
+    function closePastRacesModal() {
+        const modal = $('#pacey-past-races-modal');
+        if (modal) modal.hidden = true;
+    }
+
     // Wiring — the recap blocks are re-rendered on every mode change, so the
     // buttons are handled by delegation rather than bound per render.
     (function bindRaceRecapControls() {
@@ -2327,6 +2450,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (action === 'review-readiness') openReadinessReviewModal();
                 return;
             }
+            // Past races — the entrance sits in two title rows, so it is handled
+            // by delegation rather than bound per element.
+            if (e.target.closest('[data-past-races-open]')) {
+                openPastRacesModal();
+                return;
+            }
+            // Expand or collapse one archived race. The card carries the open
+            // state; CSS animates the panel to the content's own height.
+            const raceToggle = e.target.closest('[data-past-race-toggle]');
+            if (raceToggle) {
+                const card = raceToggle.closest('.pacey-past-race');
+                if (card) {
+                    const open = card.classList.toggle('is-open');
+                    raceToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+                return;
+            }
             // A candidate run in the link modal — the index points back into the
             // loaded list, so the result carries the activity's own figures.
             const item = e.target.closest('[data-link-index]');
@@ -2335,6 +2475,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (activity) {
                     saveRaceResult(raceResultFromActivity(activity));
                     closeLinkRaceModal();
+                }
+            }
+            // Review readiness on an archived race — the index points back into
+            // the loaded history, so the modal gets that race's own snapshot.
+            const pastRace = e.target.closest('[data-past-race-index]');
+            if (pastRace) {
+                const entry = (pastRaces || [])[Number(pastRace.getAttribute('data-past-race-index'))];
+                if (entry) {
+                    const snapshot = entry.race_readiness || {};
+                    openReadinessReviewModal({
+                        data: snapshot.data || {},
+                        generatedAt: snapshot.generated_at || '',
+                    });
                 }
             }
         });
@@ -2364,6 +2517,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const reviewModal = $('#pacey-readiness-review-modal');
         if (reviewModal) {
             reviewModal.addEventListener('click', (e) => { if (e.target === reviewModal) closeReadinessReviewModal(); });
+        }
+
+        // Past races — its modal controls, bound once. The entrance button is
+        // handled by delegation in the click listener above.
+        const pastRacesClose = $('#pacey-past-races-close');
+        if (pastRacesClose) pastRacesClose.addEventListener('click', closePastRacesModal);
+        const pastRacesModal = $('#pacey-past-races-modal');
+        if (pastRacesModal) {
+            pastRacesModal.addEventListener('click', (e) => { if (e.target === pastRacesModal) closePastRacesModal(); });
         }
     })();
 
