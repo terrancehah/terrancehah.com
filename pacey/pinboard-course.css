@@ -670,14 +670,26 @@
    the pinned course for attention, same pen as the sketch marks elsewhere
    on the board. Bleeds past the note's edges like a real pen mark. */
 .pacey-goal-map-scribble {
+    /* Bleed past the note, per side. Uneven on purpose — a hand-drawn circle
+       runs wide of what it rings, and the asymmetry keeps it off-centre like a
+       real pen sweep rather than a frame. Custom properties so the portrait
+       variant can tighten the vertical pair without restating the calc. */
+    --scribble-t: 0.8rem;
+    --scribble-r: 0.95rem;
+    --scribble-b: 0.6rem;
+    --scribble-l: 0.75rem;
     position: absolute;
     z-index: 4;
-    /* Larger than the note on every side — a hand-drawn circle runs wide
-       of what it rings, and the uneven insets keep it off-centre like a
-       real pen sweep rather than a frame. */
-    inset: -0.8rem -0.95rem -0.6rem -0.75rem;
-    width: auto;
-    height: auto;
+    /* Sized off the note's box, NOT with `inset` plus an auto width/height. An
+       <svg> is a replaced element, so with an auto size it falls back to its
+       own viewBox instead of stretching to the insets — which is why the tall
+       portrait ring ignored the note entirely and hung 100px below it while
+       the wide one looked fine by luck. Deriving the size from the note's box
+       makes the ring wrap whatever shape the note happens to be. */
+    top: calc(-1 * var(--scribble-t));
+    left: calc(-1 * var(--scribble-l));
+    width: calc(100% + var(--scribble-l) + var(--scribble-r));
+    height: calc(100% + var(--scribble-t) + var(--scribble-b));
     /* Scaled a touch past the bleed — non-scaling-stroke on the path keeps
        the pen weight the same while the circle itself grows. */
     transform: scale(1.1);
@@ -714,6 +726,16 @@
 
 .pacey-goal-map-note--portrait .pacey-goal-map-scribble--portrait {
     display: block;
+}
+
+/* A portrait note is tall and narrow, so the same head and tail room that
+   reads as a loose pen sweep around a wide note reads as a tall oval around a
+   narrow one. Tightened here so the ring hugs the map instead of standing off
+   it top and bottom. The horizontal bleed is left alone — that is what makes
+   the mark read as a sweep rather than a frame. */
+.pacey-goal-map-note--portrait .pacey-goal-map-scribble--portrait {
+    --scribble-t: 0.4rem;
+    --scribble-b: 0.3rem;
 }
 
 /* Clears the sticky demo banner when the mini note scrolls here. */

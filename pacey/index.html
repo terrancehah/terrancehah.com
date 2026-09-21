@@ -1618,6 +1618,38 @@
             </div>
         </div>
 
+        <!-- ========== READINESS REVIEW MODAL ========== -->
+        <!-- Post-race the six-area analysis gives way to the recap, so this keeps
+             it reachable: the radar, the Big Picture verdict, and the six
+             dimension cards exactly as they stood before the race. Filled by
+             openReadinessReviewModal() from the snapshot the server froze onto
+             the goal on race day, so it survives the AI cache expiring. -->
+        <div class="pacey-modal-overlay" id="pacey-readiness-review-modal" hidden role="dialog" aria-modal="true" aria-label="Your race readiness before the race">
+            <div class="pacey-readiness-review-card">
+                <button class="pacey-modal-close" id="pacey-readiness-review-close" title="Close" aria-label="Close readiness review dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="pacey-readiness-review-header">
+                    <h3 class="pacey-readiness-review-title">Your race readiness</h3>
+                    <p class="pacey-readiness-review-sub">The six-area analysis as it stood before you ran<span id="pacey-readiness-review-when"></span>.</p>
+                </div>
+                <div class="pacey-readiness-review-body">
+                    <!-- Radar — its own canvas, built by openReadinessReviewModal()
+                         so it never shares a Chart instance with the page radars.
+                         Deliberately not .pacey-radar-chart, so the page radar
+                         renderer never picks it up. -->
+                    <div class="pacey-radar-wrap pacey-radar-wrap--full pacey-readiness-review-radar">
+                        <canvas class="pacey-readiness-review-canvas" height="360"></canvas>
+                    </div>
+                    <!-- Big Picture — the overall verdict that sat above the six areas -->
+                    <div class="pacey-overall-insight" id="pacey-readiness-review-overall"></div>
+                    <!-- What to Work On — the six full dimension cards -->
+                    <div class="pacey-pillars-grid" id="pacey-readiness-review-pillars"></div>
+                    <p class="pacey-readiness-review-empty" id="pacey-readiness-review-empty" hidden>We don't have a copy of your pre-race readiness for this race.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== ADD TO HOME SCREEN MODAL ========== -->
         <!-- Instructional modal that teaches the runner how to add Pacey to
              their phone's home screen. There is no programmatic install API

@@ -1195,6 +1195,28 @@ def _race_recap_key(result: dict | None) -> str:
     return "|".join(parts)
 
 
+def _race_readiness_snapshot(email: str) -> dict | None:
+    """Copy the pre-race six-area analysis into a form the goal can carry.
+
+    The analysis lives in `race:ai-cache:{email}`, which is deleted whenever the
+    goal changes and expires after 7 days. Nothing regenerates it after the race
+    — the six areas score fitness toward a race that has already happened — so
+    without this copy the runner could not look back at what the numbers said
+    before they ran. Returns None when there is nothing to freeze, which leaves
+    any snapshot already taken in place rather than overwriting it with nothing.
+    """
+    if not email:
+        return None
+    cached = _get_persistent_ai_cache(email)
+    data = (cached or {}).get("data") or {}
+    if not (data.get("dimensions") or []):
+        return None
+    return {
+        "data": data,
+        "generated_at": (cached or {}).get("generated_at", ""),
+    }
+
+
 async def _race_recap_action(body: CoachPlanRequest):
     """Write — or return the already written — coach's read on a finished race.
 
@@ -1208,6 +1230,10 @@ async def _race_recap_action(body: CoachPlanRequest):
     other devices through check-session. That is why there is no cache key of its
     own: `race:goal:{email}` already syncs, and a second store would only be
     another thing to keep in step.
+
+    The same call freezes the pre-race six-area analysis onto the goal (see
+    _race_readiness_snapshot), so the runner can still review the readiness that
+    stood before the race after the recap has taken its place on the pages.
     """
     sess = _get_session(body.token) or {}
     email = sess.get("email", "") if isinstance(sess, dict) else ""
@@ -1218,6 +1244,19 @@ async def _race_recap_action(body: CoachPlanRequest):
         return JSONResponse(status_code=400, content={"error": "Race result required."})
 
     key = _race_recap_key(result)
+
+    # Freeze the pre-race readiness before anything else, and before the cached
+    # early return, so it is captured even when the paragraph was written on a
+    # previous load. Only taken once — a snapshot already on the goal is left
+    # alone, because the cache it is copied from can expire while the runner is
+    # still looking back at it.
+    if race_goal and email and not (race_goal.get("race_readiness") or {}).get("data"):
+        snapshot = _race_readiness_snapshot(email)
+        if snapshot:
+            race_goal = dict(race_goal)
+            race_goal["race_readiness"] = snapshot
+            _update_session(body.token, {"race_goal": race_goal})
+            _save_persistent_race_goal(email, race_goal)
 
     # A paragraph written for this exact result is served as-is — that is what
     # makes a second device instant instead of spending an AI call to rewrite
@@ -1295,6 +1334,13 @@ async def _save_race_result_action(body: CoachPlanRequest):
         # matches.
         if (goal.get("race_recap") or {}).get("key") != _race_recap_key(body.race_result):
             updated.pop("race_recap", None)
+        # The race has now happened, so freeze the readiness analysis the runner
+        # trained against. Taken once, and only when the goal does not already
+        # carry it, so re-linking a run never loses an earlier snapshot.
+        if not (updated.get("race_readiness") or {}).get("data"):
+            snapshot = _race_readiness_snapshot(email)
+            if snapshot:
+                updated["race_readiness"] = snapshot
     else:
         updated.pop("race_result", None)
         # No result means no recap: the paragraph describes a race that is no

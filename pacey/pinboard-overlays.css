@@ -1722,7 +1722,8 @@
 #pacey-edit-goal-popup .pacey-edit-goal-card,
 #pacey-goal-reminder-popup .pacey-goal-reminder-card,
 #pacey-workout-sheet .pacey-workout-sheet,
-#pacey-login-modal .pacey-auth-card {
+#pacey-login-modal .pacey-auth-card,
+#pacey-readiness-review-modal .pacey-readiness-review-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -1758,7 +1759,8 @@
 #pacey-edit-goal-popup .pacey-edit-goal-card::before,
 #pacey-goal-reminder-popup .pacey-goal-reminder-card::before,
 #pacey-workout-sheet .pacey-workout-sheet::before,
-#pacey-login-modal .pacey-auth-card::before {
+#pacey-login-modal .pacey-auth-card::before,
+#pacey-readiness-review-modal .pacey-readiness-review-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -1775,7 +1777,8 @@
 #pacey-edit-goal-popup .pacey-edit-goal-title,
 #pacey-goal-reminder-popup .pacey-goal-reminder-title,
 #pacey-plan-prefs-modal .pacey-metric-popup-title,
-#pacey-login-modal .pacey-auth-title {
+#pacey-login-modal .pacey-auth-title,
+#pacey-readiness-review-modal .pacey-readiness-review-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     letter-spacing: 0;
@@ -1801,11 +1804,130 @@
 #pacey-plan-prefs-modal .pacey-modal-close,
 #pacey-edit-goal-popup .pacey-modal-close,
 #pacey-goal-reminder-popup .pacey-modal-close,
-#pacey-workout-sheet .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-workout-sheet .pacey-modal-close,
+#pacey-readiness-review-modal .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
 #pacey-plan-prefs-modal .pacey-modal-close:hover,
 #pacey-edit-goal-popup .pacey-modal-close:hover,
 #pacey-goal-reminder-popup .pacey-modal-close:hover,
-#pacey-workout-sheet .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+#pacey-workout-sheet .pacey-modal-close:hover,
+#pacey-readiness-review-modal .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+
+/* =====================================================================
+   READINESS REVIEW MODAL — the six-area analysis as it stood before the
+   race, kept reachable after the recap takes its place on the pages. The
+   radar, the Big Picture verdict and the six dimension cards are laid on
+   the same paper sheet language as the other modals; the body scrolls and
+   the sheet is capped so nothing pushes past the viewport.
+   ===================================================================== */
+.pacey-readiness-review-card {
+    width: min(100%, 46rem);
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    padding: var(--pacey-space-md);
+}
+
+.pacey-readiness-review-header {
+    margin-top: 0.35rem;
+    /* Clear the close button pinned to the top-right of the sheet. */
+    padding-right: 2rem;
+}
+
+.pacey-readiness-review-title { margin: 0; font-size: 1.5rem; }
+
+.pacey-readiness-review-sub {
+    margin: 0.25rem 0 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+}
+
+.pacey-readiness-review-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+    margin-top: var(--pacey-space-md);
+}
+
+/* The radar sits on the sheet rather than a card of its own, centred and
+   capped so a wide modal never produces an oversized polygon. */
+.pacey-readiness-review-radar {
+    align-self: center;
+    width: min(100%, 26rem);
+}
+
+.pacey-readiness-review-empty {
+    margin: 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1rem;
+    color: var(--pinboard-muted);
+    text-align: center;
+}
+
+/* The board's handwriting is assigned under #pacey-content, which this modal
+   sits outside of — so its cards would otherwise fall back to the app's
+   Raleway. These mirror the board rules for the review's contents only. */
+#pacey-readiness-review-modal .pacey-overall-insight-verdict,
+#pacey-readiness-review-modal .pacey-overall-insight-takeaway-name,
+#pacey-readiness-review-modal .pacey-overall-insight-focus-label,
+#pacey-readiness-review-modal .pacey-pillar-name {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    letter-spacing: 0;
+}
+#pacey-readiness-review-modal .pacey-overall-insight-verdict { font-size: 1.3rem; }
+#pacey-readiness-review-modal .pacey-overall-insight-takeaway-name { font-size: 1.5rem; }
+#pacey-readiness-review-modal .pacey-overall-insight-focus-label { font-size: 1.15rem; }
+#pacey-readiness-review-modal .pacey-pillar-name { font-size: 1.3rem; }
+
+/* Coach copy and labels — Fuzzy Bubbles, matching the readiness page */
+#pacey-readiness-review-modal .pacey-overall-insight-summary,
+#pacey-readiness-review-modal .pacey-overall-insight-takeaway-note,
+#pacey-readiness-review-modal .pacey-overall-insight-focus-text,
+#pacey-readiness-review-modal .pacey-pillar-summary,
+#pacey-readiness-review-modal .pacey-pillar-note {
+    font-family: var(--font-fuzzy);
+    font-size: 1.02rem;
+    line-height: 1.5;
+}
+#pacey-readiness-review-modal .pacey-pillar-section-label { font-family: var(--font-fuzzy); font-weight: 700; }
+
+/* Strengths / Gaps labels keep the board's dark-on-light colours: the sheet
+   stays light in both themes, so the app's dark-mode Strengths rule (light
+   green, written for a dark card) would otherwise land on the light paper and
+   wash out. Values mirror the board, so the label reads the same in the modal
+   and on the readiness page. */
+#pacey-readiness-review-modal .pacey-pillar-section-label--strengths {
+    background: rgba(47, 106, 63, 0.26);
+    color: #114d20;
+}
+#pacey-readiness-review-modal .pacey-pillar-section-label--gaps {
+    background: rgba(235, 189, 71, 0.55);
+    color: #5f410b;
+}
+html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-label--strengths {
+    background: rgba(47, 106, 63, 0.18);
+    color: #275a34;
+}
+html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-label--gaps {
+    background: rgba(225, 178, 61, 0.82);
+    color: #5f410b;
+}
+
+/* Scores read as handwritten coaching marks, the "/10" quieter beside them */
+#pacey-readiness-review-modal .pacey-pillar-score,
+#pacey-readiness-review-modal .pacey-overall-insight-score,
+#pacey-readiness-review-modal .pacey-pillar-score-max,
+#pacey-readiness-review-modal .pacey-overall-insight-score-max {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+}
+#pacey-readiness-review-modal .pacey-pillar-score { font-size: 1.9rem; line-height: 1; }
+#pacey-readiness-review-modal .pacey-overall-insight-score { font-size: 1.7rem; }
+#pacey-readiness-review-modal .pacey-pillar-score-max,
+#pacey-readiness-review-modal .pacey-overall-insight-score-max {
+    font-size: 0.95rem;
+    color: var(--pinboard-muted);
+}
 
 /* =====================================================================
    ONBOARDING / AUTH FINISHING PASS

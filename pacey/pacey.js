@@ -1797,6 +1797,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>
             <div class="pacey-race-recap-actions">
+                <!-- The six-area analysis gives way to the recap post-race, so
+                     this keeps it reachable: it opens the readiness that stood
+                     before the race, frozen on the goal on race day. -->
+                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="review-readiness">Review race readiness</button>
                 <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="new-goal">Set a new goal</button>
             </div>
         `;
@@ -2223,6 +2227,96 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // =========================================================================
+    // Readiness review modal
+    // =========================================================================
+    //
+    // Post-race the six-area analysis gives way to the recap on both pages, so
+    // this is the only way back to it. The data is the snapshot the server froze
+    // onto the goal on race day (`race_readiness`), which survives the AI cache
+    // expiring; the local AI cache is the fallback for goals saved before the
+    // snapshot existed.
+
+    // The pre-race analysis to show, or null when there is nothing to review.
+    // Shape matches the AI radar payload: { dimensions, overall }.
+    function readinessReviewData() {
+        const snapshot = raceGoal && raceGoal.race_readiness;
+        const snapData = (snapshot || {}).data || {};
+        if ((snapData.dimensions || []).length) {
+            return { data: snapData, generatedAt: snapshot.generated_at || snapData.generated_at || '' };
+        }
+        // Demo mode has no server snapshot, so it reviews the same mocks the rest
+        // of the demo's readiness content is built from.
+        if (window.__demoMode) {
+            return { data: { dimensions: getMockPillars().dimensions, overall: getMockOverallInsight() }, generatedAt: '' };
+        }
+        const cached = readAICache();
+        if (cached && (cached.dimensions || []).length) {
+            return { data: cached, generatedAt: cached.generated_at || '' };
+        }
+        return null;
+    }
+
+    // The date the analysis was written, as a short "Aug 30". Empty when the
+    // timestamp is missing or unparseable, so the line simply omits it.
+    function formatReviewDate(iso) {
+        const d = iso ? new Date(iso) : null;
+        if (!d || isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    // A radar chart built for the modal, kept out of radarCharts so a page
+    // re-render can never tear it down. Destroyed when the modal closes.
+    let reviewRadarChart = null;
+
+    function openReadinessReviewModal() {
+        const modal = $('#pacey-readiness-review-modal');
+        if (!modal) return;
+
+        const review = readinessReviewData();
+        const empty = $('#pacey-readiness-review-empty');
+        const radarWrap = modal.querySelector('.pacey-readiness-review-radar');
+        const overallEl = $('#pacey-readiness-review-overall');
+        const pillarsEl = $('#pacey-readiness-review-pillars');
+        const whenEl = $('#pacey-readiness-review-when');
+
+        if (!review) {
+            // Nothing to show — say so plainly rather than opening an empty card.
+            if (empty) empty.hidden = false;
+            if (radarWrap) radarWrap.hidden = true;
+            if (overallEl) { overallEl.hidden = true; overallEl.innerHTML = ''; }
+            if (pillarsEl) { pillarsEl.hidden = true; pillarsEl.innerHTML = ''; }
+            if (whenEl) whenEl.textContent = '';
+            modal.hidden = false;
+            return;
+        }
+
+        if (empty) empty.hidden = true;
+        if (radarWrap) radarWrap.hidden = false;
+        // The CTA is dropped here: it points at the readiness page, which now
+        // shows the recap rather than the analysis.
+        if (overallEl) { overallEl.hidden = false; overallEl.innerHTML = overallInsightHtml(review.data.overall || {}, false); }
+        if (pillarsEl) { pillarsEl.hidden = false; pillarsEl.innerHTML = pillarInsightsHtml(review.data.dimensions || []); }
+        // The intro line carries the analysis date when we have one.
+        const dateStr = formatReviewDate(review.generatedAt);
+        if (whenEl) whenEl.textContent = dateStr ? `, analysed ${dateStr}` : '';
+
+        modal.hidden = false;
+
+        // The radar needs a laid-out canvas, so it is built after the modal is
+        // visible — a hidden canvas measures 0x0 and would draw NaN coordinates.
+        if (reviewRadarChart) { reviewRadarChart.destroy(); reviewRadarChart = null; }
+        const canvas = modal.querySelector('.pacey-readiness-review-canvas');
+        if (canvas) reviewRadarChart = buildRadarChart(canvas, radarValuesFromData(review.data));
+    }
+
+    function closeReadinessReviewModal() {
+        const modal = $('#pacey-readiness-review-modal');
+        if (modal) modal.hidden = true;
+        // Free the chart; the canvas is rebuilt on the next open.
+        if (reviewRadarChart) { reviewRadarChart.destroy(); reviewRadarChart = null; }
+    }
+
     // Wiring — the recap blocks are re-rendered on every mode change, so the
     // buttons are handled by delegation rather than bound per render.
     (function bindRaceRecapControls() {
@@ -2232,6 +2326,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const action = actionBtn.getAttribute('data-recap-action');
                 if (action === 'link') openLinkRaceModal();
                 if (action === 'new-goal') openEditGoalPopup();
+                if (action === 'review-readiness') openReadinessReviewModal();
                 return;
             }
             // A candidate run in the link modal — the index points back into the
@@ -2262,6 +2357,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 fileInput.value = '';
                 if (file) linkRaceFromGpx(file);
             });
+        }
+
+        // Readiness review modal — close button and backdrop, the same pattern
+        // as the link-race modal above.
+        const reviewClose = $('#pacey-readiness-review-close');
+        if (reviewClose) reviewClose.addEventListener('click', closeReadinessReviewModal);
+        const reviewModal = $('#pacey-readiness-review-modal');
+        if (reviewModal) {
+            reviewModal.addEventListener('click', (e) => { if (e.target === reviewModal) closeReadinessReviewModal(); });
         }
     })();
 
@@ -2780,16 +2884,35 @@ document.addEventListener('DOMContentLoaded', function () {
      * The wobble is baked into the path rather than run through the sketch
      * filter, because that filter is tuned for the 300x200 route viewBox and
      * would be almost invisible at marker size.
+     *
+     * The shape is a true circle with a few gentle bulges, not a circle with
+     * noise sprinkled on it. Per-point jitter is the obvious approach and it is
+     * wrong: at any point count small enough to be readable it comes out as a
+     * rounded polygon, because the variation happens once per point rather than
+     * smoothly. Three low harmonics instead give a closed curve that stays
+     * unmistakably a circle while clearly being drawn by hand — the first leans
+     * the whole thing off centre (a pen circling something pushes out on one
+     * side and cuts in on the other), the second makes it slightly oval, the
+     * third adds the small lean of a wrist.
+     *
+     * Fixed amplitudes and phases, not random, so the same circle looks the
+     * same on every render instead of twitching each time the map repaints.
      */
+    const SKETCH_LEAN = 0.08;    // off-centre lean, 1 cycle round the circle
+    const SKETCH_OVAL = 0.055;   // slightly oval, 2 cycles
+    const SKETCH_WRIST = 0.03;   // wrist lean, 3 cycles
+
     function sketchyCirclePath(cx, cy, r) {
-        // Radii around the circle, nudged so it reads as drawn by hand rather
-        // than as a perfect dot.
-        const radii = [1.0, 0.92, 1.07, 0.94, 1.08, 0.91, 1.04, 0.96];
-        const n = radii.length;
-        const pts = radii.map((k, i) => {
+        const n = 16;
+        const pts = [];
+        for (let i = 0; i < n; i++) {
             const a = (i / n) * Math.PI * 2 - Math.PI / 2;
-            return [cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k];
-        });
+            const k = 1
+                + SKETCH_LEAN * Math.cos(a - 0.6)
+                + SKETCH_OVAL * Math.cos(2 * a + 1.1)
+                + SKETCH_WRIST * Math.cos(3 * a + 2.4);
+            pts.push([cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k]);
+        }
         // Smooth through the points with quadratic segments anchored at the
         // midpoints, so the outline curves instead of faceting.
         let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
@@ -2812,16 +2935,23 @@ document.addEventListener('DOMContentLoaded', function () {
      * own start, which is what a hand-drawn circle actually looks like.
      */
     function sketchyRingPath(cx, cy, r) {
-        // Fixed jitter, so the ring looks identical on every render rather
-        // than twitching each time the card repaints.
-        const jitter = [0.03, -0.21, 0.14, -0.07, 0.22, -0.17, 0.05, -0.23, 0.18, -0.03, 0.21, -0.11];
-        const n = jitter.length;
-        const turns = 1.12;   // laps past the start, like a real pen circle
+        // Same harmonics as the dot, pushed harder — this is the coach's pen
+        // mark circling a point, drawn quickly and loosely. The squash also
+        // varies as the pen lifts and settles, because a constant squash is
+        // just a clean ellipse, which is the one shape a hand-drawn circle
+        // never is. Runs slightly past a full lap so the stroke crosses its own
+        // start, the way a real pen circle does.
+        const n = 18;
+        const turns = 1.14;
         const pts = [];
         for (let i = 0; i <= n; i++) {
             const a = (i / n) * Math.PI * 2 * turns - Math.PI / 2;
-            const rr = r * (1 + jitter[i % n]);
-            pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * 0.88]);
+            const k = 1
+                + (SKETCH_LEAN * 1.5) * Math.cos(a - 0.5)
+                + (SKETCH_OVAL * 1.4) * Math.cos(2 * a + 1.3)
+                + (SKETCH_WRIST * 1.4) * Math.cos(3 * a + 2.2);
+            const squash = 0.93 + 0.04 * Math.cos(a + 0.8);
+            pts.push([cx + Math.cos(a) * r * k, cy + Math.sin(a) * r * k * squash]);
         }
         let d = `M${pts[0][0].toFixed(2)} ${pts[0][1].toFixed(2)}`;
         for (let i = 1; i < pts.length - 1; i++) {
@@ -2839,16 +2969,28 @@ document.addEventListener('DOMContentLoaded', function () {
     /**
      * Whether a route starts and finishes in the same place.
      *
-     * 150 m is comfortably inside the GPS drift of a closed course and far
-     * below the length of any real point-to-point race, so it separates the two
-     * shapes reliably. Shared by the map markers and the fallback trace so both
-     * treat a loop the same way.
+     * Only the straight-line gap between the first and last track point is
+     * available here — a real course can pass back near its start without
+     * closing, so this is a heuristic, not a proof. The number below is the
+     * whole of it.
+     *
+     * 400 m covers the GPS drift of a closed course plus the fact that a runner
+     * starts and stops at slightly different spots, while staying far below the
+     * separation of a genuine point-to-point race, where the start and finish
+     * are at different venues. Raise it and a point-to-point course whose
+     * endpoints happen to sit close starts being drawn as a loop, with the
+     * finish marker disappearing.
+     *
+     * Shared by the map markers and the fallback trace so both treat a loop the
+     * same way.
      */
+    const ROUTE_CLOSES_M = 400;
+
     function routeCloses(coords) {
         if (!Array.isArray(coords) || coords.length < 2) return false;
         const a = coords[0];
         const b = coords[coords.length - 1];
-        return PaceyCourse.haversineM(a[1], a[0], b[1], b[0]) < 150;
+        return PaceyCourse.haversineM(a[1], a[0], b[1], b[0]) < ROUTE_CLOSES_M;
     }
 
     /** A start or end dot for a MapLibre marker, drawn as a sketched circle. */
@@ -5898,29 +6040,38 @@ document.addEventListener('DOMContentLoaded', function () {
             .filter(canvas => canvas.clientWidth > 0);
     }
 
-    function renderRadarChart(aiData) {        // Store last radar data so charts can be re-rendered on theme change
-        lastRadarData = aiData;
+    // Normalize a dimension name for fuzzy matching:
+    // lowercase, remove special chars (subscripts, slashes, spaces, hyphens)
+    function normalizeRadarName(s) {
+        return s.toLowerCase().replace(/[₂₃₁₀]/g, m => ({'₂':'2','₃':'3','₁':'1','₀':'0'}[m])).replace(/[^a-z0-9]/g, '');
+    }
+
+    // Build values in RADAR_DIMENSIONS order, using normalized lookup so
+    // "VO₂max / Speed" matches "VO2max / Speed" etc. Scores are integers 0–10
+    // (the AI prompt disallows decimals) — round to whole numbers so no
+    // fractional scores ever render on the chart. Shared by the page radars and
+    // the readiness-review modal so both plot the same data.
+    function radarValuesFromData(aiData) {
         // AI radar returns dimensions as [{name, score, note}] with 0-10 scores
-        // Map the AI dimension names to the chart's expected order using normalized
-        // matching — the AI may return slightly different names (e.g. "VO2max" vs "VO₂max")
+        // and may use slightly different names (e.g. "VO2max" vs "VO₂max"), so
+        // the lookup is normalized rather than exact.
         const dims = aiData.dimensions || [];
-
-        // Normalize a dimension name for fuzzy matching:
-        // lowercase, remove special chars (subscripts, slashes, spaces, hyphens)
-        const normalizeName = (s) => s.toLowerCase().replace(/[₂₃₁₀]/g, m => ({'₂':'2','₃':'3','₁':'1','₀':'0'}[m])).replace(/[^a-z0-9]/g, '');
-
         // Build a normalized score map so "VO₂max / Speed" matches "VO2max / Speed" etc.
         const scoreMap = {};
         dims.forEach(d => {
-            scoreMap[normalizeName(d.name)] = d.score;
+            scoreMap[normalizeRadarName(d.name)] = d.score;
         });
-        // Build values in RADAR_DIMENSIONS order, using normalized lookup.
-        // Scores are integers 0–10 (the AI prompt disallows decimals) — round
-        // to whole numbers so no fractional scores ever render on the chart.
-        const values10 = RADAR_DIMENSIONS.map(name => {
-            const score = scoreMap[normalizeName(name)];
+        return RADAR_DIMENSIONS.map(name => {
+            const score = scoreMap[normalizeRadarName(name)];
             return score !== undefined ? Math.round(score) : 0;
         });
+    }
+
+    function renderRadarChart(aiData) {        // Store last radar data so charts can be re-rendered on theme change
+        lastRadarData = aiData;
+        // Map the AI dimension names to the chart's expected order (see
+        // radarValuesFromData).
+        const values10 = radarValuesFromData(aiData);
         // Stand-in scores must never reach the tooltip, or it would report a
         // made-up number as the runner's reading.
         if (!radarLoading) radarValues10 = values10;
@@ -5937,130 +6088,138 @@ document.addEventListener('DOMContentLoaded', function () {
         // silently ignored those; rough.js does not — it throws on every frame,
         // which is how this surfaced. navigateTo() calls back in once a page is
         // shown, so the hidden radar still gets its chart on first visit.
-        const canvases = radarCanvasesToRender();
-        canvases.forEach(canvas => {
-            // Reset the loaded class so the canvas starts at opacity 0,
-            // then add it after the chart is created to trigger the fade-in
-            canvas.classList.remove('pacey-radar-loaded');
-            // Read colours from the canvas so the radar follows the surface it
-            // sits on (paper on the overview, app surface on Readiness)
-            const cssNavy = getComputedStyle(canvas).getPropertyValue('--pacey-navy').trim() || '#1d3557';
-            const cssMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
-            const cssBlue = getComputedStyle(canvas).getPropertyValue('--pacey-blue').trim() || '#457b9d';
-            // Tooltip background — use surface color so it adapts to theme
-            const cssSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
-            const cssText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        radarCanvasesToRender().forEach(canvas => {
+            radarCharts.push(buildRadarChart(canvas, values10));
+        });
+    }
 
-            // On narrow screens (phone), use a smaller point label font to prevent clipping.
-            // The canvas width determines whether we're in a compact layout.
-            const isNarrow = canvas.clientWidth < 320;
-            const pointLabelFontSize = isNarrow ? 11 : 13;
-            const chartFonts = pinboardChartFonts(canvas);
+    // Build one radar chart on a laid-out canvas. Extracted from renderRadarChart
+    // so the readiness-review modal can draw its own radar without joining
+    // radarCharts — a chart on that page list would be torn down by any
+    // re-render of the pages, which the modal is not part of.
+    function buildRadarChart(canvas, values10) {
+        // Reset the loaded class so the canvas starts at opacity 0,
+        // then add it after the chart is created to trigger the fade-in
+        canvas.classList.remove('pacey-radar-loaded');
+        // Read colours from the canvas so the radar follows the surface it
+        // sits on (paper on the overview, app surface on Readiness)
+        const cssNavy = getComputedStyle(canvas).getPropertyValue('--pacey-navy').trim() || '#1d3557';
+        const cssMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
+        const cssBlue = getComputedStyle(canvas).getPropertyValue('--pacey-blue').trim() || '#457b9d';
+        // Tooltip background — use surface color so it adapts to theme
+        const cssSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
+        const cssText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
-            radarCharts.push(new Chart(canvas, {
-                type: 'radar',
-                data: {
-                    labels: RADAR_DIMENSIONS,
-                    datasets: [{
-                        data: values10,
-                        backgroundColor: radarLoading ? RADAR_LOADING_FILL : `rgba(69, 123, 157, 0.1)`,
-                        borderColor: radarLoading ? RADAR_LOADING_LINE : `rgba(69, 123, 157, 0.8)`,
-                        borderWidth: 2,
-                        pointBackgroundColor: radarLoading ? RADAR_LOADING_POINT : RADAR_COLORS,
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5,
-                        pointHoverRadius: 7,
-                    }]
+        // On narrow screens (phone), use a smaller point label font to prevent clipping.
+        // The canvas width determines whether we're in a compact layout.
+        const isNarrow = canvas.clientWidth < 320;
+        const pointLabelFontSize = isNarrow ? 11 : 13;
+        const chartFonts = pinboardChartFonts(canvas);
+
+        const chart = new Chart(canvas, {
+            type: 'radar',
+            data: {
+                labels: RADAR_DIMENSIONS,
+                datasets: [{
+                    data: values10,
+                    backgroundColor: radarLoading ? RADAR_LOADING_FILL : `rgba(69, 123, 157, 0.1)`,
+                    borderColor: radarLoading ? RADAR_LOADING_LINE : `rgba(69, 123, 157, 0.8)`,
+                    borderWidth: 2,
+                    pointBackgroundColor: radarLoading ? RADAR_LOADING_POINT : RADAR_COLORS,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                }]
+            },
+            options: {
+                responsive: true,
+                // false: the chart fills the wrapper's flex-constrained height
+                // instead of expanding to maintain a square aspect ratio
+                maintainAspectRatio: false,
+                // Animate the radar polygon from center (0) to actual values
+                // when the chart is first created — creates a smooth grow-out
+                // effect as the data fills in after the skeleton fades out
+                animation: {
+                    duration: 1200,
+                    easing: 'easeOutQuart',
                 },
-                options: {
-                    responsive: true,
-                    // false: the chart fills the wrapper's flex-constrained height
-                    // instead of expanding to maintain a square aspect ratio
-                    maintainAspectRatio: false,
-                    // Animate the radar polygon from center (0) to actual values
-                    // when the chart is first created — creates a smooth grow-out
-                    // effect as the data fills in after the skeleton fades out
-                    animation: {
-                        duration: 1200,
-                        easing: 'easeOutQuart',
-                    },
-                    scales: {
-                        r: {
-                            beginAtZero: true, max: 10, min: 0,
-                            // Hide tick number labels — only show grid lines
-                            ticks: { display: false, stepSize: 2 },
-                            pointLabels: {
-                                font: { size: pointLabelFontSize, family: chartFonts.heading, weight: '600' },
-                                color: cssNavy,
-                                // Center-align multi-line labels so each line
-                                // is centered at its position around the radar
-                                align: 'center',
-                                // Break labels into two lines to save horizontal
-                                // space and allow a larger radar polygon
-                                callback: (label) => splitRadarLabel(label),
-                            },
-                            // Darker grid/angle lines for better web visibility — theme-aware
-                            grid: { color: `rgba(69, 123, 157, 0.25)` },
-                            angleLines: { color: `rgba(69, 123, 157, 0.25)` },
+                scales: {
+                    r: {
+                        beginAtZero: true, max: 10, min: 0,
+                        // Hide tick number labels — only show grid lines
+                        ticks: { display: false, stepSize: 2 },
+                        pointLabels: {
+                            font: { size: pointLabelFontSize, family: chartFonts.heading, weight: '600' },
+                            color: cssNavy,
+                            // Center-align multi-line labels so each line
+                            // is centered at its position around the radar
+                            align: 'center',
+                            // Break labels into two lines to save horizontal
+                            // space and allow a larger radar polygon
+                            callback: (label) => splitRadarLabel(label),
+                        },
+                        // Darker grid/angle lines for better web visibility — theme-aware
+                        grid: { color: `rgba(69, 123, 157, 0.25)` },
+                        angleLines: { color: `rgba(69, 123, 157, 0.25)` },
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        // Use an external HTML tooltip so we can include a
+                        // clickable link to the corresponding insight pillar.
+                        // The built-in canvas tooltip can't render interactive HTML.
+                        enabled: false,
+                        external: radarExternalTooltipHandler,
+                        // Theme-aware colors passed to the external handler via
+                        // CSS variables on the tooltip element
+                    }
+                },
+                // Click handler: clicking a point label area shows the tooltip.
+                // Since the external HTML tooltip is used (enabled: false),
+                // chart.tooltip.setActiveElements() doesn't trigger the
+                // external handler reliably. Instead, we directly show the
+                // HTML tooltip at the label's position.
+                onClick: (e, elements, chart) => {
+                    // If a point (dot) was clicked, the external tooltip
+                    // handler fires via normal interaction — don't interfere.
+                    if (elements.length > 0) return;
+                    const dims = RADAR_DIMENSIONS;
+                    const scales = chart.scales.r;
+                    const pos = Chart.helpers.getRelativePosition(e, chart);
+                    // Check each label position — approximate by angle
+                    const centerX = scales.xCenter;
+                    const centerY = scales.yCenter;
+                    const radius = scales.drawingArea;
+                    const angleStep = (2 * Math.PI) / dims.length;
+                    for (let i = 0; i < dims.length; i++) {
+                        const angle = -Math.PI / 2 + i * angleStep;
+                        // Label position is just outside the chart at the same angle
+                        // — slightly further out since two-line labels are taller
+                        const labelX = centerX + Math.cos(angle) * (radius + 20);
+                        const labelY = centerY + Math.sin(angle) * (radius + 20);
+                        const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
+                        if (dist < 40) {
+                            // Directly show the HTML tooltip at the label position
+                            showRadarHtmlTooltip(chart, labelX, labelY, i);
+                            return;
                         }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            // Use an external HTML tooltip so we can include a
-                            // clickable link to the corresponding insight pillar.
-                            // The built-in canvas tooltip can't render interactive HTML.
-                            enabled: false,
-                            external: radarExternalTooltipHandler,
-                            // Theme-aware colors passed to the external handler via
-                            // CSS variables on the tooltip element
-                        }
-                    },
-                    // Click handler: clicking a point label area shows the tooltip.
-                    // Since the external HTML tooltip is used (enabled: false),
-                    // chart.tooltip.setActiveElements() doesn't trigger the
-                    // external handler reliably. Instead, we directly show the
-                    // HTML tooltip at the label's position.
-                    onClick: (e, elements, chart) => {
-                        // If a point (dot) was clicked, the external tooltip
-                        // handler fires via normal interaction — don't interfere.
-                        if (elements.length > 0) return;
-                        const dims = RADAR_DIMENSIONS;
-                        const scales = chart.scales.r;
-                        const pos = Chart.helpers.getRelativePosition(e, chart);
-                        // Check each label position — approximate by angle
-                        const centerX = scales.xCenter;
-                        const centerY = scales.yCenter;
-                        const radius = scales.drawingArea;
-                        const angleStep = (2 * Math.PI) / dims.length;
-                        for (let i = 0; i < dims.length; i++) {
-                            const angle = -Math.PI / 2 + i * angleStep;
-                            // Label position is just outside the chart at the same angle
-                            // — slightly further out since two-line labels are taller
-                            const labelX = centerX + Math.cos(angle) * (radius + 20);
-                            const labelY = centerY + Math.sin(angle) * (radius + 20);
-                            const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
-                            if (dist < 40) {
-                                // Directly show the HTML tooltip at the label position
-                                showRadarHtmlTooltip(chart, labelX, labelY, i);
-                                return;
-                            }
-                        }
-                    },
-                }
-            }));
+                    }
+                },
+            }
+        });
 
-            // Trigger the canvas fade-in after Chart.js has rendered.
-            // requestAnimationFrame ensures the initial paint at opacity 0
-            // happens before we add the loaded class, so the transition fires.
+        // Trigger the canvas fade-in after Chart.js has rendered.
+        // requestAnimationFrame ensures the initial paint at opacity 0
+        // happens before we add the loaded class, so the transition fires.
+        requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    canvas.classList.add('pacey-radar-loaded');
-                });
+                canvas.classList.add('pacey-radar-loaded');
             });
         });
+        return chart;
     }
 
     // =========================================================================
@@ -6788,10 +6947,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (overallInsightEl) overallInsightEl.hidden = show;
     }
 
-    function renderOverallInsight(data) {
-        if (!overallInsightEl || !data) return;
-        showOverallInsightSkeleton(false);
-
+    // The Big Picture card — verdict, summary, top strength/gap and focus.
+    // Shared by the overview page and the readiness-review modal so the two read
+    // identically. The modal passes includeCta=false: the CTA points at the
+    // readiness page, which post-race shows the recap rather than the analysis.
+    function overallInsightHtml(data, includeCta = true) {
         const strength = data.topStrength || { label: '', note: '' };
         const gap = data.topGap || { label: '', note: '' };
 
@@ -6802,7 +6962,7 @@ document.addEventListener('DOMContentLoaded', function () {
             : data.score >= 5 ? 'var(--pacey-accent-amber)'
             : 'var(--pacey-accent-red)';
 
-        overallInsightEl.innerHTML = `
+        return `
             <div class="pacey-overall-insight-header">
                 <div class="pacey-overall-insight-verdict">${escapeHtml(data.verdict)}</div>
                 <div class="pacey-overall-insight-score" style="color: ${scoreColor};">${data.score}<span class="pacey-overall-insight-score-max">/10</span></div>
@@ -6824,12 +6984,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="pacey-overall-insight-focus-label">What to focus on next</span>
                 <p class="pacey-overall-insight-focus-text">${escapeHtml(data.focus)}</p>
             </div>
+            ${includeCta ? `
             <!-- CTA — takes the runner to the full race-readiness chart page -->
             <a class="pacey-overall-insight-cta" href="#readiness">
                 See race readiness
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-            </a>
+            </a>` : ''}
         `;
+    }
+
+    function renderOverallInsight(data) {
+        if (!overallInsightEl || !data) return;
+        showOverallInsightSkeleton(false);
+        overallInsightEl.innerHTML = overallInsightHtml(data);
     }
 
         // Score colour — one six-band scale shared by both pages, so a score reads
@@ -6842,6 +7009,29 @@ document.addEventListener('DOMContentLoaded', function () {
         if (score >= 5) return '#d9a300';    // yellow
         if (score >= 3) return '#e8590c';    // orange
         return '#d92d20';                    // red
+    }
+
+    // The full six-dimension cards — score, strengths and gaps — as shown on the
+    // readiness page. Shared with the readiness-review modal so a card reads the
+    // same wherever it appears.
+    function pillarInsightsHtml(dims) {
+        return dims.map((d, i) => `
+            <div class="pacey-pillar-card" data-pillar-index="${i}">
+                <div class="pacey-pillar-header">
+                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
+                    <span class="pacey-pillar-name">${escapeHtml(d.name)}</span>
+                    <span class="pacey-pillar-score" style="color:${pillarScoreColor(d.score)}">${d.score}<span class="pacey-pillar-score-max">/10</span></span>
+                </div>
+                <div class="pacey-pillar-section pacey-pillar-section--strengths">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--strengths">Strengths</span>
+                    <p class="pacey-pillar-note">${escapeHtml(d.strengths || '')}</p>
+                </div>
+                <div class="pacey-pillar-section pacey-pillar-section--gaps">
+                    <span class="pacey-pillar-section-label pacey-pillar-section-label--gaps">Gaps</span>
+                    <p class="pacey-pillar-note">${escapeHtml(d.gaps || '')}</p>
+                </div>
+            </div>
+        `).join('');
     }
 
     function renderPillars(data) {
@@ -6875,24 +7065,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('');
 
         // Readiness page: full breakdown with strengths and gaps, each
-        // referencing specific data from the runner's activities.
-        const insightsHtml = dims.map((d, i) => `
-            <div class="pacey-pillar-card" data-pillar-index="${i}">
-                <div class="pacey-pillar-header">
-                    <span class="pacey-pillar-dot" style="background:${RADAR_COLORS[i] || RADAR_COLORS[0]}"></span>
-                    <span class="pacey-pillar-name">${escapeHtml(d.name)}</span>
-                    <span class="pacey-pillar-score" style="color:${pillarScoreColor(d.score)}">${d.score}<span class="pacey-pillar-score-max">/10</span></span>
-                </div>
-                <div class="pacey-pillar-section pacey-pillar-section--strengths">
-                    <span class="pacey-pillar-section-label pacey-pillar-section-label--strengths">Strengths</span>
-                    <p class="pacey-pillar-note">${escapeHtml(d.strengths || '')}</p>
-                </div>
-                <div class="pacey-pillar-section pacey-pillar-section--gaps">
-                    <span class="pacey-pillar-section-label pacey-pillar-section-label--gaps">Gaps</span>
-                    <p class="pacey-pillar-note">${escapeHtml(d.gaps || '')}</p>
-                </div>
-            </div>
-        `).join('');
+        // referencing specific data from the runner's activities. Shared with
+        // the readiness-review modal so the two cannot render differently.
+        const insightsHtml = pillarInsightsHtml(dims);
 
         // Fill each pillars-content container with the appropriate HTML.
         // The first container is on the overview page, the second on the
