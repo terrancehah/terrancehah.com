@@ -832,6 +832,14 @@ document.addEventListener('DOMContentLoaded', function () {
             'Evening Easy', 'Marathon Pace Long', 'Mid-Distance Steady', 'Speed 800s', 'Pre-Race Easy'
         ];
 
+        // Long runs held at goal pace rather than easy long-run pace — the race
+        // rehearsal the classifier tags "Race Pace Long". Keyed by index because
+        // the type cycle is five long and the distance/name arrays are aligned to
+        // it, so a sixth type would misalign both. 372s/km sits just slower than
+        // the demo's ~6:10/km half-marathon goal, inside the Race Pace Long band.
+        const RACE_PACE_LONG = { pace: 372, hr: 158, anaerobic: 0.7 };
+        const racePaceLong = { 6: RACE_PACE_LONG, 16: RACE_PACE_LONG };
+
         // Realistic weekly run schedule — 4 runs per week with rest days
         // between each. Pattern repeats every 7 days going back from today.
         // Day offsets within each week: Tue(1), Thu(3), Sat(5), Sun(6)
@@ -846,10 +854,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const d = new Date(now);
             d.setDate(d.getDate() - daysAgo);
             const t = types[i % types.length];
+            const rp = racePaceLong[i];
+            const basePace = rp ? rp.pace : t.basePace;
+            const baseHR = rp ? rp.hr : t.baseHR;
+            const anaerobic = rp ? rp.anaerobic : t.anaerobic;
             const dist = distances[i];
-            const durMin = (dist * (t.basePace + (Math.random() - 0.5) * 40)) / 60;
-            const paceMs = 1000 / (t.basePace + (Math.random() - 0.5) * 30);
-            const hr = Math.round(t.baseHR + (Math.random() - 0.5) * 20);
+            const durMin = (dist * (basePace + (Math.random() - 0.5) * 40)) / 60;
+            const paceMs = 1000 / (basePace + (Math.random() - 0.5) * 30);
+            const hr = Math.round(baseHR + (Math.random() - 0.5) * 20);
             const maxHr = Math.round(hr + 15 + Math.random() * 15);
             const elev = Math.round(dist * (Math.random() * 12 + 2));
 
@@ -870,9 +882,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 calories: Math.round(durMin * (7 + Math.random() * 3)),
                 elevation_gain: parseFloat(elev.toFixed(1)),
                 training_effect: parseFloat((2 + Math.random() * 2.5).toFixed(1)),
-                anaerobic_training_effect: t.anaerobic, // feeds the anaerobic signal
+                anaerobic_training_effect: anaerobic, // feeds the anaerobic signal
                 avg_cadence: cad,
-                run_tag: t.tag, // hardcoded tag for demo mode (no server classifier)
+                run_tag: rp ? 'Race Pace Long' : t.tag, // hardcoded tag for demo mode (no server classifier)
                 elapsed_duration: parseFloat((durMin + Math.random() * 8).toFixed(1)), // minutes
             });
         }
@@ -5500,6 +5512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Warmup': 'pacey-run-tag--warmup',
         'Tempo Long': 'pacey-run-tag--tempo-long',
         'Tempo': 'pacey-run-tag--tempo-long',
+        'Race Pace Long': 'pacey-run-tag--race-pace-long',
         'LSD': 'pacey-run-tag--lsd',
         'Speedwork': 'pacey-run-tag--speedwork',
         'Easy': 'pacey-run-tag--easy',
@@ -5525,6 +5538,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Warmup': cssVar('--pacey-run-warmup', '#7a7a7a'),
         'Tempo Long': cssVar('--pacey-run-tempo', '#8a6313'),
         'Tempo': cssVar('--pacey-run-tempo', '#8a6313'),
+        'Race Pace Long': cssVar('--pacey-run-race-pace', '#2f6fb0'),
         'LSD': cssVar('--pacey-run-lsd', '#5d6db0'),
         'Speedwork': cssVar('--pacey-run-speedwork', '#c44b4b'),
         // Non-running activities share a neutral colour
@@ -8266,12 +8280,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // generateMockActivities: Tue, Wed, Thu, Sat, Sun).
     function getMockCoachHistory() {
         const now = new Date();
-        const names = ['Easy Morning', 'Weekend Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog'];
+        const names = ['Easy Morning', 'Weekend Long Run', 'Race Pace Long Run', 'Tempo Session', 'Interval 400s', 'Recovery Jog'];
         // Tags match the backend classifier so the demo insight's
         // similar-session lookup behaves exactly like the real one.
-        const tags = ['Easy', 'LSD', 'Tempo Long', 'Speedwork', 'Recovery'];
-        const secPerKm = [400, 420, 350, 330, 450]; // easy, long, tempo, interval, recovery
-        const distances = [6, 18, 10, 8, 5];
+        const tags = ['Easy', 'LSD', 'Race Pace Long', 'Tempo Long', 'Speedwork', 'Recovery'];
+        const secPerKm = [400, 420, 372, 350, 330, 450]; // easy, long, race-pace long, tempo, interval, recovery
+        const distances = [6, 18, 19, 10, 8, 5];
         // Spread across the week like a real runner's schedule: Tue(1),
         // Thu(3), Sat(5), Sun(6) — a rest day between runs, with only the
         // weekend long run + recovery back to back. Mon, Wed, Fri rest.
@@ -8300,7 +8314,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 calories: 400 + i * 15,
                 elevation_gain: 20 + (i % 4) * 10,
                 training_effect: 2.5,
-                anaerobic_training_effect: idx === 2 || idx === 3 ? 2.2 : 0.8,
+                anaerobic_training_effect: idx === 3 || idx === 4 ? 2.2 : 0.8,
                 avg_cadence: 166,
                 run_tag: tags[idx],
                 elapsed_duration: null,
@@ -8340,7 +8354,7 @@ document.addEventListener('DOMContentLoaded', function () {
             current_easy_pace: '6:32',
             current_easy_range: '6:20–6:50',
             current_easy_runs: mockHistory
-                .filter(r => ['Easy', 'LSD', 'Recovery'].includes(r.run_tag))
+                .filter(r => ['Easy', 'LSD', 'Race Pace Long', 'Recovery'].includes(r.run_tag))
                 .map(runSummary),
             current_quality_pace: '5:52',
             current_quality_range: '5:40–6:05',
@@ -8563,12 +8577,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         // Recent similar runs from the demo history — same tag mapping as the
-        // backend: Long Run→LSD, Tempo→Tempo Long/Tempo, Intervals/Speedwork→Speedwork,
-        // Easy→Easy/Warmup, Recovery→Recovery, Race→LSD/Tempo Long.
+        // backend: Long Run→LSD/Race Pace Long, Tempo→Tempo Long/Tempo,
+        // Intervals/Speedwork→Speedwork, Easy→Easy/Warmup, Recovery→Recovery,
+        // Race→LSD/Tempo Long/Race Pace Long.
         const tagMap = {
-            'Long Run': ['LSD'], 'Tempo': ['Tempo Long', 'Tempo'], 'Intervals': ['Speedwork'],
+            'Long Run': ['LSD', 'Race Pace Long'], 'Tempo': ['Tempo Long', 'Tempo'], 'Intervals': ['Speedwork'],
             'Speedwork': ['Speedwork'], 'Easy': ['Easy', 'Warmup'], 'Recovery': ['Recovery'],
-            'Race': ['LSD', 'Tempo Long'],
+            'Race': ['LSD', 'Tempo Long', 'Race Pace Long'],
         };
         let similarText = '';
         const history = coachPlanData && coachPlanData.history ? coachPlanData.history : [];

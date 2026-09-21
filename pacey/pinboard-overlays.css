@@ -1397,6 +1397,7 @@
     /* Run-type tags use the app's light-mode colours, matching the board */
     --pacey-run-easy: #43caca;
     --pacey-run-lsd: #5a70ca;
+    --pacey-run-race-pace: #2f6fb0;
     --pacey-run-tempo: #8a6313;
     --pacey-run-speedwork: #f14040;
     --pacey-run-warmup: #e7d897;
@@ -1750,6 +1751,7 @@
     /* Run-type tags use the app's light-mode colours, matching the board */
     --pacey-run-easy: #43caca;
     --pacey-run-lsd: #5a70ca;
+    --pacey-run-race-pace: #2f6fb0;
     --pacey-run-tempo: #8a6313;
     --pacey-run-speedwork: #f14040;
     --pacey-run-warmup: #e7d897;
@@ -2523,6 +2525,7 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
     /* Run-type tags use the app's light-mode colours, matching the board */
     --pacey-run-easy: #43caca;
     --pacey-run-lsd: #5a70ca;
+    --pacey-run-race-pace: #2f6fb0;
     --pacey-run-tempo: #8a6313;
     --pacey-run-speedwork: #f14040;
     --pacey-run-warmup: #e7d897;

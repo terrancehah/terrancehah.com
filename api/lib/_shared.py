@@ -1537,10 +1537,17 @@ def _classify_non_running(type_key: str) -> str:
     return key.replace("_", " ").title()
 
 
+# How close to goal pace a long run has to be to count as race-pace work. A long
+# run slower than this is aerobic base (LSD), not a race rehearsal. Anything
+# faster than goal pace by 10s/km is already claimed by the quality test, so this
+# band covers "at goal pace, through a touch slower".
+RACE_PACE_LONG_TOLERANCE_SEC = 15
+
+
 def _classify_run(a: dict, goal_pace_ms: float) -> str:
     """Full run classification — the SINGLE classifier for the UI tag and the
-    AI lap-selection. Returns one of: Run / Warmup / Tempo Long / LSD /
-    Speedwork / Tempo / Easy.
+    AI lap-selection. Returns one of: Run / Warmup / Tempo Long / Race Pace
+    Long / LSD / Speedwork / Tempo / Easy.
     """
     avg_speed = a.get("averageSpeed") or 0
     dist_km = (a.get("distance") or 0) / 1000
@@ -1550,11 +1557,17 @@ def _classify_run(a: dict, goal_pace_ms: float) -> str:
     if dist_km < 2:
         return "Warmup"
     quality = _is_speedwork_candidate(a, goal_pace_ms)
-    # Long runs are split by quality character — a long run with race-pace or
-    # threshold work inside it is "Tempo Long" (the long-run-with-quality
-    # session), everything else is plain LSD.
+    # Long runs split three ways by pace character: a long run with threshold or
+    # race-pace work inside it is "Tempo Long"; one held at or near goal pace is
+    # "Race Pace Long" (the race rehearsal); anything slower is plain LSD.
     if dist_km > 12:
-        return "Tempo Long" if quality else "LSD"
+        if quality:
+            return "Tempo Long"
+        if goal_pace_ms > 0:
+            goal_sec_per_km = 1000 / goal_pace_ms
+            if (1000 / avg_speed) <= goal_sec_per_km + RACE_PACE_LONG_TOLERANCE_SEC:
+                return "Race Pace Long"
+        return "LSD"
     if not quality:
         return "Easy"
     # Short quality runs split by SHAPE, not distance: interval reps (fast pace
@@ -2431,11 +2444,14 @@ def _fitness_samples(history: list[dict]) -> tuple:
         sec = 1000 / pace_ms
         # Quality = the classifier's hard sessions; everything else counts as
         # easy. This must cover _classify_run's FULL output domain
-        # (Run / Warmup / Tempo Long / LSD / Speedwork / Tempo / Easy).
-        # Previously the easy bucket only accepted Easy/Recovery/Warmup/LSD,
-        # so a run tagged "Run" (emitted whenever the activity carries no speed
-        # data) was dropped from BOTH buckets and surfaced in the UI as
-        # "no recent easy/quality runs — goal-based reference only".
+        # (Run / Warmup / Tempo Long / Race Pace Long / LSD / Speedwork /
+        # Tempo / Easy). A Race Pace Long stays in the easy bucket on purpose:
+        # it is a long run, and the goal-pace "proof" signal accounts for its
+        # pace separately. Previously the easy bucket only accepted
+        # Easy/Recovery/Warmup/LSD, so a run tagged "Run" (emitted whenever the
+        # activity carries no speed data) was dropped from BOTH buckets and
+        # surfaced in the UI as "no recent easy/quality runs — goal-based
+        # reference only".
         if tag in ("Speedwork", "Tempo", "Tempo Long"):
             fast.append({"sec": sec, "run": a})
         else:

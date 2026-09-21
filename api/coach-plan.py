@@ -682,13 +682,13 @@ Return ONLY valid JSON:
 # Used to find "previous similar sessions" so the insight can compare this
 # session against real runs of the same kind, not just the plan.
 TYPE_TAG_MAP = {
-    "Long Run": ("LSD",),
+    "Long Run": ("LSD", "Race Pace Long"),
     "Tempo": ("Tempo Long", "Tempo"),
     "Intervals": ("Speedwork",),
     "Speedwork": ("Speedwork",),
     "Easy": ("Easy", "Warmup"),
     "Recovery": ("Recovery",),
-    "Race": ("LSD", "Tempo Long"),
+    "Race": ("LSD", "Tempo Long", "Race Pace Long"),
 }
 
 
@@ -1026,7 +1026,7 @@ def _race_delta_line(goal: dict | None, result: dict) -> str:
 # recap's middle sentences point at the work that produced the result, and these
 # are the sessions a runner would recognise as having done it: the long runs that
 # built the endurance, the threshold and interval work that built the pace.
-_RECAP_CREDITABLE_TAGS = ("LSD", "Tempo", "Tempo Long", "Speedwork")
+_RECAP_CREDITABLE_TAGS = ("LSD", "Race Pace Long", "Tempo", "Tempo Long", "Speedwork")
 # How far back to look for those sessions, and how many to name. This block is a
 # light touch, not a training log: the two freshest sessions are enough for the
 # coach to gesture at the work that built the race without reciting a plan.
