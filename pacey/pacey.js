@@ -6025,6 +6025,25 @@ document.addEventListener('DOMContentLoaded', function () {
         loadAISummary();
     }
 
+    // Scroll to the pillar card matching a radar dimension. The chart decides
+    // the scope: the review modal's cards live in its own grid, while on the
+    // pages they live in the visible page's pillars container — the container
+    // qualifier matters there because the overview's summary cards share
+    // data-pillar-index. Same scroll-and-highlight either way.
+    function scrollToPillarCard(chart, idx) {
+        const modal = chart.canvas.closest('#pacey-readiness-review-modal');
+        const scope = modal || document.querySelector('.pacey-page:not([hidden])');
+        if (!scope) return;
+        const selector = modal
+            ? `.pacey-pillar-card[data-pillar-index="${idx}"]`
+            : `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`;
+        const pillar = scope.querySelector(selector);
+        if (!pillar) return;
+        pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        pillar.classList.add('pacey-pillar-highlight');
+        setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
+    }
+
     // Directly show the HTML tooltip at a given canvas-relative position.
     // Used by the label-click handler since chart.tooltip.setActiveElements()
     // doesn't reliably trigger the external tooltip handler when enabled:false.
@@ -6039,7 +6058,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const dimName = RADAR_DIMENSIONS[dimIndex] || 'Unknown';
-        const score = radarValues10[dimIndex] !== undefined ? radarValues10[dimIndex] : '--';
+        // Read the score from the chart's own dataset, not the global —
+        // radarValues10 holds the live analysis, which is stale or empty
+        // when this tooltip is opened from the readiness-review modal.
+        const chartScore = chart.data && chart.data.datasets[0]
+            ? chart.data.datasets[0].data[dimIndex] : undefined;
+        const score = chartScore !== undefined ? chartScore : '--';
 
         tooltipEl.innerHTML = `
             <a class="pacey-radar-tooltip-link" href="#" data-pillar-index="${dimIndex}">
@@ -6053,17 +6077,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (link) {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                const idx = parseInt(link.getAttribute('data-pillar-index'));
-                const visiblePage = document.querySelector('.pacey-page:not([hidden])');
-                if (!visiblePage) return;
-                const pillar = visiblePage.querySelector(
-                    `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`
-                );
-                if (pillar) {
-                    pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    pillar.classList.add('pacey-pillar-highlight');
-                    setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
-                }
+                scrollToPillarCard(chart, parseInt(link.getAttribute('data-pillar-index')));
                 tooltipEl.style.opacity = 0;
             });
         }
@@ -6145,27 +6159,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="pacey-radar-tooltip-score">${score}/10</span>
             `;
 
-            // Wire up the link click — scroll to the corresponding pillar card
-            // within the currently visible page's pillars container.
-            // Uses data-pillar-index attribute to find the right card.
+            // Wire up the link click — scroll to the corresponding pillar card.
+            // Uses data-pillar-index attribute to find the right card; the
+            // chart's location decides the scope (page or review modal).
             const link = tooltipEl.querySelector('.pacey-radar-tooltip-link');
             if (link) {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const idx = parseInt(link.getAttribute('data-pillar-index'));
-                    // Find the pillar card on the currently visible page —
-                    // query within the visible page's pillars container only
-                    const visiblePage = document.querySelector('.pacey-page:not([hidden])');
-                    if (!visiblePage) return;
-                    const pillar = visiblePage.querySelector(
-                        `.pacey-pillars-content .pacey-pillar-card[data-pillar-index="${idx}"]`
-                    );
-                    if (pillar) {
-                        pillar.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        // Briefly highlight the card so the user notices it
-                        pillar.classList.add('pacey-pillar-highlight');
-                        setTimeout(() => pillar.classList.remove('pacey-pillar-highlight'), 2000);
-                    }
+                    scrollToPillarCard(chart, parseInt(link.getAttribute('data-pillar-index')));
                     // Hide the tooltip after clicking the link
                     tooltipEl.style.opacity = 0;
                 });

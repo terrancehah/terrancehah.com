@@ -1836,7 +1836,7 @@
 #pacey-readiness-review-modal { z-index: 210; }
 
 .pacey-readiness-review-card {
-    width: min(100%, 46rem);
+    width: min(100%, 72rem);
     max-height: calc(100vh - 4rem);
     overflow-y: auto;
     padding: var(--pacey-space-md);
@@ -1862,6 +1862,21 @@
     flex-direction: column;
     gap: var(--pacey-space-md);
     margin-top: var(--pacey-space-md);
+}
+
+/* The close button is pinned inside the scrolling sheet: sticky keeps it
+   at the top-right for the whole scroll while the header scrolls away,
+   and the negative bottom margin takes back the space it would otherwise
+   push the header down by. The paper chip keeps it readable over the
+   text sliding beneath. */
+#pacey-readiness-review-modal .pacey-modal-close {
+    position: sticky;
+    top: 0.75rem;
+    z-index: 5;
+    width: fit-content;
+    margin-left: auto;
+    margin-bottom: -2.2rem;
+    background: var(--pinboard-paper-2);
 }
 
 /* The radar sits on the sheet rather than a card of its own, centred and
@@ -1894,6 +1909,11 @@
 #pacey-readiness-review-modal .pacey-overall-insight-takeaway-name { font-size: 1.5rem; }
 #pacey-readiness-review-modal .pacey-overall-insight-focus-label { font-size: 1.15rem; }
 #pacey-readiness-review-modal .pacey-pillar-name { font-size: 1.3rem; }
+
+/* The coloured dot beside the pillar name is dropped here too — the same
+   rule the board applies under #pacey-content, which this modal sits
+   outside of. The score's colour already carries the status. */
+#pacey-readiness-review-modal .pacey-pillar-dot { display: none; }
 
 /* Coach copy and labels — Fuzzy Bubbles, matching the readiness page */
 #pacey-readiness-review-modal .pacey-overall-insight-summary,
