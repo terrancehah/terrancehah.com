@@ -1744,15 +1744,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // The delta against the target, phrased the way a runner would say it.
-    // Hitting the target is a win at any margin — a single second counts, so the
-    // verdict never hedges it. A miss inside a minute is softened rather than
-    // counted out: the exact figure would read as a rebuke for something barely
-    // worth a sentence. Beyond that the miss is stated plainly, with the time.
+    // Hitting the target is a win at any margin — a single second counts — and
+    // the margin is always stated, seconds included, however small. A miss
+    // inside a minute is softened rather than counted out: the exact figure
+    // would read as a rebuke for something barely worth a sentence. Beyond that
+    // the miss is stated plainly, with the time.
     function raceVerdict(state) {
         if (state.deltaSeconds === null || state.achieved === null) return '';
         const d = Math.abs(state.deltaSeconds);
         if (state.achieved) {
-            return d < 60 ? 'Goal achieved' : `Goal achieved — ${formatFinishTime(d)} under target`;
+            // Exactly on the target has no margin to state.
+            return d === 0 ? 'Goal achieved' : `Goal achieved — ${formatFinishTime(d)} under target`;
         }
         return d < 60 ? 'Just over target' : `Missed target by ${formatFinishTime(d)}`;
     }
