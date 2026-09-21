@@ -7396,7 +7396,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const editDist = formGoalDistance(editPurposeValue, $('#pacey-edit-custom-distance').value, $('#pacey-edit-custom-distance-unit').value);
 
-        setButtonLoading(editGoalBtn, true);
         const body = {
             race_name: $('#pacey-edit-race-name').value,
             // The type is kept so the modal can re-open on it, but every
@@ -7415,6 +7414,20 @@ document.addEventListener('DOMContentLoaded', function () {
             gender: $('#pacey-edit-gender').value,
             age: $('#pacey-edit-age').value,
         };
+
+        // A plan still in progress is about to be discarded — confirm first.
+        // With nothing at stake the save runs straight through.
+        if (planChangeWarning()) {
+            openGoalChangeConfirm(() => applyEditedGoal(body));
+            return;
+        }
+        applyEditedGoal(body);
+    });
+
+    // Save the edited goal and reload the dashboard against it. Split out so the
+    // confirmation above can run it only once the runner agrees to the change.
+    async function applyEditedGoal(body) {
+        setButtonLoading(editGoalBtn, true);
         try {
             // A new goal replaces the old one, so a finished race on the old goal
             // is filed to history before it is overwritten.
@@ -7464,7 +7477,7 @@ document.addEventListener('DOMContentLoaded', function () {
             closeEditGoalPopup();
         } catch (err) { alert('Network error. Please try again.'); }
         finally { setButtonLoading(editGoalBtn, false); }
-    });
+    }
 
     // Close handlers — close button, click outside, Escape key
     editGoalClose.addEventListener('click', closeEditGoalPopup);
@@ -7556,8 +7569,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // New — clear the existing goal and go to onboarding. Also clear the
     // AI and coach caches so the server regenerates against the new goal
-    // instead of returning stale insights from the old goal.
-    goalReminderNew.addEventListener('click', () => {
+    // instead of returning stale insights from the old goal. A plan still in
+    // progress is about to be discarded, so confirm first.
+    function startNewGoalFlow() {
         closeGoalReminderPopup();
         raceGoal = null;
         localStorage.removeItem('pacey_race_goal');
@@ -7569,6 +7583,14 @@ document.addEventListener('DOMContentLoaded', function () {
         coachEditingDate = null;
         coachSyncedDates.clear();
         showScreen(onboardScreen);
+    }
+
+    goalReminderNew.addEventListener('click', () => {
+        if (planChangeWarning()) {
+            openGoalChangeConfirm(startNewGoalFlow);
+            return;
+        }
+        startNewGoalFlow();
     });
 
     // Close on close button, overlay click, or Escape
@@ -7581,6 +7603,71 @@ document.addEventListener('DOMContentLoaded', function () {
             closeGoalReminderPopup();
         }
     });
+
+    // =========================================================================
+    // Goal change confirmation — guards the paths that replace a goal while a
+    // plan is still being followed, so the plan is never discarded silently.
+    // =========================================================================
+
+    const goalChangeConfirm = $('#pacey-goal-change-confirm');
+    const goalChangeConfirmClose = $('#pacey-goal-change-close');
+    const goalChangeKeep = $('#pacey-goal-change-keep');
+    const goalChangeProceed = $('#pacey-goal-change-proceed');
+    const goalChangeBody = $('#pacey-goal-change-body');
+    // The action to run if the runner goes ahead — set by openGoalChangeConfirm.
+    let goalChangeConfirmAction = null;
+
+    // Whether replacing the goal would throw away a plan the runner is still
+    // following. Null when there is nothing to lose: no goal, race day already
+    // past (the block is over), or no plan built for it yet.
+    function planChangeWarning() {
+        if (!raceGoal || !raceGoal.race_date) return null;
+        const raceDay = String(raceGoal.race_date).slice(0, 10);
+        if (raceDay <= localDateIso()) return null;
+        if (!(coachPlanData || readCoachCache())) return null;
+        return {
+            name: raceGoal.race_name || goalTypeLabel(raceGoal) || 'your race',
+            date: formatReviewDate(raceDay),
+            // Workouts already pushed to Garmin are not ours to remove, so the
+            // prompt says so only when some exist.
+            synced: coachSyncedDates.size,
+        };
+    }
+
+    function openGoalChangeConfirm(onConfirm) {
+        if (!goalChangeConfirm) { onConfirm(); return; }
+        const warning = planChangeWarning();
+        if (!warning) { onConfirm(); return; }
+        goalChangeConfirmAction = onConfirm;
+        if (goalChangeBody) {
+            goalChangeBody.innerHTML = `
+                <p class="pacey-goal-change-lead">You're still training toward <strong>${escapeHtml(warning.name)}</strong>${warning.date ? ` on ${escapeHtml(warning.date)}` : ''}.</p>
+                <p class="pacey-goal-change-note">Changing your goal discards the plan built for that race and rebuilds it for the new one.</p>
+                ${warning.synced ? '<p class="pacey-goal-change-note">Workouts you have already sent to Garmin stay on your watch — remove them there if you do not want them.</p>' : ''}
+            `;
+        }
+        goalChangeConfirm.hidden = false;
+        if (goalChangeKeep) goalChangeKeep.focus();
+    }
+
+    function closeGoalChangeConfirm() {
+        if (goalChangeConfirm) goalChangeConfirm.hidden = true;
+        goalChangeConfirmAction = null;
+    }
+
+    if (goalChangeConfirmClose) goalChangeConfirmClose.addEventListener('click', closeGoalChangeConfirm);
+    if (goalChangeKeep) goalChangeKeep.addEventListener('click', closeGoalChangeConfirm);
+    if (goalChangeProceed) goalChangeProceed.addEventListener('click', () => {
+        // Capture before closing — closing clears the stored action.
+        const action = goalChangeConfirmAction;
+        closeGoalChangeConfirm();
+        if (action) action();
+    });
+    if (goalChangeConfirm) {
+        goalChangeConfirm.addEventListener('click', (e) => {
+            if (e.target === goalChangeConfirm) closeGoalChangeConfirm();
+        });
+    }
 
     // =========================================================================
     // Settings button — opens the login modal for Garmin connection

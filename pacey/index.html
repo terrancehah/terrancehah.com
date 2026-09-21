@@ -1680,6 +1680,27 @@
             </div>
         </div>
 
+        <!-- ========== GOAL CHANGE CONFIRMATION ========== -->
+        <!-- Shown before a goal change that would discard a plan the runner is
+             still following — a block mid-training, or a plan built for a race
+             that is still ahead. Post-race or no-plan changes skip it entirely.
+             Filled by openGoalChangeConfirm(). -->
+        <div class="pacey-modal-overlay" id="pacey-goal-change-confirm" hidden role="dialog" aria-modal="true" aria-label="Change your race goal">
+            <div class="pacey-goal-change-card">
+                <button class="pacey-modal-close" id="pacey-goal-change-close" title="Close" aria-label="Close change goal dialog">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="pacey-goal-change-header">
+                    <h3 class="pacey-goal-change-title">Change your goal?</h3>
+                </div>
+                <div class="pacey-goal-change-body" id="pacey-goal-change-body"></div>
+                <div class="pacey-goal-change-actions">
+                    <button class="pacey-btn pacey-btn-secondary" id="pacey-goal-change-keep">Keep my plan</button>
+                    <button class="pacey-btn pacey-btn-primary" id="pacey-goal-change-proceed">Change goal</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ========== ADD TO HOME SCREEN MODAL ========== -->
         <!-- Instructional modal that teaches the runner how to add Pacey to
              their phone's home screen. There is no programmatic install API

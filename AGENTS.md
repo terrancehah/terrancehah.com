@@ -22,6 +22,17 @@ Pacey lives in `pacey/` (served at `/pacey`; the old `/projects/pacey` path 301s
 
 Consensus: marathon pre-race companion. Diagnosis is six-area fitness vs the typed goal time. Plan is the full remaining block to race day (not one week). No in-run coaching. Do not treat unofficial Garmin email+password as the long-term auth path.
 
+## Design
+
+**Read `.impeccable.md` (repo root) before any UI change.** It is the design context: users, brand personality, aesthetic direction, design principles, colour system, dark mode, motion, spacing, accessibility, loading and empty states.
+
+Pacey's UI also follows the CSS design system already in place, which is the practical expression of that context:
+
+- Every token lives in `pacey/pacey-tokens.css` — never hardcode a colour in a component style.
+- The board's materials (cork, paper, post-its, pushpins, handwriting faces) live in `pacey/pinboard-theme.css`.
+- Page-specific rules belong in the `pacey/pinboard-<page>.css` files; `pacey/pacey.css` holds only the shell and shared primitives.
+- The board and the paper-context modals pin their own `--pacey-*` palette because those surfaces stay light in both themes. Buttons inside them are outside `#pacey-content`, so board rules scoped there do not reach them — apply the treatment explicitly.
+
 ## Conventions
 
 - Files: kebab-case

@@ -1724,7 +1724,8 @@
 #pacey-workout-sheet .pacey-workout-sheet,
 #pacey-login-modal .pacey-auth-card,
 #pacey-readiness-review-modal .pacey-readiness-review-card,
-#pacey-past-races-modal .pacey-past-races-card {
+#pacey-past-races-modal .pacey-past-races-card,
+#pacey-goal-change-confirm .pacey-goal-change-card {
     position: relative;
     background-color: var(--pinboard-paper);
     background-image: var(--pinboard-paper-noise);
@@ -1763,7 +1764,8 @@
 #pacey-workout-sheet .pacey-workout-sheet::before,
 #pacey-login-modal .pacey-auth-card::before,
 #pacey-readiness-review-modal .pacey-readiness-review-card::before,
-#pacey-past-races-modal .pacey-past-races-card::before {
+#pacey-past-races-modal .pacey-past-races-card::before,
+#pacey-goal-change-confirm .pacey-goal-change-card::before {
     content: "";
     position: absolute;
     top: 0.6rem;
@@ -1782,7 +1784,8 @@
 #pacey-plan-prefs-modal .pacey-metric-popup-title,
 #pacey-login-modal .pacey-auth-title,
 #pacey-readiness-review-modal .pacey-readiness-review-title,
-#pacey-past-races-modal .pacey-past-races-title {
+#pacey-past-races-modal .pacey-past-races-title,
+#pacey-goal-change-confirm .pacey-goal-change-title {
     font-family: var(--font-caveat);
     font-weight: 700;
     letter-spacing: 0;
@@ -1810,13 +1813,15 @@
 #pacey-goal-reminder-popup .pacey-modal-close,
 #pacey-workout-sheet .pacey-modal-close,
 #pacey-readiness-review-modal .pacey-modal-close,
-#pacey-past-races-modal .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
+#pacey-past-races-modal .pacey-modal-close,
+#pacey-goal-change-confirm .pacey-modal-close { color: var(--pinboard-muted); border-radius: 0.5rem; }
 #pacey-plan-prefs-modal .pacey-modal-close:hover,
 #pacey-edit-goal-popup .pacey-modal-close:hover,
 #pacey-goal-reminder-popup .pacey-modal-close:hover,
 #pacey-workout-sheet .pacey-modal-close:hover,
 #pacey-readiness-review-modal .pacey-modal-close:hover,
-#pacey-past-races-modal .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
+#pacey-past-races-modal .pacey-modal-close:hover,
+#pacey-goal-change-confirm .pacey-modal-close:hover { color: var(--pinboard-ink); background: var(--pinboard-paper-2); }
 
 /* =====================================================================
    READINESS REVIEW MODAL — the six-area analysis as it stood before the
@@ -2099,15 +2104,37 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
 
 .pacey-past-race-review { align-self: flex-start; }
 
-/* The review button sits on a blue note, so it reads as a small paper chip
-   rather than the sheet's own secondary fill — and it never borrows the sky
-   token for its hover, which would land on the note's own blue and vanish. */
+/* The review button follows the app's button treatment — the same hand-cut
+   corners and soft shadow every board button carries (see #pacey-content
+   .pacey-btn in pinboard-theme.css) — and takes the note's own blue rather than
+   the paper fill, which reads as a brown chip on a blue note. Hover darkens the
+   button's own colour, like the primary, instead of switching hue. */
 #pacey-past-races-modal .pacey-past-race-review {
-    background: var(--pinboard-paper);
-    color: var(--pinboard-ink);
-    border: 0.0625rem solid var(--pinboard-line);
+    background: var(--pacey-blue);
+    color: var(--pacey-btn-primary-text);
+    border: none;
+    border-radius: 2px 7px 3px 8px / 8px 3px 7px 2px;
+    box-shadow: 0 0.2rem 0.4rem rgba(0, 0, 0, 0.22);
+    transition: transform 0.18s ease-out, background 0.18s ease-out, box-shadow 0.18s ease-out;
 }
-#pacey-past-races-modal .pacey-past-race-review:hover { background: var(--pinboard-paper-2); }
+#pacey-past-races-modal .pacey-past-race-review:hover {
+    background: color-mix(in srgb, var(--pacey-blue) 85%, var(--pacey-navy));
+}
+
+/* Secondary buttons darken their own fill on hover instead of washing to the
+   note blue. Both the board (#pacey-content) and the paper-context modals remap
+   --pacey-sky to the note colour, which turned the app's "slightly stronger
+   tint" into a hue switch — the chip appeared to change material. Token-based,
+   so it holds in both themes. */
+#pacey-content .pacey-btn-secondary:hover,
+#pacey-plan-prefs-modal .pacey-btn-secondary:hover,
+#pacey-edit-goal-popup .pacey-btn-secondary:hover,
+#pacey-goal-reminder-popup .pacey-btn-secondary:hover,
+#pacey-workout-sheet .pacey-btn-secondary:hover,
+#pacey-login-modal .pacey-btn-secondary:hover,
+#pacey-goal-change-confirm .pacey-btn-secondary:hover {
+    background: color-mix(in srgb, var(--pacey-light) 88%, var(--pacey-navy));
+}
 
 @media (prefers-reduced-motion: reduce) {
     .pacey-past-race-panel,
@@ -2120,6 +2147,47 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
     font-size: 1rem;
     color: var(--pinboard-muted);
     text-align: center;
+}
+
+/* =====================================================================
+   GOAL CHANGE CONFIRMATION — shown only when a goal change would discard a
+   plan still in progress. Paper sheet, like the other modals.
+   ===================================================================== */
+.pacey-goal-change-card {
+    width: min(100%, 30rem);
+    padding: var(--pacey-space-md);
+}
+
+.pacey-goal-change-header { margin-top: 0.35rem; padding-right: 2rem; }
+.pacey-goal-change-title { margin: 0; font-size: 1.5rem; }
+
+.pacey-goal-change-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-top: var(--pacey-space-md);
+}
+
+.pacey-goal-change-lead,
+.pacey-goal-change-note {
+    margin: 0;
+    font-family: var(--font-fuzzy);
+    font-size: 1.02rem;
+    line-height: 1.5;
+    color: var(--pinboard-ink);
+}
+/* The supporting notes read quieter than the lead sentence. */
+.pacey-goal-change-note { color: var(--pinboard-muted); }
+
+.pacey-goal-change-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-sm);
+    margin-top: var(--pacey-space-md);
+}
+@media (min-width: 30rem) {
+    .pacey-goal-change-actions { flex-direction: row; }
+    .pacey-goal-change-actions .pacey-btn { flex: 1; }
 }
 
 /* =====================================================================
