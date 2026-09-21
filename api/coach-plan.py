@@ -1154,17 +1154,60 @@ def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | Non
     return "\n".join(lines)
 
 
+def _js_number(value) -> str:
+    """Format a number the way JavaScript's String() would.
+
+    The frontend builds the same fingerprint as _race_recap_key, and the two have
+    to agree character for character: JS prints a whole number as "119" where
+    Python prints "119.0", and that single mismatch would make the client reject
+    a perfectly good stored paragraph and regenerate it. Only the integral case
+    is normalised — durations and distances never reach the exponents, where the
+    two languages do diverge.
+    """
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        return str(value or "")
+    return str(int(n)) if n.is_integer() else repr(n)
+
+
+def _race_recap_key(result: dict | None) -> str:
+    """Fingerprint of the result a recap was written against.
+
+    Mirrors the frontend's raceRecapCacheKey exactly, so both sides agree on
+    whether a stored paragraph still describes the current result. A re-linked
+    race changes it, and a recap written for the old run must not be served for
+    the new one — which is the whole point of keying it rather than just storing
+    the text.
+    """
+    r = result or {}
+    parts = []
+    for field in ("date", "duration_min", "distance_km"):
+        value = r.get(field)
+        # `not value` rather than a None check, to match the frontend's `|| ''`:
+        # a zero duration or distance is treated as absent on both sides.
+        if not value:
+            parts.append("")
+        elif field == "date":
+            parts.append(str(value))
+        else:
+            parts.append(_js_number(value))
+    return "|".join(parts)
+
+
 async def _race_recap_action(body: CoachPlanRequest):
-    """Write the coach's read on a finished race.
+    """Write — or return the already written — coach's read on a finished race.
 
     The result arrives in the request rather than being looked up, because a race
     can be linked by hand — a watch that never synced, or an uploaded GPX — and
     the recap has to describe the race the runner acknowledged rather than
     whatever activity happens to sit on race day.
 
-    Not cached server-side: it is one paragraph against a fixed result, and the
-    frontend keys its own cache on that result, so a second device regenerating
-    once is cheaper than another Redis surface to keep in step.
+    The paragraph is stored on the goal, beside the result it describes, so it
+    rides the goal's existing session + persistent paths and reaches the runner's
+    other devices through check-session. That is why there is no cache key of its
+    own: `race:goal:{email}` already syncs, and a second store would only be
+    another thing to keep in step.
     """
     sess = _get_session(body.token) or {}
     email = sess.get("email", "") if isinstance(sess, dict) else ""
@@ -1173,6 +1216,15 @@ async def _race_recap_action(body: CoachPlanRequest):
     result = body.race_result or {}
     if not result.get("duration_min"):
         return JSONResponse(status_code=400, content={"error": "Race result required."})
+
+    key = _race_recap_key(result)
+
+    # A paragraph written for this exact result is served as-is — that is what
+    # makes a second device instant instead of spending an AI call to rewrite
+    # the same words. A different result misses and falls through.
+    stored = (race_goal or {}).get("race_recap") or {}
+    if stored.get("text") and stored.get("key") == key:
+        return JSONResponse(content={"recap": stored["text"], "cached": True})
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
@@ -1200,7 +1252,21 @@ async def _race_recap_action(body: CoachPlanRequest):
     if not recap:
         return JSONResponse(status_code=500, content={"error": "Could not write the race recap."})
 
-    return JSONResponse(content={"recap": recap})
+    # Store the paragraph on the goal, keyed to the result it describes, so the
+    # runner's other devices read it from the goal they already fetch rather
+    # than each spending an AI call to rewrite it. Written to both the session
+    # and the persistent goal, exactly as the result itself is.
+    if race_goal and email:
+        updated = dict(race_goal)
+        updated["race_recap"] = {
+            "text": recap,
+            "key": key,
+            "generated_at": _dt.now().isoformat(),
+        }
+        _update_session(body.token, {"race_goal": updated})
+        _save_persistent_race_goal(email, updated)
+
+    return JSONResponse(content={"recap": recap, "cached": False})
 
 
 async def _save_race_result_action(body: CoachPlanRequest):
@@ -1223,8 +1289,17 @@ async def _save_race_result_action(body: CoachPlanRequest):
     updated = dict(goal)
     if body.race_result:
         updated["race_result"] = body.race_result
+        # A recap written for a different result is stale the moment the result
+        # changes. The key would catch it on read anyway, but dropping it here
+        # keeps the stored goal honest instead of carrying a paragraph nothing
+        # matches.
+        if (goal.get("race_recap") or {}).get("key") != _race_recap_key(body.race_result):
+            updated.pop("race_recap", None)
     else:
         updated.pop("race_result", None)
+        # No result means no recap: the paragraph describes a race that is no
+        # longer attached to this goal.
+        updated.pop("race_recap", None)
 
     _update_session(body.token, {"race_goal": updated})
     _save_persistent_race_goal(email, updated)

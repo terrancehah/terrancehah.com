@@ -1977,6 +1977,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const setText = (text) => targets.forEach(el => { el.textContent = text; });
 
+        // The server keeps the paragraph on the goal, so a second device already
+        // has it: check-session hands the goal over with the recap attached. This
+        // is the copy that survives a cleared browser, and it is checked before
+        // the local cache for that reason.
+        //
+        // The key is verified rather than trusted — a goal can arrive carrying a
+        // recap written for a run that has since been re-linked, and showing the
+        // old paragraph for the new result would be worse than showing nothing.
+        const fromGoal = goal && goal.race_recap;
+        if (fromGoal && fromGoal.text && fromGoal.key === raceRecapCacheKey(state)) {
+            // Warm the local copy on the way through, so a later load that cannot
+            // reach the server still renders the paragraph.
+            writeRaceRecapCache(state, fromGoal.text);
+            setText(fromGoal.text);
+            return;
+        }
+
         const cached = readRaceRecapCache(state);
         if (cached) {
             setText(cached);
@@ -2002,6 +2019,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             writeRaceRecapCache(state, data.recap);
             setText(data.recap);
+            // The server stored this paragraph on the goal; mirror it locally so
+            // a re-render — a theme change, a page switch — reads it without a
+            // second call, and so it survives a reload.
+            if (raceGoal && !data.cached) {
+                raceGoal.race_recap = { text: data.recap, key: raceRecapCacheKey(state) };
+                try {
+                    localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+                } catch (err) {
+                    // Quota or private mode — the server copy is the durable one.
+                }
+            }
         } catch (err) {
             // The figures stand on their own, so this is not worth an alert — but
             // it should not leave the block shimmering forever either.
@@ -2028,8 +2056,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!raceGoal) return;
         if (result) raceGoal.race_result = result;
         else delete raceGoal.race_result;
+        // The stored paragraph describes the old result, so it goes with it. The
+        // key check in loadRaceRecapProse would catch the mismatch anyway, but
+        // dropping it here keeps the local goal honest rather than carrying a
+        // recap nothing matches.
+        delete raceGoal.race_recap;
         try {
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            localStorage.removeItem(RACE_RECAP_CACHE_KEY);
         } catch (err) {
             // Quota or private mode — the server copy below is the durable one.
         }
