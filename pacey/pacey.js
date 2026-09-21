@@ -1014,17 +1014,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // real one is written by the race-recap action on the backend from the target,
     // the result, the uploaded course and the runner's own recent sessions; this
     // stands in for it because demo mode makes no API calls. Written against the
-    // demo's own numbers: the Brooks Half Marathon, 1:49:47 against a 1:52:00
-    // target, on a course with 63 m of climb, off 18 km long runs and threshold
-    // work at 5:50/km.
+    // demo's own result: the Brooks Half Marathon, run under the 1:52:00 target.
     //
-    // The middle credits the training by name, which is what the real prompt asks
-    // for — the reassurance only means something if it points at work the runner
-    // recognises. It closes on the race and prescribes nothing: the race is the
-    // end of the plan, so advice about "the next block" would be advice about a
-    // block that does not exist.
+    // Kept deliberately plain, matching what the real prompt now asks for: it
+    // credits the training by kind rather than reciting sessions and figures, and
+    // closes on the race without prescribing anything — the race is the end of the
+    // plan, so advice about "the next block" would be advice about a block that
+    // does not exist.
     function getMockRaceRecap() {
-        return 'Two minutes and thirteen seconds under your target, on a course that barely rises — 63 metres of climbing across the whole half, which makes this a clean read on what you actually had. That margin was not luck. The 18 km long runs through August are what let you hold 5:10 through the closing kilometres instead of fading the way you did earlier in the block, and the threshold blocks at 5:50 are why race pace felt sustainable rather than something you were hanging on to. You did that work, and this is what it bought.';
+        return 'You ran this one the way you wanted to — under your target, and it never looked like slipping away. That margin was not luck. It came out of the long runs that taught your legs to keep going when the closing kilometres got hard, and the tempo work that made race pace feel like something you could hold rather than something you were clinging to. You did that work, and this is what it bought. Take the win — you earned it.';
     }
 
     // Start demo mode — used as the default landing and after logout

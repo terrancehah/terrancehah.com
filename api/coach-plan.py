@@ -1021,10 +1021,10 @@ def _race_delta_line(goal: dict | None, result: dict) -> str:
 # built the endurance, the threshold and interval work that built the pace.
 _RECAP_CREDITABLE_TAGS = ("LSD", "Tempo", "Tempo Long", "Speedwork")
 # How far back to look for those sessions, and how many to name. This block is a
-# credit, not a training log — a handful of the freshest sessions before race day
-# is enough to give the coach something specific to point at.
+# light touch, not a training log: the two freshest sessions are enough for the
+# coach to gesture at the work that built the race without reciting a plan.
 _RECAP_TRAINING_WEEKS = 10
-_RECAP_TRAINING_LIMIT = 6
+_RECAP_TRAINING_LIMIT = 2
 
 
 def _race_training_block(activities: list[dict], race_date: str) -> str:
@@ -1071,7 +1071,9 @@ def _race_training_block(activities: list[dict], race_date: str) -> str:
     rows.sort(key=lambda r: r[0], reverse=True)
     return (
         "THE TRAINING THAT LED INTO IT (the runner's own sessions, most recent "
-        "first — cite these specifically, and only these):\n"
+        "first — the only training you may refer to). Refer to the work in plain "
+        "words, name at most one session, and quote at most one or two of the "
+        "figures below rather than reciting them:\n"
         + "\n".join(r[1] for r in rows[:_RECAP_TRAINING_LIMIT])
     )
 
@@ -1134,17 +1136,23 @@ def _build_race_recap_prompt(goal: dict | None, result: dict, course: dict | Non
         "reading it. If they hit the target, say so warmly and without hedging. If they missed it, be "
         "honest and proportionate — a few minutes on a half marathon is a normal day, not a failure — "
         "and lead with what the result does show rather than what it lacks.",
-        "- Then spend one or two sentences connecting the result back to the training listed above. This "
-        "is the reassurance, and it needs to be earned: name the specific sessions that built this race "
-        "and say what each one bought them — the long runs that built the endurance to hold pace late, "
-        "the threshold work that made the pace sustainable, the intervals that gave them the speed "
-        "reserve. Quote the distances and paces from the list so the credit has proof behind it, and "
-        "make clear the result came out of that work rather than out of luck or a good day.",
+        "- Then, in one sentence at most, connect the result back to the training listed above. This is "
+        "the reassurance, and it needs to be earned: gesture at the work that built this race — the long "
+        "runs that built the endurance to hold pace late, the tempo work that made the pace sustainable, "
+        "the speedwork that gave them the speed reserve — and say what it bought them, in plain words. "
+        "Name at most one session and quote at most one or two figures from the list; do not recite the "
+        "sessions or their paces and distances. Make clear the result came out of that work rather than "
+        "out of luck or a good day.",
         "- If a course was provided, use the terrain to explain the result only where it genuinely explains it.",
         "- This race is the END of the block the runner was following. Do NOT prescribe training: no next "
         "block, no sessions, no paces, no \"work on this next\", and no advice about what to do from here. "
         "The plan is over, and a new goal is set separately if the runner wants one. Close on the race itself.",
         "- Do not invent splits, weather, race conditions, or how the runner felt. None of that is known here.",
+        "- Write like a coach talking to the runner afterwards, not a training report. No jargon — no "
+        "\"threshold\", \"VO₂max\", \"lactate\", \"intervals\", \"cadence\" or \"aerobic\". Use plain runner words.",
+        "- Keep figures out of the prose: the numbers are already displayed beside this text, so do not "
+        "restate paces, distances, dates or split times. The whole paragraph may carry at most one or two "
+        "numbers.",
         "- Only cite sessions from the training list above, and only if it is present. If it is absent, "
         "skip the credit sentences entirely rather than praising training you cannot see.",
         "- Do not restate the finish time or the goal time as a list — those figures are displayed beside this text.",
