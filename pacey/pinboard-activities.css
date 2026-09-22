@@ -68,6 +68,43 @@
 }
 #pacey-content .pacey-activity-header:hover .pacey-activity-chevron { color: var(--pinboard-ink); }
 
+/* --- Coach's read on one run: asked for from the expanded detail, so it sits
+   on the same paper card. The button is centred and a normal secondary button —
+   it picks up the board's hand-cut corners and shadow through #pacey-content
+   .pacey-btn — and the read itself is one paragraph of prose. --- */
+#pacey-content .pacey-activity-insight {
+    margin-top: 0.9rem;
+    /* Centres the button, which is inline-flex. The read below re-aligns left
+       so its lines stay flush with the detail above it. */
+    text-align: center;
+}
+
+#pacey-content .pacey-activity-insight-btn {
+    /* .pacey-btn defaults to width:100% — the action hugs its label instead. */
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: var(--pacey-text-label);
+}
+
+#pacey-content .pacey-activity-insight-loading { padding: 0.2rem 0; }
+
+#pacey-content .pacey-activity-insight-text {
+    margin: 0;
+    text-align: left;
+    font-family: var(--font-fuzzy);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--pinboard-ink);
+}
+
+#pacey-content .pacey-activity-insight-error {
+    margin: 0;
+    text-align: left;
+    font-family: var(--font-fuzzy);
+    font-size: 0.95rem;
+    color: var(--pinboard-muted);
+}
+
 /* --- Night board: the month label sits directly on the dark cork, so it
    needs light ink (same approach the shared theme uses for cork text). --- */
 html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-content .pacey-activity-month-name { color: #e8dfca; }

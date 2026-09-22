@@ -5585,6 +5585,10 @@ document.addEventListener('DOMContentLoaded', function () {
     resolveMetricZoneColors();
 
     function buildActivityItem(a, i) {
+        // Remember the full record by id so the insight button can hand it to
+        // the API without re-querying the DOM (the rendered row keeps only the
+        // figures it displays).
+        if (a.id != null) activityById.set(String(a.id), a);
         const date = a.start_time ? parseDate(a.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '--';
         const pace = a.avg_pace ? formatPace(a.avg_pace) : '--';
         const hr = a.avg_hr ? `${a.avg_hr} bpm` : '--';
@@ -5657,8 +5661,110 @@ document.addEventListener('DOMContentLoaded', function () {
                             <span class="pacey-activity-detail-value">${ascent}</span>
                         </div>
                     </div>
+                    <!-- Coach's read on this run, filled on demand. The slot
+                         holds the button until it is asked for, then the
+                         skeleton, then the read itself. -->
+                    <div class="pacey-activity-insight" data-insight-slot="${a.id != null ? a.id : ''}">${activityInsightSlotHtml(a)}</div>
                 </div>
             </div>`;
+    }
+
+    // =========================================================================
+    // Coach's read on a single activity
+    // =========================================================================
+    //
+    // Asked for rather than generated with the list: the AI call is the
+    // expensive part, and most expanded runs do not warrant one. Results are
+    // cached in memory per activity, so collapsing and re-opening a run — or a
+    // re-render of the list — does not spend another call.
+
+    const activityInsights = new Map();   // activity id -> {status, data}
+    const activityById = new Map();       // activity id -> the activity record
+
+    function activityInsightSlotHtml(a) {
+        const id = a.id != null ? String(a.id) : '';
+        const entry = activityInsights.get(id);
+        if (!entry) {
+            return `<button class="pacey-btn pacey-btn-secondary pacey-activity-insight-btn" type="button" data-activity-insight="${id}">Coach's insight</button>`;
+        }
+        if (entry.status === 'loading') return activityInsightSkeletonHtml();
+        if (entry.status === 'error') {
+            return '<p class="pacey-activity-insight-error">Could not write your insight right now. Try again later.</p>';
+        }
+        return `<p class="pacey-activity-insight-text">${escapeHtml(entry.text)}</p>`;
+    }
+
+    // Three lines in the shape of the read, so the block does not jump when the
+    // text lands.
+    function activityInsightSkeletonHtml() {
+        return '<div class="pacey-activity-insight-loading" aria-hidden="true">'
+            + '<span class="pacey-skeleton-lines">'
+            + '<span class="pacey-skeleton-line"></span>'
+            + '<span class="pacey-skeleton-line"></span>'
+            + '<span class="pacey-skeleton-line pacey-skeleton-line--short"></span>'
+            + '</span></div>';
+    }
+
+    // Ask for the read on one run. The activity travels with the request; the
+    // laps are fetched server-side, where the Garmin client lives, and the
+    // result is cached there per run — so this only costs an AI call the first
+    // time a run is asked about, on any device.
+    async function loadActivityInsight(id) {
+        const key = String(id);
+        const entry = activityInsights.get(key);
+        if (entry && entry.status === 'loading') return;
+        const activity = activityById.get(key);
+        if (!activity) return;
+
+        activityInsights.set(key, { status: 'loading' });
+        renderActivityInsightSlots(key);
+
+        if (window.__demoMode) {
+            setTimeout(() => {
+                activityInsights.set(key, { status: 'ok', text: getMockActivityInsight(activity) });
+                renderActivityInsightSlots(key);
+            }, DEMO_CHART_LOADING_MS);
+            return;
+        }
+
+        try {
+            const resp = await apiCall('POST', 'activities', { activity });
+            const data = await resp.json();
+            activityInsights.set(key, resp.ok && data.insight
+                ? { status: 'ok', text: data.insight }
+                : { status: 'error' });
+        } catch (err) {
+            activityInsights.set(key, { status: 'error' });
+        }
+        renderActivityInsightSlots(key);
+    }
+
+    // One activity can be rendered twice — the overview's short list and the
+    // full page — so every slot for this id is refreshed together.
+    function renderActivityInsightSlots(id) {
+        const activity = activityById.get(String(id));
+        if (!activity) return;
+        document.querySelectorAll(`[data-insight-slot="${String(id)}"]`).forEach(slot => {
+            slot.innerHTML = activityInsightSlotHtml(activity);
+        });
+    }
+
+    // The insight button is re-rendered with the list, so it is handled by
+    // delegation rather than bound per render.
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-activity-insight]');
+        if (btn) loadActivityInsight(btn.getAttribute('data-activity-insight'));
+    });
+
+    // Canned read for demo mode — there is no server to run the coach, and the
+    // mock runs carry no laps to read.
+    function getMockActivityInsight(a) {
+        const pace = a.avg_pace ? formatPace(a.avg_pace) : '--';
+        return `${a.name} — ${a.distance} km at ${pace}/km, and it held together from start to finish rather than drifting late. `
+            + 'Sessions like this are the ones that quietly build the race: you are teaching your legs to hold a steady effort for longer, '
+            + 'which is exactly what the half marathon asks for in its closing kilometres. '
+            + `The number worth noticing is your average heart rate of ${a.avg_hr || '--'} bpm — low for the pace you were running, `
+            + 'which says the aerobic work is landing and this pace is getting cheaper to hold.';
     }
 
     function formatPace(speedMs) {

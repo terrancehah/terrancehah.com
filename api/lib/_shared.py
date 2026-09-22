@@ -545,6 +545,54 @@ def _archive_race_goal(email: str, goal: dict | None):
     _save_race_history(email, history)
 
 
+# --- Activity insight cache (Redis, keyed by email + activity) ---
+#
+# The coach's read on one completed run, written on demand from the activities
+# page. A finished run never changes, so the read can never go stale — there is
+# no invalidation here, just a long TTL so a prolific runner's old reads fall
+# away on their own rather than accumulating one key per run forever.
+
+ACTIVITY_INSIGHT_PREFIX = "race:activity-insight:"
+ACTIVITY_INSIGHT_TTL = 90 * 24 * 3600  # 90 days
+
+
+def _activity_insight_key(email: str, activity_id) -> str:
+    return f"{ACTIVITY_INSIGHT_PREFIX}{email}:{activity_id}"
+
+
+def _save_activity_insight(email: str, activity_id, text: str, generated_at: str = "") -> str:
+    """Store the coach's read on one activity. Returns the generated_at used."""
+    if not email or not activity_id:
+        return ""
+    generated_at = generated_at or datetime.now().isoformat()
+    entry = {"text": text, "generated_at": generated_at}
+    key = _activity_insight_key(email, activity_id)
+    if _redis:
+        _redis.set(key, json.dumps(entry), ex=ACTIVITY_INSIGHT_TTL)
+    else:
+        _local_sessions[key] = entry
+    return generated_at
+
+
+def _get_activity_insight(email: str, activity_id) -> dict | None:
+    """The cached read for one activity, or None if there is not one yet."""
+    if not email or not activity_id:
+        return None
+    key = _activity_insight_key(email, activity_id)
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        try:
+            return json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+    else:
+        return _local_sessions.get(key)
+
+
 # --- Persistent AI radar cache (Redis, keyed by email) ---
 #
 # Stores the full AI response (six dimensions + overall insight) so it can be

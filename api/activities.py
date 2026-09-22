@@ -1,12 +1,16 @@
 """GET /api/activities — Fetch recent running activities from Garmin,
 and (mode=mileage) running activities grouped by week.
+POST /api/activities — Write the coach's read on one completed run.
 
 The weekly-mileage endpoint was merged here so both Garmin-data readers
 share one serverless function; mode=mileage serves the weekly buckets.
+The per-run insight lives here too, beside the list it is asked from.
 """
 
 from fastapi.responses import JSONResponse
 from datetime import datetime, date, timedelta
+from typing import Optional
+from pydantic import BaseModel
 # Add the api/ directory to Python's search path so lib._shared can be found
 # when running as a Vercel serverless function (cwd is project root, not api/)
 import sys, os
@@ -15,6 +19,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_garmin_client, _get_session, _get_cached_garmin_data,
     _slim_activity, _compute_goal_pace_ms, ALLOWED_ACTIVITY_TYPES, RUNNING_TYPES, create_app,
+    _call_ai, _fetch_lap_summaries, _format_finish_time, _format_pace_per_km,
+    _get_activity_insight, _save_activity_insight,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -118,3 +124,136 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0, mode: st
     # Trim to the requested limit after filtering
     slim = slim[:limit]
     return JSONResponse(content={"activities": slim})
+
+
+class ActivityInsightRequest(BaseModel):
+    token: str = ""
+    # One completed run, in the activities list's slim shape. The figures come
+    # from the client because it already holds them; the laps are fetched here.
+    activity: Optional[dict] = None
+
+
+@app.post("/")
+async def activity_insight(body: ActivityInsightRequest):
+    """Write — or return the already written — coach's read on one run.
+
+    The figures arrive from the client (the list already holds them); the laps
+    are fetched here, because the list does not carry them and they are what
+    make a session legible — a blended average hides the reps entirely.
+
+    Cached per activity and per account, so a run is analysed once and then
+    served instantly on any device. A finished run never changes, so the cache
+    needs no invalidation.
+    """
+    sess = _get_session(body.token)
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    race_goal = sess.get("race_goal") if isinstance(sess, dict) else None
+    activity = body.activity or {}
+    activity_id = activity.get("id")
+    if not activity_id:
+        return JSONResponse(status_code=400, content={"error": "Activity required."})
+
+    cached = _get_activity_insight(email, activity_id)
+    if cached and cached.get("text"):
+        return JSONResponse(content={"insight": cached["text"], "cached": True})
+
+    api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})
+
+    goal_pace_ms = _compute_goal_pace_ms(race_goal)
+
+    # Best-effort: a run with no splits still gets a read, just a flatter one.
+    laps = None
+    try:
+        client = _get_garmin_client(body.token)
+        laps = _fetch_lap_summaries(client, activity_id, goal_pace_ms)
+    except Exception as e:
+        print(f"activity-insight lap fetch failed: {e}")
+
+    lines = [
+        "The runner has finished a run. Write the coach's read on it.",
+        "",
+        "THE RACE THEY ARE TRAINING FOR:",
+    ]
+    if race_goal:
+        lines.append(f"- Race: {race_goal.get('race_name') or race_goal.get('purpose') or 'their goal race'}.")
+        if race_goal.get("distance"):
+            lines.append(f"- Distance: {race_goal['distance']} {race_goal.get('distance_unit') or 'km'}.")
+        if race_goal.get("time_target"):
+            lines.append(f"- Target time: {race_goal['time_target']}.")
+        if race_goal.get("race_date"):
+            lines.append(f"- Race date: {race_goal['race_date']}.")
+    else:
+        lines.append("- No race goal set yet.")
+    if goal_pace_ms > 0:
+        lines.append(f"- Goal pace: {_format_pace_per_km(goal_pace_ms)} per km.")
+
+    lines += ["", "THE RUN THEY JUST DID:"]
+    lines.append(f"- Name: {activity.get('name') or 'Run'}.")
+    if activity.get("start_time"):
+        lines.append(f"- Date: {str(activity['start_time'])[:10]}.")
+    if activity.get("run_tag"):
+        lines.append(f"- Classified as: {activity['run_tag']}.")
+    if activity.get("distance"):
+        lines.append(f"- Distance: {activity['distance']} km.")
+    if activity.get("duration"):
+        lines.append(f"- Moving time: {_format_finish_time(activity['duration'])}.")
+    if activity.get("avg_pace"):
+        lines.append(f"- Average pace: {_format_pace_per_km(activity['avg_pace'])} per km.")
+    if activity.get("avg_hr"):
+        lines.append(f"- Average heart rate: {activity['avg_hr']} bpm.")
+    if activity.get("max_hr"):
+        lines.append(f"- Max heart rate: {activity['max_hr']} bpm.")
+    if activity.get("avg_cadence"):
+        lines.append(f"- Average cadence: {round(activity['avg_cadence'])} spm.")
+    if activity.get("elevation_gain"):
+        lines.append(f"- Elevation gain: {activity['elevation_gain']} m.")
+    if activity.get("training_effect"):
+        lines.append(f"- Aerobic training effect: {activity['training_effect']}.")
+
+    if laps and laps.get("laps"):
+        lines += ["", "LAPS (the session's real structure — the average above hides it):"]
+        if laps.get("work_lap_count"):
+            work_pace = _format_pace_per_km(laps["work_avg_pace_ms"]) or "n/a"
+            lines.append(f"- {laps['work_lap_count']} laps at or faster than goal pace, averaging {work_pace} per km.")
+        if laps.get("rest_lap_count"):
+            rest_pace = _format_pace_per_km(laps["rest_avg_pace_ms"]) or "n/a"
+            lines.append(f"- {laps['rest_lap_count']} slower or recovery laps, averaging {rest_pace} per km.")
+        for i, lap in enumerate(laps["laps"][:12], 1):
+            lap_pace = _format_pace_per_km(lap.get("avg_pace_ms")) or "n/a"
+            bits = [f"{round((lap.get('distance_m') or 0) / 1000, 2)} km at {lap_pace}/km"]
+            if lap.get("avg_hr"):
+                bits.append(f"avg HR {lap['avg_hr']}")
+            lines.append(f"  Lap {i}: " + ", ".join(bits) + ".")
+
+    lines += [
+        "",
+        "Write ONE paragraph of 3-5 sentences, in the coach's voice:",
+        "- Open with what this session was and how it went, in plain words.",
+        "- Then say what it brings to the race goal — how it moves them toward the target time.",
+        "- Close on one number worth noticing: either a strength this run shows, or something to "
+        "watch next. Pick whichever matters more and say what it means.",
+        "",
+        "STYLE:",
+        "- Write like a coach talking to the runner afterwards, not a training report.",
+        "- Plain runner words. No jargon — no 'threshold', 'VO₂max', 'lactate', 'aerobic', 'cadence drift'.",
+        "- Cite real numbers from the session above and never invent data. At most one number per sentence.",
+        "- Judge the numbers against the race goal and its goal pace, not against population averages.",
+        "- If there are no laps, work from the summary figures and say nothing about splits.",
+        "- Do not mention missing data, and do not comment on the absence of a race goal.",
+        "",
+        'Return JSON: {"insight": "<the paragraph>"}',
+    ]
+
+    try:
+        parsed = await _call_ai("\n".join(lines), api_key)
+        insight = (parsed.get("insight") or "").strip()
+    except Exception as e:
+        print(f"activity-insight failed: {e}")
+        insight = ""
+    if not insight:
+        return JSONResponse(status_code=500, content={"error": "Could not write the insight."})
+
+    _save_activity_insight(email, activity_id, insight)
+    return JSONResponse(content={"insight": insight, "cached": False})
