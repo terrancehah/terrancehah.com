@@ -1214,11 +1214,12 @@ def _race_readiness_snapshot(email: str) -> dict | None:
     """Copy the pre-race six-area analysis into a form the goal can carry.
 
     The analysis lives in `race:ai-cache:{email}`, which is deleted whenever the
-    goal changes and expires after 7 days. Nothing regenerates it after the race
-    — the six areas score fitness toward a race that has already happened — so
-    without this copy the runner could not look back at what the numbers said
-    before they ran. Returns None when there is nothing to freeze, which leaves
-    any snapshot already taken in place rather than overwriting it with nothing.
+    goal changes and is replaced once a newer run invalidates it. Nothing
+    regenerates it after the race — the six areas score fitness toward a race
+    that has already happened — so without this copy the runner could not look
+    back at what the numbers said before they ran. Returns None when there is
+    nothing to freeze, which leaves any snapshot already taken in place rather
+    than overwriting it with nothing.
     """
     if not email:
         return None

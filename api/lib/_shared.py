@@ -548,12 +548,12 @@ def _archive_race_goal(email: str, goal: dict | None):
 # --- Activity insight cache (Redis, keyed by email + activity) ---
 #
 # The coach's read on one completed run, written on demand from the activities
-# page. A finished run never changes, so the read can never go stale — there is
-# no invalidation here, just a long TTL so a prolific runner's old reads fall
-# away on their own rather than accumulating one key per run forever.
+# page. A finished run never changes, so the read can never go stale and there is
+# nothing to invalidate — no TTL, so a runner who steps away for months still
+# finds their reads waiting. This is the one store that grows with usage rather
+# than with users (a key per run), which is the price of that promise.
 
 ACTIVITY_INSIGHT_PREFIX = "race:activity-insight:"
-ACTIVITY_INSIGHT_TTL = 90 * 24 * 3600  # 90 days
 
 
 def _activity_insight_key(email: str, activity_id) -> str:
@@ -568,7 +568,7 @@ def _save_activity_insight(email: str, activity_id, text: str, generated_at: str
     entry = {"text": text, "generated_at": generated_at}
     key = _activity_insight_key(email, activity_id)
     if _redis:
-        _redis.set(key, json.dumps(entry), ex=ACTIVITY_INSIGHT_TTL)
+        _redis.set(key, json.dumps(entry))
     else:
         _local_sessions[key] = entry
     return generated_at
@@ -597,7 +597,10 @@ def _get_activity_insight(email: str, activity_id) -> dict | None:
 #
 # Stores the full AI response (six dimensions + overall insight) so it can be
 # shared across devices and sessions for the same user. Invalidated when new
-# activities are recorded or after 7 days (whichever comes first).
+# activities are recorded — the reader compares the stored latest_activity_date
+# against current Garmin data, so a read is always against the latest runs. No
+# TTL: with that check in place the entry cannot go stale, and a runner who steps
+# away for months finds their readiness intact rather than regenerated.
 #
 # The cache entry includes:
 #   - data: the full AI response (dimensions + overall)
@@ -606,7 +609,6 @@ def _get_activity_insight(email: str, activity_id) -> dict | None:
 #     generation time — used to detect new runs and invalidate the cache
 
 AI_CACHE_PREFIX = "race:ai-cache:"
-AI_CACHE_TTL = 7 * 24 * 3600  # 7 days — hard fallback expiry
 
 
 def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str = "",
@@ -614,8 +616,8 @@ def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str 
     """Store AI radar results keyed by email so they sync across devices.
 
     Called by ai-radar.py after a successful AI call. Stores the full response
-    along with metadata for activity-based invalidation. The 7-day TTL is a
-    safety net — the activity-date check is the primary invalidation mechanism.
+    along with metadata for activity-based invalidation — that check is what
+    keeps the entry honest, so there is no TTL.
 
     Returns the generated_at timestamp stored with the entry (the caller passes
     it in, or it defaults to now) so the same value can be surfaced to the
@@ -631,7 +633,7 @@ def _save_persistent_ai_cache(email: str, data: dict, latest_activity_date: str 
         "latest_activity_date": latest_activity_date,
     }
     if _redis:
-        _redis.set(key, json.dumps(entry), ex=AI_CACHE_TTL)
+        _redis.set(key, json.dumps(entry))
     else:
         _local_sessions[key] = entry
     return generated_at
@@ -677,7 +679,10 @@ def _delete_persistent_ai_cache(email: str):
 #
 # Stores the full coach plan so the same plan appears on every device. The
 # plan is forward-looking and week-specific, so invalidation is based on the
-# plan's week_start date — a new week means a new plan.
+# plan's week_start date — a new week means a new plan. That check is
+# self-contained (it does not depend on another cache), so there is no TTL: a
+# runner who steps away for months keeps their plan rather than paying to have
+# it rebuilt.
 #
 # The cache entry includes:
 #   - data: the full coach plan response ({ history, plan })
@@ -687,7 +692,6 @@ def _delete_persistent_ai_cache(email: str):
 #   - race_date: the race date the plan targets (invalidates when it changes)
 
 COACH_CACHE_PREFIX = "race:coach-cache:"
-COACH_CACHE_TTL = 7 * 24 * 3600  # 7 days — plans regenerate weekly
 
 
 # --- Persistent fitness snapshot (Redis, keyed by email) ---
@@ -763,9 +767,10 @@ def _get_fitness_snapshot(email: str) -> dict | None:
 # Keyed by email rather than session token so a course added on one device is
 # available on the runner's other devices, matching the fitness snapshot.
 COURSE_CACHE_PREFIX = "race:course:"
-# 90 days — a race course does not change; it only needs to outlive the training
-# block it belongs to. The frontend clears it explicitly on removal.
-COURSE_CACHE_TTL = 90 * 24 * 3600
+# No TTL — a race course does not change, and it is the runner's own upload: the
+# GPX is parsed in the browser and never sent anywhere, so a course lost to
+# expiry could only be restored by finding and re-uploading the file. The
+# frontend clears it explicitly when the runner removes it.
 
 # How much hillier than the runner's own training a course must be before the
 # coach mentions the gap. The comparison is deliberately one-directional: a
@@ -797,7 +802,7 @@ def _save_persistent_course(email: str, course: dict | None):
             _local_sessions.pop(key, None)
         return
     if _redis:
-        _redis.set(key, json.dumps(course), ex=COURSE_CACHE_TTL)
+        _redis.set(key, json.dumps(course))
     else:
         _local_sessions[key] = course
 
@@ -1014,9 +1019,8 @@ def _course_prompt_block(course: dict | None, training_gain_per_km: float | None
 # The coach's read on the uploaded race course. Cached so the card does not
 # re-run the model on every page load, and keyed by a fingerprint of the course
 # record (its savedAt) so re-uploading a course regenerates the read rather
-# than serving the old one.
+# than serving the old one. That check is self-contained, so there is no TTL.
 COURSE_INSIGHT_PREFIX = "race:course-insight:"
-COURSE_INSIGHT_TTL = 90 * 24 * 3600
 
 
 def _save_course_insight(email: str, insight: str, fingerprint: str):
@@ -1030,7 +1034,7 @@ def _save_course_insight(email: str, insight: str, fingerprint: str):
         "generated_at": datetime.now().isoformat(),
     }
     if _redis:
-        _redis.set(key, json.dumps(entry), ex=COURSE_INSIGHT_TTL)
+        _redis.set(key, json.dumps(entry))
     else:
         _local_sessions[key] = entry
 
@@ -1073,7 +1077,7 @@ def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", p
         "preferences": preferences or {},
     }
     if _redis:
-        _redis.set(key, json.dumps(entry), ex=COACH_CACHE_TTL)
+        _redis.set(key, json.dumps(entry))
     else:
         _local_sessions[key] = entry
 

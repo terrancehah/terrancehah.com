@@ -154,9 +154,11 @@ async def ai_radar(token: str = "", force: str = ""):
     # If we have a cached AI response for this user, check whether any new
     # activities have been recorded since the cache was generated. If the
     # Garmin data cache is available, use it to get the latest activity date
-    # without making a separate Garmin call. If no new activities and the
-    # cache is under 7 days old, return it immediately — saves an expensive
-    # AI model call. Skip the cache entirely when force=1 (manual refresh).
+    # without making a separate Garmin call. If it confirms there are no newer
+    # runs, return the cache immediately — saves an expensive AI model call.
+    # The entry has no TTL, so a cold Garmin cache must not be read as "nothing
+    # new"; see the guard below. Skip the cache entirely when force=1 (manual
+    # refresh).
     forceRefresh = force in ("1", "true", "yes")
     if email and not forceRefresh:
         persistent = _get_persistent_ai_cache(email)
@@ -170,11 +172,14 @@ async def ai_radar(token: str = "", force: str = ""):
                     act_date = (act.get("start_time") or act.get("date") or "")[:10]
                     if act_date and act_date > current_latest:
                         current_latest = act_date
-            # If no new activities (or we can't tell because the Garmin cache
-            # is empty), return the cached AI response — normalized so older
-            # entries missing topStrength/topGap or extra dimensions still
+            # Serve the cached read only when we can positively confirm there
+            # are no newer runs. An empty Garmin cache means we cannot tell, so
+            # it falls through and regenerates: the stored entry has no TTL, and
+            # serving months-old readiness on the strength of a cold cache is
+            # worse than spending one extra AI call. The result is normalized so
+            # older entries missing topStrength/topGap or extra dimensions still
             # match the client shape.
-            if not current_latest or current_latest <= cached_latest:
+            if current_latest and current_latest <= cached_latest:
                 content = _normalize_ai_result(persistent.get("data") or {})
                 # Surface when this analysis was generated so the client can
                 # show a "last updated" line for the readiness data.
@@ -453,8 +458,8 @@ OUTPUT FORMAT:
         # Save to the persistent email-keyed cache so the same insights appear
         # on other devices. Record the latest activity date so the cache can be
         # invalidated when new runs are synced. Do not persist truncated
-        # responses (e.g. a single Lactate Threshold pillar) or they stick
-        # for up to 7 days.
+        # responses (e.g. a single Lactate Threshold pillar) — the entry has no
+        # TTL, so a bad one would stick until the next run invalidates it.
         latest_activity_date = ""
         for act in activities_data:
             act_date = (act.get("start_time") or act.get("date") or "")[:10]
