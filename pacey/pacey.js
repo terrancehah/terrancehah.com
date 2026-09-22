@@ -935,9 +935,12 @@ document.addEventListener('DOMContentLoaded', function () {
             weekly_distance: 38, weekly_duration: 3.2, weekly_runs: 5,
             total_activities: 187,
             device_name: 'Forerunner 165',
-            // Today's date in ISO format — demo mode always shows "today"
+            // Today's date in ISO format — the label's fallback when no sync time
             metrics_date: new Date().toISOString().slice(0, 10),
-            // Current timestamp — simulates the server fetch time
+            // When the watch last uploaded to Garmin — what the vitals label
+            // actually shows. An hour ago reads like a freshly synced watch.
+            synced_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+            // Pacey's own fetch time — diagnostics only, never shown
             fetched_at: new Date().toISOString(),
         };
     }
@@ -4503,40 +4506,50 @@ document.addEventListener('DOMContentLoaded', function () {
         return zone ? zone.color : null;
     }
 
+    // The vitals label: when the watch last handed its data to Garmin, from the
+    // upload time the server read off the device. Falls back to the date the
+    // newest reading is from — a date only, never Pacey's fetch time — and to
+    // nothing at all when neither is known.
+    function garminSyncLabel(m) {
+        const synced = m.synced_at ? new Date(m.synced_at) : null;
+        if (synced && !isNaN(synced.getTime())) {
+            const timeStr = synced.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            return `Last Garmin sync: ${relativeDayLabel(synced)}, ${timeStr}`;
+        }
+        if (m.metrics_date) {
+            const dataDate = new Date(m.metrics_date + 'T00:00:00');
+            if (!isNaN(dataDate.getTime())) return `Last Garmin sync: ${relativeDayLabel(dataDate)}`;
+        }
+        return '';
+    }
+
+    // "today" / "yesterday" / "Aug 15" — the wording the vitals label uses.
+    function relativeDayLabel(d) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const that = new Date(d);
+        that.setHours(0, 0, 0, 0);
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (that.getTime() === today.getTime()) return 'today';
+        if (that.getTime() === yesterday.getTime()) return 'yesterday';
+        return that.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
     function renderMetrics(m) {
         // Store HRV status for color-coding — Garmin uses a personal baseline
         // status (BALANCED/UNBALANCED/LOW/POOR) rather than absolute ms ranges
         lastHrvStatus = m.hrv_status || null;
 
-        // Display "Last Garmin sync" inline with the section title, aligned right.
-        // Uses fetched_at (server timestamp) for the time, and metrics_date
-        // to decide whether to show "today", "yesterday", or the calendar date.
-        // "Sync" (not "updated") makes it clear the timestamp reflects when
-        // Garmin last synced the watch — not when our site fetched the data.
-        // Format: "Last Garmin sync: today, 3:45 PM" or
-        //         "Last Garmin sync: yesterday, 9:30 AM" or
-        //         "Last Garmin sync: Aug 15, 9:30 AM"
+        // "Last Garmin sync" — when the WATCH last uploaded to Garmin, never
+        // when Pacey fetched it. Our own check time says nothing here: if the
+        // watch has not synced, checking again returns the same numbers.
+        // Format: "Last Garmin sync: today, 3:45 PM" or "Last Garmin sync: yesterday"
         const metricsDateEl = $('#pacey-metrics-date');
-        if (metricsDateEl && m.metrics_date) {
-            const dataDate = new Date(m.metrics_date + 'T00:00:00');
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const isToday = dataDate.getTime() === today.getTime();
-            const isYesterday = dataDate.getTime() === yesterday.getTime();
-            // Use fetched_at for the time component; fall back to metrics_date if missing
-            const fetchedAt = m.fetched_at ? new Date(m.fetched_at) : dataDate;
-            const timeStr = fetchedAt.toLocaleTimeString('en-US', {
-                hour: 'numeric', minute: '2-digit'
-            });
-            const dateStr = isToday
-                ? 'today'
-                : isYesterday
-                ? 'yesterday'
-                : dataDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            metricsDateEl.textContent = `Last Garmin sync: ${dateStr}, ${timeStr}`;
-            metricsDateEl.hidden = false;
+        if (metricsDateEl) {
+            const label = garminSyncLabel(m);
+            metricsDateEl.textContent = label;
+            metricsDateEl.hidden = !label;
         }
 
         // Build tile data — values are color-coded based on Garmin's official

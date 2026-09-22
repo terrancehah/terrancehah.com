@@ -21,7 +21,7 @@ import os
 import json
 import uuid
 import traceback
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from typing import Dict, Optional
 from pydantic import BaseModel
 from fastapi import FastAPI, HTTPException
@@ -1114,6 +1114,40 @@ def _delete_persistent_coach_cache(email: str):
         _redis.delete(key)
     else:
         _local_sessions.pop(key, None)
+
+
+def _garmin_last_sync(client) -> str | None:
+    """When the watch last uploaded to Garmin, as a UTC ISO string.
+
+    This is the only meaningful "sync" time for the vitals label: it is when the
+    watch handed its data over to Garmin. Pacey's own fetch time says nothing
+    about that — if the watch has not synced, checking again returns the same
+    numbers, so showing our check time would be misleading.
+
+    Reads `get_device_last_used()`, which hits
+    `/device-service/deviceservice/mylastused` and returns a flat object whose
+    `lastUsedDeviceUploadTime` is epoch milliseconds. Verified against three
+    independent clients, not assumed: cyberjunky/python-garminconnect (the
+    endpoint), arpanghosh8453/garmin-grafana (which reads that exact key from
+    this same method and converts ms with `tz=UTC`), and abrander/garmin-connect
+    (the same field over the sibling `userlastused` route).
+
+    Returns None when the account exposes no upload time — e.g. no paired device
+    — so the caller can fall back rather than state a time it does not have.
+    """
+    try:
+        info = client.get_device_last_used() or {}
+    except Exception:
+        return None
+    if not isinstance(info, dict):
+        return None
+    ms = info.get("lastUsedDeviceUploadTime")
+    try:
+        # Timezone-aware so the browser converts it to the runner's local time
+        # rather than reading a naive stamp as local.
+        return datetime.fromtimestamp(int(ms) / 1000, tz=timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError, OverflowError):
+        return None
 
 
 def _fetch_physio_trends(client, days: int = 60) -> dict:

@@ -13,6 +13,7 @@ from lib._shared import (
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
     _get_cached_garmin_data, _compute_goal_pace_ms, _slim_activity,
     _compute_weekly_mileage, _save_fitness_snapshot, ALLOWED_ACTIVITY_TYPES,
+    _garmin_last_sync,
 )
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
@@ -43,11 +44,20 @@ async def metrics(token: str = ""):
         "sleep_score": None, "stress_level": None,
         "weekly_distance": 0, "weekly_duration": 0, "weekly_runs": 0,
         "total_activities": 0, "device_name": "",
-        # Date of the most recent data across all metrics — used by the
-        # frontend to show "Last updated: XX date" when data is from a
-        # previous day rather than today
+        # Date of the most recent data across all metrics. Fallback for the
+        # vitals label when Garmin exposes no device upload time.
         "metrics_date": None,
+        # When the watch last uploaded to Garmin (ISO, UTC) — the vitals label's
+        # primary source. Read up front, below.
+        "synced_at": None,
     }
+
+    # When the watch last uploaded to Garmin — the only meaningful "sync" time
+    # for the vitals label. Deliberately not our own fetch time: if the watch has
+    # not synced, checking again returns the same numbers, so when Pacey checked
+    # says nothing about how fresh the readings are. Read before the heavy scans
+    # below so a rate-limited metric call cannot rob the label of its value.
+    metrics["synced_at"] = _garmin_last_sync(client)
 
     # VO2max — scans the lookback window (newest → oldest), shows the latest value found
     try:
@@ -311,9 +321,9 @@ async def metrics(token: str = ""):
         # fall back to fetching directly from Garmin
         pass
 
-    # Record the server timestamp when the data was fetched — tells the
-    # frontend how fresh the data is. Combined with metrics_date, the UI
-    # can show "Last updated: today, 3:45 PM" or "Last updated: Aug 15, 9:30 AM"
+    # Pacey's own fetch time. Kept for diagnostics only — it answers "did the
+    # check run", not "when did Garmin last hear from the watch", and must never
+    # be shown as the sync time.
     metrics["fetched_at"] = datetime.now().isoformat()
 
     return JSONResponse(content={"metrics": metrics})

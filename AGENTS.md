@@ -22,6 +22,8 @@ Pacey lives in `pacey/` (served at `/pacey`; the old `/projects/pacey` path 301s
 
 Consensus: marathon pre-race companion. Diagnosis is six-area fitness vs the typed goal time. Plan is the full remaining block to race day (not one week). No in-run coaching. Do not treat unofficial Garmin email+password as the long-term auth path.
 
+**"Last Garmin sync" means the watch, not us.** On the Today's Metrics card, that label is when the **watch last uploaded to Garmin** (from `get_device_last_used` → `lastUsedDeviceUploadTime`, surfaced as `synced_at`), never when Pacey fetched the data. Pacey's own fetch time (`fetched_at`) says nothing to the runner — if the watch has not synced, checking again returns the same numbers. Do not show `fetched_at` in the UI.
+
 ## Design
 
 **Read `.impeccable.md` (repo root) before any UI change.** It is the design context: users, brand personality, aesthetic direction, design principles, colour system, dark mode, motion, spacing, accessibility, loading and empty states.
