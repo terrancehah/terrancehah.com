@@ -236,6 +236,13 @@
         z-index: 4;
     }
 
+    /* The race recap sheet is taped for the same reason, plus one of its own:
+       a pushpin is a small round mark, and this sheet already carries a lot of
+       small round marks — the map's start and finish dots, the verdict — so a
+       pin reads as another datum rather than as the thing holding the sheet up.
+       The strip itself is the shared one, positioned below. */
+    #pacey-content .pacey-race-recap::before { content: none; }
+
     /* Six-area cards: the coloured dot beside the title is dropped — the
        score's colour already carries the status */
     #pacey-content .pacey-pillar-dot { display: none; }
@@ -248,6 +255,7 @@
     #pacey-content .pacey-chart-card::after,
     #pacey-content .pacey-chart-card::before,
     #pacey-content .pacey-race-detail::after,
+    #pacey-content .pacey-race-recap::after,
     #pacey-content .pacey-content-header::before,
     #pacey-content .pacey-content-header::after {
         content: "";
@@ -273,6 +281,15 @@
        below it carries a centred strip, so giving this one a corner keeps the
        two from reading as a repeat of the same gesture. */
     #pacey-content .pacey-race-detail::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }
+
+    /* Race recap sheet — one strip across the top centre, where the pushpin
+       used to be. Same gesture as the radar card, so a sheet on this page is
+       held down the same way whether it is showing the analysis or the recap. */
+    #pacey-content .pacey-race-recap::after {
+        top: -0.7rem;
+        left: 50%;
+        transform: translateX(-50%) rotate(-2.5deg);
+    }
 
     /* Pace card — two horizontals on opposite corners (top-left + bottom-right) */
     #pacey-content .pacey-chart-card--equal:nth-child(1)::after { top: -0.65rem; left: 1.4rem; transform: rotate(-4deg); }

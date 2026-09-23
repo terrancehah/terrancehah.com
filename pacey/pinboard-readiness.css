@@ -580,10 +580,12 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     flex-direction: column;
     gap: var(--pacey-space-md);
     font-family: var(--font-fuzzy);
-    /* The paper, pin and tilt come from the board's shared card treatment in
-       pinboard-theme.css; this is the sheet's own breathing room, with extra
-       at the top so the pushpin clears the headline. */
-    padding: clamp(1.5rem, 2.6vw, 2rem) clamp(1rem, 1.8vw, 1.35rem) clamp(1rem, 1.8vw, 1.35rem);
+    /* The paper, tape and tilt come from the board's shared card treatment in
+       pinboard-theme.css; this is the sheet's own breathing room. The top is
+       tighter than it was when a pushpin sat inside the sheet — the tape hangs
+       over the top edge, so the content only has to clear the strip's lower
+       half rather than a whole pin. */
+    padding: clamp(1.1rem, 2vw, 1.45rem) clamp(1rem, 1.8vw, 1.35rem) clamp(1rem, 1.8vw, 1.35rem);
 }
 
 /* The top row: which race it was on the left, the course preview in the
@@ -644,14 +646,34 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     gap: 0.4rem;
 }
 
-/* Each group is a panel in its own right: a slightly darker sheet, hand-cut
-   corners and a soft edge, so the two blocks are separated by shape rather than
-   by a gap the eye can miss. */
+/* Each group is a post-it in its own right, not a panel: the goal and the
+   result are two notes stuck on the sheet, which is what keeps eight figures
+   reading as two answers rather than one list. Flat colour, squared-off
+   corners, and the shaded band along the bottom edge that reads as the sheet
+   curling up off the board. */
 #pacey-content .pacey-race-recap-group {
-    padding: 0.7rem 0.85rem 0.85rem;
-    background-color: var(--pinboard-paper-2);
-    border: 0.0625rem solid var(--pinboard-line);
-    border-radius: 3px 10px 4px 11px / 11px 4px 10px 3px;
+    position: relative;
+    padding: 0.8rem 0.9rem 0.9rem;
+    background-color: var(--pinboard-note-yellow);
+    background-image: none;
+    border: none;
+    border-radius: 2px;
+    box-shadow:
+        0 1px 1px rgba(0, 0, 0, 0.14),
+        0 0.5rem 0.75rem rgba(0, 0, 0, 0.22),
+        inset 0 -1.2rem 1.2rem -1.2rem rgba(0, 0, 0, 0.12);
+    /* Laid down by hand rather than squared up: the two notes lean away from
+       each other, so the pair reads as two sheets stuck on rather than one
+       panel split down the middle. */
+    transform: rotate(var(--recap-note-tilt, -0.7deg));
+}
+
+/* The result note leans the other way, and is a different colour: the two are
+   answering different questions, and telling them apart by colour means the
+   pair reads as two sheets before a single figure is read. */
+#pacey-content .pacey-race-recap-figures > .pacey-race-recap-group:nth-child(2) {
+    --recap-note-tilt: 0.8deg;
+    background-color: var(--pinboard-note-blue);
 }
 
 #pacey-content .pacey-race-recap-group-label {

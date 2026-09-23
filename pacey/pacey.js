@@ -4481,7 +4481,7 @@ document.addEventListener('DOMContentLoaded', function () {
             { label: 'Excellent', max: table.Superior, color: '--pacey-accent-green' },
             { label: 'Superior', max: 100, color: '--pacey-accent-purple' },
         ];
-        return zones.map(z => ({ ...z, color: cssVar(z.color, METRIC_ZONE_FALLBACKS[z.color] || z.color) }));
+        return zones.map(z => ({ ...z, color: metricZoneColor(z.color) }));
     }
 
     // Get the zone color for a metric value — used to color-code the
@@ -5563,34 +5563,42 @@ document.addEventListener('DOMContentLoaded', function () {
         'Ruck': cssVar('--pacey-run-cross-train', '#8a8a8a'),
     };
 
-    // Metric zone colours — METRIC_META defines zones with CSS token names
-    // (--pacey-accent-*) instead of hex so the gauges and card value colours
-    // follow the active theme, same as RUN_TAG_COLOR and the radar chart.
-    // Fallbacks are the light-theme hex values; resolveMetricZoneColors()
-    // patches the zone colours in place and is re-run on theme toggle.
-    const METRIC_ZONE_FALLBACKS = {
-        '--pacey-accent-red': '#c44b4b',
-        '--pacey-accent-amber': '#d4a017',
-        '--pacey-accent-green': '#3f7b4f',
-        '--pacey-accent-purple': '#9b6dd0',
-        '--pacey-accent-grey': '#999999',
-        '--pacey-blue': '#457b9d',
+    // Metric zone colours — the vivid scale that the metric values, the popup
+    // gauges and the zone chips all read in.
+    //
+    // Deliberately NOT the app's --pacey-accent-* tokens. Those are mixed to sit
+    // quietly on paper, which is the opposite of what a score wants: at 48-62%
+    // saturation they read as drab, and on the metric post-its two of them were
+    // barely legible at all — amber came out at 1.6:1 and grey at 1.9:1. These
+    // are the same hues pushed to 80-94% saturation, so a score reads at a
+    // glance rather than needing to be picked out.
+    //
+    // Fixed hexes rather than theme-resolved: the metric post-its stay light in
+    // both themes, so these marks are always dark-on-light and never need to
+    // adapt. Every one of them clears 3:1 against the darkest post-it variant,
+    // which is the AA bar for text at display size.
+    const METRIC_ZONE_COLORS = {
+        '--pacey-accent-red': '#c81e11',
+        '--pacey-accent-amber': '#c2410c',
+        '--pacey-accent-green': '#1a7f37',
+        '--pacey-accent-purple': '#c026d3',
+        '--pacey-accent-grey': '#6b7280',
+        '--pacey-blue': '#0b74c4',
     };
+
+    // One zone's token name to its colour. Idempotent — a colour that is already
+    // a hex passes straight through, so this is safe to re-run.
+    const metricZoneColor = (token) =>
+        (typeof token === 'string' && token.startsWith('--'))
+            ? (METRIC_ZONE_COLORS[token] || token)
+            : token;
+
     const resolveMetricZoneColors = () => {
-        // cssVar now resolves against the pinboard paper context, so the metric
-        // marks stay dark-on-light even in dark mode (the post-its stay light).
         Object.values(METRIC_META).forEach(meta => {
-            (meta.zones || []).forEach(zone => {
-                if (typeof zone.color === 'string' && zone.color.startsWith('--')) {
-                    zone.color = cssVar(zone.color, METRIC_ZONE_FALLBACKS[zone.color] || zone.color);
-                }
-            });
+            (meta.zones || []).forEach(zone => { zone.color = metricZoneColor(zone.color); });
             if (meta.statusColors) {
                 Object.keys(meta.statusColors).forEach(key => {
-                    const color = meta.statusColors[key];
-                    if (typeof color === 'string' && color.startsWith('--')) {
-                        meta.statusColors[key] = cssVar(color, METRIC_ZONE_FALLBACKS[color] || color);
-                    }
+                    meta.statusColors[key] = metricZoneColor(meta.statusColors[key]);
                 });
             }
         });
