@@ -963,12 +963,12 @@ document.addEventListener('DOMContentLoaded', function () {
     function getMockPillars() {
         return {
             dimensions: [
-                { name: 'Lactate Threshold', score: 6, summary: 'You can hold a comfortably hard pace for short blocks, but you have not yet stretched that effort to race distance. This is a real limiter for your goal — the question is whether you can stay at race effort without fading over 21km. Targeted work here will make the biggest difference on race day.', strengths: 'You have a foundation of threshold work to build on, which means your body knows what race effort feels like. Your 3x2km repeat session at 5:00/km shows you can hold a gear faster than race pace for short blocks. That is a useful starting point for extending the duration.', gaps: 'The thing to fix is simple — your threshold blocks are too short to confirm you can hold goal pace under fatigue. A 2km repeat at 5:00/km is faster than race pace but only lasts about 10 minutes. Add one session of 3x3km at 6:00/km each week so your body learns to hold race effort for longer stretches.' },
-                { name: 'Aerobic Endurance', score: 7, summary: 'Your weekly volume and long-run distance are where they need to be for a half marathon. You are keeping your easy days genuinely easy, which is building the base without overcooking it. You are on track — a small volume bump in the final weeks would seal it.', strengths: 'Your aerobic base is solid enough to carry you through race day. You are running 35km per week with long runs reaching 21km, and most of your easy running sits at 6:40/km in an easy zone — that is good discipline. The consistent 4 to 5 runs per week tells me your body is absorbing the load well.', gaps: 'One small push would make you race-ready — your longest run matches race distance but has not gone past it. A single 22 to 24km long run in the next few weeks would give you that extra buffer. Bumping weekly volume to around 40km would also help without adding much risk.' },
-                { name: 'Running Economy', score: 6, summary: 'Your cadence is steady and your easy-day pacing is consistent, but you have not tested your efficiency at goal race pace enough. You are missing the small neuromuscular work that makes race pace feel cheaper. This is a moderate gap that a few strides would fix quickly.', strengths: 'Your form is stable and efficient at the paces you run most often. Cadence sits around 168 to 172 spm across your easy and long runs, which is a good range for your pace. You are not wasting energy bouncing between strides, and that consistency matters over 21km.', gaps: 'The missing piece is neuromuscular sharpness at race pace — most of your runs are either faster tempo work or slower easy efforts. You have no strides or drills in your recent history. Add 4 to 6x100m strides after two easy runs per week to make 6:10/km feel lighter on race day.' },
-                { name: 'Strength / Durability', score: 6, summary: 'Your training frequency is consistent, but you have no dedicated strength work or hill sessions to back it up. This is the kind of gap that does not show up until the late stages of a race, when your legs start to lose shape. Sorting this out now will keep you strong through the final 5km.', strengths: 'Your body is handling the running load well, which is the first box to tick. You are running 4 to 5 times a week with no gaps in frequency, and your trail runs add some elevation variety — up to 120m of gain in a session. That gives you a reasonable base of durability to build on.', gaps: 'The single most useful thing you can add is a weekly strength session — there is nothing in your history beyond running. Weak hips and glutes are the most common reason half marathoners fade late. Add one 20-minute session of single-leg squats, calf raises, and core holds each week to keep your form intact past 15km.' },
-                { name: 'VO₂max / Speed', score: 7, summary: 'You have a useful speed reserve above your goal pace, and your aerobic capacity supports the race. The concern is that your high-intensity work is too sparse to hold onto it. Keep the stimulus weekly and you will arrive on race day with enough in the tank.', strengths: 'Your raw aerobic capacity gives you a comfortable cushion above race pace. Your VO2max of 52 is solid for your age, and your 400m intervals at 4:40/km show you can access a gear well faster than 6:10/km. That gap between your interval pace and goal pace is exactly what you want.', gaps: 'The risk is not a lack of speed — it is that you are not visiting it often enough. Your interval sessions show up only once or twice a month, and without weekly stimulus your VO2max will drift down. Add one short interval session per week, even just 6x400m, to keep that speed reserve locked in.' },
-                { name: 'Fatigue Resistance', score: 6, summary: 'You can train back-to-back days without breaking down, but your pace drops off in the late stages of long runs. That fade is the kind of thing that turns a 2:10 into a 2:15 on race day. The good news is this responds quickly to targeted late-run pace work.', strengths: 'You bounce back the next day well, which tells me your body handles consecutive training stimuli. The day after a tempo session you are still running your easy run at the right pace, not grinding through it. That hard-easy pattern is building real resistance.', gaps: 'The thing to fix is your late-run pace — you are dropping off 8 to 12 percent in the final third of long runs. For a 2:10:00 target you need to hold 6:10/km all the way through. Add one negative-split long run per week where you run the final 5km at goal pace to train your legs to finish strong.' },
+                { name: 'Lactate Threshold', score: 6, summary: 'Your threshold blocks are too short to prove you can hold race effort for 21km. This is your biggest limiter.', strengths: 'You have a foundation of threshold work to build on, which means your body knows what race effort feels like. Your 3x2km repeat session at 5:00/km shows you can hold a gear faster than race pace for short blocks. That is a useful starting point for extending the duration.', gaps: 'The thing to fix is simple — your threshold blocks are too short to confirm you can hold goal pace under fatigue. A 2km repeat at 5:00/km is faster than race pace but only lasts about 10 minutes. Holding 6:10/km for 21km is a different demand entirely, and it is the one your race will actually make. This is the gap that costs you the most time on race day.' },
+                { name: 'Aerobic Endurance', score: 7, summary: 'Volume and long-run distance are where a half marathon needs them. On track — a small bump in the final weeks would seal it.', strengths: 'Your aerobic base is solid enough to carry you through race day. You are running 35km per week with long runs reaching 21km, and most of your easy running sits at 6:40/km in an easy zone — that is good discipline. The consistent 4 to 5 runs per week tells me your body is absorbing the load well.', gaps: 'One small push would make you race-ready — your longest run matches race distance but has not gone past it. Twenty-one kilometres on fresh legs in training is not the same as twenty-one on race day, where a taper has you rested but the pace is faster and the last 5km arrives with nothing left to draw on. Going past race distance is less about fitness than about removing the unknown.' },
+                { name: 'Running Economy', score: 6, summary: 'Steady cadence, but no work at goal race pace. Race pace costs you more than it should.', strengths: 'Your form is stable and efficient at the paces you run most often. Cadence sits around 168 to 172 spm across your easy and long runs, which is a good range for your pace. You are not wasting energy bouncing between strides, and that consistency matters over 21km.', gaps: 'The missing piece is neuromuscular sharpness at race pace — most of your runs are either faster tempo work or slower easy efforts. You have no strides or drills in your recent history, so nothing has taught your legs to turn over efficiently at 6:10/km. That inefficiency shows up as a higher cost per kilometre, and you pay it on top of the aerobic work rather than instead of it.' },
+                { name: 'Strength / Durability', score: 6, summary: 'Consistent frequency, no strength work behind it. That gap only shows late, when your legs lose shape over the final 5km.', strengths: 'Your body is handling the running load well, which is the first box to tick. You are running 4 to 5 times a week with no gaps in frequency, and your trail runs add some elevation variety — up to 120m of gain in a session. That gives you a reasonable base of durability to build on.', gaps: 'The gap here is not the running — it is everything around it. There is nothing in your history beyond running, and weak hips and glutes are the most common reason half marathoners fade late: when they give out, your form goes with them and the pace drops no matter how fit the engine is. It is the kind of gap that stays invisible until the final 5km, when everything else has already been spent.' },
+                { name: 'VO₂max / Speed', score: 7, summary: 'Useful speed reserve above goal pace, but you visit it too rarely to hold on to it.', strengths: 'Your raw aerobic capacity gives you a comfortable cushion above race pace. Your VO2max of 52 is solid for your age, and your 400m intervals at 4:40/km show you can access a gear well faster than 6:10/km. That gap between your interval pace and goal pace is exactly what you want.', gaps: 'The risk is not a lack of speed — it is that you are not visiting it often enough. Your interval sessions show up only once or twice a month, and without regular stimulus that ceiling drifts down across a training block rather than holding where it is. That reserve above race pace is worth protecting: it is what makes 6:10/km feel like a gear you can reach for rather than a ceiling you are pressed against.' },
+                { name: 'Fatigue Resistance', score: 6, summary: 'You recover well day to day, but fade 8–12% late in long runs. That is what turns a 2:10 into a 2:15.', strengths: 'You bounce back the next day well, which tells me your body handles consecutive training stimuli. The day after a tempo session you are still running your easy run at the right pace, not grinding through it. That hard-easy pattern is building real resistance.', gaps: 'The thing to fix is your late-run pace — you are dropping off 8 to 12 percent in the final third of long runs. For a 2:10:00 target you need to hold 6:10/km the whole way, and an 8 percent fade over the closing 7km is roughly three minutes lost. That is the difference between 2:10 and 2:13, and it is the part of the race your training has not rehearsed yet.' },
             ]
         };
     }
@@ -985,19 +985,21 @@ document.addEventListener('DOMContentLoaded', function () {
             verdict: 'On track, with work to do',
             // Overall readiness score — average of the six dimension scores
             score: 6,
-            // Summary paragraph — the coach's opening assessment
-            summary: 'Your aerobic base and speed reserve are solid for a 2:10 half marathon, and your training consistency tells me you are taking this seriously. The gap between where you are and where you need to be is closeable in the time you have left — but only if you shift your focus from logging miles to targeted work. Your threshold blocks are too short, your long-run pace fades late, and you have no strength work to keep your form intact past 15km. Fix those three things and you will arrive on race day ready.',
+            // Summary paragraph — the coach's opening assessment. Kept to two
+            // or three sentences: the verdict, why the gap is closeable, and the
+            // list of what has to change. The pillar cards carry the detail.
+            summary: 'Your base and speed are solid for 2:10, and the gap is closeable in the time you have left. Three things to fix first: threshold blocks that are too short, a late-run fade, and no strength work.',
             // Key takeaways — the single biggest strength and biggest gap
             topStrength: {
                 label: 'Aerobic Endurance',
-                note: 'Your weekly volume and long-run distance are exactly where they need to be. You are running 35km per week with long runs reaching 21km, and your easy days are genuinely easy. This base will carry you through race day.',
+                note: '35km a week with long runs at 21km, and your easy days are genuinely easy. That base carries you.',
             },
             topGap: {
                 label: 'Lactate Threshold',
-                note: 'Your threshold blocks are too short to confirm you can hold race pace under fatigue. A 2km repeat at 5:00/km is faster than race pace but only lasts 10 minutes. Add 3x3km at 6:00/km each week to stretch that effort to race distance.',
+                note: 'Your threshold blocks are too short to prove you can hold race pace tired.',
             },
             // What to focus on next — the single most impactful action
-            focus: 'Add one 3x3km threshold session per week at 6:00/km. This is the highest-impact change you can make — it directly addresses your biggest gap and builds the specific fitness you need to hold race pace for 21km.',
+            focus: 'Your threshold. It is the one gap worth fixing first.',
         };
     }
 
@@ -3663,12 +3665,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // kilometre 3.5–4.5 km at 38 m, fastest descent 8.8–9.8 km at 41 m), and
     // shaped like the read the coach now produces: overview, what to notice,
     // how it compares with the runner's training, and what to do about it.
+    // Kept tight — the numbers carry it, so the sentences around them don't have
+    // to.
     const DEMO_COURSE_INSIGHT =
-        'This is a hilly half by road standards — 314 m of climbing across 21.4 km. The hardest kilometre '
-        + 'comes early, between 3.5 and 4.5 km, climbing 38 m at nearly 4%, and there is a fast descent '
-        + 'around 9 km worth running rather than braking down. Your recent runs have been far flatter than '
-        + 'this, so the hills will ask more of you than your training has. Get some hill work in before '
-        + 'race day.';
+        'Hilly for a road half — 314 m of climbing over 21.4 km. The hard kilometre comes early: '
+        + '3.5–4.5 km, 38 m at nearly 4%. There is a fast descent at 9 km worth running, not braking. '
+        + 'Your training has been far flatter, so get hill work in before race day.';
 
     function renderCourseInsight(rec) {
         const el = courseEls();
@@ -6371,7 +6373,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // sits on (paper on the overview, app surface on Readiness)
         const cssNavy = getComputedStyle(canvas).getPropertyValue('--pacey-navy').trim() || '#1d3557';
         const cssMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
-        const cssBlue = getComputedStyle(canvas).getPropertyValue('--pacey-blue').trim() || '#457b9d';
         // Tooltip background — use surface color so it adapts to theme
         const cssSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
         const cssText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
@@ -6441,7 +6442,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         external: radarExternalTooltipHandler,
                         // Theme-aware colors passed to the external handler via
                         // CSS variables on the tooltip element
-                    }
+                    },
                 },
                 // Click handler: clicking a point label area shows the tooltip.
                 // Since the external HTML tooltip is used (enabled: false),
@@ -6474,7 +6475,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
                 },
-            }
+            },
         });
 
         // Trigger the canvas fade-in after Chart.js has rendered.
@@ -7300,6 +7301,79 @@ document.addEventListener('DOMContentLoaded', function () {
         `).join('');
     }
 
+    // Phone layout for the six pillars: a horizontal snap deck rather than six
+    // stacked cards, so the section stays one card tall however long the text
+    // runs. The dots below earn their place twice over — they say where you are,
+    // and they say there is somewhere to go. A lone card reads as the whole
+    // section otherwise, which is the trap a carousel falls into.
+    //
+    // Desktop keeps the grid; the dots are hidden above the phone breakpoint.
+    function setupPillarCarousel(grid) {
+        if (!grid) return;
+        const cards = Array.from(grid.querySelectorAll('.pacey-pillar-card'));
+        if (!cards.length) return;
+
+        // Built here rather than in the markup so the overview and readiness
+        // instances cannot drift apart.
+        let dots = grid.nextElementSibling;
+        if (!dots || !dots.classList.contains('pacey-pillar-dots')) {
+            dots = document.createElement('div');
+            dots.className = 'pacey-pillar-dots';
+            dots.setAttribute('role', 'group');
+            dots.setAttribute('aria-label', 'Areas of fitness — jump to one');
+            grid.insertAdjacentElement('afterend', dots);
+        }
+        dots.innerHTML = cards.map((card, i) => {
+            const name = card.querySelector('.pacey-pillar-name');
+            const label = name ? name.textContent.trim() : `Area ${i + 1}`;
+            return `<button type="button" class="pacey-pillar-dot-btn"`
+                + ` aria-label="${escapeHtml(label)}" data-pillar-go="${i}"></button>`;
+        }).join('');
+
+        const buttons = Array.from(dots.children);
+        const setActive = (active) => buttons.forEach((b, i) => {
+            b.classList.toggle('is-active', i === active);
+            if (i === active) b.setAttribute('aria-current', 'true');
+            else b.removeAttribute('aria-current');
+        });
+
+        // Distance from the grid's left edge to a card's centre, in scroll
+        // coordinates. Measured from rects rather than offsetLeft, which is
+        // relative to the nearest positioned ancestor rather than the scroller.
+        const cardCentre = (card) => (card.getBoundingClientRect().left - grid.getBoundingClientRect().left)
+            + grid.scrollLeft + card.offsetWidth / 2;
+
+        const nearestCard = () => {
+            const mid = grid.scrollLeft + grid.clientWidth / 2;
+            let best = 0, bestDist = Infinity;
+            cards.forEach((card, i) => {
+                const d = Math.abs(cardCentre(card) - mid);
+                if (d < bestDist) { bestDist = d; best = i; }
+            });
+            return best;
+        };
+
+        setActive(0);
+        grid.addEventListener('scroll', () => setActive(nearestCard()), { passive: true });
+
+        // A swipe must not be read as a tap. Touch scrolling usually suppresses
+        // the click on its own, but the overview's cards navigate on click, so a
+        // stray one would yank the runner to another page mid-swipe. Capture
+        // phase so this runs before the card's own handler.
+        let lastScroll = 0;
+        grid.addEventListener('scroll', () => { lastScroll = Date.now(); }, { passive: true });
+        grid.addEventListener('click', (e) => {
+            if (Date.now() - lastScroll < 250) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
+        buttons.forEach((button, i) => button.addEventListener('click', () => {
+            grid.scrollTo({ left: cardCentre(cards[i]) - grid.clientWidth / 2, behavior: 'smooth' });
+        }));
+    }
+
     function renderPillars(data) {
         // Show content on all instances (overview + readiness pages)
         pillarsContents.forEach(el => el.hidden = false);
@@ -7349,6 +7423,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Fallback: use the full insights HTML for any unknown container
                 el.innerHTML = insightsHtml;
             }
+            // Phone layout: the cards become a swipeable deck with position dots.
+            setupPillarCarousel(el);
         });
 
         // Wire up click handlers on the overview summary cards — clicking

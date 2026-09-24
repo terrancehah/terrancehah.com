@@ -651,6 +651,15 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
    reading as two answers rather than one list. Flat colour, squared-off
    corners, and the shaded band along the bottom edge that reads as the sheet
    curling up off the board. */
+/* "What to Work On" is a topic shift inside the analysis block, so it takes the
+   wider break a --spaced section gets. The block is a plain div, not a
+   .pacey-section, so it never inherited the section's flex-column gap — and the
+   radar card above it carries no bottom margin of its own. Between the two, the
+   heading was sitting flush against the card. */
+#pacey-readiness-analysis > .pacey-section-title {
+    margin-top: var(--pacey-space-xl);
+}
+
 #pacey-content .pacey-race-recap-group {
     position: relative;
     padding: 0.8rem 0.9rem 0.9rem;

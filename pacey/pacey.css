@@ -2008,6 +2008,87 @@ header.pacey-header-offset.pacey-header-collapsed {
     .pacey-pillars-grid { grid-template-columns: 1fr; }
 }
 
+/* ---- Phone: the six pillars become a swipeable deck ----
+   Six stacked cards ran the page very long on a phone. The desktop grid keeps
+   it to two rows, which is why this only applies below the phone breakpoint.
+
+   Each card sits slightly narrower than the track, so the next one peeks at the
+   edge — the cheapest and clearest way to say "there is more this way" — and the
+   dots below carry the position for anyone who missed the peek. Both matter:
+   a lone card with no peek and no dots reads as the whole section. */
+@media (max-width: 37.5rem) {
+    .pacey-pillars-grid {
+        display: flex;
+        grid-template-columns: none;
+        gap: var(--pacey-space-md);
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+        /* The cards are the swipe surface; a scrollbar under them is noise. */
+        scrollbar-width: none;
+        /* Equal heights, so the deck does not look ragged as you swipe. */
+        align-items: stretch;
+        /* Room for the card shadow, which the scroller's own overflow would
+           otherwise cut off on the leading edge. The pinboard shadow's widest
+           layer blurs 1.8rem, so it reaches roughly 1.15rem past the card. */
+        padding: 0.15rem 0.7rem 1rem;
+    }
+    .pacey-pillars-grid::-webkit-scrollbar { display: none; }
+    .pacey-pillars-grid > .pacey-pillar-card {
+        flex: 0 0 88%;
+        scroll-snap-align: center;
+    }
+}
+
+/* Position dots — the deck's indicator. Hidden wherever the deck is not in
+   play, so the desktop grid is untouched. */
+.pacey-pillar-dots { display: none; }
+
+@media (max-width: 37.5rem) {
+    .pacey-pillar-dots {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.1rem;
+        margin-top: 0.65rem;
+    }
+    /* The button is a 24px touch target; the dot inside it is 8px, drawn as a
+       pseudo-element so the tappable area is not the size of the mark. */
+    .pacey-pillar-dot-btn {
+        position: relative;
+        width: 1.5rem;
+        height: 1.5rem;
+        padding: 0;
+        border: none;
+        background: none;
+        cursor: pointer;
+    }
+    .pacey-pillar-dot-btn::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0.5rem;
+        height: 0.5rem;
+        margin: -0.25rem 0 0 -0.25rem;
+        border-radius: 50%;
+        background: var(--pacey-muted);
+        opacity: 0.35;
+        transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+    }
+    .pacey-pillar-dot-btn:hover::before { opacity: 0.7; }
+    .pacey-pillar-dot-btn.is-active::before {
+        background: var(--pacey-navy);
+        opacity: 1;
+        transform: scale(1.4);
+    }
+    .pacey-pillar-dot-btn:focus-visible {
+        outline: 0.125rem solid var(--pacey-blue);
+        outline-offset: -0.1rem;
+        border-radius: 50%;
+    }
+}
+
 .pacey-pillar-card {
     background: var(--pacey-surface);
     border: 0.0625rem solid var(--pacey-border);
@@ -2546,13 +2627,24 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Phone: single column, compact */
 @media (max-width: 30rem) {
     :root {
-        --pacey-content-padding: var(--pacey-space-sm);
+        /* 1.15rem rather than the old 0.5rem. Measured off a rendered tile, the
+           shadow reaches about 1rem to the left of the card, so the old 0.5rem
+           gutter cut it off for any card spanning the full width — the metrics
+           tiles especially. The gutter has to be at least as wide as the shadow
+           reaches, plus a hair so the last antialiased pixel is not on the clip
+           edge. */
+        --pacey-content-padding: 1.15rem;
     }
 
     .pacey-metrics-grid {
         grid-template-columns: repeat(2, 1fr);
         /* Slightly more gap on phone for visual separation */
         gap: 0.6rem;
+        /* Same treatment the pillars deck gets on this page: the container
+           carries its own gutter, so the tiles' shadows land inside it instead
+           of running into the page edge, where the content's overflow clip cuts
+           them off. Matched to the deck's gutter so the two sections line up. */
+        padding-inline: 0.7rem;
     }
 
     .pacey-metric-tile { padding: 0.6rem; }
@@ -2582,6 +2674,14 @@ header.pacey-header-offset.pacey-header-collapsed {
         overflow: hidden;
         opacity: 0;
         transition: opacity 0.25s ease;
+        /* The collapse needs overflow:hidden, which cuts the tiles' shadows at
+           the wrapper's own edge. Horizontal room only, matched to the grid's
+           gutter so the drawer's tiles stay aligned with the primary ones: the
+           padding gives the shadow somewhere to land and the negative margin
+           leaves the tiles exactly where they were. Vertical padding would show
+           as a gap while collapsed, and neither touches the collapse. */
+        padding-inline: 0.7rem;
+        margin-inline: -0.7rem;
     }
 
     .pacey-metrics-grid--expanded .pacey-metrics-extra-inner {
