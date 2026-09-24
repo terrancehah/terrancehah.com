@@ -889,35 +889,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
-        // The race itself, dated today. The demo's goal is a half marathon run
-        // today, so the post-race recap has something to recognise — and it is
-        // what makes the demo land in recap mode rather than on a countdown.
-        //
-        // Figures are the real ones from the Brooks Half Marathon GPX that also
-        // supplies the demo course, so the activity list, the recap and the
-        // course card all describe the same run: 21.27 km in 1:49:47.
-        activities.unshift({
-            id: 24000001,
-            name: 'Brooks Half Marathon',
-            type: 'running',
-            start_time: `${localDateIso(now)} 07:15:00`,
-            distance: 21.27,
-            duration: 109.8,                                    // minutes
-            avg_pace: 3.23,                                     // m/s
-            max_pace: 3.9,
-            avg_hr: 172,
-            max_hr: 184,
-            calories: 1480,
-            elevation_gain: 63,
-            training_effect: 4.6,
-            anaerobic_training_effect: 1.8,
-            avg_cadence: 178,
-            // Over 12 km and run at goal pace, which is what the server's
-            // classifier calls a long run with quality. Hardcoded because demo
-            // mode has no server to run the classifier.
-            run_tag: 'Tempo Long',
-            elapsed_duration: 110.5,
-        });
+        // No race activity: the demo's goal race is still ahead, so there is no
+        // finished race for the activity list, the recap or the course card to
+        // describe. If the demo ever goes back to a post-race state, the route's
+        // own figures are 21.45 km with 314 m of climb, and its GPX timestamps
+        // span 2:00:29 elapsed — a 9:31 margin on the 2:10:00 target.
         return activities;
     }
 
@@ -1029,7 +1005,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // real one is written by the race-recap action on the backend from the target,
     // the result, the uploaded course and the runner's own recent sessions; this
     // stands in for it because demo mode makes no API calls. Written against the
-    // demo's own result: the Brooks Half Marathon, run under the 1:52:00 target.
+    // demo's own result: the KLSCM half, run under the 2:10:00 target.
     //
     // Kept deliberately plain, matching what the real prompt now asks for: it
     // credits the training by kind rather than reciting sessions and figures, and
@@ -1040,45 +1016,26 @@ document.addEventListener('DOMContentLoaded', function () {
         return 'You ran this one the way you wanted to — under your target, and it never looked like slipping away. That margin was not luck. It came out of the long runs that taught your legs to keep going when the closing kilometres got hard, and the tempo work that made race pace feel like something you could hold rather than something you were clinging to. You did that work, and this is what it bought. Take the win — you earned it.';
     }
 
-    // Mock race history — one archived race for demo mode, shaped exactly like a
-    // server entry so the past-races list renders the same way it does for a real
-    // runner. Demo mode makes no API calls, so the fetch is skipped for this.
-    function getMockRaceHistory() {
-        return [{
-            race_name: 'Brooks Half Marathon',
-            purpose: 'Half Marathon',
-            race_date: localDateIso(),
-            time_target: '01:52:00',
-            race_result: {
-                date: localDateIso(),
-                duration_min: 109.78,
-                distance_km: 21.1,
-                avg_pace_ms: 3.2,
-                avg_hr: 168,
-                elevation_gain: 63,
-            },
-            race_recap: { text: getMockRaceRecap() },
-            race_readiness: {
-                data: { dimensions: getMockPillars().dimensions, overall: getMockOverallInsight() },
-                generated_at: new Date().toISOString(),
-            },
-        }];
-    }
+    // No mock race history: the demo's race is still ahead, so nothing has been
+    // archived and the past-races entrance stays hidden. Archiving only happens
+    // when a goal is replaced, which has not happened for this runner yet.
 
     // Start demo mode — used as the default landing and after logout
     function startDemoMode() {
         sessionToken = 'demo';
         displayName = 'Demo Runner';
         raceGoal = {
-            race_name: 'Brooks Half Marathon',
+            race_name: 'Kuala Lumpur Standard Chartered Half Marathon',
             purpose: 'Half Marathon',
             distance: 21.1,
             distance_unit: 'km',
-            time_target: '01:52:00',
-            // Today, so the demo lands in post-race mode — the race has been run
-            // and the recap is what there is to show. Computed rather than
-            // hardcoded so the demo does not go stale after this week.
-            race_date: localDateIso(),
+            time_target: '02:10:00',
+            // Still ahead, so the demo lands on Race Readiness rather than the
+            // recap — the countdown, the radar and the plan are what there is to
+            // show. Hardcoded rather than "today" for exactly that reason: a
+            // pre-race demo needs a date that is genuinely in the future. Bump
+            // it once it passes.
+            race_date: '2026-10-04',
             weekly_mileage: '35',
             mileage_unit: 'km',
             gender: 'male',
@@ -2386,7 +2343,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Called on dashboard load; the list is small and read whole.
     async function loadPastRaces() {
         if (window.__demoMode) {
-            pastRaces = getMockRaceHistory();
+            // Nothing to look back on: the demo's race is still ahead, so no
+            // race has been archived yet.
+            pastRaces = [];
             syncPastRacesButton();
             return;
         }
@@ -3920,21 +3879,19 @@ document.addEventListener('DOMContentLoaded', function () {
         return points;
     }
 
-    // The demo course is the real KL Standard Chartered Half route, fetched
-    // from the site's own assets so the demo shows genuine data rather than a
-    // generated stand-in.
     // The demo course is the race the demo runner just ran, so the course card,
     // the activity list and the recap all describe the same event. This is the
-    // real Garmin export of that half marathon — 6,587 trackpoints, 21.27 km,
-    // 63 m of climb. It is the largest asset the demo fetches (~2.6 MB); the
-    // generated fallback below covers the offline case.
-    const DEMO_COURSE_URL = '/pacey/assets/activity_24425014019.gpx';
+    // real KL Standard Chartered Half route, kept as a site asset so the demo
+    // shows genuine data rather than a generated stand-in: 490 trackpoints,
+    // 21.45 km, 314 m of climb. The generated fallback below covers the offline
+    // case.
+    const DEMO_COURSE_URL = '/pacey/assets/klscm26-21km.gpx';
 
     async function loadDemoCourse() {
         if (!window.PaceyCourse) return;
 
         let points = null;
-        let fileName = 'activity_24425014019.gpx';
+        let fileName = 'klscm26-21km.gpx';
         try {
             const resp = await fetch(DEMO_COURSE_URL);
             if (resp.ok) {
@@ -3951,7 +3908,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const course = PaceyCourse.computeCourse(points);
         courseRecord = makeCourseRecord(course, points, {
-            name: 'Brooks Half Marathon',
+            // A fallback title — updateCourseHead() re-titles the card from the
+            // race goal once it is known.
+            name: 'Kuala Lumpur Standard Chartered Half Marathon',
             fileName,
             source: 'track',
         });
@@ -8488,8 +8447,11 @@ document.addEventListener('DOMContentLoaded', function () {
             current_quality_runs: mockHistory
                 .filter(r => ['Tempo Long', 'Tempo', 'Speedwork'].includes(r.run_tag))
                 .map(runSummary),
-            goal_quality_pace: '5:18',
-            goal_pace: '5:13',
+            // Goal pace for the demo's 2:10:00 half — the backend derives these
+            // from the goal (goal pace, and goal pace + 5s/km for quality work),
+            // so they have to move with the target time.
+            goal_quality_pace: '6:15',
+            goal_pace: '6:10',
         };
     }
 
