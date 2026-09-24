@@ -545,19 +545,24 @@ def _archive_race_goal(email: str, goal: dict | None):
     _save_race_history(email, history)
 
 
-# --- Activity insight cache (Redis, keyed by email + activity) ---
+# --- Activity insight cache (Redis hash, keyed by email, fielded by activity) ---
 #
 # The coach's read on one completed run, written on demand from the activities
 # page. A finished run never changes, so the read can never go stale and there is
 # nothing to invalidate — no TTL, so a runner who steps away for months still
-# finds their reads waiting. This is the one store that grows with usage rather
-# than with users (a key per run), which is the price of that promise.
+# finds their reads waiting.
+#
+# One hash per account with one field per run, rather than a key per run:
+# HGET/HSET touch a single field, so a read is still O(1) and a write never has
+# to read and rewrite the runner's whole history — which, with no TTL, would grow
+# without bound. It also keeps the key space flat: a runner with 500 runs is one
+# key, not 500.
 
 ACTIVITY_INSIGHT_PREFIX = "race:activity-insight:"
 
 
-def _activity_insight_key(email: str, activity_id) -> str:
-    return f"{ACTIVITY_INSIGHT_PREFIX}{email}:{activity_id}"
+def _activity_insight_key(email: str) -> str:
+    return f"{ACTIVITY_INSIGHT_PREFIX}{email}"
 
 
 def _save_activity_insight(email: str, activity_id, text: str, generated_at: str = "") -> str:
@@ -566,11 +571,14 @@ def _save_activity_insight(email: str, activity_id, text: str, generated_at: str
         return ""
     generated_at = generated_at or datetime.now().isoformat()
     entry = {"text": text, "generated_at": generated_at}
-    key = _activity_insight_key(email, activity_id)
+    key = _activity_insight_key(email)
+    field = str(activity_id)
     if _redis:
-        _redis.set(key, json.dumps(entry))
+        # One field write — no read-modify-write, so two devices generating
+        # different reads at the same moment cannot clobber each other.
+        _redis.hset(key, field, json.dumps(entry))
     else:
-        _local_sessions[key] = entry
+        _local_sessions.setdefault(key, {})[field] = entry
     return generated_at
 
 
@@ -578,9 +586,10 @@ def _get_activity_insight(email: str, activity_id) -> dict | None:
     """The cached read for one activity, or None if there is not one yet."""
     if not email or not activity_id:
         return None
-    key = _activity_insight_key(email, activity_id)
+    key = _activity_insight_key(email)
+    field = str(activity_id)
     if _redis:
-        raw = _redis.get(key)
+        raw = _redis.hget(key, field)
         if not raw:
             return None
         if isinstance(raw, bytes):
@@ -590,7 +599,7 @@ def _get_activity_insight(email: str, activity_id) -> dict | None:
         except (ValueError, TypeError):
             return None
     else:
-        return _local_sessions.get(key)
+        return (_local_sessions.get(key) or {}).get(field)
 
 
 # --- Persistent AI radar cache (Redis, keyed by email) ---
