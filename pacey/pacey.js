@@ -3027,6 +3027,97 @@ document.addEventListener('DOMContentLoaded', function () {
         return ctx.getImageData(0, 0, size, size);
     }
 
+    /** Draw a transparent, hand-sketched arrow for MapLibre line placement. */
+    function makeCourseDirectionImage(strokeColor) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 40;
+        canvas.height = 24;
+        const ctx = canvas.getContext('2d');
+        ctx.strokeStyle = strokeColor;
+        ctx.lineWidth = 2.8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        // Two imperfect passes make the arrow read like pencil rather than a
+        // filled navigation icon, while the transparent centre leaves the map visible.
+        ctx.beginPath();
+        ctx.moveTo(3, 12);
+        ctx.quadraticCurveTo(15, 10.5, 33, 12);
+        ctx.moveTo(25, 5);
+        ctx.quadraticCurveTo(29, 8.5, 35, 12);
+        ctx.quadraticCurveTo(30, 15.5, 25, 19);
+        ctx.stroke();
+        ctx.globalAlpha = 0.38;
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(4, 13.5);
+        ctx.quadraticCurveTo(17, 11.4, 32, 13);
+        ctx.moveTo(24, 6.5);
+        ctx.lineTo(34, 13);
+        ctx.lineTo(25, 18);
+        ctx.stroke();
+        return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }
+
+    /** A tiny route dot with its handwritten kilometre note sitting above it. */
+    function makeCourseDistanceMarkerElement(km) {
+        const marker = document.createElement('div');
+        marker.className = 'pacey-course-distance-marker';
+        marker.setAttribute('aria-label', `${km} kilometre mark`);
+        // Alternate the note's angle slightly so repeated markers feel written
+        // onto the map rather than stamped from one rigid component.
+        marker.style.setProperty('--pacey-distance-note-tilt', km % 10 === 0 ? '2deg' : '-3deg');
+
+        const label = document.createElement('span');
+        label.className = 'pacey-course-distance-marker-label';
+        label.textContent = String(km);
+        const dot = document.createElement('span');
+        dot.className = 'pacey-course-distance-marker-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        marker.append(label, dot);
+        return marker;
+    }
+
+    /**
+     * Read fixed-distance positions from the course helper, with an inline
+     * fallback for a browser that cached an older helper beside fresh app code.
+     */
+    function courseDistanceMarkers(coords, intervalKm) {
+        if (typeof PaceyCourse !== 'undefined' && typeof PaceyCourse.routeDistanceMarkers === 'function') {
+            return PaceyCourse.routeDistanceMarkers(coords, intervalKm);
+        }
+        // Older cached pacey-course.js lacks routeDistanceMarkers but still
+        // carries haversineM, so the same walk is replicated here.
+        if (typeof PaceyCourse === 'undefined' || typeof PaceyCourse.haversineM !== 'function') return [];
+        if (!Array.isArray(coords) || coords.length < 2) return [];
+        const intervalM = Number(intervalKm) * 1000;
+        if (!isFinite(intervalM) || intervalM <= 0) return [];
+        const markers = [];
+        let travelledM = 0;
+        let nextM = intervalM;
+        for (let i = 1; i < coords.length; i++) {
+            const from = coords[i - 1];
+            const to = coords[i];
+            if (!Array.isArray(from) || !Array.isArray(to)) return [];
+            const segmentM = PaceyCourse.haversineM(from[1], from[0], to[1], to[0]);
+            if (!isFinite(segmentM) || segmentM <= 0) continue;
+            while (nextM <= travelledM + segmentM + 1e-6) {
+                const ratio = Math.min(1, Math.max(0, (nextM - travelledM) / segmentM));
+                let deltaLon = to[0] - from[0];
+                if (deltaLon > 180) deltaLon -= 360;
+                if (deltaLon < -180) deltaLon += 360;
+                let lon = from[0] + deltaLon * ratio;
+                lon = ((lon + 540) % 360) - 180;
+                markers.push({
+                    km: nextM / 1000,
+                    coordinate: [lon, from[1] + (to[1] - from[1]) * ratio],
+                });
+                nextM += intervalM;
+            }
+            travelledM += segmentM;
+        }
+        return markers;
+    }
+
     /**
      * Close MapLibre's attribution panel.
      *
@@ -3306,6 +3397,11 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     function applyCourseRouteLayers(map, coords, opts) {
         const options = opts || {};
+        // Guide colours come from the host card's component tokens; the
+        // fallbacks are the same paper-and-pencil values for any container
+        // that does not define them.
+        const mapStyle = getComputedStyle(map.getContainer());
+        const routeColor = mapStyle.getPropertyValue('--pacey-course-map-route').trim() || '#2f6fb0';
         map.addSource('pacey-course-route', {
             type: 'geojson',
             data: {
@@ -3319,8 +3415,47 @@ document.addEventListener('DOMContentLoaded', function () {
             type: 'line',
             source: 'pacey-course-route',
             layout: { 'line-cap': 'round', 'line-join': 'round' },
-            paint: { 'line-color': '#2f6fb0', 'line-width': 3 },
+            paint: { 'line-color': routeColor, 'line-width': 3 },
         });
+
+        // Modal-only visual guides: transparent sketch arrows stamped along
+        // the line for direction, plus a numbered dot every cumulative 5 km.
+        // The inline card map stays a plain picture, so only callers passing
+        // showRouteGuides get these layers.
+        if (options.showRouteGuides) {
+            map.addImage('pacey-course-direction', makeCourseDirectionImage(routeColor), { pixelRatio: 2 });
+            // `symbol-placement: 'line'` stamps the arrow along the route and
+            // MapLibre rotates each stamp with the line's direction.
+            map.addLayer({
+                id: 'pacey-course-directions',
+                type: 'symbol',
+                source: 'pacey-course-route',
+                layout: {
+                    'symbol-placement': 'line',
+                    'symbol-spacing': 110,
+                    'icon-image': 'pacey-course-direction',
+                    'icon-size': 1.75,
+                    'icon-rotation-alignment': 'map',
+                    'icon-pitch-alignment': 'map',
+                    'icon-keep-upright': false,
+                    'icon-allow-overlap': true,
+                },
+            });
+
+            // DOM markers avoid a dependency on the basemap's symbol fonts and
+            // remain legible while the interactive modal is panned or zoomed.
+            courseDistanceMarkers(coords, 5).forEach((marker) => {
+                new maplibregl.Marker({
+                    element: makeCourseDistanceMarkerElement(marker.km),
+                    anchor: 'bottom',
+                    // The dot is 0.5rem tall; shifting half its height down
+                    // places the dot's centre, rather than the note, on the route.
+                    offset: [0, 4],
+                })
+                    .setLngLat(marker.coordinate)
+                    .addTo(map);
+            });
+        }
 
         // Start and end dots. DOM markers rather than a MapLibre layer, so the
         // sketchy outline stays crisp at every zoom (a layer would scale with
@@ -3715,6 +3850,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 courseModalMap = buildCourseMap(el.mapModalMap, courseRecord, {
                     interactive: true,
                     padding: 48,
+                    // The enlarged map is the one place worth annotating: the
+                    // inline card stays a quiet picture of the route.
+                    showRouteGuides: true,
                 });
             } catch (e) {
                 courseModalMap = null;

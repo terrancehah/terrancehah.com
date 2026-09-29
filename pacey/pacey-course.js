@@ -229,6 +229,45 @@
     }
 
     /**
+     * Interpolate coordinates at fixed cumulative-distance intervals along a
+     * stored [longitude, latitude] route. The shortest longitude delta keeps
+     * interpolation correct for the rare route crossing the antimeridian.
+     */
+    function routeDistanceMarkers(coords, intervalKm) {
+        if (!Array.isArray(coords) || coords.length < 2) return [];
+        const intervalM = Number(intervalKm) * 1000;
+        if (!isFinite(intervalM) || intervalM <= 0) return [];
+        const valid = coords.every(c => Array.isArray(c) && isFinite(c[0]) && isFinite(c[1]));
+        if (!valid) return [];
+
+        const markers = [];
+        let travelledM = 0;
+        let nextM = intervalM;
+        for (let i = 1; i < coords.length; i++) {
+            const from = coords[i - 1];
+            const to = coords[i];
+            const segmentM = haversineM(from[1], from[0], to[1], to[0]);
+            if (!isFinite(segmentM) || segmentM <= 0) continue;
+
+            while (nextM <= travelledM + segmentM + 1e-6) {
+                const ratio = Math.min(1, Math.max(0, (nextM - travelledM) / segmentM));
+                let deltaLon = to[0] - from[0];
+                if (deltaLon > 180) deltaLon -= 360;
+                if (deltaLon < -180) deltaLon += 360;
+                let lon = from[0] + deltaLon * ratio;
+                lon = ((lon + 540) % 360) - 180;
+                markers.push({
+                    km: nextM / 1000,
+                    coordinate: [lon, from[1] + (to[1] - from[1]) * ratio],
+                });
+                nextM += intervalM;
+            }
+            travelledM += segmentM;
+        }
+        return markers;
+    }
+
+    /**
      * Grade over a sliding distance window, so a single noisy point cannot
      * define the max. Returns the steepest sustained percentage.
      */
@@ -790,6 +829,7 @@
     return {
         parseGpx,
         haversineM,
+        routeDistanceMarkers,
         smoothElevations,
         elevationStats,
         computeCourse,

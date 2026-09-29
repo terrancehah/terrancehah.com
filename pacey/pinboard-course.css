@@ -528,6 +528,9 @@
 /* A blackboard card, matching the race-course card it came from. */
 .pacey-course-map-modal-card {
     position: relative;
+    /* Map guide colours stay tied to the paper-and-pencil course treatment. */
+    --pacey-course-map-route: #2f6fb0;
+    --pacey-course-map-guide-paper: #f3eee3;
     display: flex;
     flex-direction: column;
     width: min(100%, 64rem);
@@ -568,6 +571,53 @@
     min-height: 0;
     border-radius: 2px;
     overflow: hidden;
+}
+
+/* A tiny sketched route dot carries the coordinate; its number sits above like
+   a coach's handwritten margin note rather than a conventional map badge. */
+.pacey-course-distance-marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.05rem;
+    min-width: 1.2rem;
+    color: var(--pacey-course-map-route);
+    pointer-events: none;
+}
+
+.pacey-course-distance-marker-label {
+    font-family: var(--font-caveat);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 0.9;
+    text-shadow:
+        0.0625rem 0 var(--pacey-course-map-guide-paper),
+        -0.0625rem 0 var(--pacey-course-map-guide-paper),
+        0 0.0625rem var(--pacey-course-map-guide-paper),
+        0 -0.0625rem var(--pacey-course-map-guide-paper);
+    transform: rotate(var(--pacey-distance-note-tilt, -2deg));
+}
+
+.pacey-course-distance-marker-dot {
+    position: relative;
+    width: 0.6rem;
+    height: 0.6rem;
+    box-sizing: border-box;
+    /* border: 0.0625rem solid var(--pacey-course-map-guide-paper); */
+    border-radius: 56% 44% 52% 47%;
+    background: var(--pacey-course-map-route);
+    box-shadow: 0 0 0 0.04rem color-mix(in srgb, var(--pacey-course-map-route) 55%, transparent);
+}
+
+/* A faint offset outline gives the tiny dot the same imperfect double-pass as
+   the route arrows without making it materially larger. */
+.pacey-course-distance-marker-dot::after {
+    content: '';
+    position: absolute;
+    inset: -0.12rem -0.08rem -0.07rem -0.11rem;
+    /* border: 0.0625rem solid color-mix(in srgb, var(--pacey-course-map-route) 45%, transparent); */
+    border-radius: 43% 57% 46% 54%;
+    transform: rotate(-8deg);
 }
 
 .pacey-course-map-modal-hint {
