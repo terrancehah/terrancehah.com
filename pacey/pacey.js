@@ -3927,8 +3927,13 @@ document.addEventListener('DOMContentLoaded', function () {
      * Drop the in-memory course WITHOUT touching the server copy. Used when
      * leaving demo mode: the real course (if the runner has one) is fetched
      * afterwards, and clearing remotely here would delete it.
+     *
+     * @param {boolean} discardCache - Also drop the localStorage copy and the
+     *   file input. Still never calls saveCourseRemote — used by cross-device
+     *   goal reconciliation, where the remote course may already belong to the
+     *   newer goal.
      */
-    function resetCourseLocal() {
+    function resetCourseLocal(discardCache = false) {
         const el = courseEls();
         courseRecord = null;
         courseInsight = null;
@@ -3940,6 +3945,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.insight) el.insight.hidden = true;
         if (el.drop) el.drop.hidden = false;
         if (el.error) el.error.hidden = true;
+        if (discardCache) {
+            localStorage.removeItem(COURSE_CACHE_KEY);
+            if (el.input) el.input.value = '';
+        }
         closeCourseMapModal();
     }
 
@@ -10203,6 +10212,65 @@ document.addEventListener('DOMContentLoaded', function () {
         if (getPageFromHash() === 'plan') openPlanPage();
     });
 
+    // Compare full goal records because race results, readiness and recaps can
+    // also be updated on another device without changing the goal's saved_at.
+    function raceGoalsMatch(currentGoal, serverGoal) {
+        return JSON.stringify(currentGoal || null) === JSON.stringify(serverGoal || null);
+    }
+
+    // Make the server's email-keyed goal authoritative over the browser cache.
+    // Returns true when the visible dashboard was rebuilt for changed state.
+    function reconcileServerRaceGoal(data) {
+        const serverGoal = data && data.has_race_goal && data.race_goal
+            ? data.race_goal
+            : null;
+        if (raceGoalsMatch(raceGoal, serverGoal)) return false;
+
+        raceGoal = serverGoal;
+        if (raceGoal) {
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+        } else {
+            localStorage.removeItem('pacey_race_goal');
+        }
+
+        clearAICache();
+        clearCoachCache();
+        coachLoaded = false;
+        coachPlanData = null;
+        coachEditingDate = null;
+        coachSyncedDates.clear();
+        lastRadarData = null;
+        lastMileageWeeks = null;
+        lastPaceDistActivities = null;
+        lastHrPaceActivities = null;
+
+        // Drop only this browser's old course. The canonical remote course may
+        // already belong to the newer goal and must never be deleted here.
+        resetCourseLocal(true);
+
+        if (!raceGoal) {
+            showScreen(onboardScreen);
+            return true;
+        }
+        showDashboard(true);
+        return true;
+    }
+
+    // Reconcile only when the runner returns to the tab; goal changes are rare,
+    // so there is deliberately no timer or polling loop.
+    async function refreshRaceGoalOnReturn() {
+        if (window.__demoMode || !sessionToken || sessionToken === 'demo') return false;
+        try {
+            const resp = await apiCall('GET', 'check-session');
+            const data = await resp.json();
+            if (!resp.ok || !data.valid) return false;
+            return reconcileServerRaceGoal(data);
+        } catch (err) {
+            console.warn('Goal refresh failed — keeping the cached goal', err);
+            return false;
+        }
+    }
+
     // =========================================================================
     // Restore session or default to demo mode
     // =========================================================================
@@ -10242,24 +10310,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Refresh avatar + greeting in case the data changed
                 greetingEl.textContent = displayName;
                 updateAvatar();
-                // If race goal state changed on the server, sync the frontend.
-                // The server now returns the actual race_goal data (not just a
-                // boolean), so we can restore it if localStorage is missing it
-                // (e.g. user cleared cache, or is on a new device).
-                if (data.has_race_goal && data.race_goal) {
-                    if (!raceGoal) {
-                        // Server has a goal but frontend doesn't — restore it
-                        raceGoal = data.race_goal;
-                        localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
-                        showDashboard();
-                    }
-                    // If both have the goal, stay on the dashboard — no change needed
-                } else if (!data.has_race_goal && raceGoal) {
-                    // Server has no goal but frontend thinks it has one — the
-                    // persisted goal was removed (shouldn't happen normally,
-                    // but handle it gracefully)
-                    showScreen(onboardScreen);
-                }
+                // Local storage paints immediately, but the email-keyed server
+                // goal is canonical and replaces any stale browser copy.
+                reconcileServerRaceGoal(data);
                 // Pre-seed AI insights and coach plan caches from the server's
                 // persistent store if the frontend doesn't have them. This
                 // covers the new-device case where localStorage is empty but
@@ -10359,8 +10412,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // from another tab or app). This is the primary refresh trigger for
     // most users — they leave the tab open, check other things, come back.
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-            refreshDataIfStale();
+        if (document.visibilityState === 'visible' && !dashboardScreen.hidden) {
+            refreshRaceGoalOnReturn().then(goalChanged => {
+                if (!goalChanged) refreshDataIfStale();
+            });
         }
     });
 

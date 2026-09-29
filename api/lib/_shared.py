@@ -198,6 +198,25 @@ def _save_session(token: str, data: dict, ttl: int = SESSION_TTL):
         _local_sessions[token] = clean
 
 
+def _with_canonical_race_goal(sess: dict) -> dict:
+    """Overlay the email-keyed race goal onto a loaded device session.
+
+    Sessions keep a goal copy for compatibility, but the persistent email-keyed
+    record is the cross-device source of truth. A copied dict keeps the local
+    in-memory fallback from being mutated merely by reading it. When no
+    persistent record exists, preserve the session value for legacy accounts.
+    """
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    if not email:
+        return sess
+    goal = _get_persistent_race_goal(email)
+    if goal is None:
+        return sess
+    current = dict(sess)
+    current["race_goal"] = goal
+    return current
+
+
 def _get_session(token: str) -> dict:
     """Retrieve a session from Redis (or local fallback).
 
@@ -218,7 +237,7 @@ def _get_session(token: str) -> dict:
         sess = json.loads(raw)
         # Sliding expiration — refresh TTL on each successful access
         _redis.expire(f"{SESSION_PREFIX}{token}", SESSION_TTL)
-        return sess
+        return _with_canonical_race_goal(sess)
     else:
         sess = _local_sessions.get(token)
         if not sess:
@@ -226,7 +245,7 @@ def _get_session(token: str) -> dict:
                 status_code=401,
                 detail="Session expired or invalid. Please log in again."
             )
-        return sess
+        return _with_canonical_race_goal(sess)
 
 
 def _update_session(token: str, updates: dict):
