@@ -8350,13 +8350,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Training phase for a given number of days left until race day — mirrors
-    // the backend's _phase_for_days_left boundaries so the week headings
-    // agree with what the AI was told.
-    function phaseForDaysLeft(daysLeft) {
+    // the backend's _phase_for_days_left, using the plan's own boundaries
+    // (plan.phase_boundaries, computed server-side from race distance and
+    // block length) so the week headings agree with what the AI was told.
+    function phaseForDaysLeft(daysLeft, boundaries) {
         if (daysLeft < 0) return 'Post-race';
-        if (daysLeft < 7) return 'Taper';
-        if (daysLeft <= 20) return 'Sharpen';
-        if (daysLeft <= 42) return 'Specificity';
+        const b = boundaries || { taper_days: 7, sharpen_days: 14, specificity_days: 22 };
+        const taperEnd = b.taper_days;
+        const sharpenEnd = taperEnd + b.sharpen_days;
+        const specificityEnd = sharpenEnd + b.specificity_days;
+        if (daysLeft < taperEnd) return 'Taper';
+        if (daysLeft < sharpenEnd) return 'Sharpen';
+        if (daysLeft < specificityEnd) return 'Specificity';
         return 'Build';
     }
 
@@ -8501,16 +8506,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Mock plan for demo mode — mirrors the full-block coach-plan.py logic:
     // starts tomorrow, runs through race day (build → specificity → sharpen
-    // → taper), long runs progress toward ~30 km then taper, and the final
-    // day is a Race workout with no hard/long session stacked on it.
+    // → taper), long runs progress toward the distance-aware peak (32 km for
+    // a marathon goal) then taper, and the final day is a Race workout with
+    // no hard/long session stacked on it.
     const MOCK_MAX_PLAN_DAYS = 26 * 7; // mirrors MAX_PLAN_DAYS in coach-plan.py
 
-    // Phase by days remaining — mirrors the backend boundaries. Shared by the
-    // plan builder and the demo insight generator.
-    function mockPhase(daysLeft) {
-        if (daysLeft < 7) return 'taper';
-        if (daysLeft <= 20) return 'sharpen';
-        if (daysLeft <= 42) return 'specificity';
+    // Phase lengths for a demo block — mirrors _phase_boundaries in
+    // api/lib/_shared.py exactly, so the mock plan's phases land where a real
+    // plan's would: specificity is ~45% of development time (rounded to the
+    // nearest week, clamped to a distance-aware range), sharpen is one week
+    // up to a half and two beyond, and the final week is always taper.
+    function mockPhaseBoundaries(raceDistanceKm, totalPlanDays) {
+        const distance = parseFloat(raceDistanceKm) || 42.2;
+        const totalDays = Math.max(0, Math.trunc(totalPlanDays || 0));
+        const taperDays = 7;
+        let specMin, specMax, sharpenDays;
+        if (distance <= 10) {
+            specMin = 21; specMax = 35; sharpenDays = 7;
+        } else if (distance <= 21.1) {
+            specMin = 28; specMax = 42; sharpenDays = 7;
+        } else {
+            specMin = 42; specMax = 56; sharpenDays = 14;
+        }
+        const developmentDays = Math.max(0, totalDays - taperDays - sharpenDays);
+        const scaledSpecificity = Math.floor((developmentDays * 0.45 + 3.5) / 7) * 7;
+        const specificityDays = developmentDays
+            ? Math.min(developmentDays, Math.max(specMin, Math.min(specMax, scaledSpecificity)))
+            : 0;
+        return {
+            taper_days: taperDays,
+            sharpen_days: sharpenDays,
+            specificity_days: specificityDays,
+        };
+    }
+
+    // Phase by days remaining against a boundary set — mirrors the backend's
+    // _phase_for_days_left cumulative comparisons. Shared by the plan builder
+    // and the demo insight generator.
+    function mockPhase(daysLeft, boundaries) {
+        const b = boundaries || { taper_days: 7, sharpen_days: 14, specificity_days: 22 };
+        const taperEnd = b.taper_days;
+        const sharpenEnd = taperEnd + b.sharpen_days;
+        const specificityEnd = sharpenEnd + b.specificity_days;
+        if (daysLeft < taperEnd) return 'taper';
+        if (daysLeft < sharpenEnd) return 'sharpen';
+        if (daysLeft < specificityEnd) return 'specificity';
         return 'build';
     }
 
@@ -8578,6 +8618,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // _race_distance_km and the Race zone) so the demo race card is never
         // a marathon for a half-marathon goal, and always shows the goal pace.
         const raceDistanceKm = (raceGoal && goalDistanceKm(raceGoal)) || 42.2;
+        // Phase boundaries scale to this block exactly as the backend's do —
+        // the demo plan must agree with a real plan on where specificity,
+        // sharpen, and taper start.
+        const phaseBoundaries = mockPhaseBoundaries(raceDistanceKm, totalDays);
         let racePace = null;
         if (raceGoal && raceGoal.time_target) {
             const parts = String(raceGoal.time_target).split(':').map(Number);
@@ -8598,12 +8642,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const gapDays = daysUntilMonday === 0 ? 0 : daysUntilMonday;
 
         // Long-run distance per full week: ramp in build, peak in specificity,
-        // cut in sharpen, minimal in taper (honesty rules).
+        // cut in sharpen, minimal in taper (honesty rules). The peak follows
+        // the same distance-range ceilings the backend's _peak_long_km
+        // enforces.
+        const peakLongKm = raceDistanceKm <= 5 ? 14
+            : raceDistanceKm <= 10 ? 16
+            : raceDistanceKm <= 21.1 ? 18
+            : 32;
         function mockLongKm(phase, weekIdx) {
-            if (phase === 'taper') return 12;
-            if (phase === 'sharpen') return 21;
-            if (phase === 'specificity') return 30;
-            return Math.min(24, 12 + weekIdx * 1.2);
+            if (phase === 'taper') return Math.round(0.6 * peakLongKm * 10) / 10;
+            if (phase === 'sharpen') return Math.round(0.7 * peakLongKm * 10) / 10;
+            if (phase === 'specificity') return peakLongKm;
+            return Math.min(peakLongKm, 12 + weekIdx * 1.2);
         }
 
         // One Mon-Sun week's schedule: long run Sat, quality Tue, fill the
@@ -8629,7 +8679,7 @@ document.addEventListener('DOMContentLoaded', function () {
             d.setDate(planStart.getDate() + i);
             const key = localDateKey(d);
             const daysLeft = Math.round((raceDate - d) / 86400000);
-            const phase = mockPhase(daysLeft);
+            const phase = mockPhase(daysLeft, phaseBoundaries);
             let wType = null;
             let overrides = null;
 
@@ -8666,8 +8716,9 @@ document.addEventListener('DOMContentLoaded', function () {
             plan_end: localDateKey(planEnd),
             total_plan_days: totalDays,
             race_date: localDateKey(raceDate),
-            race_phase: mockPhase(daysToRace),
+            race_phase: mockPhase(daysToRace, phaseBoundaries),
             days_to_race: daysToRace,
+            phase_boundaries: phaseBoundaries,
             pace_zones: paceZones,
             // The real plan ramps zones per week; the demo keeps a flat set
             // so the day-level zone lookup behaves the same way.
@@ -8732,7 +8783,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (plan && plan.race_date) {
             const raceDate = parseDate(plan.race_date + 'T00:00:00');
             const daysLeft = Math.round((raceDate - d) / 86400000);
-            const phase = mockPhase(daysLeft);
+            const phase = mockPhase(daysLeft, plan.phase_boundaries);
             placementText += ` — ${phase} phase, ${daysLeft} days before race day.`;
             // Race week mirrors the backend's "arrive fresh" guidance.
             if (daysLeft >= 0 && daysLeft <= 7) {
@@ -9254,7 +9305,7 @@ document.addEventListener('DOMContentLoaded', function () {
             weekEndDate.setDate(weekStartDate.getDate() + 6);
             const rangeLabel = `${weekStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${weekEndDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
             const daysLeft = raceDateObj ? Math.round((raceDateObj - weekStartDate) / dayMs) : null;
-            const phaseLabel = daysLeft != null ? phaseForDaysLeft(daysLeft) : null;
+            const phaseLabel = daysLeft != null ? phaseForDaysLeft(daysLeft, plan.phase_boundaries) : null;
             // Sendable: today/future, non-rest, with a workout, and not
             // already synced with the current content (edits change the
             // fingerprint, so an updated workout is sendable again).

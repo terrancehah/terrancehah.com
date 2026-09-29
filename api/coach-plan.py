@@ -32,7 +32,7 @@ from lib._shared import (
     _save_persistent_course, _get_persistent_course, _course_prompt_block,
     _training_gain_per_km, _save_course_insight, _get_course_insight,
     _mileage_prompt_lines,
-    _call_ai, _phase_for_days_left,
+    _call_ai, _phase_boundaries, _phase_for_days_left,
     _goal_target_seconds, _format_finish_time, _format_pace_per_km,
     _median, _fitness_medians, _fitness_samples, _long_run_samples, _cap_recent,
     _pace_str_sec, _pace_range_sec,
@@ -51,13 +51,27 @@ app = create_app("coach-plan")
 
 MAX_PLAN_DAYS = 26 * 7  # cap the season block at 26 weeks (~6 months)
 
-# Distance-aware LSD caps (km) — long runs never exceed the cap for the typed
-# race distance. A half-marathon block peaks ~18 km, a marathon ~30 km.
-PEAK_LONG_KM = {5.0: 14.0, 10.0: 16.0, 21.1: 18.0, 42.2: 30.0}
+# Distance-aware deterministic LSD ceilings (km) — long runs are mechanically
+# capped to the typed race distance during compilation. A half-marathon block
+# peaks at 18 km, a marathon block at 32 km.
+PEAK_LONG_KM = {5.0: 14.0, 10.0: 16.0, 21.1: 18.0, 42.2: 32.0}
 
-# The AI's weeks are trusted as generated — no backfill or cap. The prompt
-# (see _build_chunk_prompt) carries the workout-count, partial-week, and
-# race-week rules instead.
+
+def _peak_long_km(race_distance_km):
+    """Return the deterministic long-run ceiling for a race distance."""
+    distance = float(race_distance_km or 0)
+    if distance <= 5:
+        return PEAK_LONG_KM[5.0]
+    if distance <= 10:
+        return PEAK_LONG_KM[10.0]
+    if distance <= 21.1:
+        return PEAK_LONG_KM[21.1]
+    return PEAK_LONG_KM[42.2]
+
+# The AI's weeks are trusted for their scheduling shape — no backfill. The one
+# mechanical override is long-run distance, capped during compilation (see
+# _attach_workout_details). The prompt (see _build_chunk_prompt) carries the
+# workout-count, partial-week, and race-week rules.
 
 # Honesty rules for every generated week — these answer the verified amateur
 # complaints about plan products (long runs too short, race-week stacking,
@@ -476,13 +490,18 @@ def _progression_guide(phase, prev_long_km, race_day_chunk, peak_long_km, race_d
     return ""
 
 
-def _attach_workout_details(days, pace_zones):
+def _attach_workout_details(days, pace_zones, peak_long_km=None):
     """Compile each workout into the canonical object every consumer reads:
     paces resolved from the runner's current fitness zones, distances /
     durations / totals computed once, and the detail-sheet steps derived from
     the same segments the watch gets. The plan card, the detail sheet, the
     Garmin upload, and the coach insight all read this one structure, so they
-    cannot disagree (pace is derived, never user- or AI-editable)."""
+    cannot disagree (pace is derived, never user- or AI-editable).
+
+    peak_long_km enforces the distance-aware long-run ceiling mechanically:
+    a Long Run that exceeds it is scaled down segment by segment and
+    recompiled, so the deterministic cap — not the AI's prose — is what the
+    display, the detail steps, and the Garmin payload all show."""
     for day in days:
         w = day.get("workout")
         if not isinstance(w, dict):
@@ -492,7 +511,37 @@ def _attach_workout_details(days, pace_zones):
         # the full-block plan payload stays light and fast.
         w.setdefault("insight", None)
         try:
-            w.update(_compile_workout(w, pace_zones, workout_type=w.get("type")))
+            compiled = _compile_workout(w, pace_zones, workout_type=w.get("type"))
+            compiled_km = compiled.get("distance_km") or 0
+            if (peak_long_km
+                    and str(w.get("type") or "").strip().lower() == "long run"
+                    and compiled_km > peak_long_km):
+                # Scale every segment (and each nested recovery) by the same
+                # factor, then recompile — totals, steps, and the workout
+                # payload are all derived from these segments, so the cap
+                # lands identically everywhere instead of only on the card.
+                scale = peak_long_km / compiled_km
+                scaled_segments = []
+                for seg in compiled.get("segments") or []:
+                    seg = dict(seg)
+                    if seg.get("distance_km") is not None:
+                        seg["distance_km"] = round(seg["distance_km"] * scale, 2)
+                    if seg.get("duration_min") is not None:
+                        seg["duration_min"] = round(seg["duration_min"] * scale, 1)
+                    rec = seg.get("recovery")
+                    if isinstance(rec, dict):
+                        rec = dict(rec)
+                        if rec.get("distance_km") is not None:
+                            rec["distance_km"] = round(rec["distance_km"] * scale, 2)
+                        if rec.get("duration_min") is not None:
+                            rec["duration_min"] = round(rec["duration_min"] * scale, 1)
+                        seg["recovery"] = rec
+                    scaled_segments.append(seg)
+                capped_spec = dict(w)
+                capped_spec["segments"] = scaled_segments
+                compiled = _compile_workout(
+                    capped_spec, pace_zones, workout_type=w.get("type"))
+            w.update(compiled)
         except Exception:
             w["steps"] = [{"type": "Run", "detail": f"{w.get('distance_km') or '--'} km"}]
 
@@ -1492,7 +1541,14 @@ async def _workout_insight_action(body: CoachPlanRequest):
             race_date = _dt.strptime(race_date_str, "%Y-%m-%d").date()
             anchor = workout_date or date.today()
             days_left = (race_date - anchor).days
-            phase = _phase_for_days_left(days_left) if days_left is not None else None
+            # The phase scale comes from the remaining block measured from
+            # today — the same basis plan generation uses — capped at
+            # MAX_PLAN_DAYS, never the old fixed 7/20/42 boundaries.
+            boundaries = _phase_boundaries(
+                _race_distance_km(race_goal),
+                min(MAX_PLAN_DAYS, max(1, (race_date - date.today()).days)),
+            )
+            phase = _phase_for_days_left(days_left, boundaries) if days_left is not None else None
             if phase:
                 race_phase_text = f"{PHASE_LABELS.get(phase, phase)} ({days_left} days after this session)."
         except (ValueError, TypeError):
@@ -1855,29 +1911,30 @@ async def _generate_plan(body: CoachPlanRequest):
 
     # --- Race phase detection ---
     # Determine which training phase the runner is in based on days remaining
-    # to race day. The phases follow standard periodization:
-    #   build (6+ weeks):  easy volume, controlled quality
-    #   specificity (3-6 weeks / 21-42 days):  race-pace work, long runs peak
-    #   sharpen (7-20 days):  volume down 20-30%, one short race-pace session
-    #   taper (race week, <7 days):  volume down 40-60%, mostly easy, arrive fresh
+    # to race day. Boundaries are no longer fixed — they scale with the race
+    # distance and the remaining block (see _phase_boundaries): specificity
+    # takes ~45% of development time clamped to a distance-aware range,
+    # sharpen is one week up to a half and two beyond, taper is the final
+    # week, and everything earlier is build.
     race_phase = None
     days_to_race = None
     if race_date_str:
         try:
             race_date = _dt.strptime(race_date_str, "%Y-%m-%d").date()
             days_to_race = (race_date - date.today()).days
-            if days_to_race < 0:
-                race_phase = "post_race"
-            elif days_to_race < 7:
-                race_phase = "taper"
-            elif days_to_race <= 20:
-                race_phase = "sharpen"
-            elif days_to_race <= 42:
-                race_phase = "specificity"
-            else:
-                race_phase = "build"
         except (ValueError, TypeError):
             pass
+
+    race_distance_km = _race_distance_km(race_goal)
+    phase_boundaries = _phase_boundaries(
+        race_distance_km,
+        min(MAX_PLAN_DAYS, max(1, days_to_race or 1)),
+    )
+    if days_to_race is not None:
+        if days_to_race < 0:
+            race_phase = "post_race"
+        else:
+            race_phase = _phase_for_days_left(days_to_race, phase_boundaries)
 
     # Phase-specific instructions for the AI prompt. Each phase has a distinct
     # job — the plan must reflect the phase, not just the runner's preferences.
@@ -2002,11 +2059,11 @@ async def _generate_plan(body: CoachPlanRequest):
             plan_end = max_end
         total_plan_days = (plan_end - plan_start).days + 1
 
-        # Distance-aware block parameters: the LSD cap and race-day distance
-        # come from the typed goal, so a half-marathon block never asks for
-        # 30 km longs or a 42.2 km race workout.
-        race_distance_km = _race_distance_km(race_goal)
-        peak_long_km = PEAK_LONG_KM.get(race_distance_km, 24.0)
+        # The long-run ceiling follows the typed goal distance (the
+        # race_distance_km computed above also drives the phase boundaries),
+        # so a half-marathon block never asks for 32 km longs or a 42.2 km
+        # race workout.
+        peak_long_km = _peak_long_km(race_distance_km)
 
         # Whether the plan actually reaches race day — a block capped at
         # MAX_PLAN_DAYS ends mid-season with no race week, so the pre-taper
@@ -2131,7 +2188,7 @@ async def _generate_plan(body: CoachPlanRequest):
             elif reaches_race and week_idx == len(windows) - 2:
                 chunk_phase = "sharpen"
             else:
-                chunk_phase = _phase_for_days_left(days_left)
+                chunk_phase = _phase_for_days_left(days_left, phase_boundaries)
             phase_counts[chunk_phase] = phase_counts.get(chunk_phase, 0) + 1
             phase_text_chunk = phase_instructions.get(chunk_phase, "").format(days=days_left) if chunk_phase else ""
             progression_text = _progression_guide(chunk_phase, None, race_day_chunk, peak_long_km, race_distance_km)
@@ -2211,12 +2268,14 @@ async def _generate_plan(body: CoachPlanRequest):
             else:
                 chunk_days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
         chunk_days = chunk_days[:chunk_days_count]
-        # Trust the AI's week as generated — no backfill or cap. Only complete
-        # the schema so the frontend contract (is_rest = no workout) holds.
+        # Trust the AI's week for its scheduling shape — no backfill. The one
+        # mechanical override is long-run distance, capped during compilation
+        # inside _attach_workout_details. Only complete the schema so the
+        # frontend contract (is_rest = no workout) holds.
         for d in chunk_days:
             if isinstance(d, dict):
                 d["is_rest"] = not bool(d.get("workout"))
-        _attach_workout_details(chunk_days, chunk_zones)
+        _attach_workout_details(chunk_days, chunk_zones, peak_long_km)
 
         plan = {
             "week_start": plan_start.isoformat(),
@@ -2226,6 +2285,7 @@ async def _generate_plan(body: CoachPlanRequest):
             "race_date": race_date_str,
             "race_phase": race_phase or "build",
             "days_to_race": days_to_race,
+            "phase_boundaries": phase_boundaries,
             "pace_zones": chunk_zones,
             "zones": chunk_zones,
             "preferences": {
@@ -2395,8 +2455,10 @@ Return ONLY valid JSON:
             days.append({"date": expected_date, "day_of_week": None, "is_rest": True, "workout": None})
     plan["days"] = days[:total_plan_days]
 
-    # Trust the AI's week as generated — no backfill or cap. Only complete
-    # the schema so the frontend contract (is_rest = no workout) holds.
+    # Trust the AI's week for its scheduling shape — no backfill. The one
+    # mechanical override is long-run distance, capped during compilation
+    # inside _attach_workout_details. Only complete the schema so the
+    # frontend contract (is_rest = no workout) holds.
     for d in plan["days"]:
         if isinstance(d, dict):
             d["is_rest"] = not bool(d.get("workout"))
@@ -2404,7 +2466,8 @@ Return ONLY valid JSON:
     # Override each workout's pace with the deterministic zone for its type,
     # attach the coaching insight, and build the native Garmin step breakdown
     # (pace is derived, never user- or AI-editable).
-    _attach_workout_details(plan["days"], pace_zones)
+    _attach_workout_details(
+        plan["days"], pace_zones, _peak_long_km(race_distance_km))
 
     plan["pace_zones"] = pace_zones
     plan["preferences"] = {
@@ -2421,6 +2484,7 @@ Return ONLY valid JSON:
     if race_phase:
         plan["race_phase"] = race_phase
         plan["days_to_race"] = days_to_race
+    plan["phase_boundaries"] = phase_boundaries
 
     # Strip lap detail from the history sent to the client — laps are only for
     # the AI analysis, not the calendar cards.

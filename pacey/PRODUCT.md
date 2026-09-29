@@ -2,7 +2,7 @@
 
 Source of truth for what Pacey is and is not. Update this file when product consensus changes. User-facing voice still follows `pacey-writing-style.md`.
 
-Last updated: 2026-09-15.
+Last updated: 2026-09-29.
 
 ## One-line job
 
@@ -17,7 +17,7 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 
 ## What it is not
 
-- Not an in-run / on-watch product. No live coaching during the session. The conversational coach surface exists in the UI but stays locked.
+- Not an in-run / on-watch product. No live coaching during the session. The conversational coach surface exists in the UI and stays locked for now — it is a roadmap feature for post-run and planning discussion only, never live coaching.
 - Not a clone of Garmin Run Coach (daily adaptive week, no goal-time limiter map).
 - Not Expert Coach's colour gauge (that one measures workout adherence on 5K–half plans; Pacey's scores are goal readiness against the typed time).
 - Not a finish-time predictor. The trajectory verdict (ahead / on track / behind / not proven) is a goal-relative readiness judgement from current fitness. It never outputs a predicted race time — that is what COROS EvoLab, Polar Running Index and VDOT do.
@@ -28,24 +28,25 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 
 - Primary distance: **marathon**. Race date and goal time are first-class inputs.
 - Plan length: **full remaining block** to race day, generated one chunk at a time, capped at 26 weeks. When the race is further out than 26 weeks the block ends mid-season and does not reach race day; the runner is shown the block, not promised the race.
-- Phases: build / specificity / sharpen / taper. The final chunk is always the 7 days before race day; the chunk before it is always sharpen.
+- Phases: build / specificity / sharpen / taper, scaled to the race distance and block length rather than fixed day thresholds. Specificity takes about 45% of development time, clamped to 3–5 weeks for 5K/10K goals, 4–6 weeks for a half, and 6–8 weeks for a marathon or longer; sharpen is one week up to a half and two weeks beyond; the final week is always taper (the final chunk is the 7 days before race day, and the chunk before it is sharpen). Everything earlier is build.
 - Plan must stay honest vs amateur complaints:
-  - Long runs grow toward a distance-aware peak (marathon ~30 km / 18.6 mi), ramped about 10% per week from the runner's real long-run baseline. A duration ceiling (about 2–3 hours) is not yet enforced — see Open items.
+  - Long runs grow toward a deterministic distance ceiling — 14 km for 5K, 16 km for 10K, 18 km for a half, 32 km for a marathon — ramped about 10% per week from the runner's real long-run baseline and capped mechanically during compilation, not just asked for in the prompt. No universal time ceiling is used, because pace changes elapsed time.
   - Race week never stacks a long or hard session next to the race; race day itself is the Race workout.
   - Marathon-pace work must be real: genuine 15–30 minute blocks at goal pace, verified from lap-level work paces. There is no RPE mechanism anywhere in the pipeline, so MP sessions cannot be faked by auto-shifting effort.
   - Poor recovery signals (HRV down, RHR up, sleep poor) downgrade the week's quality session and keep the long run conversational.
-  - Illness / injury should pause or rebuild the remaining block, not keep the old week. **Not implemented** — see Open items.
+  - Illness / injury: the runner decides whether to skip a scheduled workout. Pacey does not enforce adherence or automatically reschedule missed sessions; Garmin recovery signals may still soften generated training.
 
 ## Behaviour to be deliberate about
 
 - **The block is re-projected daily.** The plan cache is keyed on tomorrow's date, so each new day regenerates every chunk. This is how the plan stays current, but it also means the plan has no stable identity across days, and a workout already synced to Garmin can change underneath the runner.
-- The overview leads with the Race Goal card and the readiness radar; the verdict sits in The Big Picture directly beneath them.
+- The overview leads with the Race Goal card and Race Readiness first, the optional Race Course card next; the verdict sits in The Big Picture beneath them.
 - **Demo mode** is the default landing state for a visitor with no session. It is a real acquisition surface, not a placeholder.
 
 ## Garmin
 
-- Official path is **OAuth / Connected Apps** and the Training API onto the Connect calendar. Not yet built — still first on the list.
-- Unofficial `python-garminconnect` email+password is a wedge, not the scale path. The current implementation already stores serialised OAuth tokens instead of the password and rotates them on re-auth; do not deepen password login further. The one deliberate exception is two-factor sign-in (see Open items), added because 2FA accounts could not sign in at all.
+- Official Connect APIs (OAuth / Connected Apps, Training API) require Garmin business-program approval and are not a current roadmap item. Pacey continues on unofficial `python-garminconnect` — a wedge, not the scale path — storing serialised OAuth tokens instead of the password and rotating them on re-auth; do not deepen password login further.
+- The one deliberate exception is two-factor sign-in (see Open items), added because 2FA accounts could not sign in at all. Its dependence on warm serverless instance state is a known limitation.
+- Official OAuth is reconsidered only if Garmin grants access.
 - Runna, TrainingPeaks, TrainAsONE, RunMotion all go through Connect permissions. Match that bar when auth is rebuilt.
 
 ## Competitive notes (verified 2026 research, status: partial)
@@ -61,17 +62,15 @@ Official OAuth at Garmin-partner scale, native watch glance, full-block periodiz
 
 ## Open items
 
-1. **Illness / injury state** — an explicit honesty rule with no implementation. Needs an input surface (something like "I'm out this week"), not just prompting.
-2. **Official Garmin Connect OAuth.**
-3. **Stable plan identity** — decide whether daily re-projection is the product or an artefact of the cache key, so a committed plan stops moving under the runner.
-4. **Long-run duration ceiling** (about 2–3 hours), not just distance.
-5. **Phase proportions** are fixed thresholds (42 / 20 / 7 days) and do not scale with block length; a 26-week block gets roughly 3 weeks of specificity.
-6. **Garmin two-factor sign-in is built, but best-effort.** The two-step flow exists: the password step answers 409 with an `mfa_token` and the code step completes it with `resume_login()`. It requires `garminconnect>=0.3.13`, which keeps the pending session alive after a wrong code so a mistyped code is retryable instead of restarting the whole login. The remaining gap is state — `resume_login()` completes on the same client instance, which holds the live TLS-impersonating session from the password step and is not serialisable, so the pending login is held in memory on the function instance (5-minute TTL, capped). That works when the same warm instance serves both requests and fails otherwise, in which case the runner is asked to start again rather than told their password is wrong. A reliable version needs a stateful service, or official OAuth (item 2).
+1. **Stable plan identity** — decide whether daily re-projection is the product or an artefact of the cache. Today the stored plan is rejected and overwritten whenever its stored `plan_start` / `week_start` no longer equals tomorrow, so the cache regenerates the block daily and a committed plan (including workouts already synced to Garmin) can move under the runner.
+2. **Coach chat** — a post-run and planning discussion surface only, never live or in-run coaching.
+3. **Additional interface languages.**
+4. **Garmin two-factor sign-in is built, but best-effort.** The two-step flow exists: the password step answers 409 with an `mfa_token` and the code step completes it with `resume_login()`. It requires `garminconnect>=0.3.13`, which keeps the pending session alive after a wrong code so a mistyped code is retryable instead of restarting the whole login. The remaining gap is state — `resume_login()` completes on the same client instance, which holds the live TLS-impersonating session from the password step and is not serialisable, so the pending login is held in memory on the function instance (5-minute TTL, capped). That works when the same warm instance serves both requests and fails otherwise, in which case the runner is asked to start again rather than told their password is wrong. A reliable version needs a stateful service, or official OAuth if Garmin ever grants access.
 
 ## Implementation order
 
-1. Official Garmin Connect OAuth (when tackling auth).
-2. Overview as diagnosis of **this race** — verdict ahead of the radar.
-3. Plan page: block identity and progress, so a synced plan stays put.
-4. Illness / injury pause and rebuild.
+1. Settle stable plan identity — weekly refresh and sync history, so a committed plan stays put.
+2. Post-run coach chat.
+3. Additional interface languages.
+4. Continue plan safety and quality refinements.
 5. Still no in-run features.

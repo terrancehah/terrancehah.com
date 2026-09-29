@@ -2009,17 +2009,48 @@ def _fetch_activities_for_ai(client, limit: int = 30, goal_pace_ms: float = 0) -
 # --- Coach plan helpers ---
 
 
-def _phase_for_days_left(days_left):
-    """Map days remaining to a training phase (mirrors the fallback logic)."""
+def _phase_boundaries(race_distance_km, total_plan_days):
+    """Return distance-aware phase lengths scaled to the available block."""
+    distance = _parse_float(race_distance_km) or 42.2
+    total_days = max(0, int(total_plan_days or 0))
+    taper_days = 7
+    if distance <= 10:
+        specificity_min, specificity_max, sharpen_days = 21, 35, 7
+    elif distance <= 21.1:
+        specificity_min, specificity_max, sharpen_days = 28, 42, 7
+    else:
+        specificity_min, specificity_max, sharpen_days = 42, 56, 14
+
+    development_days = max(0, total_days - taper_days - sharpen_days)
+    scaled_specificity = int((development_days * 0.45 + 3.5) // 7) * 7
+    specificity_days = min(
+        development_days,
+        max(specificity_min, min(specificity_max, scaled_specificity)),
+    ) if development_days else 0
+    return {
+        "taper_days": taper_days,
+        "sharpen_days": sharpen_days,
+        "specificity_days": specificity_days,
+    }
+
+
+def _phase_for_days_left(days_left, boundaries=None):
+    """Map days remaining to a phase using this plan's calculated boundaries."""
     if days_left < 0:
         return "post_race"
-    # Taper applies only to the final race week (days_left 0-6); the full
-    # week before it is still sharpen (last long run + race-pace touch).
-    if days_left < 7:
+    phase_days = boundaries or {
+        "taper_days": 7,
+        "sharpen_days": 14,
+        "specificity_days": 22,
+    }
+    taper_end = phase_days["taper_days"]
+    sharpen_end = taper_end + phase_days["sharpen_days"]
+    specificity_end = sharpen_end + phase_days["specificity_days"]
+    if days_left < taper_end:
         return "taper"
-    if days_left <= 20:
+    if days_left < sharpen_end:
         return "sharpen"
-    if days_left <= 42:
+    if days_left < specificity_end:
         return "specificity"
     return "build"
 
