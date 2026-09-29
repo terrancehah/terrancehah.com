@@ -248,6 +248,17 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.disabled = loading;
     }
 
+    // Lock every control in an async modal as one unit. This prevents edits,
+    // duplicate actions, and dismissal while the request is still using the
+    // values currently shown in the dialog.
+    function setModalControlsDisabled(modal, disabled) {
+        if (!modal) return;
+        modal.querySelectorAll('input, select, textarea, button').forEach((control) => {
+            control.disabled = disabled;
+        });
+        modal.setAttribute('aria-busy', disabled ? 'true' : 'false');
+    }
+
     function showScreen(screen) {
         [onboardScreen, onboardPlanScreen, dashboardScreen].forEach(s => s.hidden = true);
         screen.hidden = false;
@@ -260,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // so keyboard users can start typing immediately. Return focus to the
     // triggering element (settings button or demo CTA) when it closes.
     let loginModalTrigger = null;
+    let loginRequestPending = false; // a Garmin auth request is in flight
     function openLoginModal() {
         loginModalTrigger = document.activeElement;
         loginModal.hidden = false;
@@ -280,11 +292,11 @@ document.addEventListener('DOMContentLoaded', function () {
     loginModalClose.addEventListener('click', closeLoginModal);
     // Close modal when clicking the overlay background
     loginModal.addEventListener('click', (e) => {
-        if (e.target === loginModal) closeLoginModal();
+        if (e.target === loginModal && !loginRequestPending) closeLoginModal();
     });
     // Close modal on Escape key
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !loginModal.hidden) closeLoginModal();
+        if (e.key === 'Escape' && !loginModal.hidden && !loginRequestPending) closeLoginModal();
     });
 
     // =========================================================================
@@ -1079,6 +1091,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function setLoginRequestPending(pending) {
+        loginRequestPending = pending;
+        setModalControlsDisabled(loginModal, pending);
+        // The credential fields remain locked after a successful first pass
+        // while the runner enters the Garmin two-factor code.
+        if (!pending && mfaToken) setLoginFieldsLocked(true);
+    }
+
     function showMfaStep(token, email) {
         mfaToken = token;
         mfaEmail = email;
@@ -1103,7 +1123,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        // A request already in flight owns the modal's values — ignore repeat
+        // submissions rather than racing a second one.
+        if (loginRequestPending) return;
         authError.hidden = true;
+        setLoginRequestPending(true);
         setButtonLoading(loginBtn, true);
         const email = $('#pacey-email').value.trim();
         const password = $('#pacey-password').value;
@@ -1197,7 +1221,10 @@ document.addEventListener('DOMContentLoaded', function () {
             authError.textContent = 'Could not reach Garmin. Please try again in a moment.';
             console.warn('Login request failed. Is the local server running? (bash start-dev.sh)', err);
             authError.hidden = false;
-        } finally { setButtonLoading(loginBtn, false); }
+        } finally {
+            setLoginRequestPending(false);
+            setButtonLoading(loginBtn, false);
+        }
     });
 
     // =========================================================================
@@ -2149,6 +2176,14 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    // A candidate link or a GPX parse is in flight — the dialog locks as one
+    // unit so a second click cannot start a competing save.
+    let linkRacePending = false;
+    function setLinkRacePending(pending) {
+        linkRacePending = pending;
+        setModalControlsDisabled($('#pacey-link-race-modal'), pending);
+    }
+
     function openLinkRaceModal() {
         const modal = $('#pacey-link-race-modal');
         const list = $('#pacey-link-race-list');
@@ -2177,6 +2212,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const status = $('#pacey-link-race-status');
         if (status) status.hidden = true;
+        // Reopening always starts unlocked — a previous in-flight flag would
+        // otherwise wedge the dialog closed if the modal was reopened after a
+        // programmatic close.
+        setLinkRacePending(false);
         modal.hidden = false;
     }
 
@@ -2195,12 +2234,16 @@ document.addEventListener('DOMContentLoaded', function () {
             status.textContent = msg;
             status.hidden = !msg;
         };
+        if (linkRacePending) return;
         if (!file || !window.PaceyCourse) return;
         if (file.size > COURSE_MAX_BYTES) {
             setStatus('That file is too large to read.');
             return;
         }
 
+        // Lock the dialog before the async parse/save starts — a second file
+        // pick or candidate click would race this write.
+        setLinkRacePending(true);
         setStatus('Reading the file…');
         try {
             const parsed = PaceyCourse.parseGpx(await file.text());
@@ -2236,6 +2279,8 @@ document.addEventListener('DOMContentLoaded', function () {
             closeLinkRaceModal();
         } catch (err) {
             setStatus('We could not read that file.');
+        } finally {
+            setLinkRacePending(false);
         }
     }
 
@@ -2428,7 +2473,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Wiring — the recap blocks are re-rendered on every mode change, so the
     // buttons are handled by delegation rather than bound per render.
     (function bindRaceRecapControls() {
-        document.addEventListener('click', (e) => {
+        // Async because linking a candidate run awaits the goal save while
+        // the modal stays locked.
+        document.addEventListener('click', async (e) => {
             const actionBtn = e.target.closest('[data-recap-action]');
             if (actionBtn) {
                 const action = actionBtn.getAttribute('data-recap-action');
@@ -2458,11 +2505,26 @@ document.addEventListener('DOMContentLoaded', function () {
             // loaded list, so the result carries the activity's own figures.
             const item = e.target.closest('[data-link-index]');
             if (item) {
+                // Ignore the pick while a link/GPX write is already running —
+                // the buttons are disabled anyway, this is the belt-and-braces
+                // check for programmatic or rapid keyboard clicks.
+                if (linkRacePending) return;
                 const activity = fullActivitiesLoaded[Number(item.getAttribute('data-link-index'))];
                 if (activity) {
-                    saveRaceResult(raceResultFromActivity(activity));
-                    closeLinkRaceModal();
+                    setLinkRacePending(true);
+                    const status = $('#pacey-link-race-status');
+                    if (status) {
+                        status.textContent = 'Linking your run…';
+                        status.hidden = false;
+                    }
+                    try {
+                        await saveRaceResult(raceResultFromActivity(activity));
+                        closeLinkRaceModal();
+                    } finally {
+                        setLinkRacePending(false);
+                    }
                 }
+                return;
             }
             // Review readiness on an archived race — the index points back into
             // the loaded history, so the modal gets that race's own snapshot.
@@ -2483,10 +2545,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (closeBtn) closeBtn.addEventListener('click', closeLinkRaceModal);
         const modal = $('#pacey-link-race-modal');
         if (modal) {
-            modal.addEventListener('click', (e) => { if (e.target === modal) closeLinkRaceModal(); });
+            // Backdrop dismissal is ignored while a link is in flight — the
+            // save writes to the goal, so it must not lose its context.
+            modal.addEventListener('click', (e) => { if (e.target === modal && !linkRacePending) closeLinkRaceModal(); });
         }
         const skipBtn = $('#pacey-link-race-skip');
-        if (skipBtn) skipBtn.addEventListener('click', () => { closeLinkRaceModal(); openEditGoalPopup(); });
+        if (skipBtn) skipBtn.addEventListener('click', () => {
+            if (linkRacePending) return;
+            closeLinkRaceModal();
+            openEditGoalPopup();
+        });
         const fileInput = $('#pacey-link-race-file');
         if (fileInput) {
             fileInput.addEventListener('change', () => {
@@ -7486,6 +7554,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const editGoalForm = $('#pacey-edit-goal-form');
     const editGoalBtn = $('#pacey-edit-goal-btn');
     let editGoalTrigger = null;
+    let editGoalSavePending = false; // an onboarding save is in flight
+
+    // While the save runs, the whole dialog locks: edited values must not
+    // change under the request, and backdrop/Escape dismissal is skipped.
+    function setEditGoalSavePending(pending) {
+        editGoalSavePending = pending;
+        setModalControlsDisabled(editGoalPopup, pending);
+    }
 
     // Open the edit-goal popup — pre-fills the form with the current race goal
     function openEditGoalPopup() {
@@ -7624,6 +7700,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Save the edited goal and reload the dashboard against it. Split out so the
     // confirmation above can run it only once the runner agrees to the change.
     async function applyEditedGoal(body) {
+        // A save already in flight owns the form values — repeat clicks and
+        // the confirmation's re-entry both no-op.
+        if (editGoalSavePending) return;
+        setEditGoalSavePending(true);
         setButtonLoading(editGoalBtn, true);
         try {
             // A new goal replaces the old one, so a finished race on the old goal
@@ -7677,13 +7757,18 @@ document.addEventListener('DOMContentLoaded', function () {
             loadAllData(true);
             closeEditGoalPopup();
         } catch (err) { alert('Network error. Please try again.'); }
-        finally { setButtonLoading(editGoalBtn, false); }
+        finally {
+            setEditGoalSavePending(false);
+            setButtonLoading(editGoalBtn, false);
+        }
     }
 
-    // Close handlers — close button, click outside, Escape key
+    // Close handlers — close button, click outside, Escape key. The close
+    // button is disabled by setEditGoalSavePending; backdrop and Escape are
+    // checked explicitly.
     editGoalClose.addEventListener('click', closeEditGoalPopup);
     editGoalPopup.addEventListener('click', (e) => {
-        if (e.target === editGoalPopup) closeEditGoalPopup();
+        if (e.target === editGoalPopup && !editGoalSavePending) closeEditGoalPopup();
     });
 
     // Edit race goal — shared handler used by both the sidebar edit button
@@ -8009,7 +8094,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Edit-goal popup Escape key handler
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !editGoalPopup.hidden) closeEditGoalPopup();
+        if (e.key === 'Escape' && !editGoalPopup.hidden && !editGoalSavePending) closeEditGoalPopup();
     });
 
     // =========================================================================

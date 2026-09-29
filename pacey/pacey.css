@@ -1508,7 +1508,7 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 .pacey-countdown-label {
-    font-size: var(--pacey-text-label);
+    font-size: var(--pacey-text-subheading);
     color: rgba(255, 255, 255, 0.85);
     text-transform: lowercase;
     font-weight: 500;
