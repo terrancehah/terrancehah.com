@@ -27,6 +27,7 @@ from lib._shared import (
     _compute_pace_zones, _build_running_workout, _flatten_workout_steps,
     _compile_workout,
     _get_persistent_coach_cache, _save_persistent_coach_cache, _delete_persistent_coach_cache,
+    _get_persistent_plan_syncs, _save_persistent_plan_syncs,
     _get_persistent_ai_cache, _get_cached_garmin_data, _get_fitness_snapshot,
     _get_race_history,
     _save_persistent_course, _get_persistent_course, _course_prompt_block,
@@ -67,6 +68,11 @@ def _peak_long_km(race_distance_km):
     if distance <= 21.1:
         return PEAK_LONG_KM[21.1]
     return PEAK_LONG_KM[42.2]
+
+
+def _calendar_week_start(day):
+    """Monday that identifies the weekly plan review cycle."""
+    return day - timedelta(days=day.weekday())
 
 # The AI's weeks are trusted for their scheduling shape — no backfill. The one
 # mechanical override is long-run distance, capped during compilation (see
@@ -403,15 +409,18 @@ def _split_windows(plan_start, plan_end):
     chunk — no matter which weekday the race falls on. For a Monday race
     that window crosses the Mon-Sun boundary, so the chunk before it is
     truncated at the day before the taper window (no overlap, no override
-    needed). The first chunk runs tomorrow through the Sunday after the
-    next Monday (up to 13 days); each later chunk is a full Mon-Sun week.
+    needed). The first chunk runs from plan_start (today) through the Sunday
+    of the current calendar week — intentionally partial when the plan is
+    generated midweek; each later chunk is a full Mon-Sun week.
     """
     windows = []
     taper_start = plan_end - timedelta(days=6)
     if plan_start >= taper_start:
         # The whole remaining block is inside the taper window.
         return [(plan_start, plan_end)]
-    first_end = plan_start + timedelta(days=((7 - plan_start.weekday()) % 7) + 6)
+    # This week's Sunday — the first chunk is deliberately partial for a
+    # midweek generation rather than merged with the following full week.
+    first_end = plan_start + timedelta(days=6 - plan_start.weekday())
     # Never extend into the taper window — the taper chunk is always its own.
     first_end = min(first_end, taper_start - timedelta(days=1), plan_end)
     windows.append((plan_start, first_end))
@@ -429,13 +438,16 @@ def _split_windows(plan_start, plan_end):
     # before a Tuesday taper). Merge it into the previous chunk so the AI
     # sees the whole pre-taper block — a standalone 1-day chunk would be
     # generated blind, risking a workout sandwiched between workouts its
-    # neighbours scheduled that it cannot see.
+    # neighbours scheduled that it cannot see. The previous chunk must be a
+    # normal full week though: a partial first week is never extended past
+    # its Sunday, so in that rare short-race edge case the tiny leftover
+    # stays its own chunk.
     if len(windows) >= 3:
         pre_taper_start, pre_taper_end = windows[-2]
         prev_start, _ = windows[-3]
         leftover_days = (pre_taper_end - pre_taper_start).days + 1
         merged_days = (pre_taper_end - prev_start).days + 1
-        if leftover_days <= 2 and merged_days <= 13:
+        if leftover_days <= 2 and merged_days <= 13 and prev_start.weekday() == 0:
             windows[-3] = (prev_start, pre_taper_end)
             windows.pop(-2)
     return windows
@@ -840,6 +852,9 @@ Return ONLY valid JSON:
 class ScheduleDay(BaseModel):
     date: str
     workout: Optional[dict] = None
+    # The client-computed workout fingerprint — recorded in the sync receipt
+    # so a later edit (which changes the fingerprint) makes it sendable again.
+    fingerprint: str = ""
 
 
 def _extract_workout_id(resp: Any):
@@ -1455,8 +1470,20 @@ async def _compile_workout_action(body: CoachPlanRequest):
 
 async def _schedule_plan_action(body: CoachPlanRequest):
     """Upload each workout as a Garmin template and schedule it on its date."""
-    _get_session(body.token)
+    sess = _get_session(body.token)
     client = _get_garmin_client(body.token)
+    email = sess.get("email", "") if isinstance(sess, dict) else ""
+    # Successful schedules are recorded as per-account receipts so reloads and
+    # other devices keep their "Synced" badges instead of offering the same
+    # workout again.
+    receipts = _get_persistent_plan_syncs(email)
+
+    # Server-side sync window — the API enforces the boundary the UI only
+    # hints at: only the remaining days of the current Mon-Sun calendar week
+    # may be scheduled. Today through Sunday all pass, so an initial partial
+    # week still works; past days and future-week previews are rejected.
+    today = date.today()
+    sync_week_end = _calendar_week_start(today) + timedelta(days=6)
 
     scheduled = []
     errors = []
@@ -1464,6 +1491,17 @@ async def _schedule_plan_action(body: CoachPlanRequest):
     for day in body.days:
         # Rest days / empty slots are skipped — nothing to write
         if not day.workout:
+            continue
+        # Reject dates outside the current week's remaining days before any
+        # Garmin write — the button being hidden client-side is not a guard.
+        try:
+            target_date = _dt.strptime(day.date, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            errors.append({"date": day.date, "error": "Invalid workout date."})
+            continue
+        if target_date < today or target_date > sync_week_end:
+            errors.append({"date": day.date,
+                           "error": "Only the current week's remaining workouts can be sent."})
             continue
         try:
             workout = _build_running_workout(day.workout)
@@ -1485,11 +1523,21 @@ async def _schedule_plan_action(body: CoachPlanRequest):
                 "date": day.date,
                 "workout_id": workout_id,
                 "schedule": schedule_data,
+                # Echo the submitted fingerprint so the client sees exactly
+                # which content reached Garmin.
+                "fingerprint": day.fingerprint,
             })
+            if day.fingerprint:
+                receipts[day.date] = {
+                    "fingerprint": day.fingerprint,
+                    "workout_id": workout_id,
+                    "synced_at": _dt.now().isoformat(),
+                }
         except Exception as e:
             errors.append({"date": day.date, "error": str(e)})
 
-    return JSONResponse(content={"scheduled": scheduled, "errors": errors})
+    _save_persistent_plan_syncs(email, receipts)
+    return JSONResponse(content={"scheduled": scheduled, "errors": errors, "sync_history": receipts})
 
 
 async def _workout_insight_action(body: CoachPlanRequest):
@@ -1693,10 +1741,16 @@ async def _generate_plan(body: CoachPlanRequest):
     race_date_str = race_goal.get("race_date") if race_goal else None
     email = sess.get("email", "")
 
+    # The plan's review cycle is the Monday-Sunday calendar week: the block
+    # starts today, is cached under this week's Monday, and is regenerated at
+    # most once per week (first load of a new week) rather than daily.
+    today = date.today()
+    review_week_start = _calendar_week_start(today)
+
     # --- Persistent coach plan cache check (keyed by email, shared across devices) ---
-    # The plan is week-specific — it starts tomorrow and covers the current
-    # planning window. If we have a cached plan for this email with the same
-    # plan_start (tomorrow) and the same preferences, return it immediately.
+    # The plan is week-specific — it starts today and is reviewed once per
+    # calendar week. If we have a cached plan for this email generated in the
+    # same review week with the same preferences, return it immediately.
     # This prevents different devices from showing different plans.
     # Skip the cache entirely when force=1 (manual regeneration).
     forceRefresh = body.force in ("1", "true", "yes")
@@ -1724,15 +1778,14 @@ async def _generate_plan(body: CoachPlanRequest):
             cached_week_start = cached_entry.get("week_start", "")
             cached_race_date = cached_entry.get("race_date", "")
             cached_prefs = cached_entry.get("preferences", {})
-            # Compute tomorrow's date the same way as below
-            tomorrow = (date.today() + timedelta(days=1)).isoformat()
-            # Return cached plan only if the block start, the race date, and
-            # the preferences all match — a season plan is stale once the
-            # race date changes or the block start moves. Also require the
-            # cache to cover the WHOLE block: week-by-week generation merges
-            # into the cache incrementally, and a partial cache must fall
-            # through so the frontend keeps requesting the missing weeks.
-            if (cached_week_start == tomorrow
+            # Return the cached plan only while its stored week_start is the
+            # Monday of the current calendar week, the race date matches, and
+            # the preferences all match — a season plan is stale once a new
+            # week starts or the race date changes. Also require the cache to
+            # cover the WHOLE block: week-by-week generation merges into the
+            # cache incrementally, and a partial cache must fall through so
+            # the frontend keeps requesting the missing weeks.
+            if (cached_week_start == review_week_start.isoformat()
                     and cached_race_date == (race_date_str or "")
                     and cached_prefs.get("days_per_week") == days_per_week
                     and cached_prefs.get("intensity") == intensity
@@ -1744,16 +1797,11 @@ async def _generate_plan(body: CoachPlanRequest):
                     and cached_prefs.get("time_target", "") == current_prefs["time_target"]
                     and cached_prefs.get("weekly_mileage", "") == current_prefs["weekly_mileage"]):
                 cached_days = ((cached_entry.get("data") or {}).get("plan") or {}).get("days") or []
-                expected_total = None
-                if race_date_str:
-                    try:
-                        rdate = _dt.strptime(race_date_str, "%Y-%m-%d").date()
-                        plan_start_t = date.today() + timedelta(days=1)
-                        exp_end = min(rdate, plan_start_t + timedelta(days=MAX_PLAN_DAYS))
-                        expected_total = (exp_end - plan_start_t).days + 1
-                    except (ValueError, TypeError):
-                        pass
-                if expected_total is None or len(cached_days) >= expected_total:
+                # The expected block length comes from the stored plan's own
+                # metadata — it must not be recomputed from today, because the
+                # block started on the day it was generated, not tomorrow.
+                cached_total_days = ((cached_entry.get("data") or {}).get("plan") or {}).get("total_plan_days")
+                if cached_total_days and len(cached_days) >= cached_total_days:
                     data = cached_entry["data"]
                     # Never serve a STORED trajectory verdict — it is
                     # transient (reflects current fitness) and old entries
@@ -1810,6 +1858,9 @@ async def _generate_plan(body: CoachPlanRequest):
                     if wide:
                         data["history"] = [{k: v for k, v in a.items() if k != "laps"}
                                            for a in wide]
+                    # Sync receipts live in their own store — attach them on
+                    # the way out so badges survive reloads and devices.
+                    data["sync_history"] = _get_persistent_plan_syncs(email)
                     return JSONResponse(content=data)
 
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -1977,19 +2028,28 @@ async def _generate_plan(body: CoachPlanRequest):
     }
     phase_text = phase_instructions.get(race_phase, "").format(days=days_to_race) if race_phase else ""
 
-    # Plan starts tomorrow and extends through the end of the next full
+    # Plan starts today and extends through the end of the next full
     # Mon–Sun week. This avoids a large gap when the user generates a plan
     # mid-week (e.g. on a Tuesday, the old approach would skip to next Monday
     # leaving 6 empty days). Monday is still treated as the start of a new
-    # training block — the days between tomorrow and the next Monday are the
+    # training block — the days between today and the next Monday are the
     # "gap" days that complete the current week, then the full Mon–Sun block
-    # follows. Total plan length ranges from 7 days (if tomorrow is Monday)
-    # up to 13 days (if today is Monday).
-    plan_start = date.today() + timedelta(days=1)
+    # follows. Total plan length ranges from 7 days (if today is Monday)
+    # up to 13 days (if today is Tuesday).
+    plan_start = today
     days_until_monday = (7 - plan_start.weekday()) % 7
     next_monday = plan_start + timedelta(days=days_until_monday)
     plan_end = next_monday + timedelta(days=6)  # Sunday at end of full week
     total_plan_days = (plan_end - plan_start).days + 1
+
+    # If the runner already logged a session today, the plan must not stack a
+    # second workout on that day — it is marked rest instead. This is the
+    # only adherence-aware rule: missed or extra days are never inferred
+    # beyond duplicate-today protection.
+    today_has_activity = any(
+        (a.get("date") or a.get("start_time") or "")[:10] == today.isoformat()
+        for a in (history or [])
+    )
 
     # Quality (hard) days per week — computed, not left to the model to
     # invent. At least one hard day is always scheduled (even for an easy
@@ -2043,14 +2103,14 @@ async def _generate_plan(body: CoachPlanRequest):
     # Full remaining-block plan (marathon companion)
     # ------------------------------------------------------------------
     # When the runner has a future race date, the plan covers the entire
-    # block from tomorrow to race day instead of a short week window. The
-    # block is generated chunk by chunk (first chunk = the current week,
-    # then one full Mon-Sun week per AI call) so every week stays coherent
-    # and the JSON stays within the response token limit. The final chunk
-    # ends on race day, which gets a Race workout and no stacked hard or
-    # long session.
+    # block from today to race day instead of a short week window. The
+    # block is generated chunk by chunk (first chunk = today through this
+    # calendar week's Sunday, then one full Mon-Sun week per AI call) so
+    # every week stays coherent and the JSON stays within the response token
+    # limit. The final chunk ends on race day, which gets a Race workout and
+    # no stacked hard or long session.
     if race_date_str and days_to_race is not None and days_to_race > 0:
-        plan_start = date.today() + timedelta(days=1)
+        plan_start = today
         plan_end = race_date
         # Cap the block so a race far in the future does not generate months
         # of speculative weeks (marathon seasons run about 12-26 weeks).
@@ -2175,6 +2235,13 @@ async def _generate_plan(body: CoachPlanRequest):
                     f"{partial_target} workout days (never more than the number of days in the "
                     f"window), never two hard days back to back."
                 )
+            # Duplicate-today protection — only the first window can contain
+            # today, since the block starts there.
+            if today_has_activity and w_start <= today <= w_end:
+                window_structure_text += (
+                    f" Today ({today.isoformat()}) already has a logged run in the"
+                    " history — mark it a rest day; do not schedule a second workout."
+                )
             # Days remaining at the end of this chunk decide its phase, so a
             # long block moves build -> specificity -> sharpen -> taper. The
             # race week itself is always taper; the week right before it is
@@ -2282,6 +2349,9 @@ async def _generate_plan(body: CoachPlanRequest):
             "plan_start": plan_start.isoformat(),
             "plan_end": plan_end.isoformat(),
             "total_plan_days": total_plan_days,
+            # Monday of the calendar week this block was generated in — the
+            # weekly review-cycle key shared with the plan cache.
+            "review_week_start": review_week_start.isoformat(),
             "race_date": race_date_str,
             "race_phase": race_phase or "build",
             "days_to_race": days_to_race,
@@ -2311,7 +2381,8 @@ async def _generate_plan(body: CoachPlanRequest):
 # The calendar pages through ui_history (the whole cache), not the
         # prompt's two-week window.
         slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in ui_history]
-        response_data = {"history": slim_history, "plan": plan}
+        response_data = {"history": slim_history, "plan": plan,
+                         "sync_history": _get_persistent_plan_syncs(email)}
 
         # Merge this week into the persistent email-keyed cache so the
         # block accumulates across requests and other devices.
@@ -2320,7 +2391,7 @@ async def _generate_plan(body: CoachPlanRequest):
             merged = response_data
             if cached:
                 cached_data = cached.get("data") or {}
-                if (cached.get("week_start") == plan_start.isoformat()
+                if (cached.get("week_start") == review_week_start.isoformat()
                         and (cached.get("race_date") or "") == (race_date_str or "")
                         and (cached.get("preferences") or {}) == current_prefs):
                     merged = dict(cached_data)
@@ -2338,14 +2409,24 @@ async def _generate_plan(body: CoachPlanRequest):
             merged_plan.pop("trajectory", None)
             cache_data = dict(merged)
             cache_data["plan"] = merged_plan
+            # Sync receipts live in their own email-keyed store — they are
+            # attached to responses on the way out, never persisted inside
+            # the coach-plan cache.
+            cache_data.pop("sync_history", None)
             _save_persistent_coach_cache(
                 email, cache_data,
-                week_start=plan_start.isoformat(),
+                week_start=review_week_start.isoformat(),
                 preferences=current_prefs,
                 race_date=race_date_str or "",
             )
         return JSONResponse(content=response_data)
 
+    # Duplicate-today protection for the fallback window too — a logged run
+    # today makes it a rest day, never a stacked second session.
+    today_rule = (
+        f"- Today ({today.isoformat()}) already has a logged run — mark it a rest day;"
+        " do not schedule another workout on it.\n" if today_has_activity else ""
+    )
     prompt = f"""You are an expert running coach. Study the runner's last 2 weeks of training
 (with per-lap detail) and their recovery signals, then propose a training plan that honours the
 runner's preferences and progresses them toward their race goal.
@@ -2353,10 +2434,10 @@ runner's preferences and progresses them toward their race goal.
 {race_goal_text}
 
 PLAN WINDOW:
-- Start on {plan_start.isoformat()} (tomorrow). Cover exactly {total_plan_days} consecutive days
+- Start on {plan_start.isoformat()} (today). Cover exactly {total_plan_days} consecutive days
   from that date, ending on {plan_end.isoformat()}.
-- Do not wait for the next Monday. The plan starts tomorrow.
-- Monday starts a new training block. The days between tomorrow and the next Monday
+- Do not wait for the next Monday. The plan starts today.
+{today_rule}- Monday starts a new training block. The days between today and the next Monday
   ({next_monday.isoformat()}) complete the current week — schedule at most 1-2 easy runs there,
   never a long run or hard session. From {next_monday.isoformat()} onward, build the full
   Mon-Sun training block with exactly {days_per_week} workout days; the remaining days are rest.
@@ -2397,7 +2478,7 @@ read the work-lap paces as the true effort, not the blended average.
 
 PLAN REQUIREMENTS:
 - The plan covers {total_plan_days} days from {plan_start.isoformat()} to {plan_end.isoformat()}.
-- Distribute the {days_per_week} workout days across each 7-day block. Days between tomorrow and
+- Distribute the {days_per_week} workout days across each 7-day block. Days between today and
   the next Monday should be treated as the tail of the current week — fill with easy runs or rest.
 - Each non-rest day's workout must have: "type" (one of Easy, Recovery, Long Run, Tempo, Intervals,
   Speedwork), "title", "description" (1-2 sentences on intent), "intensity" (easy, moderate, or
@@ -2481,6 +2562,8 @@ Return ONLY valid JSON:
     plan["plan_start"] = plan_start.isoformat()
     plan["plan_end"] = plan_end.isoformat()
     plan["total_plan_days"] = total_plan_days
+    # Monday of this generation's calendar week — the shared review-cycle key.
+    plan["review_week_start"] = review_week_start.isoformat()
     if race_phase:
         plan["race_phase"] = race_phase
         plan["days_to_race"] = days_to_race
@@ -2492,19 +2575,22 @@ Return ONLY valid JSON:
     # prompt's two-week window.
     slim_history = [{k: v for k, v in a.items() if k != "laps"} for a in ui_history]
 
-    response_data = {"history": slim_history, "plan": plan}
+    response_data = {"history": slim_history, "plan": plan,
+                     "sync_history": _get_persistent_plan_syncs(email)}
 
     # Save to the persistent email-keyed cache so the same plan appears on
-    # other devices. Store the plan_start, race_date, and preferences for
-    # invalidation. The trajectory verdict is never persisted — it is
-    # transient (recomputed on reads) and must not go stale in the cache.
+    # other devices. Store the review week's Monday, race_date, and
+    # preferences for invalidation — sync receipts stay in their own store
+    # and are attached to responses only. The trajectory verdict is never
+    # persisted — it is transient (recomputed on reads) and must not go
+    # stale in the cache.
     if email:
         cache_plan = dict(plan)
         cache_plan.pop("trajectory", None)
         cache_data = {"history": slim_history, "plan": cache_plan}
         _save_persistent_coach_cache(
             email, cache_data,
-            week_start=plan_start.isoformat(),
+            week_start=review_week_start.isoformat(),
             preferences=current_prefs,
             race_date=race_date_str or "",
         )

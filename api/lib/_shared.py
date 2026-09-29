@@ -706,8 +706,9 @@ def _delete_persistent_ai_cache(email: str):
 # --- Persistent coach plan cache (Redis, keyed by email) ---
 #
 # Stores the full coach plan so the same plan appears on every device. The
-# plan is forward-looking and week-specific, so invalidation is based on the
-# plan's week_start date — a new week means a new plan. That check is
+# plan is forward-looking and reviewed once per calendar week, so
+# invalidation is based on the Monday of the week the plan was generated —
+# a new Monday means a regenerated block, not a daily one. That check is
 # self-contained (it does not depend on another cache), so there is no TTL: a
 # runner who steps away for months keeps their plan rather than paying to have
 # it rebuilt.
@@ -715,7 +716,7 @@ def _delete_persistent_ai_cache(email: str):
 # The cache entry includes:
 #   - data: the full coach plan response ({ history, plan })
 #   - generated_at: ISO timestamp
-#   - week_start: the plan's starting date (used for week-based invalidation)
+#   - week_start: the Monday of the plan's review week (weekly invalidation)
 #   - preferences: the prefs used to generate the plan (for comparison)
 #   - race_date: the race date the plan targets (invalidates when it changes)
 
@@ -1091,8 +1092,8 @@ def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", p
     """Store a coach plan keyed by email so it syncs across devices.
 
     Called by coach-plan.py after a successful plan generation. Stores the
-    full response along with the plan's week_start, the race date it targets,
-    and the preferences used.
+    full response along with the review week's Monday (week_start), the race
+    date it targets, and the preferences used.
     """
     if not email:
         return
@@ -1113,8 +1114,9 @@ def _save_persistent_coach_cache(email: str, data: dict, week_start: str = "", p
 def _get_persistent_coach_cache(email: str) -> dict | None:
     """Read a persisted coach plan by email. Returns None if no cache exists.
 
-    Returns the full cache entry including metadata. The caller checks
-    week_start to decide whether the plan is still for the current week.
+    Returns the full cache entry including metadata. The caller compares
+    week_start against the current calendar week's Monday to decide whether
+    the plan still belongs to this review week.
     """
     if not email:
         return None
@@ -1138,6 +1140,64 @@ def _delete_persistent_coach_cache(email: str):
     if not email:
         return
     key = f"{COACH_CACHE_PREFIX}{email}"
+    if _redis:
+        _redis.delete(key)
+    else:
+        _local_sessions.pop(key, None)
+
+
+# --- Persistent plan sync receipts (Redis, keyed by email) ---
+#
+# Successful Garmin schedule calls leave a receipt per workout date so the
+# "Synced" badge survives reloads and second devices. One map per account —
+# it is small and read whole. Deleted when the race goal is replaced, since a
+# new block makes every old receipt meaningless.
+#
+# No TTL — a receipt says "this exact workout content reached Garmin"; that
+# fact never expires.
+
+PLAN_SYNC_PREFIX = "race:plan-sync:"
+PLAN_SYNC_LIMIT = 100
+
+
+def _get_persistent_plan_syncs(email: str) -> dict:
+    """Return successful Garmin plan sync receipts keyed by workout date."""
+    if not email:
+        return {}
+    key = f"{PLAN_SYNC_PREFIX}{email}"
+    if _redis:
+        raw = _redis.get(key)
+        if not raw:
+            return {}
+        if isinstance(raw, bytes):
+            raw = raw.decode()
+        try:
+            data = json.loads(raw)
+        except (ValueError, TypeError):
+            return {}
+    else:
+        data = _local_sessions.get(key)
+    return data if isinstance(data, dict) else {}
+
+
+def _save_persistent_plan_syncs(email: str, receipts: dict):
+    """Persist the newest successful Garmin plan sync receipts for an account."""
+    if not email:
+        return
+    ordered = sorted((receipts or {}).items(), key=lambda item: item[0])[-PLAN_SYNC_LIMIT:]
+    data = dict(ordered)
+    key = f"{PLAN_SYNC_PREFIX}{email}"
+    if _redis:
+        _redis.set(key, json.dumps(data))
+    else:
+        _local_sessions[key] = data
+
+
+def _delete_persistent_plan_syncs(email: str):
+    """Clear sync receipts when a race goal is replaced."""
+    if not email:
+        return
+    key = f"{PLAN_SYNC_PREFIX}{email}"
     if _redis:
         _redis.delete(key)
     else:

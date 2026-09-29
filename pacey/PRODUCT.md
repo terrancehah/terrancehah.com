@@ -38,7 +38,7 @@ Tell the runner: can you hit this marathon time, which part of fitness is the li
 
 ## Behaviour to be deliberate about
 
-- **The block is re-projected daily.** The plan cache is keyed on tomorrow's date, so each new day regenerates every chunk. This is how the plan stays current, but it also means the plan has no stable identity across days, and a workout already synced to Garmin can change underneath the runner.
+- **The block is reviewed once per calendar week.** The plan cache is keyed on the Monday of the current week, so the full block stays put for the whole Monday–Sunday span instead of regenerating daily. A plan first generated midweek starts that same day with an intentionally partial first week (today through Sunday). On the first load of a new week the whole remaining forecast regenerates from the latest 14-day run history and body signals — the completed prior week is part of that history, never something Pacey reschedules or enforces. Only the current calendar week is syncable to Garmin (in a partial first week, today through Sunday); future weeks are preview-only. Successful syncs record a per-account fingerprint + workout ID receipt that persists across reloads and devices, so an unchanged workout never asks to be sent twice — an edited one changes its fingerprint and can be pushed again. Missed sessions are inputs and history, not adherence the plan enforces.
 - The overview leads with the Race Goal card and Race Readiness first, the optional Race Course card next; the verdict sits in The Big Picture beneath them.
 - **Demo mode** is the default landing state for a visitor with no session. It is a real acquisition surface, not a placeholder.
 
@@ -62,15 +62,13 @@ Official OAuth at Garmin-partner scale, native watch glance, full-block periodiz
 
 ## Open items
 
-1. **Stable plan identity** — decide whether daily re-projection is the product or an artefact of the cache. Today the stored plan is rejected and overwritten whenever its stored `plan_start` / `week_start` no longer equals tomorrow, so the cache regenerates the block daily and a committed plan (including workouts already synced to Garmin) can move under the runner.
-2. **Coach chat** — a post-run and planning discussion surface only, never live or in-run coaching.
-3. **Additional interface languages.**
-4. **Garmin two-factor sign-in is built, but best-effort.** The two-step flow exists: the password step answers 409 with an `mfa_token` and the code step completes it with `resume_login()`. It requires `garminconnect>=0.3.13`, which keeps the pending session alive after a wrong code so a mistyped code is retryable instead of restarting the whole login. The remaining gap is state — `resume_login()` completes on the same client instance, which holds the live TLS-impersonating session from the password step and is not serialisable, so the pending login is held in memory on the function instance (5-minute TTL, capped). That works when the same warm instance serves both requests and fails otherwise, in which case the runner is asked to start again rather than told their password is wrong. A reliable version needs a stateful service, or official OAuth if Garmin ever grants access.
+1. **Coach chat** — a post-run and planning discussion surface only, never live or in-run coaching.
+2. **Additional interface languages.**
+3. **Garmin two-factor sign-in is built, but best-effort.** The two-step flow exists: the password step answers 409 with an `mfa_token` and the code step completes it with `resume_login()`. It requires `garminconnect>=0.3.13`, which keeps the pending session alive after a wrong code so a mistyped code is retryable instead of restarting the whole login. The remaining gap is state — `resume_login()` completes on the same client instance, which holds the live TLS-impersonating session from the password step and is not serialisable, so the pending login is held in memory on the function instance (5-minute TTL, capped). That works when the same warm instance serves both requests and fails otherwise, in which case the runner is asked to start again rather than told their password is wrong. A reliable version needs a stateful service, or official OAuth if Garmin ever grants access.
 
 ## Implementation order
 
-1. Settle stable plan identity — weekly refresh and sync history, so a committed plan stays put.
-2. Post-run coach chat.
-3. Additional interface languages.
-4. Continue plan safety and quality refinements.
-5. Still no in-run features.
+1. Post-run coach chat.
+2. Additional interface languages.
+3. Continue plan safety and quality refinements.
+4. Still no in-run features.

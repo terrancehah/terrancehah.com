@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
+from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, _get_persistent_plan_syncs, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -55,6 +55,9 @@ async def check_session(token: str = ""):
     # may be None if no cache exists yet.
     cached_ai = _get_persistent_ai_cache(email) if email else None
     cached_coach = _get_persistent_coach_cache(email) if email else None
+    # Garmin sync receipts for the plan's badges — read-only here; this
+    # endpoint never triggers a plan rebuild.
+    plan_sync_history = _get_persistent_plan_syncs(email) if email else {}
     # Fold the generation time into the cached AI payload so a device with
     # empty localStorage can show the readiness "last updated" line before it
     # re-fetches (the timestamp lives on the cache entry, not inside data).
@@ -74,6 +77,7 @@ async def check_session(token: str = ""):
         "race_goal": race_goal,
         "cached_ai_insights": cached_ai_payload,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
+        "plan_sync_history": plan_sync_history,
     })
 
 

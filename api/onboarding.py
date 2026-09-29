@@ -11,6 +11,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_session, _update_session, _save_persistent_race_goal, create_app,
     _delete_persistent_ai_cache, _delete_persistent_coach_cache,
+    _delete_persistent_plan_syncs,
     _get_persistent_race_goal, _archive_race_goal,
 )
 
@@ -81,4 +82,8 @@ async def onboarding(
         # scratch against the new goal.
         _delete_persistent_ai_cache(email)
         _delete_persistent_coach_cache(email)
+        # The Garmin sync receipts belong to the old goal's block too — a new
+        # plan puts different workouts on the same dates, so the old
+        # fingerprints/workout_ids must not keep marking them synced.
+        _delete_persistent_plan_syncs(email)
     return JSONResponse(content={"message": "Race goal saved.", "goal": goal})

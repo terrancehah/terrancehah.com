@@ -1170,6 +1170,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.cached_coach_plan) {
                 writeCoachCache(data.cached_coach_plan);
             }
+            // Sync receipts when the login response carries them — older
+            // responses may omit the field, which applyCoachSyncHistory
+            // ignores safely.
+            applyCoachSyncHistory(data);
             // Close modal and proceed — if the user has a persisted race goal
             // from a previous session, show a reminder popup so they can keep,
             // edit, or replace it. Otherwise go to onboarding as before.
@@ -7647,6 +7651,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // true, and generateCoachPlan early-returns on it).
             clearCoachCache();
             coachLoaded = false;
+            coachLoadedWeekKey = '';
             coachPlanData = null;
             coachEditingDate = null;
             coachSyncedDates.clear();
@@ -7775,6 +7780,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearCoachCache();
         // Also drop the in-memory plan so the Plan page rebuilds for the new goal
         coachLoaded = false;
+        coachLoadedWeekKey = '';
         coachPlanData = null;
         coachEditingDate = null;
         coachSyncedDates.clear();
@@ -8270,6 +8276,7 @@ document.addEventListener('DOMContentLoaded', function () {
         lastHrPaceActivities = null;
         // Reset coach plan state so the Plan page loads fresh after re-login
         coachLoaded = false;
+        coachLoadedWeekKey = '';
         coachPlanData = null;
         coachEditingDate = null;
         coachSyncedDates.clear();
@@ -8327,13 +8334,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
     let coachPlanData = null;   // { history: [...], plan: { days: [...], pace_zones: {...} } }
     let coachLoaded = false;    // whether the plan has been fetched this session
+    // Monday key of the calendar week the loaded plan belongs to — a new
+    // week makes the loaded block stale and forces regeneration.
+    let coachLoadedWeekKey = '';
     let coachGenerating = false; // whether a generation is in flight (guards re-entry)
     let coachEditingDate = null; // the day currently in edit mode (or null)
     // date -> workout fingerprint already synced to Garmin. Storing the
     // fingerprint (not just the date) lets edited workouts be re-synced: a
     // changed workout no longer matches its stored fingerprint, so it is
-    // sendable again within the sync window.
+    // sendable again within the sync window. The map is seeded from the
+    // server's persistent sync receipts (see applyCoachSyncHistory) so
+    // badges survive reloads and appear on other devices.
     const coachSyncedDates = new Map();
+
+    // Fold the server's sync receipts into coachSyncedDates. The payload
+    // shape is {date: {fingerprint, workout_id, synced_at}} under
+    // "sync_history" on coach-plan responses and "plan_sync_history" on
+    // check-session; an absent field leaves the map untouched. Receipts are
+    // canonical — the map is fully replaced, never merged.
+    function applyCoachSyncHistory(data) {
+        if (!data || typeof data !== 'object') return;
+        const receipts = 'sync_history' in data ? data.sync_history : data.plan_sync_history;
+        if (!receipts || typeof receipts !== 'object') return;
+        coachSyncedDates.clear();
+        Object.entries(receipts).forEach(([date, rec]) => {
+            if (rec && typeof rec.fingerprint === 'string' && rec.fingerprint) {
+                coachSyncedDates.set(date, rec.fingerprint);
+            }
+        });
+    }
 
     // Compact fingerprint of a workout spec — any change to the session
     // (type, distance, duration, pace, description) invalidates the sync.
@@ -8409,12 +8438,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     let coachPrefs = readCoachPrefs();
 
-    // Cache key is scoped by session + goal + day so a stale plan never bleeds
-    // across users or across week boundaries.
+    // The Monday that owns the current calendar week — the plan's weekly
+    // review-cycle key. Both the local cache below and the server's
+    // persistent cache are keyed on this Monday, so a plan stays valid for
+    // the whole week and regenerates only when a new calendar week begins.
+    function currentPlanWeekKey() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+        return localDateKey(monday);
+    }
+
+    // Cache key is scoped by session + goal + review week so a stale plan
+    // never bleeds across users, goals, or week boundaries.
     function getCoachCacheKey() {
         const goalFingerprint = raceGoal ? `${raceGoal.purpose || ''}|${raceGoal.time_target || ''}|${raceGoal.race_date || ''}|${raceGoal.fitness_race_distance || ''}|${raceGoal.fitness_race_time || ''}` : 'no-goal';
-        const today = new Date().toISOString().slice(0, 10);
-        return `${sessionToken || 'demo'}::${goalFingerprint}::${today}`;
+        const weekKey = currentPlanWeekKey();
+        return `${sessionToken || 'demo'}::${goalFingerprint}::${weekKey}`;
     }
 
     function readCoachCache() {
@@ -8423,6 +8464,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!raw) return null;
             const entry = JSON.parse(raw);
             if (entry.key !== getCoachCacheKey()) return null;
+            // Secondary guard only — the week key in getCoachCacheKey is the
+            // real invalidation; a new calendar week misses by key.
             if (Date.now() - entry.timestamp > COACH_CACHE_TTL_MS) return null;
             if (!coachCacheIsUsable(entry.data)) return null;
             return entry.data;
@@ -8440,12 +8483,21 @@ document.addEventListener('DOMContentLoaded', function () {
         return !f || Array.isArray(f.current_easy_runs);
     }
 
+    // Store the plan response minus sync receipts — receipts live in their
+    // own server-side store and arrive via check-session/plan/schedule
+    // responses, so a cached copy could overwrite fresher receipts just
+    // loaded on this device.
     function writeCoachCache(data) {
         try {
+            const cacheData = data && typeof data === 'object' ? { ...data } : data;
+            if (cacheData) {
+                delete cacheData.sync_history;
+                delete cacheData.plan_sync_history;
+            }
             localStorage.setItem(COACH_CACHE_KEY, JSON.stringify({
                 key: getCoachCacheKey(),
                 timestamp: Date.now(),
-                data: data,
+                data: cacheData,
             }));
         } catch (e) {
             // localStorage full or unavailable — silently skip caching
@@ -8505,7 +8557,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Mock plan for demo mode — mirrors the full-block coach-plan.py logic:
-    // starts tomorrow, runs through race day (build → specificity → sharpen
+    // starts today, runs through race day (build → specificity → sharpen
     // → taper), long runs progress toward the distance-aware peak (32 km for
     // a marathon goal) then taper, and the final day is a Race workout with
     // no hard/long session stacked on it.
@@ -8590,9 +8642,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const daysPerWeek = p.days_per_week || 3;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        // Plan starts tomorrow
+        // Plan starts today — a midweek demo block has a partial first week,
+        // matching the backend.
         const planStart = new Date(today);
-        planStart.setDate(today.getDate() + 1);
 
         // Demo race date: prefer the saved race goal, else 12 weeks out.
         let raceDate = null;
@@ -8895,19 +8947,20 @@ document.addEventListener('DOMContentLoaded', function () {
         return [{ type: 'Run', detail: '6 km', level: 0, pace: typePace }];
     }
 
-    // Mirror of the backend's _split_windows: first chunk runs tomorrow
-    // through the end of the current Mon-Sun week, then full Mon-Sun weeks
-    // until race day (capped at MAX_PLAN_DAYS). Returns ISO start dates of
-    // each chunk, or null when there is no future race date (short-window
-    // fallback).
+    // Mirror of the backend's _split_windows: first chunk starts today and
+    // runs through this calendar week's Sunday (intentionally partial when
+    // generated midweek), then full Mon-Sun weeks until race day (capped at
+    // MAX_PLAN_DAYS). Returns ISO start dates of each chunk, or null when
+    // there is no future race date (short-window fallback).
     function getPlanWeekStarts() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         if (!raceGoal || !raceGoal.race_date) return null;
         const raceDate = new Date(raceGoal.race_date + 'T00:00:00');
         if (raceDate <= today) return null;
+        // The block starts today — a midweek generation gets a partial first
+        // week rather than waiting for Monday.
         const planStart = new Date(today);
-        planStart.setDate(today.getDate() + 1);
         const maxEnd = new Date(planStart);
         maxEnd.setDate(planStart.getDate() + MOCK_MAX_PLAN_DAYS);
         const planEnd = raceDate > maxEnd ? maxEnd : raceDate;
@@ -8927,8 +8980,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const lastPreTaper = new Date(taperStart);
         lastPreTaper.setDate(taperStart.getDate() - 1);
         const pyWd = (planStart.getDay() + 6) % 7;
+        // This week's Sunday — the first chunk never merges with the next
+        // full week.
         const firstEnd = new Date(planStart);
-        firstEnd.setDate(planStart.getDate() + ((7 - pyWd) % 7) + 6);
+        firstEnd.setDate(planStart.getDate() + (6 - pyWd));
         if (firstEnd > lastPreTaper) firstEnd.setTime(lastPreTaper.getTime());
         if (firstEnd > planEnd) firstEnd.setTime(planEnd.getTime());
         starts.push(localDateKey(planStart));
@@ -8945,13 +9000,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // Mirror the backend's pre-taper merge: a 1-2 day leftover chunk
         // before the taper window is absorbed into the previous chunk, so
-        // the same window is never requested (or generated) twice.
+        // the same window is never requested (or generated) twice. The
+        // previous chunk must start on a Monday — a partial first week is
+        // never extended past its Sunday, so that rare short-race leftover
+        // stays its own chunk.
         if (starts.length >= 3) {
             const secondLast = parseDate(starts[starts.length - 2] + 'T00:00:00');
             const leftoverDays = (lastPreTaper - secondLast) / 86400000 + 1;
             const thirdLast = parseDate(starts[starts.length - 3] + 'T00:00:00');
             const mergedDays = (lastPreTaper - thirdLast) / 86400000 + 1;
-            if (leftoverDays <= 2 && mergedDays <= 13) {
+            if (leftoverDays <= 2 && mergedDays <= 13 && thirdLast.getDay() === 1) {
                 starts.splice(starts.length - 2, 1);
             }
         }
@@ -9006,13 +9064,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 coachPlanData = { history: getMockCoachHistory(), plan: getMockCoachPlan(coachPrefs) };
                 renderCoachCalendar(coachPlanData);
                 coachLoaded = true;
+                coachLoadedWeekKey = currentPlanWeekKey();
                 coachGenerating = false;
             }, DEMO_CHART_LOADING_MS);
             return;
         }
 
-        // Local 24h cache fast path — skip the network entirely when the
-        // cached block already covers the full plan window.
+        // Local cache fast path — the key already encodes the current review
+        // week, so a hit is a plan built this week; only check it still
+        // covers the full plan window. The cached plan deliberately carries
+        // no sync receipts — the map already holds what check-session sent.
         if (!force) {
             const cached = readCoachCache();
             if (cached && cached.plan && cached.plan.days && cached.plan.total_plan_days
@@ -9020,6 +9081,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 coachPlanData = cached;
                 renderCoachCalendar(coachPlanData);
                 coachLoaded = true;
+                coachLoadedWeekKey = currentPlanWeekKey();
                 return;
             }
         }
@@ -9049,8 +9111,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
                 coachPlanData = data;
+                applyCoachSyncHistory(data);
                 renderCoachCalendar(coachPlanData);
                 coachLoaded = true;
+                coachLoadedWeekKey = currentPlanWeekKey();
                 return;
             }
 
@@ -9064,7 +9128,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const batch = weekStarts.slice(i, i + batchSize);
                 const done = Math.min(i + batch.length, weekStarts.length);
                 // Chunks are AI calls, not calendar weeks — the first chunk
-                // can span up to 13 days, so label them "parts".
+                // can be a partial week, so label them "parts".
                 // The headline stroke above already says "Building your plan",
                 // so this line carries only the progress — repeating the words
                 // read as two competing loading messages.
@@ -9094,6 +9158,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 for (const data of results) {
                     if (!history && data.history) history = data.history;
                     if (!meta && data.plan) meta = data.plan;
+                    // Every chunk response carries the account's sync
+                    // receipts — apply them live so badges are current as
+                    // the block fills in. They are not copied into
+                    // coachPlanData: the local cache excludes them (see
+                    // writeCoachCache) since the server store is canonical.
+                    applyCoachSyncHistory(data);
                     for (const d of (data.plan && data.plan.days) || []) {
                         daysByDate[d.date] = d;
                         if (data.plan.zones) zonesByDate[d.date] = data.plan.zones;
@@ -9118,6 +9188,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (coachBuildStatusEl) coachBuildStatusEl.hidden = true;
             writeCoachCache(coachPlanData);
             coachLoaded = true;
+            coachLoadedWeekKey = currentPlanWeekKey();
         } catch (err) {
             coachErrorEl.textContent = (err && err.message) || 'Network error.';
             coachErrorEl.hidden = false;
@@ -9133,6 +9204,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // top (navigateTo resets the window scroll), led by the race card.
     function openPlanPage() {
         planPastDays = 14;
+        // The review cycle is the calendar week — a plan loaded under last
+        // week's Monday is stale, so drop it and let the paths below
+        // regenerate (the server re-evaluates the latest 14 days).
+        if (coachLoadedWeekKey !== currentPlanWeekKey()) {
+            coachLoaded = false;
+            coachPlanData = null;
+        }
         // Post-race there is no block left to build. Generating one would produce
         // recovery sessions the runner never asked for and cannot act on, and it
         // would spend an AI call doing it. The calendar still renders — it is the
@@ -9144,6 +9222,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // mock; without this the calendar would be empty.
             if (!source && window.__demoMode) source = { history: getMockCoachHistory() };
             coachLoaded = true;
+            coachLoadedWeekKey = currentPlanWeekKey();
             renderCoachCalendar({ history: (source && source.history) || [], plan: {} });
             return;
         }
@@ -9286,9 +9365,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // from days left at the week start, mirroring the backend's phase
         // boundaries) so the runner always knows where they are in the block.
         const todayKey = localDateKey(today);
-        // Only the current week and the next one may be synced — beyond that
-        // the button is disabled, because the runner may still edit those
-        // workouts and should always be able to push the updated block.
+        // Only the current calendar week may be synced — future weeks are
+        // preview-only because the whole block regenerates at the start of
+        // the next week anyway.
+        const currentWeekMondayKey = localDateKey(mondayOfKey(todayKey));
         const planStartDate = plan.plan_start ? parseDate(plan.plan_start + 'T00:00:00') : new Date(today);
         const planStartMonday = new Date(planStartDate);
         planStartMonday.setDate(planStartDate.getDate() - ((planStartDate.getDay() + 6) % 7));
@@ -9298,7 +9378,7 @@ document.addEventListener('DOMContentLoaded', function () {
         coachCalendarEl.innerHTML = weeks.map(week => {
             const weekStartDate = parseDate(week[0].date + 'T00:00:00');
             const weekOffset = Math.round((weekStartDate - planStartMonday) / dayMs / 7);
-            const inSyncWindow = weekOffset === 0 || weekOffset === 1;
+            const inSyncWindow = week[0].date === currentWeekMondayKey;
             const weekNumber = weekOffset + 1;
             const weekLabel = weekNumber >= 1 ? `Week ${weekNumber}` : 'History';
             const weekEndDate = new Date(weekStartDate);
@@ -9313,9 +9393,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 day.date >= todayKey && day.plan && !day.plan.is_rest
                 && day.plan.workout
                 && coachSyncedDates.get(day.date) !== workoutFingerprint(day.plan.workout));
-            // Only the two in-window weeks get a button, and only when there
-            // is something to sync — weeks beyond the sync window show no
-            // button at all (a disabled one would just confuse the runner).
+            // Only the current week gets a button, and only when there
+            // is something to sync — future weeks are preview-only and show
+            // no button at all (a disabled one would just confuse the runner).
             const showButton = inSyncWindow && sendable.length > 0;
             return `
                 <div class="pacey-cal-week-block">
@@ -10183,11 +10263,10 @@ document.addEventListener('DOMContentLoaded', function () {
             .filter(d => !d.is_rest && d.workout
                 && coachSyncedDates.get(d.date) !== workoutFingerprint(d.workout)
                 && d.date >= todayKey && d.date >= weekStart && d.date <= weekEnd)
-            .map(d => ({ date: d.date, workout: d.workout }));
-        // Map the sent workouts by date so the synced fingerprints can be
-        // recorded from the API response.
-        const workoutByDate = {};
-        days.forEach(d => { workoutByDate[d.date] = d.workout; });
+            // The fingerprint goes with each day so the server can record it
+            // in the sync receipt — a later edit changes it and makes the
+            // workout sendable again.
+            .map(d => ({ date: d.date, workout: d.workout, fingerprint: workoutFingerprint(d.workout) }));
         const statusEl = btn.nextElementSibling;
         // The status line now only carries messages that need explaining, so
         // it is shown in the error tone rather than the old success green.
@@ -10233,11 +10312,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.warn('Schedule request failed:', data.error || resp.status);
                 setStatus('Could not send workouts to Garmin. Please try again.');
             } else {
-                (data.scheduled || []).forEach(s => {
-                    if (workoutByDate[s.date]) {
-                        coachSyncedDates.set(s.date, workoutFingerprint(workoutByDate[s.date]));
-                    }
-                });
+                // The server's persisted receipts are canonical — reloads and
+                // other devices read the same "Synced" badges from them.
+                applyCoachSyncHistory(data);
+                if (!data.sync_history) {
+                    // Defensive fallback for a response without receipts —
+                    // record the fingerprints we just sent so badges update.
+                    days.forEach(d => coachSyncedDates.set(d.date, d.fingerprint));
+                }
                 const errorCount = (data.errors || []).length;
                 if (errorCount) {
                     // Leave the button up so the runner can retry; a re-render
@@ -10287,6 +10369,7 @@ document.addEventListener('DOMContentLoaded', function () {
         clearAICache();
         clearCoachCache();
         coachLoaded = false;
+        coachLoadedWeekKey = '';
         coachPlanData = null;
         coachEditingDate = null;
         coachSyncedDates.clear();
@@ -10315,6 +10398,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('GET', 'check-session');
             const data = await resp.json();
             if (!resp.ok || !data.valid) return false;
+            // Receipts update the badges without touching the loaded plan.
+            applyCoachSyncHistory(data);
             return reconcileServerRaceGoal(data);
         } catch (err) {
             console.warn('Goal refresh failed — keeping the cached goal', err);
@@ -10364,6 +10449,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Local storage paints immediately, but the email-keyed server
                 // goal is canonical and replaces any stale browser copy.
                 reconcileServerRaceGoal(data);
+                // Sync receipts ride check-session so the plan's "Synced"
+                // badges stay current across devices even when the plan
+                // itself comes from the local or server cache.
+                applyCoachSyncHistory(data);
                 // Pre-seed AI insights and coach plan caches from the server's
                 // persistent store if the frontend doesn't have them. This
                 // covers the new-device case where localStorage is empty but
@@ -10383,6 +10472,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 clearSWRCaches();
                 clearAICache();
                 clearCoachCache();
+                coachLoadedWeekKey = '';
                 startDemoMode();
             }
         }).catch(() => {
@@ -10465,7 +10555,16 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && !dashboardScreen.hidden) {
             refreshRaceGoalOnReturn().then(goalChanged => {
-                if (!goalChanged) refreshDataIfStale();
+                if (goalChanged) return;
+                // A calendar-week boundary crossed while the tab was hidden —
+                // the loaded plan belongs to the old week, so the Plan page
+                // regenerates the remaining forecast. coachGenerating already
+                // guards against a second build landing in parallel.
+                if (getPageFromHash() === 'plan' && coachLoadedWeekKey !== currentPlanWeekKey()) {
+                    openPlanPage();
+                    return;
+                }
+                refreshDataIfStale();
             });
         }
     });
