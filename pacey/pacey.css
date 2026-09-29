@@ -739,6 +739,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     align-items: center; 
     gap: 0.25rem; 
     padding-bottom: 0.75rem;
+    justify-content: center;
 }
 
 .pacey-sidebar-goal {
@@ -748,7 +749,8 @@ header.pacey-header-offset.pacey-header-collapsed {
        and stayed cool blue on the warm board. */
     color: var(--pacey-muted);
     font-weight: 500;
-    flex: 1;
+    /* Content-sized — the box is exactly as wide as the goal text. */
+    flex: 0 1 auto;
     text-align: center;
 }
 
