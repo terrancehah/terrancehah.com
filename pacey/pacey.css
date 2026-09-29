@@ -749,7 +749,7 @@ header.pacey-header-offset.pacey-header-collapsed {
     color: var(--pacey-muted);
     font-weight: 500;
     flex: 1;
-    text-align: end;
+    text-align: center;
 }
 
 .pacey-reset-goal-icon {

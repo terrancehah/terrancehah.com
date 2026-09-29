@@ -1279,6 +1279,9 @@ document.addEventListener('DOMContentLoaded', function () {
             fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            // A saved goal starts without the previous race's course, locally
+            // and across devices, so the runner can upload the matching route.
+            await clearCourse();
             // Proceed to Step 3 — latest race result (current fitness)
             showScreen(onboardFitnessScreen);
         } catch (err) { alert('Network error. Please try again.'); }
@@ -2381,13 +2384,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const recap = (goal.race_recap || {}).text || '';
         const readiness = (goal.race_readiness || {}).data || {};
         const hasReadiness = !!(readiness.dimensions || []).length;
-        // The newest race opens on arrival, so the list has content to read
-        // rather than landing as a stack of closed rows.
-        const open = index === 0;
+        // Every race starts collapsed so the history remains scannable until
+        // the runner chooses an entry to review.
         const panelId = `pacey-past-race-panel-${index}`;
         return `
-            <article class="pacey-past-race${open ? ' is-open' : ''}">
-                <button class="pacey-past-race-head" type="button" data-past-race-toggle aria-expanded="${open}" aria-controls="${panelId}">
+            <article class="pacey-past-race">
+                <button class="pacey-past-race-head" type="button" data-past-race-toggle aria-expanded="false" aria-controls="${panelId}">
                     <span class="pacey-past-race-name">${escapeHtml(goal.race_name || goal.purpose || 'Race')}</span>
                     ${meta ? `<span class="pacey-past-race-meta">${escapeHtml(meta)}</span>` : ''}
                     <svg class="pacey-past-race-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
@@ -3770,7 +3772,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function clearCourse() {
+    async function clearCourse() {
         const el = courseEls();
         courseRecord = null;
         courseInsight = null;
@@ -3785,7 +3787,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.error) el.error.hidden = true;
         if (el.input) el.input.value = '';
         localStorage.removeItem(COURSE_CACHE_KEY);
-        saveCourseRemote(); // null record clears the server copy too
+        await saveCourseRemote(); // A null record clears the server copy too.
     }
 
     function persistCourseLocal() {
@@ -7624,6 +7626,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 raceGoal = data.goal;
             }
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            // A changed goal needs its own course. Wait for the remote clear so
+            // the dashboard reload cannot fetch the previous race's map again.
+            await clearCourse();
             // Goal changed — cached AI insights are no longer valid
             clearAICache();
             // The coach plan (and its trajectory) was generated against the old
