@@ -5694,7 +5694,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Three lines in the shape of the read, so the block does not jump when the
     // text lands.
     function activityInsightSkeletonHtml() {
-        return '<div class="pacey-activity-insight-loading" aria-hidden="true">'
+        return '<div class="pacey-activity-insight-loading pacey-ai-insight-loading" aria-hidden="true">'
             + '<span class="pacey-skeleton-lines">'
             + '<span class="pacey-skeleton-line"></span>'
             + '<span class="pacey-skeleton-line"></span>'
@@ -10075,7 +10075,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <span class="pacey-sheet-section-title">Coach insight</span>
                 ${w.insight
                     ? `<p class="pacey-sheet-insight">${escapeHtml(w.insight)}</p>`
-                    : '<div class="pacey-sheet-insight pacey-sheet-insight--loading" aria-hidden="true">'
+                    : '<div class="pacey-sheet-insight pacey-sheet-insight--loading pacey-ai-insight-loading" aria-hidden="true">'
                         + '<span class="pacey-skeleton-lines">'
                         + '<span class="pacey-skeleton-line"></span>'
                         + '<span class="pacey-skeleton-line"></span>'

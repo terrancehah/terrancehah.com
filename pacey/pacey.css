@@ -2254,6 +2254,17 @@ header.pacey-header-offset.pacey-header-collapsed {
     animation: pacey-skeleton-shimmer 1.5s infinite;
 }
 
+/* AI-written insight placeholders share a quiet spectrum sweep so generation
+   reads differently from ordinary data loading without overpowering the copy. */
+.pacey-ai-insight-loading .pacey-skeleton-line {
+    background: var(--pacey-ai-shimmer-gradient);
+    /* A broad colour field and constant pace prevent visible acceleration or
+       sharp resets as the low-saturation spectrum passes through each line. */
+    background-size: 400% 100%;
+    animation-duration: 3.5s;
+    animation-timing-function: linear;
+}
+
 .pacey-skeleton-line--short { width: 60%; }
 
 /* Placeholder for the overview card's "View details →" affordance */

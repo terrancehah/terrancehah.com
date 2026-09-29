@@ -68,6 +68,21 @@
        flips correctly in dark mode. */
     --pacey-skeleton-glow: rgba(69, 123, 157, 0.55);
 
+    /* Low-saturation spectrum for AI-written text placeholders. The colour
+       shift distinguishes generation from ordinary data-loading skeletons. */
+    --pacey-ai-shimmer-coral: #d8b9b3;
+    --pacey-ai-shimmer-amber: #d9cba9;
+    --pacey-ai-shimmer-sage: #b9cec0;
+    --pacey-ai-shimmer-blue: #b8cad9;
+    --pacey-ai-shimmer-lilac: #cbbdd5;
+    --pacey-ai-shimmer-gradient: linear-gradient(90deg,
+        var(--pacey-ai-shimmer-coral) 0%,
+        var(--pacey-ai-shimmer-amber) 20%,
+        var(--pacey-ai-shimmer-sage) 40%,
+        var(--pacey-ai-shimmer-blue) 60%,
+        var(--pacey-ai-shimmer-lilac) 80%,
+        var(--pacey-ai-shimmer-coral) 100%);
+
     /* ---- Spacing scale ---- */
     /* 6-step rem-based scale for consistent vertical rhythm. Components
        should reference these instead of inventing ad-hoc values. */
