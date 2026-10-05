@@ -1206,6 +1206,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Drop the demo course from memory (never from the server) so the
             // runner's own course can load in its place.
             resetCourseLocal();
+            // A completed login is confirmed auth — release any course insight
+            // that deferred while the session was unproven. After the reset so
+            // no read is issued for a course this account doesn't own.
+            courseAuthReady();
             if (data.has_race_goal && data.race_goal) {
                 // Show the reminder popup instead of going straight to the
                 // dashboard or onboarding — the user should consciously
@@ -2751,6 +2755,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let goalMap = null;        // the pinned mini map in the Race Goal card
     let courseMapObserver = null;  // keeps the map canvases matched to their boxes
     let courseInsight = null;  // { text, fingerprint } — the coach's read
+    // The read needs a verified session: a restored course paints before
+    // check-session has proven the saved token, and firing the request early
+    // spends a 401 and hides the block. This flips only on confirmed auth —
+    // startup check-session success or a completed login — never on the token
+    // merely being assigned.
+    let courseAuthConfirmed = false;
+    let courseInsightLoadingKey = null;  // fingerprint of the in-flight read
 
     // Resolve the course DOM lazily so a missing card can never throw.
     function courseEls() {
@@ -3925,11 +3936,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
         el.insightText.hidden = true;
         el.insightLoading.hidden = false;
+
+        // Not yet authenticated: leave the skeleton up and defer. The auth
+        // seam (courseAuthReady) re-renders the card once startup knows the
+        // session is real; demo and signed-out paths never reach the request.
+        if (!courseAuthConfirmed) return;
+
         loadCourseInsight(rec);
+    }
+
+    // Startup auth finished and the session is real — launch the insight the
+    // restored course deferred. The fingerprint check inside
+    // renderCourseInsight makes repeat calls a no-op.
+    function courseAuthReady() {
+        courseAuthConfirmed = true;
+        if (courseRecord) renderCourseInsight(courseRecord);
     }
 
     async function loadCourseInsight(rec) {
         const el = courseEls();
+        const fingerprint = rec.savedAt || '';
+        // A re-render while the read is in flight must not fire a second
+        // request for the same course.
+        if (courseInsightLoadingKey === fingerprint) return;
+        courseInsightLoadingKey = fingerprint;
         try {
             // The record is sent with the request so the read can't race the
             // save of a course that was just uploaded.
@@ -3938,19 +3968,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 course: rec,
             });
             const data = await resp.json();
-            if (resp.ok && data && data.insight) {
-                courseInsight = { text: data.insight, fingerprint: rec.savedAt || '' };
-                // The card may have been cleared or replaced mid-flight, so
-                // only paint if the same course is still on screen.
-                if (courseRecord === rec) {
-                    el.insightText.textContent = data.insight;
-                    el.insightText.hidden = false;
-                    el.insightLoading.hidden = true;
-                }
+            // The card may have been cleared or replaced mid-flight — adopt
+            // the response only while the course it was read for is still the
+            // one on screen, or a slow reply for a dropped course would
+            // overwrite the insight cache the next render trusts.
+            if (resp.ok && data && data.insight && courseRecord === rec) {
+                courseInsight = { text: data.insight, fingerprint };
+                el.insightText.textContent = data.insight;
+                el.insightText.hidden = false;
+                el.insightLoading.hidden = true;
                 return;
             }
         } catch (e) {
             // Offline or signed out — fall through and hide the block.
+        } finally {
+            // Clear the in-flight marker only if it still names this read —
+            // a newer request for a different course owns it by then.
+            if (courseInsightLoadingKey === fingerprint) courseInsightLoadingKey = null;
         }
         if (courseRecord === rec && el.insight) el.insight.hidden = true;
     }
@@ -4408,6 +4442,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     loadMoreBtn.hidden = acts.length < ACTIVITIES_PAGE_SIZE;
                     loadMoreBtn.textContent = 'Load more';
                 }
+                // A post-race Plan page opened before this fetch drew empty —
+                // repaint it now that the runs are in.
+                refreshPostRacePlanIfVisible();
             }
             // Mileage chart uses dedicated weekly-mileage endpoint (not activities list)
             if (mileageResp.ok && mileageData.weeks) {
@@ -8504,6 +8541,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function logout() {
         try { await apiCall('DELETE', 'check-session'); } catch (err) {}
         sessionToken = ''; displayName = 'Demo Runner'; raceGoal = null; profileImageUrl = '';
+        courseAuthConfirmed = false;
         if (mileageChart) { mileageChart.destroy(); mileageChart = null; }
         radarCharts.forEach(c => c.destroy()); radarCharts = [];
         if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
@@ -9277,7 +9315,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // the callers so nothing — a prefs save, a stale auto-load — can spend an
         // AI call generating workouts for a race that has already happened.
         if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
-            renderCoachCalendar({ history: (coachPlanData && coachPlanData.history) || [], plan: {} });
+            renderPostRacePlan();
             return;
         }
         // Auto-load is guarded; an explicit Save & Rebuild always regenerates.
@@ -9436,6 +9474,63 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Post-race the calendar is a training log rather than a schedule, so its
+    // history comes from whatever is already loaded — no fetch is needed. The
+    // activity list (always the freshest copy) is merged with any history the
+    // cached/generated plan still holds, keyed by activity id so a run known
+    // to both never duplicates; the loaded list wins the merge because its
+    // fields are current.
+    function postRacePlanData() {
+        const cached = coachPlanData || readCoachCache();
+        const merged = new Map();
+        // Rows from either source can carry `id` or `activity_id` (saved race
+        // results use the latter) — fall back to start_time only when neither
+        // exists so the same run never double-renders.
+        const rowKey = (r) => {
+            const id = r.id != null ? r.id : r.activity_id;
+            return id != null ? String(id) : `t:${r.start_time || ''}`;
+        };
+        ((cached && cached.history) || []).forEach(r => {
+            if (!r) return;
+            merged.set(rowKey(r), r);
+        });
+        (fullActivitiesLoaded || []).forEach(a => {
+            if (!a || !a.start_time) return;
+            merged.set(rowKey(a), a);
+        });
+        let history = [...merged.values()];
+        // Demo mode never builds a real plan, so its history comes from the
+        // mock; without this the calendar would be empty.
+        if (!history.length && window.__demoMode) history = getMockCoachHistory();
+        return { history, plan: {} };
+    }
+
+    // Render the post-race calendar from the merged history. The data is kept
+    // on coachPlanData so the "Show more" pager can walk back through it — but
+    // an empty merge while the first activities fetch is still in flight is
+    // NOT latched as loaded, or opening the page early would pin a blank
+    // calendar even after the runs arrive.
+    function renderPostRacePlan() {
+        const data = postRacePlanData();
+        if (data.history.length || activitiesLoaded) {
+            // Keep any plan fields the cache still carries — post-race drops
+            // them at render, but the data survives if a goal change sends the
+            // page back into pre-race mode.
+            coachPlanData = { ...data, plan: (coachPlanData && coachPlanData.plan) || data.plan };
+            coachLoaded = true;
+            coachLoadedWeekKey = currentPlanWeekKey();
+        }
+        renderCoachCalendar(data);
+    }
+
+    // If the runner opened the Plan page before the first activities landed,
+    // its post-race history drew empty — refresh it once the list arrives.
+    function refreshPostRacePlanIfVisible() {
+        if (getPageFromHash() !== 'plan') return;
+        if (!postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) return;
+        renderPostRacePlan();
+    }
+
     // Open the plan page — resets the past history window to 2 weeks.
     // Called every time the user navigates to the Plan tab. If the plan is
     // already loaded, we just re-render from the cached data (no refetch);
@@ -9456,13 +9551,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // training log now rather than a schedule — from whatever history we
         // already hold.
         if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
-            let source = coachPlanData || readCoachCache();
-            // Demo mode never builds a real plan, so its history comes from the
-            // mock; without this the calendar would be empty.
-            if (!source && window.__demoMode) source = { history: getMockCoachHistory() };
-            coachLoaded = true;
-            coachLoadedWeekKey = currentPlanWeekKey();
-            renderCoachCalendar({ history: (source && source.history) || [], plan: {} });
+            renderPostRacePlan();
             return;
         }
         if (coachLoaded && coachPlanData) {
@@ -10637,9 +10726,16 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('GET', 'check-session');
             const data = await resp.json();
             if (!resp.ok || !data.valid) return false;
+            // Reconcile first: if the canonical goal changed it drops the
+            // local course copy, and releasing the deferred insight before
+            // that could read the obsolete course.
+            const changed = reconcileServerRaceGoal(data);
+            // A successful check-session doubles as the auth-confirmed seam —
+            // covers a startup check that failed on a transient network error.
+            courseAuthReady();
             // Receipts update the badges without touching the loaded plan.
             applyCoachSyncHistory(data);
-            return reconcileServerRaceGoal(data);
+            return changed;
         } catch (err) {
             console.warn('Goal refresh failed — keeping the cached goal', err);
             return false;
@@ -10692,6 +10788,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // badges stay current across devices even when the plan
                 // itself comes from the local or server cache.
                 applyCoachSyncHistory(data);
+                // The session is now proven — release the course insight the
+                // early restore deferred rather than requesting unauthenticated.
+                courseAuthReady();
                 // Pre-seed AI insights and coach plan caches from the server's
                 // persistent store if the frontend doesn't have them. This
                 // covers the new-device case where localStorage is empty but
@@ -10772,6 +10871,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     renderCalendar(acts);
                     renderPaceDistribution(acts);
                     renderHrPaceScatter(acts);
+                    // Same recovery as the foreground load — a post-race Plan
+                    // page opened before the list landed gets its history now.
+                    refreshPostRacePlanIfVisible();
                 }
                 if (mileageResp.ok && mileageData.weeks) {
                     renderMileageChart(mileageData.weeks);
