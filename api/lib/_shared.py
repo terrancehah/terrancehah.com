@@ -567,9 +567,13 @@ def _archive_race_goal(email: str, goal: dict | None):
 # --- Activity insight cache (Redis hash, keyed by email, fielded by activity) ---
 #
 # The coach's read on one completed run, written on demand from the activities
-# page. A finished run never changes, so the read can never go stale and there is
-# nothing to invalidate — no TTL, so a runner who steps away for months still
-# finds their reads waiting.
+# page. A finished run never changes, so the read can never go stale — but what
+# the run WAS can: a run linked as the goal race's result needs a different read
+# than the same run reviewed as training. Entries therefore carry optional
+# context metadata (kind, key, snapshot) so the writer can accept a cached read
+# only when it was written against the context that still resolves today, and
+# there is no TTL and no blanket invalidation — a changed linkage refreshes the
+# affected run's read alone.
 #
 # One hash per account with one field per run, rather than a key per run:
 # HGET/HSET touch a single field, so a read is still O(1) and a write never has
@@ -584,12 +588,53 @@ def _activity_insight_key(email: str) -> str:
     return f"{ACTIVITY_INSIGHT_PREFIX}{email}"
 
 
-def _save_activity_insight(email: str, activity_id, text: str, generated_at: str = "") -> str:
-    """Store the coach's read on one activity. Returns the generated_at used."""
+def _activity_insight_context_key(goal: dict | None, result: dict | None) -> str:
+    """Deterministic fingerprint of the race context an insight was written
+    against, for cache validation.
+
+    Joins the goal's name/date/distance/target with the result's identity and
+    headline figures — deliberately never timestamps like linked_at or
+    archived_at, and never the context kind — so the same read stays valid when
+    the goal moves to history or a matched race gets linked, while an edited
+    target or a corrected result produces a different key and regenerates.
+    Returns "" when there is no race context to fingerprint.
+    """
+    if not isinstance(goal, dict) or not isinstance(result, dict):
+        return ""
+    return "|".join([
+        str(goal.get("race_name") or goal.get("purpose") or ""),
+        str(goal.get("race_date") or ""),
+        str(_race_distance_km(goal)),
+        str(goal.get("time_target") or ""),
+        str(result.get("activity_id") or ""),
+        str(result.get("date") or ""),
+        str(result.get("distance_km") or ""),
+        str(result.get("duration_min") or ""),
+        str(result.get("avg_pace_ms") or ""),
+        str(result.get("avg_hr") or ""),
+        str(result.get("elevation_gain") or ""),
+    ])
+
+
+def _save_activity_insight(email: str, activity_id, text: str, generated_at: str = "",
+                           context_kind: str = "", context_key: str = "",
+                           context: dict | None = None) -> str:
+    """Store the coach's read on one activity. Returns the generated_at used.
+
+    `context_kind`/`context_key`/`context` record what the read was written
+    against — a training run, or the linked/matched goal race — so a later
+    request can tell a still-current read from one a changed race linkage made
+    obsolete. Entries written before context metadata simply lack the fields
+    and are treated as legacy training reads.
+    """
     if not email or not activity_id:
         return ""
     generated_at = generated_at or datetime.now().isoformat()
     entry = {"text": text, "generated_at": generated_at}
+    if context_kind:
+        entry["context_kind"] = context_kind
+        entry["context_key"] = context_key
+        entry["context"] = context or {}
     key = _activity_insight_key(email)
     field = str(activity_id)
     if _redis:

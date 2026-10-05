@@ -2097,8 +2097,24 @@ document.addEventListener('DOMContentLoaded', function () {
     // if the sync fails.
     async function saveRaceResult(result) {
         if (!raceGoal) return;
+        // Remember which run the result pointed at before it moves — its
+        // cached insight was written for the old story.
+        const previousActivityId = raceGoal.race_result && raceGoal.race_result.activity_id != null
+            ? String(raceGoal.race_result.activity_id) : null;
         if (result) raceGoal.race_result = result;
         else delete raceGoal.race_result;
+        const newActivityId = result && result.activity_id != null
+            ? String(result.activity_id) : null;
+        // The server writes the run's read against the context it resolves, so
+        // a changed linkage makes a stored insight on the affected runs
+        // obsolete. Drop only those in-memory entries — the button comes back
+        // and the next view asks for a read written for the new story.
+        [previousActivityId, newActivityId].forEach(id => {
+            if (id) {
+                activityInsights.delete(id);
+                renderActivityInsightSlots(id);
+            }
+        });
         // The stored paragraph describes the old result, so it goes with it. The
         // key check in loadRaceRecapProse would catch the mismatch anyway, but
         // dropping it here keeps the local goal honest rather than carrying a
