@@ -146,6 +146,18 @@ async def ai_radar(token: str = "", force: str = ""):
     race_goal = sess.get("race_goal")
     email = sess.get("email", "")
 
+    # No active goal — the explicit no-goal tombstone, or none set — means
+    # there is nothing for a readiness verdict to measure fitness against.
+    # Return a deterministic empty payload rather than spending a Garmin fetch
+    # and an AI call on an analysis with no target. The frontend skips this
+    # endpoint in no-goal mode; this guard keeps a direct request safe too.
+    if not race_goal:
+        return JSONResponse(content={
+            "goal_mode": sess.get("goal_mode") or None,
+            "dimensions": [],
+            "overall": {},
+        })
+
     api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "OpenAI API key not configured."})

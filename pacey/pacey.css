@@ -295,9 +295,21 @@
     color: var(--pacey-muted);
     font-size: var(--pacey-text-label);
     padding: var(--pacey-space-sm);
+    margin: auto;
     width: auto;
+    align-items: center;
 }
 .pacey-btn-ghost:hover { color: var(--pacey-accent-red); background: color-mix(in srgb, var(--pacey-accent-red) 6%, transparent); }
+
+/* Running without a goal is an ordinary preference, not a destructive action.
+   Keep its treatment consistent across onboarding, dialogs and race recaps. */
+.pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]) {
+    color: var(--pacey-blue);
+}
+.pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]):hover {
+    color: var(--pacey-navy);
+    background: var(--pacey-sky);
+}
 
 .pacey-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 

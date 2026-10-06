@@ -219,7 +219,37 @@
    declared display), leaving elements visible when they should be gone. */
 .pacey-plan-race-card[hidden],
 .pacey-plan-fitness-body[hidden],
-.pacey-plan-trajectory[hidden] { display: none; }
+.pacey-plan-trajectory[hidden],
+.pacey-plan-history-note[hidden] { display: none; }
+
+/* History-only note — replaces the race card when the page is a training
+   log rather than a plan (no-goal mode). A slim centred line in the board's
+   handwriting face rather than a card, because there is nothing here to
+   act on — it just names what the calendar below is. */
+.pacey-plan-history-note {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    margin: 0 0 14px;
+    padding: var(--pacey-space-md) var(--pacey-space-lg);
+    font-family: var(--font-fuzzy);
+    text-align: center;
+}
+
+.pacey-plan-history-note-title {
+    font-family: var(--font-caveat);
+    font-weight: 700;
+    font-size: 1.125rem;
+    line-height: 1.3;
+    color: var(--pacey-text);
+}
+
+.pacey-plan-history-note-text {
+    font-size: var(--pacey-text-body);
+    line-height: 1.45;
+    color: var(--pacey-muted);
+}
 
 .pacey-plan-fitness-toggle {
     display: flex;

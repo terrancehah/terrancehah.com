@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, _get_persistent_plan_syncs, create_app
+from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _is_no_goal_marker, _get_persistent_ai_cache, _get_persistent_coach_cache, _get_persistent_plan_syncs, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -42,19 +42,32 @@ async def check_session(token: str = ""):
     # from a previous session (e.g. session expired and was recreated).
     email = sess.get("email", "")
     race_goal = sess.get("race_goal")
+    # Canonical mode comes from the persistent record overlaid onto the
+    # session: "race" for a real goal, "no_goal" for the explicit tombstone,
+    # "" when nothing is persisted (legacy — the user simply has no goal yet).
+    goal_mode = sess.get("goal_mode") or ""
     if not race_goal and email:
-        race_goal = _get_persistent_race_goal(email)
-        # If we found it in the persistent store but not the session,
-        # backfill the session so subsequent calls don't need to check.
-        if race_goal:
+        persistent_goal = _get_persistent_race_goal(email)
+        if persistent_goal and not _is_no_goal_marker(persistent_goal):
+            race_goal = persistent_goal
+            goal_mode = "race"
+            # If we found it in the persistent store but not the session,
+            # backfill the session so subsequent calls don't need to check.
             from lib._shared import _update_session
             _update_session(token, {"race_goal": race_goal})
+        elif _is_no_goal_marker(persistent_goal):
+            # A tombstone is a real record but not a goal — never backfill it
+            # into the session as one.
+            goal_mode = "no_goal"
+    no_goal = goal_mode == "no_goal"
 
     # Fetch cached AI insights and coach plan from the persistent email-keyed
     # stores so a device with empty localStorage can render instantly. These
-    # may be None if no cache exists yet.
-    cached_ai = _get_persistent_ai_cache(email) if email else None
-    cached_coach = _get_persistent_coach_cache(email) if email else None
+    # may be None if no cache exists yet. In no-goal mode they are suppressed —
+    # any left behind belong to a goal that no longer exists and must not
+    # repaint the dashboard.
+    cached_ai = _get_persistent_ai_cache(email) if (email and not no_goal) else None
+    cached_coach = _get_persistent_coach_cache(email) if (email and not no_goal) else None
     # Garmin sync receipts for the plan's badges — read-only here; this
     # endpoint never triggers a plan rebuild.
     plan_sync_history = _get_persistent_plan_syncs(email) if email else {}
@@ -75,6 +88,7 @@ async def check_session(token: str = ""):
         "device_name": sess.get("device_name", ""),
         "has_race_goal": race_goal is not None,
         "race_goal": race_goal,
+        "goal_mode": goal_mode or None,
         "cached_ai_insights": cached_ai_payload,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
         "plan_sync_history": plan_sync_history,

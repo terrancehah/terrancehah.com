@@ -17,7 +17,7 @@ from garminconnect import (
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import GarminAuthRequest, _save_session, _update_session, _get_persistent_race_goal, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
+from lib._shared import GarminAuthRequest, _save_session, _update_session, _get_persistent_race_goal, _is_no_goal_marker, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/garmin-auth so routes at "/" match)
@@ -274,9 +274,16 @@ async def _finish_login(client, email: str):
     # lifecycle, so they survive logout and session expiry. If found, load
     # it into the new session so the user skips onboarding on re-login.
     existing_goal = _get_persistent_race_goal(email)
+    # A persisted tombstone means the runner explicitly runs without a goal —
+    # the session carries no race_goal and the mode travels with it so the
+    # dashboard can render straight away without a reminder or onboarding.
+    no_goal = _is_no_goal_marker(existing_goal)
+    if no_goal:
+        existing_goal = None
     session_data = {
         "email": email,
         "race_goal": existing_goal,
+        "goal_mode": "no_goal" if no_goal else ("race" if existing_goal else ""),
         "created_at": datetime.now().isoformat(),
     }
     if tokens_json:
@@ -337,8 +344,11 @@ async def _finish_login(client, email: str):
     # Fetch cached AI insights and coach plan from the persistent email-keyed
     # stores so a new device can render the full dashboard instantly without
     # waiting for expensive AI calls. These may be None if no cache exists yet.
-    cached_ai = _get_persistent_ai_cache(email) if existing_goal else None
-    cached_coach = _get_persistent_coach_cache(email) if existing_goal else None
+    # Under the tombstone, existing_goal is already None — the explicit check
+    # makes the intent plain: no-goal accounts are never seeded leftover
+    # goal-derived caches, same as check-session suppresses them.
+    cached_ai = _get_persistent_ai_cache(email) if (existing_goal and not no_goal) else None
+    cached_coach = _get_persistent_coach_cache(email) if (existing_goal and not no_goal) else None
 
     return JSONResponse(content={
         "session_token": token,
@@ -348,6 +358,7 @@ async def _finish_login(client, email: str):
         "device_name": device_name,
         "has_race_goal": existing_goal is not None,
         "race_goal": existing_goal,
+        "goal_mode": "no_goal" if no_goal else ("race" if existing_goal else None),
         "cached_ai_insights": cached_ai["data"] if cached_ai else None,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
         "message": "Authenticated successfully."

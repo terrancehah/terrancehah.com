@@ -198,6 +198,18 @@ def _save_session(token: str, data: dict, ttl: int = SESSION_TTL):
         _local_sessions[token] = clean
 
 
+def _is_no_goal_marker(goal) -> bool:
+    """Whether a stored persistent record is the explicit no-goal tombstone.
+
+    The tombstone lives under the same email-keyed race-goal key as a real
+    goal — it is a deliberate, account-wide "running without a goal" choice,
+    NOT the absence of a goal. Missing data keeps the legacy meaning (the user
+    simply has not set a goal yet), so only an explicit {"mode": "no_goal"}
+    record counts.
+    """
+    return isinstance(goal, dict) and goal.get("mode") == "no_goal"
+
+
 def _with_canonical_race_goal(sess: dict) -> dict:
     """Overlay the email-keyed race goal onto a loaded device session.
 
@@ -213,7 +225,14 @@ def _with_canonical_race_goal(sess: dict) -> dict:
     if goal is None:
         return sess
     current = dict(sess)
+    # A tombstone is an explicit opt-out, not a goal: callers get a null goal
+    # plus a mode flag so the marker itself is never mistaken for race data.
+    if _is_no_goal_marker(goal):
+        current["race_goal"] = None
+        current["goal_mode"] = "no_goal"
+        return current
     current["race_goal"] = goal
+    current["goal_mode"] = "race"
     return current
 
 

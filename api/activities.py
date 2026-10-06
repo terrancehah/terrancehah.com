@@ -279,7 +279,12 @@ async def activity_insight(body: ActivityInsightRequest):
     lines = [
         "The runner has finished a run. Write the coach's read on it.",
         "",
-        "THE COMPLETED GOAL RACE:" if is_race else "THE RACE THEY ARE TRAINING FOR:",
+        # Goal context block — the header only names a race when there is one:
+        # claiming "the race they are training for" under no-goal mode would be
+        # a contradiction, not just an empty field.
+        ("THE COMPLETED GOAL RACE:" if is_race
+         else "THE RACE THEY ARE TRAINING FOR:" if context_goal
+         else "SESSION CONTEXT:"),
     ]
     if context_goal:
         lines.append(f"- Race: {context_goal.get('race_name') or context_goal.get('purpose') or 'their goal race'}.")
@@ -290,7 +295,7 @@ async def activity_insight(body: ActivityInsightRequest):
         if context_goal.get("race_date"):
             lines.append(f"- Race date: {context_goal['race_date']}.")
     else:
-        lines.append("- No race goal set yet.")
+        lines.append("- No active race goal. Review this completed session on its own.")
     if goal_pace_ms > 0:
         lines.append(f"- Goal pace: {_format_pace_per_km(goal_pace_ms)} per km.")
 
@@ -383,8 +388,12 @@ async def activity_insight(body: ActivityInsightRequest):
             "happened: never predict whether they will achieve this same target on race day, and "
             "do not call it a tempo training run because of a generic activity tag."
         )
-    else:
+    elif context_goal:
         lines.append("- Then say what it brings to the race goal — how it moves them toward the target time.")
+    else:
+        # No-goal mode (or no goal at all): the session stands alone — there is
+        # no race for the coach to invent a target from.
+        lines.append("- With no race goal, review the session on its own. Do not invent a race, target pace, or future race-day prediction.")
     lines += [
         "- Close on one number worth noticing: either a strength this run shows, or something to "
         "watch next. Pick whichever matters more and say what it means.",
@@ -393,7 +402,11 @@ async def activity_insight(body: ActivityInsightRequest):
         "- Write like a coach talking to the runner afterwards, not a training report.",
         "- Plain runner words. No jargon — no 'threshold', 'VO₂max', 'lactate', 'aerobic', 'cadence drift'.",
         "- Cite real numbers from the session above and never invent data. At most one number per sentence.",
-        "- Judge the numbers against the race goal and its goal pace, not against population averages.",
+        # Judgement needs something to judge against — with a goal it is the
+        # target; without one the session's own figures are all there is.
+        ("- Judge the numbers against the race goal and its goal pace, not against population averages."
+         if context_goal else
+         "- Use only the recorded session figures; do not infer a race target or compare effort with population averages."),
         "- If there are no laps, work from the summary figures and say nothing about splits.",
         "- Do not mention missing data, and do not comment on the absence of a race goal.",
         "- Slower laps do not prove rest, recovery, stops, or resets. Do not describe those unless explicitly recorded; describe pace variation instead.",

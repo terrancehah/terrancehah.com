@@ -175,6 +175,8 @@
     #pacey-content .pacey-readiness-card,
     #pacey-content .pacey-chart-card,
     #pacey-content .pacey-race-recap,
+    #pacey-content .pacey-no-goal-note,
+    #pacey-content .pacey-goal-suggestions,
     #pacey-content .pacey-overall-insight,
     #pacey-content .pacey-overall-insight-skeleton,
     #pacey-content .pacey-activity-item,
@@ -240,8 +242,12 @@
        a pushpin is a small round mark, and this sheet already carries a lot of
        small round marks — the map's start and finish dots, the verdict — so a
        pin reads as another datum rather than as the thing holding the sheet up.
-       The strip itself is the shared one, positioned below. */
-    #pacey-content .pacey-race-recap::before { content: none; }
+       The strip itself is the shared one, positioned below. The no-goal note
+       and the suggestions sheet follow the recap: they are full-width sheets
+       of the same kind, so they are taped rather than pinned too. */
+    #pacey-content .pacey-race-recap::before,
+    #pacey-content .pacey-no-goal-note::before,
+    #pacey-content .pacey-goal-suggestions::before { content: none; }
 
     /* Six-area cards: the coloured dot beside the title is dropped — the
        score's colour already carries the status */
@@ -256,6 +262,8 @@
     #pacey-content .pacey-chart-card::before,
     #pacey-content .pacey-race-detail::after,
     #pacey-content .pacey-race-recap::after,
+    #pacey-content .pacey-no-goal-note::after,
+    #pacey-content .pacey-goal-suggestions::after,
     #pacey-content .pacey-content-header::before,
     #pacey-content .pacey-content-header::after {
         content: "";
@@ -284,8 +292,11 @@
 
     /* Race recap sheet — one strip across the top centre, where the pushpin
        used to be. Same gesture as the radar card, so a sheet on this page is
-       held down the same way whether it is showing the analysis or the recap. */
-    #pacey-content .pacey-race-recap::after {
+       held down the same way whether it is showing the analysis or the recap.
+       The no-goal note and the suggestions sheet are held down the same way. */
+    #pacey-content .pacey-race-recap::after,
+    #pacey-content .pacey-no-goal-note::after,
+    #pacey-content .pacey-goal-suggestions::after {
         top: -0.7rem;
         left: 50%;
         transform: translateX(-50%) rotate(-2.5deg);
@@ -388,6 +399,10 @@
     /* The recap replaces that row once the race is done, so it takes the same
        laid-on-the-board treatment — a sheet pinned slightly off-square. */
     #pacey-content .pacey-race-recap { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
+    /* Slight counter-tilt on the sheets that share the recap's slot, so the
+       board stays hand-assembled rather than stacked square. */
+    #pacey-content .pacey-no-goal-note { --tilt: -0.35deg; transform: rotate(var(--tilt)); }
+    #pacey-content .pacey-goal-suggestions { --tilt: 0.4deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-charts-row > .pacey-chart-card:nth-child(1) { --tilt: -0.4deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-charts-row > .pacey-chart-card:nth-child(2) { --tilt: 0.5deg; transform: rotate(var(--tilt)); }
     #pacey-content .pacey-activity-item { --tilt: -0.25deg; transform: rotate(var(--tilt)); }

@@ -974,6 +974,11 @@ async def _save_course_action(body: CoachPlanRequest):
     email = sess.get("email", "") if isinstance(sess, dict) else ""
     if not email:
         return JSONResponse(status_code=401, content={"error": "Session expired."})
+    # A course only exists in the context of a race goal. Under no-goal mode a
+    # save would resurrect a remote map for a race that does not exist — clears
+    # (a null course) stay legal so a goal change can still drop the old one.
+    if body.course is not None and not sess.get("race_goal"):
+        return JSONResponse(status_code=400, content={"error": "No active race goal."})
     _save_persistent_course(email, body.course)
     return JSONResponse(content={"ok": True, "saved": body.course is not None})
 
@@ -1033,6 +1038,11 @@ async def _course_insight_action(body: CoachPlanRequest):
     sess = _get_session(body.token)
     email = sess.get("email", "") if isinstance(sess, dict) else ""
     race_goal = sess.get("race_goal") if isinstance(sess, dict) else None
+
+    # The course read is written against a race — without an active goal
+    # (no-goal mode included) there is nothing to compare it to.
+    if not race_goal:
+        return JSONResponse(status_code=400, content={"error": "No active race goal."})
 
     course = body.course or _get_persistent_course(email)
     if not course or not (course.get("aiSummary") or {}):
@@ -1319,6 +1329,11 @@ async def _race_recap_action(body: CoachPlanRequest):
     email = sess.get("email", "") if isinstance(sess, dict) else ""
     race_goal = sess.get("race_goal") if isinstance(sess, dict) else None
 
+    # The recap describes a completed goal race — with no active goal there is
+    # nothing for it to attach to, and no AI call should be spent.
+    if not race_goal:
+        return JSONResponse(status_code=400, content={"error": "No active race goal."})
+
     result = body.race_result or {}
     if not result.get("duration_min"):
         return JSONResponse(status_code=400, content={"error": "Race result required."})
@@ -1471,6 +1486,11 @@ async def _compile_workout_action(body: CoachPlanRequest):
 async def _schedule_plan_action(body: CoachPlanRequest):
     """Upload each workout as a Garmin template and schedule it on its date."""
     sess = _get_session(body.token)
+    # Scheduling pushes workouts for a goal's block — without an active goal
+    # there is nothing to send (no-goal mode hides the controls, but a direct
+    # request must not write to Garmin either).
+    if not (sess.get("race_goal") if isinstance(sess, dict) else None):
+        return JSONResponse(status_code=400, content={"error": "No active race goal."})
     client = _get_garmin_client(body.token)
     email = sess.get("email", "") if isinstance(sess, dict) else ""
     # Successful schedules are recorded as per-account receipts so reloads and
@@ -1551,6 +1571,10 @@ async def _workout_insight_action(body: CoachPlanRequest):
     and the runner's readiness analysis when one exists.
     """
     sess = _get_session(body.token)
+    # Workout and plan-overview insights only exist inside a goal's block —
+    # in no-goal mode there is no block, and no AI call to spend.
+    if not (sess.get("race_goal") if isinstance(sess, dict) else None):
+        return JSONResponse(status_code=400, content={"error": "No active race goal."})
     if body.kind == "plan":
         # The race course (when uploaded) is advisory context for the plan line.
         plan_ctx = dict(body.context or {})
@@ -1740,6 +1764,17 @@ async def _generate_plan(body: CoachPlanRequest):
     race_goal = sess.get("race_goal")
     race_date_str = race_goal.get("race_date") if race_goal else None
     email = sess.get("email", "")
+
+    # With no active goal — the explicit no-goal tombstone, or none ever set —
+    # there is no block to build and no AI call to make. The calendar still
+    # gets the cached activity history so the Plan page reads as a training
+    # log rather than an empty shell.
+    if not race_goal:
+        wide = _ui_history_from_cache(_get_cached_garmin_data(token)) or []
+        return JSONResponse(content={
+            "history": [{k: v for k, v in a.items() if k != "laps"} for a in wide],
+            "plan": {},
+        })
 
     # The plan's review cycle is the Monday-Sunday calendar week: the block
     # starts today, is cached under this week's Monday, and is regenerated at

@@ -364,6 +364,52 @@
     margin: 0;
 }
 
+/* Onboarding back link — only rendered when there is a dashboard behind the
+   screen (no-goal mode or an active goal being changed); a first-run account
+   never sees it. */
+.pacey-onboard-back {
+    margin-bottom: var(--pacey-space-md);
+    padding-left: 0;
+}
+
+/* "Run without a goal" under the onboarding form — a real choice, not an
+   abandoned form, so it sits as its own quiet row rather than inline with
+   the submit. */
+.pacey-onboard-nogoal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: var(--pacey-space-lg);
+    text-align: center;
+}
+
+.pacey-onboard-nogoal-note {
+    margin: 0;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+}
+
+/* The opt-out lives beside the save in the edit-goal modal, and under the
+   goal row in the settings panel — same quiet ghost treatment in both. */
+.pacey-edit-goal-nogoal { align-self: flex-start; }
+
+.pacey-settings-nogoal {
+    margin-top: var(--pacey-space-sm);
+    align-self: center;
+}
+
+/* A failed opt-out save is reported inline beside the control that ran it —
+   the previous mode is kept, so only the message changes. */
+.pacey-onboard-nogoal-error,
+.pacey-edit-goal-nogoal-error,
+.pacey-settings-nogoal-error,
+.pacey-goal-reminder-nogoal-error {
+    margin: 0.25rem 0 0;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-accent-red);
+}
+
 /* ========== SETTINGS PANEL ========== */
 /* Presentation is defined by the media queries at the end of this file:
    an anchored popover above the sidebar gear on desktop, and a bottom

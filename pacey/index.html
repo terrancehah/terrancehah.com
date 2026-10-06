@@ -229,6 +229,10 @@
         <!-- ========== ONBOARDING SCREEN ========== -->
         <section class="pacey-screen" id="pacey-onboarding-screen" hidden>
             <div class="pacey-onboard-card">
+                <!-- Back to the dashboard — only shown when there is one to
+                     return to (no-goal mode, or an active goal being changed).
+                     A first-run account has nothing behind this screen. -->
+                <button type="button" class="pacey-btn pacey-btn-ghost pacey-onboard-back" id="pacey-onboard-back" hidden>&larr; Back</button>
                 <div class="pacey-onboard-header">
                     <img class="pacey-card-logo" src="/pacey/assets/icons/pacey-icon-192.png" alt="Pacey" width="52" height="52">
                     <span class="pacey-eyebrow">Step 2 of 4</span>
@@ -348,6 +352,15 @@
                         <span class="pacey-btn-spinner" hidden></span>
                     </button>
                 </form>
+                <!-- Running without a race is a real choice, not an unfinished
+                     form — it saves an account-wide no-goal preference. The
+                     runner's completed races stay in Past races and their
+                     Garmin data is untouched. -->
+                <div class="pacey-onboard-nogoal">
+                    <button type="button" class="pacey-btn pacey-btn-ghost" id="pacey-onboard-nogoal">Run without a goal</button>
+                    <p class="pacey-onboard-nogoal-note">Your runs and finished races stay in your history.</p>
+                    <p class="pacey-field-error pacey-onboard-nogoal-error" id="pacey-onboard-nogoal-error" hidden></p>
+                </div>
             </div>
         </section>
 
@@ -717,6 +730,32 @@
                                  carries the goal's facts, the result, the course preview
                                  and the coach's read. Filled by applyRaceRecapMode(). -->
                             <div class="pacey-race-recap" id="pacey-overview-recap" hidden></div>
+
+                            <!-- No-goal: the same single sheet, shown when the runner has
+                                 explicitly chosen to train without a race — an
+                                 account-wide choice stored server-side, so this is a
+                                 state, not a missing-goal fallback. Activities and Past
+                                 races carry on as normal around it. -->
+                            <div class="pacey-no-goal-note" id="pacey-no-goal-note" hidden>
+                                <h3 class="pacey-no-goal-title">Run at your own pace</h3>
+                                <p class="pacey-no-goal-text">No race goal right now. Your runs and training history are still here.</p>
+                                <div class="pacey-no-goal-actions">
+                                    <button class="pacey-btn pacey-btn-primary" id="pacey-no-goal-explore" type="button">Explore my next goal</button>
+                                    <button class="pacey-btn pacey-btn-secondary" id="pacey-no-goal-set" type="button">Set a goal</button>
+                                </div>
+                            </div>
+
+                            <!-- Next-goal suggestions — the four fixed distance options,
+                                 annotated with saved race results where they exist.
+                                 Deterministic rather than AI: nothing is recommended,
+                                 predicted or saved here — each row only prefills the
+                                 onboarding form when the runner picks it. Revealed from
+                                 the no-goal note above or the post-race recap. -->
+                            <div class="pacey-goal-suggestions" id="pacey-goal-suggestions" hidden>
+                                <p class="pacey-goal-suggestions-intro">These are options, not predictions. Saved race times are starting points, not guarantees.</p>
+                                <div class="pacey-goal-suggestions-list" id="pacey-goal-suggestions-list"></div>
+                                <p class="pacey-goal-suggestions-status" id="pacey-goal-suggestions-status" hidden></p>
+                            </div>
                         </section>
 
                         <!-- ===== 1b. Race Course =====
@@ -1150,6 +1189,14 @@
                                 <div class="pacey-plan-trajectory" id="pacey-plan-trajectory" hidden></div>
                             </div>
 
+                            <!-- History-only mode (no race goal): there is no
+                                 block to plan, so the page leads with a small
+                                 note instead of the race card. -->
+                            <div class="pacey-plan-history-note" id="pacey-plan-history-note" hidden>
+                                <span class="pacey-plan-history-note-title">Your training log</span>
+                                <span class="pacey-plan-history-note-text">Set a race goal whenever you want a suggested plan.</span>
+                            </div>
+
                             <!-- Build status — slim line shown while the plan
                                  weeks are still generating after the calendar
                                  (history + first weeks) is already visible. -->
@@ -1233,6 +1280,11 @@
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
                         </div>
+                        <!-- The same opt-out offered elsewhere, beside the goal
+                             it releases — completed races stay in Past races
+                             and the runner's Garmin data is untouched. -->
+                        <button class="pacey-btn pacey-btn-ghost pacey-settings-nogoal" id="pacey-settings-nogoal-btn" type="button">Run without a goal</button>
+                        <p class="pacey-settings-nogoal-error" id="pacey-settings-nogoal-error" hidden></p>
                     </div>
                     <div class="pacey-settings-field">
                         <span class="pacey-settings-field-label">Name</span>
@@ -1411,6 +1463,11 @@
                         <span class="pacey-btn-text">Save Changes</span>
                         <span class="pacey-btn-spinner" hidden></span>
                     </button>
+                    <!-- Opting out is a goal decision too, so it sits beside
+                         the save. Completed races stay in Past races; the
+                         runner's Garmin data is untouched. -->
+                    <button type="button" class="pacey-btn pacey-btn-ghost pacey-edit-goal-nogoal" id="pacey-edit-goal-nogoal">Run without a goal</button>
+                    <p class="pacey-edit-goal-nogoal-error" id="pacey-edit-goal-nogoal-error" hidden></p>
                 </form>
             </div>
         </div>
@@ -1592,7 +1649,11 @@
                     <button class="pacey-btn pacey-btn-primary" id="pacey-goal-reminder-keep">Keep this goal</button>
                     <button class="pacey-btn pacey-btn-secondary" id="pacey-goal-reminder-edit">Edit goal</button>
                     <button class="pacey-btn pacey-btn-secondary" id="pacey-goal-reminder-new">Set a new goal</button>
+                    <!-- Opt out entirely — an account-wide choice, kept across
+                         devices. Completed races stay in Past races. -->
+                    <button class="pacey-btn pacey-btn-ghost" id="pacey-goal-reminder-nogoal">Run without a goal</button>
                 </div>
+                <p class="pacey-goal-reminder-nogoal-error" id="pacey-goal-reminder-nogoal-error" hidden></p>
             </div>
         </div>
 

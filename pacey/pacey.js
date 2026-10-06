@@ -85,6 +85,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let sessionToken = '';
     let displayName = '';
     let raceGoal = null;
+    // 'race' while a goal drives the dashboard, 'no_goal' once the runner has
+    // explicitly opted out — an account-wide choice stored server-side as a
+    // tombstone. Persisted separately from the goal because the goal is null
+    // in BOTH the no-goal and never-set states: only the mode distinguishes
+    // "chose to run without one" from "has not chosen yet", and the latter
+    // must still land on onboarding.
+    let goalMode = localStorage.getItem('pacey_goal_mode') || '';
     let raceGoalPaceMs = 0; // race goal pace in m/s — used for run classification
     // Two-factor login state, declared with the rest of the module state rather
     // than down in the login section: closeLoginModal() resets it, and that
@@ -266,6 +273,24 @@ document.addEventListener('DOMContentLoaded', function () {
         closeLoginModal();
     }
 
+    // Persist the goal mode on its own key — see the declaration above for why
+    // it cannot ride on the goal record.
+    function setGoalMode(mode) {
+        const next = mode || '';
+        // A real mode change retires any suggestions fetch still in flight —
+        // its response was loaded under the previous mode's dashboard.
+        if (next !== goalMode) invalidateGoalSuggestions();
+        goalMode = next;
+        if (goalMode) localStorage.setItem('pacey_goal_mode', goalMode);
+        else localStorage.removeItem('pacey_goal_mode');
+    }
+
+    // The runner has explicitly opted out of a race goal. Not the same as a
+    // missing goal: only the tombstone mode gets the no-goal dashboard.
+    function isNoGoalMode() {
+        return goalMode === 'no_goal' && !raceGoal;
+    }
+
     // Login modal open/close — replaces the old full-screen login.
     // Focus management: move focus to the email input when the modal opens
     // so keyboard users can start typing immediately. Return focus to the
@@ -404,6 +429,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function navigateTo(page) {
+        // Readiness measures fitness against a race — with no goal there is
+        // nothing to measure, so a direct #readiness hash lands on the
+        // overview instead (its nav entries are hidden by applyGoalModeChrome).
+        if (page === 'readiness' && isNoGoalMode()) page = 'overview';
         // Update active nav (sidebar items + bottom tab bar items)
         $$('.pacey-nav-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('href') === `#${page}`);
@@ -1183,7 +1212,20 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.has_race_goal && data.race_goal) {
                 raceGoal = data.race_goal;
                 localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            } else {
+                // No canonical goal — clear the demo goal demo mode seeded, or
+                // the dashboard would render a race this account never set.
+                raceGoal = null;
+                localStorage.removeItem('pacey_race_goal');
             }
+            // A persisted tombstone is a real login state, not a missing goal:
+            // record it so the runner lands on the no-goal dashboard directly,
+            // never on the reminder or onboarding.
+            setGoalMode(data.goal_mode === 'no_goal' ? 'no_goal'
+                : (data.has_race_goal && data.race_goal ? 'race' : ''));
+            // A new account owns this session now — anything a suggestions
+            // fetch could still deliver belonged to the previous one.
+            invalidateGoalSuggestions();
             // Pre-seed the AI insights and coach plan caches from the server's
             // persistent store so a new device renders instantly without
             // waiting for expensive AI calls. The background refresh will
@@ -1215,6 +1257,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 // dashboard or onboarding — the user should consciously
                 // decide whether to keep their old goal.
                 showGoalReminderPopup(data.race_goal);
+            } else if (data.goal_mode === 'no_goal') {
+                // Explicit no-goal account — the dashboard's own note carries
+                // the state, so no reminder or onboarding.
+                showDashboard();
             } else {
                 // New user or no persisted goal — go to onboarding
                 showScreen(onboardScreen);
@@ -1261,6 +1307,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     onboardForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+        // A no-goal save locks the whole screen while it runs — a submit that
+        // slipped through (e.g. Enter) must not write a goal over it.
+        if (noGoalSavePending) return;
         $$('.pacey-input.error').forEach(el => el.classList.remove('error'));
         $$('.pacey-field-error').forEach(el => el.hidden = true);
 
@@ -1314,6 +1363,11 @@ document.addEventListener('DOMContentLoaded', function () {
             fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            // Saving a real goal leaves no-goal mode on this device — the
+            // server writes a real goal over the tombstone in the same call.
+            setGoalMode('race');
+            // The goal is saved — there is nothing left to return to.
+            onboardingReturnSnapshot = null;
             // A saved goal starts without the previous race's course, locally
             // and across devices, so the runner can upload the matching route.
             await clearCourse();
@@ -1414,6 +1468,9 @@ document.addEventListener('DOMContentLoaded', function () {
             fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            setGoalMode('race');
+            // The goal is saved — there is nothing left to return to.
+            onboardingReturnSnapshot = null;
             // Proceed to Step 4 — planning preferences
             showScreen(onboardPlanScreen);
         } catch (err) { alert('Network error. Please try again.'); }
@@ -1436,6 +1493,58 @@ document.addEventListener('DOMContentLoaded', function () {
         // insights from a previous goal are no longer valid.
         showDashboard(true);
     });
+
+    // =========================================================================
+    // No-goal entry points
+    // =========================================================================
+    //
+    // The same choice is offered wherever a goal is decided on: the first
+    // onboarding screen, the welcome-back reminder, the post-race recap, the
+    // settings panel's current-goal row, and the edit-goal modal. All of them
+    // funnel through saveNoGoalMode, which writes the account-wide tombstone
+    // and keeps the previous state when the save fails.
+
+    // Onboarding step 1 — "Run without a goal" skips the whole flow. There is
+    // no live plan to warn about here: onboarding only runs when no goal (or
+    // tombstone) exists.
+    const onboardNoGoalBtn = $('#pacey-onboard-nogoal');
+    if (onboardNoGoalBtn) {
+        onboardNoGoalBtn.addEventListener('click', () => {
+            // The screen doubles as the lock scope: every field and button in
+            // the form is disabled so a normal goal cannot be submitted while
+            // the tombstone save is in flight.
+            saveNoGoalMode({
+                button: onboardNoGoalBtn,
+                modal: onboardScreen,
+                errorEl: $('#pacey-onboard-nogoal-error'),
+            });
+        });
+    }
+
+    // Back out of onboarding — only offered when a dashboard exists to return
+    // to (no-goal mode or an active goal; openOnboardingScreen decides). A
+    // flow that cleared the local goal first (Set a new goal) gets it back
+    // here — nothing was saved, so nothing should be lost.
+    const onboardBackBtn = $('#pacey-onboard-back');
+    if (onboardBackBtn) {
+        onboardBackBtn.addEventListener('click', () => {
+            if (onboardingReturnSnapshot) {
+                raceGoal = onboardingReturnSnapshot.raceGoal;
+                setGoalMode(onboardingReturnSnapshot.goalMode);
+                if (raceGoal) {
+                    localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+                }
+                onboardingReturnSnapshot = null;
+            }
+            showDashboard();
+        });
+    }
+
+    // The no-goal note's two doors: distance options, or the full form.
+    const noGoalExploreBtn = $('#pacey-no-goal-explore');
+    if (noGoalExploreBtn) noGoalExploreBtn.addEventListener('click', openGoalSuggestions);
+    const noGoalSetBtn = $('#pacey-no-goal-set');
+    if (noGoalSetBtn) noGoalSetBtn.addEventListener('click', openOnboardingScreen);
 
     // =========================================================================
     // Show dashboard + load all data
@@ -1499,6 +1608,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // path — neither of which reaches the AI fetch — land in the same mode.
             applyRaceRecapMode(postRaceState(raceGoal, fullActivitiesLoaded), raceGoal);
         }
+        // No-goal mode swaps the goal/readiness row for its own note and hides
+        // every race-shaped surface — applied after the normal renders so it
+        // wins the last word on visibility.
+        applyGoalModeChrome();
         // The course is titled after the race goal, and a cached course is
         // restored before the goal is known — re-title it now.
         if (courseRecord) updateCourseHead();
@@ -1780,6 +1893,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 <p class="pacey-race-recap-question">Did you run the race?</p>
                 <p class="pacey-race-recap-note">We couldn't find a run on race day that matches your goal distance.</p>
                 <button class="pacey-btn pacey-btn-primary pacey-race-recap-link-btn" type="button" data-recap-action="link">Link your race</button>
+                <div class="pacey-race-recap-actions">
+                    <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="explore">Explore my next goal</button>
+                    <button class="pacey-btn pacey-btn-ghost" type="button" data-recap-action="no-goal">Run without a goal</button>
+                </div>
+                <p class="pacey-race-recap-nogoal-error" hidden></p>
             `;
         }
         const r = state.raceResult || {};
@@ -1844,8 +1962,16 @@ document.addEventListener('DOMContentLoaded', function () {
                      this keeps it reachable: it opens the readiness that stood
                      before the race, frozen on the goal on race day. -->
                 <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="review-readiness">Review race readiness</button>
+                <!-- Distance options for what comes next — the same sheet the
+                     no-goal note opens. Choosing one only ever prefills the
+                     onboarding form; it never saves or removes this race. -->
+                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="explore">Explore my next goal</button>
                 <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="new-goal">Set a new goal</button>
+                <!-- Opting out entirely is an offer too — completed races,
+                     this one included, stay filed in Past races. -->
+                <button class="pacey-btn pacey-btn-ghost" type="button" data-recap-action="no-goal">Run without a goal</button>
             </div>
+            <p class="pacey-race-recap-nogoal-error" hidden></p>
         `;
     }
 
@@ -1854,6 +1980,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // they are in — the elements they swap are the same ones the readiness
     // analysis fills, so this has to run before that analysis renders.
     function applyRaceRecapMode(state, goal) {
+        // No-goal mode owns the goal section — the recap/row swap must not
+        // unhide the race cards it replaces.
+        if (isNoGoalMode()) { applyGoalModeChrome(); return; }
         const post = !!(state && state.isPostRace);
         // The readiness elements give way as soon as race day passes — there is
         // nothing left for them to measure. The recap itself waits for the
@@ -1971,6 +2100,297 @@ document.addEventListener('DOMContentLoaded', function () {
             layoutGoalNote();
             resizeCourseMap();
         });
+    }
+
+    // =========================================================================
+    // No-goal mode
+    // =========================================================================
+    //
+    // The runner can explicitly train without a race goal. The choice is a
+    // server-side tombstone (account-wide, survives logout), so this file only
+    // concerns itself with rendering it: the goal/readiness row and the
+    // post-race recap give way to one paper note, every race-shaped surface is
+    // hidden, and no race-specific request is made.
+
+    // Swap the race chrome for the no-goal note, or back. Runs after the
+    // normal renders (showDashboard, applyRaceRecapMode) so it wins the last
+    // word on what is visible.
+    function applyGoalModeChrome() {
+        const noGoal = isNoGoalMode();
+        // Post-race mode swaps the goal row for the recap on its own pass —
+        // chrome must keep it hidden there too, not unhide it.
+        const postRace = !noGoal && postRaceState(raceGoal, fullActivitiesLoaded).isPostRace;
+
+        // Readiness has nothing to measure without a race — its nav entries
+        // (sidebar + mobile tab bar) go away, and navigateTo lands a stray
+        // #readiness hash on the overview.
+        $$('.pacey-nav-item[href="#readiness"], .pacey-tab-item[href="#readiness"]')
+            .forEach(el => { el.hidden = noGoal; });
+
+        const goalRow = $('#pacey-goal-row');
+        if (goalRow) goalRow.hidden = noGoal || postRace;
+        const overviewRecap = $('#pacey-overview-recap');
+        if (overviewRecap && noGoal) overviewRecap.hidden = true;
+        const goalSectionTitle = $('#pacey-goal-section-title');
+        if (goalSectionTitle && noGoal) goalSectionTitle.textContent = 'Your running';
+        // The course belongs to a race — with no goal there is nothing to
+        // map, and the section stays out of the way entirely.
+        const courseSection = $('#pacey-course-section');
+        if (courseSection) courseSection.hidden = noGoal;
+
+        const note = $('#pacey-no-goal-note');
+        if (note) note.hidden = !noGoal;
+        const suggestionsBox = $('#pacey-goal-suggestions');
+        // Post-race keeps the sheet reachable from the recap's "Explore my
+        // next goal" — only an ordinary goal (or no mode at all) hides it.
+        if (!noGoal && !postRace && suggestionsBox) suggestionsBox.hidden = true;
+
+        if (noGoal) {
+            // Every race-shaped surface the AI payload would paint is hidden
+            // outright, so a stale cached response cannot repaint them.
+            ['pacey-overall-insight', 'pacey-overall-insight-skeleton',
+             'pacey-big-picture-section', 'pacey-overview-pillars-section',
+             'pacey-readiness-analysis'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.hidden = true;
+            });
+            showRadarSkeleton(false);
+            if (sidebarGoalEl) sidebarGoalEl.textContent = '';
+            const settingsGoal = $('#pacey-settings-profile-goal');
+            if (settingsGoal) settingsGoal.textContent = 'No race goal';
+        }
+        // The goal-shaped controls go with the goal: the sidebar's goal row
+        // (empty text + edit pencil) and, inside settings, both the edit
+        // shortcut and the opt-out itself — there is nothing left to opt
+        // out of once it is chosen.
+        const sidebarGoalRow = $('.pacey-sidebar-goal-row');
+        if (sidebarGoalRow) sidebarGoalRow.hidden = noGoal;
+        ['pacey-reset-goal-btn', 'pacey-settings-reset-goal-btn',
+         'pacey-settings-nogoal-btn'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.hidden = noGoal;
+        });
+    }
+
+    // Apply the no-goal choice locally after the server has accepted it —
+    // clears the goal and everything derived from it (AI cache, coach plan,
+    // course) exactly like a goal change would, then repaints the dashboard.
+    function applyNoGoalModeLocally() {
+        raceGoal = null;
+        setGoalMode('no_goal');
+        localStorage.removeItem('pacey_race_goal');
+        clearAICache();
+        clearCoachCache();
+        coachLoaded = false;
+        coachLoadedWeekKey = '';
+        coachPlanData = null;
+        coachEditingDate = null;
+        coachSyncedDates.clear();
+        lastRadarData = null;
+        lastMileageWeeks = null;
+        // Snapshot the activities the pace chart last drew before clearing —
+        // it is re-rendered from them below so the goal line drops immediately
+        // instead of waiting for the next fetch.
+        const paceDistSnapshot = lastPaceDistActivities;
+        lastPaceDistActivities = null;
+        lastHrPaceActivities = null;
+        // The goal pace line on the pace chart keys off raceGoalPaceMs — it
+        // recomputes to 0 on the next activity render, but zero it now so a
+        // re-render from stored data cannot draw a line for a goal that is gone.
+        raceGoalPaceMs = 0;
+        // The course belonged to the goal; the server already cleared the
+        // persistent copy, so only this browser's state needs resetting.
+        resetCourseLocal(true);
+        // A suggestions fetch made before the choice was saved must not paint
+        // over the dashboard it lands on.
+        invalidateGoalSuggestions();
+        applyGoalModeChrome();
+        // Re-render the pace chart from stored data so the goal line
+        // disappears immediately rather than on the next fetch.
+        if (paceDistSnapshot) renderPaceDistribution(paceDistSnapshot);
+    }
+
+    // Save the no-goal choice to the server (a real session writes the
+    // tombstone; demo mode applies it locally). Controls are locked and the
+    // previous mode/goal are kept when the save fails — the error is shown
+    // inline beside the control that was clicked.
+    let noGoalSavePending = false;
+    async function saveNoGoalMode(opts = {}) {
+        if (noGoalSavePending) return;
+        noGoalSavePending = true;
+        const errorEl = opts.errorEl || null;
+        const modal = opts.modal || null;
+        if (errorEl) errorEl.hidden = true;
+        if (opts.button) setButtonLoading(opts.button, true);
+        if (modal) setModalControlsDisabled(modal, true);
+        let saved = false;
+        try {
+            if (window.__demoMode) {
+                saved = true;
+            } else {
+                const resp = await apiCall('POST', 'onboarding', { mode: 'no_goal' }, true);
+                const data = await resp.json().catch(() => ({}));
+                if (resp.ok) {
+                    saved = true;
+                } else if (errorEl) {
+                    errorEl.textContent = data.error || 'Could not save that choice. Please try again.';
+                    errorEl.hidden = false;
+                }
+            }
+        } catch (err) {
+            if (errorEl) {
+                errorEl.textContent = 'Network error. Please try again.';
+                errorEl.hidden = false;
+            }
+        }
+        noGoalSavePending = false;
+        if (opts.button) setButtonLoading(opts.button, false);
+        if (modal) setModalControlsDisabled(modal, false);
+        if (saved) {
+            applyNoGoalModeLocally();
+            if (typeof opts.closeModal === 'function') opts.closeModal();
+            showDashboard();
+        }
+    }
+
+    // --- Next-goal suggestions ---------------------------------------------
+    // The four fixed distance options, annotated with saved race results by
+    // the server. Deterministic — a plain GET, not an AI call — so the
+    // loading state uses the ordinary skeleton lines, not the AI shimmer.
+
+    // Bumped per fetch: a late response after a mode/user change must never
+    // paint over the dashboard's current state.
+    let goalSuggestionsReq = 0;
+    // The rendered list is kept so "Use this distance" can read back the
+    // option it came from.
+    let goalSuggestionsData = [];
+
+    // Retire anything a suggestions fetch could still deliver — called from
+    // every seam where the account or mode it was loaded under has changed
+    // (logout, a no-goal save, a new goal, a canonical reconcile).
+    function invalidateGoalSuggestions() {
+        goalSuggestionsReq++;
+        goalSuggestionsData = [];
+    }
+
+    function renderGoalSuggestions(suggestions) {
+        const listEl = $('#pacey-goal-suggestions-list');
+        if (!listEl) return;
+        listEl.innerHTML = suggestions.map((s, i) => `
+            <div class="pacey-goal-suggestion">
+                <button class="pacey-goal-suggestion-toggle" type="button" aria-expanded="false" data-suggestion-index="${i}">
+                    <span class="pacey-goal-suggestion-name">${escapeHtml(s.title || '')}</span>
+                    <span class="pacey-goal-suggestion-purpose">${escapeHtml(s.purpose || '')} · ${escapeHtml(String(s.distance_km))} km</span>
+                    ${s.benchmark_time ? `<span class="pacey-goal-suggestion-benchmark">From ${escapeHtml(s.benchmark_time)}</span>` : ''}
+                    <svg class="pacey-goal-suggestion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="pacey-goal-suggestion-detail" hidden>
+                    <p class="pacey-goal-suggestion-desc">${escapeHtml(s.description || '')}</p>
+                    <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestion-use" type="button" data-use-suggestion="${i}">Use this distance</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function showGoalSuggestionsError(message) {
+        const listEl = $('#pacey-goal-suggestions-list');
+        const status = $('#pacey-goal-suggestions-status');
+        if (listEl) listEl.innerHTML = '';
+        if (status) {
+            status.innerHTML = `${escapeHtml(message)} <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestions-retry" type="button">Retry</button>`;
+            status.hidden = false;
+        }
+    }
+
+    async function loadGoalSuggestions() {
+        const box = $('#pacey-goal-suggestions');
+        if (!box) return;
+        const req = ++goalSuggestionsReq;
+        try {
+            const resp = await apiCallWithAuthRetry('GET', 'onboarding');
+            const data = await resp.json().catch(() => ({}));
+            // A newer request — or the note being re-hidden by a mode change —
+            // wins; never paint stale options over a changed dashboard.
+            if (req !== goalSuggestionsReq || box.hidden) return;
+            if (!resp.ok || !Array.isArray(data.suggestions)) {
+                showGoalSuggestionsError(data.error || 'Could not load suggestions.');
+                return;
+            }
+            goalSuggestionsData = data.suggestions;
+            renderGoalSuggestions(data.suggestions);
+            // The list arrived under the runner's pointer but focus is still
+            // back on "Explore my next goal" — hand it to the first option.
+            const firstRow = $('#pacey-goal-suggestions-list .pacey-goal-suggestion-toggle');
+            if (firstRow) firstRow.focus();
+        } catch (err) {
+            if (req !== goalSuggestionsReq || box.hidden) return;
+            showGoalSuggestionsError('Network error. Please try again.');
+        }
+    }
+
+    // Reveal the suggestions sheet and fetch — shared by the no-goal note and
+    // the post-race recap. Always lands on the overview, where it lives.
+    function openGoalSuggestions() {
+        const box = $('#pacey-goal-suggestions');
+        const list = $('#pacey-goal-suggestions-list');
+        const status = $('#pacey-goal-suggestions-status');
+        if (!box || !list) return;
+        if (getPageFromHash() !== 'overview') window.location.hash = 'overview';
+        box.hidden = false;
+        if (status) status.hidden = true;
+        // Ordinary skeleton lines, not the AI shimmer — this is a deterministic
+        // lookup, not a coach thinking.
+        list.innerHTML = '<div class="pacey-goal-suggestion-skeleton"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>';
+        // Smooth-scroll unless the runner has asked for reduced motion.
+        const reduceMotion = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        box.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+        loadGoalSuggestions();
+    }
+
+    // What onboarding was opened over — set when a flow clears the local goal
+    // before the form is filled, so Back returns to the dashboard with the
+    // previous goal still in place rather than to an empty one.
+    let onboardingReturnSnapshot = null;
+
+    // Show onboarding step 1. The back affordance only appears when there is
+    // a dashboard behind it — a first-run account has nothing to return to.
+    function openOnboardingScreen() {
+        const backBtn = $('#pacey-onboard-back');
+        if (backBtn) backBtn.hidden = !(isNoGoalMode() || raceGoal || onboardingReturnSnapshot);
+        showScreen(onboardScreen);
+        // Move focus into the form — otherwise it stays on the control that
+        // opened this screen, which is now hidden.
+        const firstField = $('#pacey-race-name');
+        if (firstField) firstField.focus();
+    }
+
+    // A suggestion prefills the form but never saves: race name and race date
+    // are the runner's own, and the goal is only written by the form's submit.
+    function prefillOnboardingFromSuggestion(s) {
+        if (!s) return;
+        // The option supplies only distance and (maybe) a starting target —
+        // race name and date are always the runner's own, so whatever a
+        // previous visit left in the form is cleared first.
+        const nameEl = $('#pacey-race-name');
+        if (nameEl) nameEl.value = '';
+        const dateEl = $('#pacey-race-date');
+        if (dateEl) dateEl.value = '';
+        const purposeSel = $('#pacey-purpose');
+        if (purposeSel) purposeSel.value = s.purpose || '';
+        // The four options map onto the standard race types, so the custom
+        // distance field stays hidden.
+        const customField = $('#pacey-custom-distance-field');
+        if (customField) customField.hidden = !purposeSel || purposeSel.value !== 'Custom';
+        // A saved-result benchmark prefills the target; without one the
+        // fields reset to blank — a previous option's time must not linger.
+        const parts = s.target_time ? String(s.target_time).split(':') : null;
+        const hEl = $('#pacey-time-h');
+        const mEl = $('#pacey-time-m');
+        const sEl = $('#pacey-time-s');
+        if (hEl) hEl.value = parts ? (parts[0] || '0') : '';
+        if (mEl) mEl.value = parts ? (parts[1] || '00') : '';
+        if (sEl) sEl.value = parts ? (parts[2] || '00') : '';
+        openOnboardingScreen();
     }
 
     // The written recap, cached in localStorage against the result it describes.
@@ -2502,6 +2922,52 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (action === 'link') openLinkRaceModal();
                 if (action === 'new-goal') openEditGoalPopup();
                 if (action === 'review-readiness') openReadinessReviewModal();
+                // Next-goal options — the suggestions sheet lives on the
+                // overview, so the button navigates there first if needed.
+                if (action === 'explore') openGoalSuggestions();
+                // Run without a goal — saved server-side as the account-wide
+                // tombstone; post-race there is no live plan to warn about, so
+                // the save runs straight through.
+                if (action === 'no-goal') {
+                    // Locking the recap sheet keeps its other goal actions
+                    // (explore, new goal, link) from mutating state mid-save.
+                    saveNoGoalMode({
+                        button: actionBtn,
+                        modal: actionBtn.closest('.pacey-race-recap'),
+                        errorEl: actionBtn.closest('.pacey-race-recap')
+                            ?.querySelector('.pacey-race-recap-nogoal-error'),
+                    });
+                }
+                return;
+            }
+            // Expand or collapse one goal suggestion row — the details (and the
+            // "Use this distance" action) sit behind the row's own toggle.
+            const sugToggle = e.target.closest('.pacey-goal-suggestion-toggle');
+            if (sugToggle) {
+                const detail = sugToggle.parentElement
+                    && sugToggle.parentElement.querySelector('.pacey-goal-suggestion-detail');
+                if (detail) {
+                    const open = detail.hidden;
+                    detail.hidden = !open;
+                    sugToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                }
+                return;
+            }
+            // "Use this distance" — prefills onboarding step 1 from the option;
+            // nothing is saved until the runner submits the form themselves.
+            const useBtn = e.target.closest('[data-use-suggestion]');
+            if (useBtn) {
+                const s = goalSuggestionsData[Number(useBtn.getAttribute('data-use-suggestion'))];
+                prefillOnboardingFromSuggestion(s);
+                return;
+            }
+            // A failed suggestions fetch offers a Retry in its status line.
+            if (e.target.closest('.pacey-goal-suggestions-retry')) {
+                const list = $('#pacey-goal-suggestions-list');
+                const status = $('#pacey-goal-suggestions-status');
+                if (status) status.hidden = true;
+                if (list) list.innerHTML = '<div class="pacey-goal-suggestion-skeleton"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>';
+                loadGoalSuggestions();
                 return;
             }
             // Past races — the entrance sits in two title rows, so it is handled
@@ -4085,7 +4551,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function loadCourseRemote() {
-        if (window.__demoMode || courseRecord) return;
+        // No-goal mode has no race to attach a course to — skip the fetch.
+        if (window.__demoMode || courseRecord || isNoGoalMode()) return;
         try {
             const resp = await apiCallWithAuthRetry('GET', 'coach-plan?action=course');
             const data = await resp.json();
@@ -6908,6 +7375,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // decision is made, so pressing Refresh cannot resurrect the analysis —
         // and it runs before any cache read, so a cached pre-race payload cannot
         // repaint the radar either.
+        // No-goal mode: no race means nothing to analyse — the radar, pillars
+        // and verdict all stay down, and no AI request is made at all.
+        if (isNoGoalMode()) {
+            applyGoalModeChrome();
+            return;
+        }
         const postRace = postRaceState(raceGoal, fullActivitiesLoaded);
         applyRaceRecapMode(postRace, raceGoal);
         if (postRace.isPostRace) {
@@ -7892,8 +8365,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // confirmation above can run it only once the runner agrees to the change.
     async function applyEditedGoal(body) {
         // A save already in flight owns the form values — repeat clicks and
-        // the confirmation's re-entry both no-op.
-        if (editGoalSavePending) return;
+        // the confirmation's re-entry both no-op. The same is true of a
+        // no-goal save running out of this dialog.
+        if (editGoalSavePending || noGoalSavePending) return;
         setEditGoalSavePending(true);
         setButtonLoading(editGoalBtn, true);
         try {
@@ -7910,6 +8384,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 raceGoal = data.goal;
             }
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            // Saving a real goal leaves no-goal mode on this device too.
+            setGoalMode('race');
             // A changed goal needs its own course. Wait for the remote clear so
             // the dashboard reload cannot fetch the previous race's map again.
             await clearCourse();
@@ -7959,8 +8435,29 @@ document.addEventListener('DOMContentLoaded', function () {
     // checked explicitly.
     editGoalClose.addEventListener('click', closeEditGoalPopup);
     editGoalPopup.addEventListener('click', (e) => {
-        if (e.target === editGoalPopup && !editGoalSavePending) closeEditGoalPopup();
+        // Neither an in-flight goal save nor a no-goal save may be dismissed —
+        // both are still using the dialog's state.
+        if (e.target === editGoalPopup && !editGoalSavePending && !noGoalSavePending) closeEditGoalPopup();
     });
+
+    // Run without a goal, from inside the edit-goal dialog — the opt-out is a
+    // goal decision too, so it lives beside the save. The modal's own locking
+    // (setModalControlsDisabled) covers it while the tombstone save runs.
+    const editGoalNoGoalBtn = $('#pacey-edit-goal-nogoal');
+    if (editGoalNoGoalBtn) {
+        editGoalNoGoalBtn.addEventListener('click', () => {
+            const run = () => saveNoGoalMode({
+                modal: editGoalPopup,
+                errorEl: $('#pacey-edit-goal-nogoal-error'),
+                closeModal: closeEditGoalPopup,
+            });
+            if (planChangeWarning()) {
+                openGoalChangeConfirm(run, true);
+                return;
+            }
+            run();
+        });
+    }
 
     // Edit race goal — shared handler used by both the sidebar edit button
     // (desktop) and the settings popup edit button (mobile). Opens the
@@ -7973,6 +8470,25 @@ document.addEventListener('DOMContentLoaded', function () {
     // Settings popup edit-goal button — shown only on mobile
     const settingsResetGoalBtn = $('#pacey-settings-reset-goal-btn');
     if (settingsResetGoalBtn) settingsResetGoalBtn.addEventListener('click', editGoal);
+
+    // Run without a goal, from the settings panel's current-goal row — the
+    // same tombstone save as everywhere else, with the popup locked while it
+    // runs and the previous state kept on failure.
+    const settingsNoGoalBtn = $('#pacey-settings-nogoal-btn');
+    if (settingsNoGoalBtn) {
+        settingsNoGoalBtn.addEventListener('click', () => {
+            const run = () => saveNoGoalMode({
+                modal: settingsPopup,
+                errorEl: $('#pacey-settings-nogoal-error'),
+                closeModal: closeSettingsPopup,
+            });
+            if (planChangeWarning()) {
+                openGoalChangeConfirm(run, true);
+                return;
+            }
+            run();
+        });
+    }
 
     // =========================================================================
     // Race goal reminder popup — shown when a returning user logs in and has
@@ -8031,6 +8547,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Keep — go straight to the dashboard with the existing goal
     goalReminderKeep.addEventListener('click', () => {
+        setGoalMode('race');
         closeGoalReminderPopup();
         showDashboard();
     });
@@ -8050,6 +8567,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // progress is about to be discarded, so confirm first.
     function startNewGoalFlow() {
         closeGoalReminderPopup();
+        // Remember the goal being replaced: backing out of onboarding returns
+        // to the dashboard with it restored — nothing is written until the
+        // new goal's form actually saves.
+        onboardingReturnSnapshot = { raceGoal, goalMode };
         raceGoal = null;
         localStorage.removeItem('pacey_race_goal');
         clearAICache();
@@ -8060,7 +8581,7 @@ document.addEventListener('DOMContentLoaded', function () {
         coachPlanData = null;
         coachEditingDate = null;
         coachSyncedDates.clear();
-        showScreen(onboardScreen);
+        openOnboardingScreen();
     }
 
     goalReminderNew.addEventListener('click', () => {
@@ -8071,13 +8592,32 @@ document.addEventListener('DOMContentLoaded', function () {
         startNewGoalFlow();
     });
 
+    // Run without a goal — the same opt-out the onboarding screen offers,
+    // here from the welcome-back reminder. A live plan still gets the change
+    // confirmation first; the save itself locks the popup while it runs.
+    const goalReminderNoGoal = $('#pacey-goal-reminder-nogoal');
+    if (goalReminderNoGoal) {
+        goalReminderNoGoal.addEventListener('click', () => {
+            const run = () => saveNoGoalMode({
+                modal: goalReminderPopup,
+                errorEl: $('#pacey-goal-reminder-nogoal-error'),
+                closeModal: closeGoalReminderPopup,
+            });
+            if (planChangeWarning()) {
+                openGoalChangeConfirm(run, true);
+                return;
+            }
+            run();
+        });
+    }
+
     // Close on close button, overlay click, or Escape
     goalReminderClose.addEventListener('click', closeGoalReminderPopup);
     goalReminderPopup.addEventListener('click', (e) => {
-        if (e.target === goalReminderPopup) closeGoalReminderPopup();
+        if (e.target === goalReminderPopup && !noGoalSavePending) closeGoalReminderPopup();
     });
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && goalReminderPopup && !goalReminderPopup.hidden) {
+        if (e.key === 'Escape' && goalReminderPopup && !goalReminderPopup.hidden && !noGoalSavePending) {
             closeGoalReminderPopup();
         }
     });
@@ -8112,7 +8652,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
 
-    function openGoalChangeConfirm(onConfirm) {
+    function openGoalChangeConfirm(onConfirm, toNoGoal = false) {
         if (!goalChangeConfirm) { onConfirm(); return; }
         const warning = planChangeWarning();
         if (!warning) { onConfirm(); return; }
@@ -8120,7 +8660,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (goalChangeBody) {
             goalChangeBody.innerHTML = `
                 <p class="pacey-goal-change-lead">You're still training toward <strong>${escapeHtml(warning.name)}</strong>${warning.date ? ` on ${escapeHtml(warning.date)}` : ''}.</p>
-                <p class="pacey-goal-change-note">Changing your goal discards the plan built for that race and rebuilds it for the new one.</p>
+                ${toNoGoal
+                    ? '<p class="pacey-goal-change-note">Running without a goal discards the plan built for that race. Completed races stay in Past races.</p>'
+                    : '<p class="pacey-goal-change-note">Changing your goal discards the plan built for that race and rebuilds it for the new one.</p>'}
                 ${warning.synced ? '<p class="pacey-goal-change-note">Workouts you have already sent to Garmin stay on your watch — remove them there if you do not want them.</p>' : ''}
             `;
         }
@@ -8216,7 +8758,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (settingsProfileGoal && raceGoal) {
             settingsProfileGoal.textContent = `${goalTypeLabel(raceGoal)} — ${raceGoal.time_target}`;
         } else if (settingsProfileGoal) {
-            settingsProfileGoal.textContent = '';
+            // Explicit no-goal still says so plainly — an empty goal line
+            // would read as a load failure rather than a choice.
+            settingsProfileGoal.textContent = isNoGoalMode() ? 'No race goal' : '';
         }
 
         // Focus management: store the triggering element and move focus
@@ -8264,14 +8808,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // Tapping the scrim closes the mobile bottom sheet. On desktop the popup is
     // pointer-events:none, so this only fires for the card itself.
     settingsPopup.addEventListener('click', (e) => {
-        if (e.target === settingsPopup) closeSettingsPopup();
+        // A no-goal save owns the panel until it resolves — dismissal waits.
+        if (e.target === settingsPopup && !noGoalSavePending) closeSettingsPopup();
     });
     // Close when clicking anywhere outside the panel. On desktop the popup is
     // not a full-screen overlay, so this needs a document-level listener rather
     // than a click on the popup. The two trigger buttons are exempt so their
     // own click can toggle.
     document.addEventListener('click', (e) => {
-        if (!isSettingsPopupOpen()) return;
+        if (!isSettingsPopupOpen() || noGoalSavePending) return;
         if (settingsPopup.contains(e.target)) return;
         if (settingsBtn.contains(e.target)) return;
         const tabBtn = document.getElementById('pacey-tab-settings');
@@ -8280,12 +8825,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     // Close on Escape key — matches the login modal and metric popup behavior
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && isSettingsPopupOpen()) closeSettingsPopup();
+        if (e.key === 'Escape' && isSettingsPopupOpen() && !noGoalSavePending) closeSettingsPopup();
     });
 
     // Edit-goal popup Escape key handler
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !editGoalPopup.hidden && !editGoalSavePending) closeEditGoalPopup();
+        if (e.key === 'Escape' && !editGoalPopup.hidden && !editGoalSavePending && !noGoalSavePending) closeEditGoalPopup();
     });
 
     // =========================================================================
@@ -8562,6 +9107,13 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem('pacey_race_goal');
         localStorage.removeItem('pacey_display_name');
         localStorage.removeItem('pacey_profile_image_url');
+        // The no-goal tombstone is account state — it follows the account,
+        // not the browser, so it is re-read on the next login rather than
+        // kept here.
+        setGoalMode('');
+        // The account itself changed — a suggestions response loaded for the
+        // previous one must never paint.
+        invalidateGoalSuggestions();
         clearAICache(); // clear cached AI insights when logging out
         clearCoachCache(); // clear cached coach plan when logging out
         clearSWRCaches(); // clear cached metrics + mileage when logging out
@@ -9311,10 +9863,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function generateCoachPlan(prefs, force) {
-        // Post-race there is no block left to build. Guarded here as well as at
-        // the callers so nothing — a prefs save, a stale auto-load — can spend an
-        // AI call generating workouts for a race that has already happened.
-        if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
+        // History-only modes — post-race and no-goal — have no block to build.
+        // Guarded here as well as at the callers so nothing — a prefs save, a
+        // stale auto-load — can spend an AI call generating workouts for a
+        // race that has already happened or does not exist.
+        if (historyOnlyPlanMode()) {
             renderPostRacePlan();
             return;
         }
@@ -9480,6 +10033,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // cached/generated plan still holds, keyed by activity id so a run known
     // to both never duplicates; the loaded list wins the merge because its
     // fields are current.
+    // The Plan page doubles as the training log whenever there is no block to
+    // plan — post-race (the block is done) or no-goal mode (there is no race
+    // to build one toward). In both cases history renders from data already
+    // loaded and nothing is generated.
+    function historyOnlyPlanMode() {
+        return isNoGoalMode() || postRaceState(raceGoal, fullActivitiesLoaded).isPostRace;
+    }
+
     function postRacePlanData() {
         const cached = coachPlanData || readCoachCache();
         const merged = new Map();
@@ -9527,7 +10088,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // its post-race history drew empty — refresh it once the list arrives.
     function refreshPostRacePlanIfVisible() {
         if (getPageFromHash() !== 'plan') return;
-        if (!postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) return;
+        if (!historyOnlyPlanMode()) return;
         renderPostRacePlan();
     }
 
@@ -9545,12 +10106,12 @@ document.addEventListener('DOMContentLoaded', function () {
             coachLoaded = false;
             coachPlanData = null;
         }
-        // Post-race there is no block left to build. Generating one would produce
-        // recovery sessions the runner never asked for and cannot act on, and it
-        // would spend an AI call doing it. The calendar still renders — it is the
-        // training log now rather than a schedule — from whatever history we
-        // already hold.
-        if (postRaceState(raceGoal, fullActivitiesLoaded).isPostRace) {
+        // Post-race and no-goal both mean there is no block left to build.
+        // Generating one would produce sessions the runner never asked for and
+        // cannot act on, and it would spend an AI call doing it. The calendar
+        // still renders — it is the training log now rather than a schedule —
+        // from whatever history we already hold.
+        if (historyOnlyPlanMode()) {
             renderPostRacePlan();
             return;
         }
@@ -9624,11 +10185,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!coachCalendarEl) return;
         const history = data.history || [];
         const plan = data.plan || {};
-        // Post-race the block is over, so the calendar carries no workouts. It
-        // still renders — the training history is what it is for now — but the
-        // race was the last thing in the plan, and a session after it would be
-        // advice about a block that no longer exists.
-        const planDays = postRaceState(raceGoal, fullActivitiesLoaded).isPostRace ? [] : (plan.days || []);
+        // History-only modes — post-race or no-goal — carry no workouts. The
+        // calendar still renders (the training history is what it is for now),
+        // but a session beyond the block would be advice about a plan that no
+        // longer exists or was never built.
+        const planDays = historyOnlyPlanMode() ? [] : (plan.days || []);
 
         // Index history and plan by local date
         const historyByDate = {};
@@ -9769,6 +10330,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!planRaceCardEl) return;
         const postRace = postRaceState(raceGoal, fullActivitiesLoaded);
         const daysToRace = plan.days_to_race;
+        const planHistoryNote = $('#pacey-plan-history-note');
+
+        // No-goal mode: no race to count down to and no block to summarize —
+        // the page leads with a small training-log note instead of the card.
+        if (isNoGoalMode()) {
+            planRaceCardEl.hidden = true;
+            renderFitnessDrawer({});
+            renderTrajectoryNote({});
+            if (planInsightEl) { planInsightEl.hidden = true; planInsightEl.textContent = ''; }
+            // There is no plan, so the prefs/edit control goes with the card.
+            if (planEditBtn) planEditBtn.hidden = true;
+            if (planHistoryNote) planHistoryNote.hidden = false;
+            return;
+        }
+        if (planHistoryNote) planHistoryNote.hidden = true;
 
         // Post-race the card summarises the race instead of counting down to it,
         // and it no longer depends on a plan — there is no plan to depend on, so
@@ -10685,9 +11261,25 @@ document.addEventListener('DOMContentLoaded', function () {
         const serverGoal = data && data.has_race_goal && data.race_goal
             ? data.race_goal
             : null;
-        if (raceGoalsMatch(raceGoal, serverGoal)) return false;
+        // The mode is part of the canonical state: switching to or from the
+        // no-goal tombstone changes the dashboard even though raceGoal is null
+        // on both sides of the comparison. Only that flip counts as a change —
+        // a ''→'race' label arriving beside an identical goal (older response,
+        // first reconciled session) must not wipe the caches it would only
+        // have to refetch.
+        const serverMode = data && data.goal_mode === 'no_goal' ? 'no_goal'
+            : (serverGoal ? 'race' : '');
+        const noGoalFlip = (serverMode === 'no_goal') !== (goalMode === 'no_goal');
+        if (!noGoalFlip && raceGoalsMatch(raceGoal, serverGoal)) {
+            if (serverMode !== goalMode) setGoalMode(serverMode);
+            return false;
+        }
 
         raceGoal = serverGoal;
+        setGoalMode(serverMode);
+        // The canonical goal moved — even with the mode unchanged the race
+        // history behind any in-flight suggestions fetch has changed.
+        invalidateGoalSuggestions();
         if (raceGoal) {
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
         } else {
@@ -10705,12 +11297,19 @@ document.addEventListener('DOMContentLoaded', function () {
         lastMileageWeeks = null;
         lastPaceDistActivities = null;
         lastHrPaceActivities = null;
+        raceGoalPaceMs = 0;
 
         // Drop only this browser's old course. The canonical remote course may
         // already belong to the newer goal and must never be deleted here.
         resetCourseLocal(true);
 
         if (!raceGoal) {
+            // A tombstone lands on the dashboard's no-goal note; a genuinely
+            // absent goal still means onboarding, exactly as before.
+            if (goalMode === 'no_goal') {
+                showDashboard();
+                return true;
+            }
             showScreen(onboardScreen);
             return true;
         }
@@ -10760,9 +11359,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (demoCta) demoCta.hidden = true;
 
         // Show dashboard immediately from cached data — no flash of demo mode
-        // while waiting for the check-session network round-trip
+        // while waiting for the check-session network round-trip. A persisted
+        // no-goal choice lands on the dashboard too — only a genuinely absent
+        // goal (legacy state, no tombstone) still opens onboarding.
         if (hasCachedRaceGoal) {
             try { raceGoal = JSON.parse(cachedRaceGoal); } catch (e) {}
+            showDashboard();
+        } else if (goalMode === 'no_goal') {
             showDashboard();
         } else {
             showScreen(onboardScreen);
@@ -10805,8 +11408,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Session expired — clear cache and fall back to demo mode
                 sessionToken = '';
                 localStorage.removeItem('pacey_session_token');
+                localStorage.removeItem('pacey_race_goal');
                 localStorage.removeItem('pacey_display_name');
                 localStorage.removeItem('pacey_profile_image_url');
+                // The mode travels with the account — an expired session
+                // leaves nothing to show it against in demo mode.
+                setGoalMode('');
                 clearSWRCaches();
                 clearAICache();
                 clearCoachCache();
