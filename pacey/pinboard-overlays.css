@@ -2148,7 +2148,7 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
 .pacey-past-race-panel {
     display: grid;
     grid-template-rows: 0fr;
-    transition: grid-template-rows 0.28s ease;
+    transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .pacey-past-race.is-open .pacey-past-race-panel { grid-template-rows: 1fr; }
 
@@ -2156,6 +2156,9 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    /* min-height:0 lets the 0fr row fold shut — a grid child otherwise keeps
+       a min-content floor. overflow:hidden clips the content while closed. */
+    min-height: 0;
     overflow: hidden;
 }
 /* A margin rather than padding, so the gap is inside the clipped content and
@@ -2205,8 +2208,10 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
 }
 
 @media (prefers-reduced-motion: reduce) {
+    /* !important matches the shared shell's precedence — the preference wins
+       regardless of sheet order or specificity. */
     .pacey-past-race-panel,
-    .pacey-past-race-chevron { transition: none; }
+    .pacey-past-race-chevron { transition: none !important; }
 }
 
 .pacey-past-races-empty {

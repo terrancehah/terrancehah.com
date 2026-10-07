@@ -766,6 +766,19 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     gap: var(--pacey-space-sm);
 }
 
+/* The no-goal offer is a preference, not one of the recap's choices — it
+   sits on its own row below them, left-aligned like the quiet links. */
+#pacey-content .pacey-race-recap-no-goal {
+    /* margin-top: var(--pacey-space-sm); */
+}
+/* The ghost's generic margin:auto would centre it in the row; it stays
+   content-sized and left-aligned like the other compact actions. */
+#pacey-content .pacey-race-recap-no-goal .pacey-btn {
+    margin: 0;
+    width: auto;
+    align-self: flex-start;
+}
+
 /* ---- The course preview, relocated from the goal card ----
    The note is absolutely positioned in the goal card, pinned under the
    countdown, and its width is measured per route in JS. In the recap there is
@@ -884,17 +897,24 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: var(--pinboard-ink);
 }
 
-/* "Not now" is a quiet dismiss — flat text like the no-goal links, so the
-   paper's button shadow and border come off on base and hover alike, and it
-   never moves. The keyboard outline stays visible. */
+/* The sheet's X-close follows the modals' dismiss pattern — a fixed 44px
+   touch target in muted ink, flat on the paper, no border or shadow, and it
+   never moves. Its accessible name comes from aria-label. */
 #pacey-content .pacey-goal-suggestions-close {
-    width: auto;
-    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
     margin: 0;
-    padding: var(--pacey-space-sm) var(--pacey-space-md);
+    padding: 0;
     border: none;
     border-radius: var(--pacey-radius-sm);
     box-shadow: none;
+    background: none;
+    color: var(--pinboard-muted);
+    cursor: pointer;
+    transition: color 0.18s ease-out;
 }
 #pacey-content .pacey-goal-suggestions-close:is(:hover, :focus) {
     color: var(--pinboard-ink);
@@ -907,6 +927,14 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
 #pacey-content .pacey-goal-suggestions-intro {
     margin: 0;
     font-size: 0.95rem;
+    color: var(--pinboard-muted);
+}
+
+/* Demo sessions label the whole sheet once — the sample figures themselves
+   read exactly like real ones, so the note carries the demo honesty alone. */
+#pacey-content .pacey-goal-suggestions-demo {
+    margin: 0;
+    font-size: var(--pacey-text-label);
     color: var(--pinboard-muted);
 }
 
@@ -953,16 +981,16 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     min-width: 0;
 }
 
-/* Distance and purpose lead; the title is the supporting line. */
+/* Distance and purpose lead the row at the Plan card's subheading size;
+   the title is the supporting line in the label size. */
 #pacey-content .pacey-goal-suggestion-distance {
-    font-family: var(--font-caveat);
-    font-size: 1.2rem;
+    font-size: var(--pacey-text-subheading);
     font-weight: 700;
 }
 
 #pacey-content .pacey-goal-suggestion-title {
     color: var(--pinboard-muted);
-    font-size: 0.9rem;
+    font-size: var(--pacey-text-label);
 }
 
 #pacey-content .pacey-goal-suggestion-target {
@@ -975,21 +1003,20 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
 }
 
 #pacey-content .pacey-goal-suggestion-time {
-    font-family: var(--font-caveat);
-    font-size: 1.2rem;
+    font-size: var(--pacey-text-body);
     font-weight: 700;
     color: var(--pinboard-pin-blue);
 }
 
 #pacey-content .pacey-goal-suggestion-pace {
-    font-size: 0.85rem;
+    font-size: var(--pacey-text-label);
     color: var(--pinboard-muted);
 }
 
 /* The honest stand-in when no target exists — more data is needed before an
    estimate can be offered. */
 #pacey-content .pacey-goal-suggestion-need {
-    font-size: 0.85rem;
+    font-size: var(--pacey-text-body);
     color: var(--pinboard-muted);
     text-align: right;
     overflow-wrap: anywhere;
@@ -997,7 +1024,8 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
 
 #pacey-content .pacey-goal-suggestion-source {
     grid-area: source;
-    font-size: 0.8rem;
+    font-size: var(--pacey-text-label);
+    line-height: 1.4;
     color: var(--pinboard-muted);
     overflow-wrap: anywhere;
 }
@@ -1016,14 +1044,10 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     transform: rotate(180deg);
 }
 
-#pacey-content .pacey-goal-suggestion-detail {
+/* The detail is a shared .pacey-disclosure — its padding lives on the
+   clipped inner so a collapsed row folds to nothing. */
+#pacey-content .pacey-goal-suggestion-detail-inner {
     padding: 0 0 var(--pacey-space-md) var(--pacey-space-sm);
-}
-
-#pacey-content .pacey-goal-suggestion-desc {
-    margin: 0 0 var(--pacey-space-sm);
-    color: var(--pinboard-muted);
-    font-size: 0.95rem;
 }
 
 /* The coach's-perspective slot: skeleton lines while the optional prose
@@ -1040,19 +1064,21 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: var(--pinboard-muted);
 }
 
+/* A supporting label, not a handwritten heading — same label size and muted
+   ink the rest of the sheet's secondary text uses. */
 #pacey-content .pacey-goal-suggestion-why-label {
     display: block;
-    font-family: var(--font-caveat);
-    font-size: 1.05rem;
+    font-size: var(--pacey-text-label);
     font-weight: 700;
-    color: var(--pinboard-pin-blue);
+    color: var(--pinboard-muted);
     margin-bottom: 0.15rem;
 }
 
 #pacey-content .pacey-goal-suggestion-why-text,
 #pacey-content .pacey-goal-suggestion-why-unavailable {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--pacey-text-body);
+    line-height: 1.45;
     color: var(--pinboard-muted);
 }
 
@@ -1112,11 +1138,24 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
             "source chevron";
     }
 
+    /* Target time and /km pace stay on ONE baseline-aligned line — the row
+       never wraps its items and each compact value is nowrap; only the
+       missing-data note may wrap, inside its own bounded element. */
     #pacey-content .pacey-goal-suggestion-target {
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: baseline;
+        flex-wrap: nowrap;
+        gap: var(--pacey-space-sm);
     }
+
+    #pacey-content .pacey-goal-suggestion-time,
+    #pacey-content .pacey-goal-suggestion-pace { white-space: nowrap; }
 
     #pacey-content .pacey-goal-suggestion-need {
         text-align: left;
+        /* Shrinks inside the nowrap row and wraps internally, so a long
+           data-needed note can never push the row wider than the column. */
+        min-width: 0;
+        max-width: 100%;
     }
 }

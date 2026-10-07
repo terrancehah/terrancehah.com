@@ -740,8 +740,8 @@
                                 <h3 class="pacey-no-goal-title">Run at your own pace</h3>
                                 <p class="pacey-no-goal-text">No race goal right now. Your runs and training history are still here.</p>
                                 <div class="pacey-no-goal-actions">
-                                    <button class="pacey-btn pacey-btn-primary" id="pacey-no-goal-explore" type="button">Explore my next goal</button>
-                                    <button class="pacey-btn pacey-btn-secondary" id="pacey-no-goal-set" type="button">Set a goal</button>
+                                    <button class="pacey-btn pacey-btn-primary pacey-btn-inline" id="pacey-no-goal-explore" type="button">Explore my next goal</button>
+                                    <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" id="pacey-no-goal-set" type="button">Set a goal</button>
                                 </div>
                             </div>
 
@@ -756,9 +756,10 @@
                             <div class="pacey-goal-suggestions" id="pacey-goal-suggestions" role="region" aria-labelledby="pacey-goal-suggestions-heading" hidden>
                                 <div class="pacey-goal-suggestions-head">
                                     <h3 class="pacey-goal-suggestions-title" id="pacey-goal-suggestions-heading">Explore your next goal</h3>
-                                    <button class="pacey-btn pacey-btn-ghost pacey-goal-suggestions-close" id="pacey-goal-suggestions-close" type="button">Not now</button>
+                                    <button class="pacey-goal-suggestions-close" id="pacey-goal-suggestions-close" type="button" aria-label="Close goal suggestions"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
                                 </div>
                                 <p class="pacey-goal-suggestions-intro">These are options, not predictions. Saved race times are starting points, not guarantees.</p>
+                                <p class="pacey-goal-suggestions-demo" id="pacey-goal-suggestions-demo" hidden>Demo - sample runner data</p>
                                 <div class="pacey-goal-suggestions-list" id="pacey-goal-suggestions-list"></div>
                                 <p class="pacey-goal-suggestions-status" id="pacey-goal-suggestions-status" hidden></p>
                             </div>
@@ -968,7 +969,7 @@
                                  rotating chevron icon as the visual indicator.
                                  Toggled by JS in renderMetrics(). -->
                             <button class="pacey-vitals-toggle" id="pacey-vitals-show-more" hidden
-                                aria-expanded="false" aria-controls="pacey-metrics-grid">
+                                aria-expanded="false" aria-controls="pacey-metrics-extra">
                                 <span class="pacey-vitals-toggle-label">More vitals</span>
                                 <svg class="pacey-vitals-toggle-chevron" width="16" height="16"
                                     viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1171,7 +1172,9 @@
                                         <span class="pacey-plan-fitness-toggle-summary" id="pacey-plan-fitness-summary">—</span>
                                         <svg class="pacey-plan-fitness-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                                     </button>
-                                    <div class="pacey-plan-fitness-body" id="pacey-plan-fitness-body" hidden>
+                                    <div class="pacey-plan-fitness-body pacey-disclosure" id="pacey-plan-fitness-body" inert aria-hidden="true">
+                                        <div class="pacey-disclosure-inner">
+                                        <div class="pacey-plan-fitness-inner">
                                         <div class="pacey-plan-fitness-group">
                                             <div class="pacey-plan-fitness-group-head">
                                                 <span class="pacey-plan-fitness-group-label">Long runs</span>
@@ -1187,6 +1190,8 @@
                                             </div>
                                             <p class="pacey-plan-fitness-note" id="pacey-pace-fast-note" hidden></p>
                                             <ul class="pacey-plan-fitness-runs" id="pacey-pace-fast-runs"></ul>
+                                        </div>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>

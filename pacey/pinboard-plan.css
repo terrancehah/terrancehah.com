@@ -218,7 +218,6 @@
    the hidden attribute (the UA [hidden]{display:none} rule loses to a
    declared display), leaving elements visible when they should be gone. */
 .pacey-plan-race-card[hidden],
-.pacey-plan-fitness-body[hidden],
 .pacey-plan-trajectory[hidden],
 .pacey-plan-history-note[hidden] { display: none; }
 
@@ -312,7 +311,9 @@
     transform: rotate(180deg);
 }
 
-.pacey-plan-fitness-body {
+/* The body is a shared .pacey-disclosure — its padding and gaps live on the
+   clipped inner so a collapsed drawer folds to nothing. */
+.pacey-plan-fitness-inner {
     padding: 0.5rem 0.75rem 0.75rem;
     display: flex;
     flex-direction: column;

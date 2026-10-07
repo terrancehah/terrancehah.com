@@ -301,6 +301,17 @@
 }
 .pacey-btn-ghost:hover { color: var(--pacey-accent-red); background: color-mix(in srgb, var(--pacey-accent-red) 6%, transparent); }
 
+/* Compact contextual action — the opt-out from .pacey-btn's width:100% for
+   buttons that act on a card, row or note rather than submit a form: they
+   hug their label, wrap onto a new line if the container narrows, and sit
+   left-aligned in flex contexts. See .impeccable.md "Button Width". */
+.pacey-btn-inline {
+    width: auto;
+    max-width: 100%;
+    flex: 0 1 auto;
+    align-self: flex-start;
+}
+
 /* Running without a goal is an ordinary preference, not a destructive
    action, so its control stays a quiet text link everywhere: muted ink, no
    border, no shadow, no raised background and no lift on hover or focus.
@@ -322,6 +333,45 @@
 
 .pacey-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
+/* ---- Shared disclosure shell ----
+   One expanding/collapsing panel pattern for every drawer, detail and sheet
+   section, three levels deep: the .pacey-disclosure grid animates
+   grid-template-rows 0fr→1fr so the panel opens to the content's own height
+   with no guessed max-height and no JS pixel measuring; the direct grid
+   child .pacey-disclosure-inner only clips (min-height:0 + overflow:hidden +
+   opacity fade) and must stay free of padding and borders — a padded or
+   bordered grid child keeps a visible floor while collapsed. Real spacing,
+   borders and gaps belong on a semantic descendant inside it. .is-open is
+   the logical state; JS pairs it with inert + aria-hidden (and never the
+   [hidden] attribute — display:none would kill the transition). */
+.pacey-disclosure {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pacey-disclosure.is-open { grid-template-rows: 1fr; }
+.pacey-disclosure-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+.pacey-disclosure.is-open > .pacey-disclosure-inner { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+    /* Instant state change — the open/closed layout still applies, only the
+       transition and the rotating disclosure chevrons stop. !important keeps
+       the preference ahead of later sheet order and ID-scoped chevron rules. */
+    .pacey-disclosure,
+    .pacey-disclosure-inner,
+    .pacey-metrics-extra,
+    .pacey-metrics-extra-inner,
+    .pacey-goal-suggestion-chevron,
+    .pacey-activity-chevron,
+    .pacey-plan-fitness-chevron,
+    .pacey-vitals-toggle-chevron { transition: none !important; }
+}
+
 /* Global keyboard focus indicator — visible outline on all interactive
    elements when navigated with Tab. Uses :focus-visible so the outline
    only appears for keyboard users, not after mouse clicks. Applies to
@@ -336,7 +386,8 @@
 .pacey-readiness-card-link:focus-visible,
 .pacey-demo-banner-cta:focus-visible,
 .pacey-settings-popup-close:focus-visible,
-.pacey-modal-close:focus-visible {
+.pacey-modal-close:focus-visible,
+.pacey-goal-suggestions-close:focus-visible {
     outline: 0.125rem solid var(--pacey-blue);
     outline-offset: 0.125rem;
     border-radius: var(--pacey-radius-sm);
@@ -2505,13 +2556,13 @@ header.pacey-header-offset.pacey-header-collapsed {
 
 .pacey-activity-item.open .pacey-activity-chevron { transform: rotate(180deg); }
 
-.pacey-activity-detail {
-    display: none;
+/* The detail is a shared .pacey-disclosure — the collapse grid animates it
+   open instead of display toggling. Padding and the top rule move to the
+   clipped inner so a closed panel leaves no gap or stray border line. */
+.pacey-activity-detail-inner {
     padding: 0 clamp(0.75rem, 1.5vw, 1rem) 0.75rem;
     border-top: 0.0625rem solid var(--pacey-border);
 }
-
-.pacey-activity-item.open .pacey-activity-detail { display: block; }
 
 .pacey-activity-detail-grid {
     display: grid;
@@ -2705,6 +2756,9 @@ header.pacey-header-offset.pacey-header-collapsed {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 0.6rem;
+        /* min-height:0 lets the 0fr row actually fold shut — grid children
+           otherwise keep a min-content floor. */
+        min-height: 0;
         overflow: hidden;
         opacity: 0;
         transition: opacity 0.25s ease;

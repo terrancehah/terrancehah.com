@@ -1951,9 +1951,13 @@ document.addEventListener('DOMContentLoaded', function () {
             return `
                 <p class="pacey-race-recap-question">Did you run the race?</p>
                 <p class="pacey-race-recap-note">We couldn't find a run on race day that matches your goal distance.</p>
-                <button class="pacey-btn pacey-btn-primary pacey-race-recap-link-btn" type="button" data-recap-action="link">Link your race</button>
+                <button class="pacey-btn pacey-btn-primary pacey-btn-inline pacey-race-recap-link-btn" type="button" data-recap-action="link">Link your race</button>
                 <div class="pacey-race-recap-actions">
-                    <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="explore">Explore my next goal</button>
+                    <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="explore">Explore my next goal</button>
+                </div>
+                <!-- Opting out gets its own quiet row below the actions —
+                     it is a preference, not a choice among them. -->
+                <div class="pacey-race-recap-no-goal">
                     <button class="pacey-btn pacey-btn-ghost" type="button" data-recap-action="no-goal">Run without a goal</button>
                 </div>
                 <p class="pacey-race-recap-nogoal-error" hidden></p>
@@ -2020,14 +2024,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 <!-- The six-area analysis gives way to the recap post-race, so
                      this keeps it reachable: it opens the readiness that stood
                      before the race, frozen on the goal on race day. -->
-                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="review-readiness">Review race readiness</button>
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="review-readiness">Review race readiness</button>
                 <!-- Distance options for what comes next — the same sheet the
                      no-goal note opens. Choosing one only ever prefills the
                      onboarding form; it never saves or removes this race. -->
-                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="explore">Explore my next goal</button>
-                <button class="pacey-btn pacey-btn-secondary" type="button" data-recap-action="new-goal">Set a new goal</button>
-                <!-- Opting out entirely is an offer too — completed races,
-                     this one included, stay filed in Past races. -->
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="explore">Explore my next goal</button>
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="new-goal">Set a new goal</button>
+            </div>
+            <!-- Opting out entirely is an offer too — completed races,
+                 this one included, stay filed in Past races. It gets its
+                 own quiet row below the choices, not a seat among them. -->
+            <div class="pacey-race-recap-no-goal">
                 <button class="pacey-btn pacey-btn-ghost" type="button" data-recap-action="no-goal">Run without a goal</button>
             </div>
             <p class="pacey-race-recap-nogoal-error" hidden></p>
@@ -2353,32 +2360,33 @@ document.addEventListener('DOMContentLoaded', function () {
     // focus on a node that just went hidden.
     let goalSuggestionsTrigger = null;
 
-    // What demo mode shows for the four distances — labelled illustrations,
-    // never fetched and never explained, since a demo session has no Garmin
-    // evidence behind it.
+    // What demo mode shows for the four distances — a complete worked example
+    // built on the same sample runner as the rest of the demo (a 10K in
+    // 48:30), so the sheet reads exactly like the real one. The figures are
+    // frozen mock data, never computed, and the coach's prose is supplied
+    // text — no request is ever made for it.
     function demoGoalOptions() {
-        const label = 'Illustrative — connect Garmin to see yours';
         return [
             { purpose: '5K', distance_km: 5, title: 'Build speed',
-              description: 'A shorter race to work on speed without committing to a long block.',
-              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+              target_time: '0:23:15', target_pace_sec: 279, source: 'demo', source_label: '',
+              explanation: 'A shorter race gives this sample runner room to work on speed after a 48:30 10K. The next step is building faster sessions gradually while keeping easy runs comfortable.' },
             { purpose: '10K', distance_km: 10, title: 'Find a steady rhythm',
-              description: 'A balanced next step for practising a sustained effort.',
-              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+              target_time: '0:48:30', target_pace_sec: 291, source: 'demo', source_label: '',
+              explanation: 'Another 10K offers a familiar distance for practising a steadier effort from start to finish. This starting time matches the sample result; a faster target would need support from later training.' },
             { purpose: 'Half Marathon', distance_km: 21.1, title: 'Build endurance',
-              description: 'A longer-distance option if you want time to build your endurance.',
-              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+              target_time: '1:47:00', target_pace_sec: 6420 / 21.1, source: 'demo', source_label: '',
+              explanation: 'A half marathon shifts the focus from speed toward holding an effort for longer. The sample time is a distance-based estimate, so longer runs and a consistent training block matter more than the number alone.' },
             { purpose: 'Marathon', distance_km: 42.2, title: 'Take on a longer block',
-              description: 'A longer commitment. Choose it only if the training fits your life.',
-              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+              target_time: '3:43:10', target_pace_sec: 13390 / 42.2, source: 'demo', source_label: '',
+              explanation: 'A marathon is a longer-term option rather than an immediate next step. This estimate does not establish endurance readiness; the sample runner would need a substantial long-run base and enough time to build the block.' },
         ];
     }
 
-    // One card per option: distance and purpose lead the header, the title
-    // supports it, and the proposed time (with its /km pace) or an honest
-    // more-data note sits beside the evidence label. Details hold the
-    // estimate disclaimer, the coach's explanation when it arrives, and the
-    // commitment the option carries.
+    // One ruled row per option: distance and purpose lead, the title
+    // supports, and the proposed time (with its /km pace) or an honest
+    // more-data note sits beside the evidence label. The expanded detail
+    // holds just the coach's perspective and the pick button — the estimate
+    // caveat lives once at section level, in the intro.
     function renderGoalSuggestions(suggestions) {
         const listEl = $('#pacey-goal-suggestions-list');
         if (!listEl) return;
@@ -2403,12 +2411,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${sourceLine}
                     <svg class="pacey-goal-suggestion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div class="pacey-goal-suggestion-detail" id="pacey-goal-suggestion-detail-${i}" hidden>
-                    <p class="pacey-goal-suggestion-desc">${escapeHtml(s.description || '')}</p>
-                    <div class="pacey-goal-suggestion-why" id="pacey-goal-suggestion-why-${i}" data-explain-state="pending" aria-live="polite">
-                        <div class="pacey-goal-suggestion-why-skeleton pacey-ai-insight-loading" role="status" aria-label="Generating coach perspective"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>
+                <div class="pacey-goal-suggestion-detail pacey-disclosure" id="pacey-goal-suggestion-detail-${i}" inert aria-hidden="true">
+                    <div class="pacey-disclosure-inner">
+                        <div class="pacey-goal-suggestion-detail-inner">
+                            <div class="pacey-goal-suggestion-why" id="pacey-goal-suggestion-why-${i}" data-explain-state="pending" aria-live="polite">
+                                <div class="pacey-goal-suggestion-why-skeleton pacey-ai-insight-loading" role="status" aria-label="Generating coach perspective"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>
+                            </div>
+                            <button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-goal-suggestion-use" type="button" data-use-suggestion="${i}">${hasTime ? 'Use this starting goal' : 'Use this distance'}</button>
+                        </div>
                     </div>
-                    <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestion-use" type="button" data-use-suggestion="${i}">${hasTime ? 'Use this starting goal' : 'Use this distance'}</button>
                 </div>
             </div>`;
         }).join('');
@@ -2492,7 +2503,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const status = $('#pacey-goal-suggestions-status');
         if (listEl) listEl.innerHTML = '';
         if (status) {
-            status.innerHTML = `${escapeHtml(message)} <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestions-retry" type="button">Retry</button>`;
+            status.innerHTML = `${escapeHtml(message)} <button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-goal-suggestions-retry" type="button">Retry</button>`;
             status.hidden = false;
         }
     }
@@ -2501,12 +2512,18 @@ document.addEventListener('DOMContentLoaded', function () {
         const box = $('#pacey-goal-suggestions');
         if (!box) return;
         const req = ++goalSuggestionsReq;
+        // The demo note belongs to demo renders only — every real load
+        // clears it so switching accounts restores the plain intro.
+        const demoNote = $('#pacey-goal-suggestions-demo');
+        if (demoNote) demoNote.hidden = true;
         // Demo sessions have no server evidence — the four distances render
-        // as labelled illustrations and the explain request is never made.
+        // from frozen mock data with supplied coach prose, and neither the
+        // options fetch nor the explain request is ever made.
         if (window.__demoMode || !sessionToken || sessionToken === 'demo') {
             goalSuggestionsData = demoGoalOptions();
             renderGoalSuggestions(goalSuggestionsData);
-            markGoalExplanationsUnavailable();
+            goalSuggestionsData.forEach((s, i) => attachGoalExplanation(i, s.explanation));
+            if (demoNote) demoNote.hidden = false;
             return;
         }
         try {
@@ -3106,10 +3123,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     ${meta ? `<span class="pacey-past-race-meta">${escapeHtml(meta)}</span>` : ''}
                     <svg class="pacey-past-race-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div class="pacey-past-race-panel" id="${panelId}">
+                <div class="pacey-past-race-panel" id="${panelId}" inert aria-hidden="true">
                     <div class="pacey-past-race-panel-inner">
                         ${recap ? `<p class="pacey-past-race-recap">${escapeHtml(recap)}</p>` : ''}
-                        ${hasReadiness ? `<button class="pacey-btn pacey-btn-secondary pacey-past-race-review" type="button" data-past-race-index="${index}">Review readiness</button>` : ''}
+                        ${hasReadiness ? `<button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-past-race-review" type="button" data-past-race-index="${index}">Review readiness</button>` : ''}
                     </div>
                 </div>
             </article>`;
@@ -3170,9 +3187,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const detail = sugToggle.parentElement
                     && sugToggle.parentElement.querySelector('.pacey-goal-suggestion-detail');
                 if (detail) {
-                    const open = detail.hidden;
-                    detail.hidden = !open;
+                    // aria-expanded on the toggle is the authoritative state —
+                    // the helper mirrors it onto the panel's class, inert and
+                    // aria-hidden so rapid toggles can't drift apart.
+                    const open = sugToggle.getAttribute('aria-expanded') !== 'true';
                     sugToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    setDisclosureExpanded(detail, open, sugToggle);
                 }
                 return;
             }
@@ -3186,8 +3206,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 prefillOnboardingFromSuggestion(s);
                 return;
             }
-            // "Not now" — an explicit dismiss that also retires any in-flight
-            // options or explanation requests.
+            // The X close — an explicit dismiss that also retires any
+            // in-flight options or explanation requests.
             if (e.target.closest('.pacey-goal-suggestions-close')) {
                 closeGoalSuggestions();
                 return;
@@ -3215,6 +3235,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (card) {
                     const open = card.classList.toggle('is-open');
                     raceToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    setDisclosureExpanded(
+                        card.querySelector('.pacey-past-race-panel'), open, raceToggle);
                 }
                 return;
             }
@@ -5542,7 +5564,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         metricsGrid.innerHTML =
             primaryTiles.map(renderTile).join('') +
-            `<div class="pacey-metrics-extra"><div class="pacey-metrics-extra-inner">` +
+            `<div class="pacey-metrics-extra" id="pacey-metrics-extra"><div class="pacey-metrics-extra-inner">` +
             extraTiles.map(renderTile).join('') +
             `</div></div>`;
 
@@ -5563,8 +5585,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 const expanded = metricsGrid.classList.toggle('pacey-metrics-grid--expanded');
                 vitalsToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
                 if (toggleLabel) toggleLabel.textContent = expanded ? 'Fewer vitals' : 'More vitals';
+                syncVitalsDisclosure();
             };
         }
+
+        // The extra tiles were just rebuilt — resync inert/aria-hidden to the
+        // collapsed state (or clear them where the drawer does not exist, e.g.
+        // the pinboard carousel's display:contents layout).
+        syncVitalsDisclosure();
 
         // Attach click + keyboard handlers to each metric tile for the popup.
         // Keyboard: Enter and Space both trigger the same popup as a click.
@@ -6373,6 +6401,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 const item = header.parentElement;
                 const isOpen = item.classList.toggle('open');
                 header.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                setDisclosureExpanded(
+                    item.querySelector('.pacey-activity-detail'), isOpen, header);
             };
             header.addEventListener('click', toggleActivity);
             header.addEventListener('keydown', (e) => {
@@ -6597,7 +6627,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                     <svg class="pacey-activity-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
-                <div class="pacey-activity-detail">
+                <div class="pacey-activity-detail pacey-disclosure" inert aria-hidden="true">
+                    <div class="pacey-disclosure-inner">
+                    <div class="pacey-activity-detail-inner">
                     <div class="pacey-activity-detail-grid">
                         <div class="pacey-activity-detail-item">
                             <span class="pacey-activity-detail-label">Duration</span>
@@ -6628,6 +6660,8 @@ document.addEventListener('DOMContentLoaded', function () {
                          holds the button until it is asked for, then the
                          skeleton, then the read itself. -->
                     <div class="pacey-activity-insight" data-insight-slot="${a.id != null ? a.id : ''}">${activityInsightSlotHtml(a)}</div>
+                    </div>
+                    </div>
                 </div>
             </div>`;
     }
@@ -6749,6 +6783,61 @@ document.addEventListener('DOMContentLoaded', function () {
         const div = document.createElement('div');
         div.textContent = str == null ? '' : String(str);
         return div.innerHTML;
+    }
+
+    // =========================================================================
+    // Shared disclosure state — every expanding/collapsing panel goes through
+    // this one helper so the logical state can never drift from what CSS shows
+    // or what screen readers announce.
+    //
+    // The panel is a .pacey-disclosure grid that animates rows 0fr→1fr on its
+    // .is-open class; never the [hidden] attribute — display:none would kill
+    // the transition. inert + aria-hidden keep a closed panel out of the tab
+    // order and the accessibility tree, while aria-expanded on the trigger
+    // stays the authoritative announced state.
+    // =========================================================================
+    function setDisclosureExpanded(panel, open, trigger) {
+        if (!panel) return;
+        panel.classList.toggle('is-open', !!open);
+        if (open) {
+            panel.removeAttribute('inert');
+            panel.removeAttribute('aria-hidden');
+        } else {
+            // Focus can never sit inside inert content — hand it back to the
+            // trigger before the panel closes.
+            const active = document.activeElement;
+            if (trigger && active && panel.contains(active)) trigger.focus();
+            panel.setAttribute('inert', '');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    // The mobile vitals drawer only collapses where the metrics grid actually
+    // renders it as the 0fr collapse grid — the pinboard carousel flattens the
+    // wrapper into display:contents so the extra tiles are always visible, and
+    // inert there would wrongly cut them from focus and screen readers. Check
+    // the computed display rather than the viewport width alone.
+    function syncVitalsDisclosure() {
+        const extra = metricsGrid && metricsGrid.querySelector('.pacey-metrics-extra');
+        if (!extra) return;
+        let drawerActive = false;
+        try {
+            drawerActive = typeof getComputedStyle === 'function'
+                && getComputedStyle(extra).display === 'grid';
+        } catch (e) { drawerActive = false; }
+        const expanded = metricsGrid.classList.contains('pacey-metrics-grid--expanded');
+        // Focus inside the extra tiles goes back to the More-vitals trigger
+        // before inert lands — including on renders and breakpoint resyncs.
+        setDisclosureExpanded(
+            extra, expanded || !drawerActive, $('#pacey-vitals-show-more'));
+    }
+
+    // Crossing the collapse breakpoint changes whether the drawer exists at
+    // all — resync so a stale inert can never survive onto visible tiles.
+    const vitalsDrawerMq = typeof window.matchMedia === 'function'
+        ? window.matchMedia('(max-width: 30rem)') : null;
+    if (vitalsDrawerMq && typeof vitalsDrawerMq.addEventListener === 'function') {
+        vitalsDrawerMq.addEventListener('change', syncVitalsDisclosure);
     }
 
     // =========================================================================
@@ -10757,7 +10846,7 @@ document.addEventListener('DOMContentLoaded', function () {
         planFitnessToggle.addEventListener('click', () => {
             const open = planFitnessToggle.getAttribute('aria-expanded') === 'true';
             planFitnessToggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-            planFitnessBody.hidden = open;
+            setDisclosureExpanded(planFitnessBody, !open, planFitnessToggle);
         });
     }
     if (planFitnessEl) {
@@ -10785,7 +10874,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <span class="pacey-plan-trajectory-dot"></span>
             <span class="pacey-plan-trajectory-label">${labels[t.status] || 'On track'}</span>
             <span class="pacey-plan-trajectory-note">${escapeHtml(t.note || '')}</span>
-            ${canRebuild ? '<button class="pacey-btn pacey-btn-secondary pacey-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
+            ${canRebuild ? '<button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-plan-trajectory-rebuild" type="button">Rebuild remaining block</button>' : ''}
         `;
         planTrajectoryEl.hidden = false;
     }
