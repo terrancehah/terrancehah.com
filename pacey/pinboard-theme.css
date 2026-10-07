@@ -196,6 +196,24 @@
     /* Masthead sheet gets breathing room inside the paper */
     #pacey-content .pacey-content-header { padding: 1.4rem 1.6rem; }
 
+    /* Passive sheets sit flatter than the interactive cards — the runner can
+       never pick them up, so they carry the shallow static shadow and it never
+       grows on hover. Only the depth changes: the paper grain, tape, pushpins,
+       tilt and the inset top-edge highlight all stay. The interactive members
+       of the group above (metric tiles, activity rows, pillar cards) keep the
+       deeper resting shadow and the hover lift. */
+    #pacey-content .pacey-content-header,
+    #pacey-content .pacey-no-goal-note,
+    #pacey-content .pacey-goal-suggestions,
+    #pacey-content .pacey-race-recap,
+    #pacey-content .pacey-chart-card,
+    #pacey-content .pacey-overall-insight,
+    #pacey-content .pacey-overall-insight-skeleton,
+    #pacey-content .pacey-race-detail,
+    #pacey-content .pacey-readiness-card {
+        box-shadow: var(--pinboard-shadow-static), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    }
+
     /* --- Pushpins and washi tape (pseudo-elements, no extra markup) --- */
     /* Pins sit well in from the edge so they don't look like they would
        tear the corner off */
@@ -335,8 +353,6 @@
     #pacey-content .pacey-metric-tile:nth-child(5n) { --tilt: 1.1deg; background-color: var(--pinboard-note-blue); }
     #pacey-content .pacey-metric-tile:hover,
     #pacey-content .pacey-pillar-card:hover,
-    #pacey-content .pacey-readiness-card:hover,
-    #pacey-content .pacey-chart-card:hover,
     #pacey-content .pacey-activity-item:hover {
         transform: rotate(0deg) translateY(-0.4rem);
         box-shadow: var(--pinboard-shadow-hover), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
@@ -615,8 +631,6 @@
     @media (prefers-reduced-motion: reduce) {
         #pacey-content .pacey-metric-tile:hover,
         #pacey-content .pacey-pillar-card:hover,
-        #pacey-content .pacey-readiness-card:hover,
-        #pacey-content .pacey-chart-card:hover,
         #pacey-content .pacey-activity-item:hover { transform: rotate(var(--tilt, 0deg)); }
         #pacey-content .pacey-overall-insight-cta:hover,
         #pacey-content .pacey-show-more-btn:hover,

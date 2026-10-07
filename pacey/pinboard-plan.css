@@ -1143,7 +1143,10 @@
     background-repeat: repeat;
     border: none;
     border-radius: 3px 12px 4px 14px / 14px 4px 12px 3px;
-    box-shadow: var(--pinboard-shadow), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    /* Passive masthead sheet — same shallow static depth as the overview's
+       passive paper containers; the workout slips inside keep their own
+       interactive elevation. */
+    box-shadow: var(--pinboard-shadow-static), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
 }
 
 /* Pushpin — centred at the top edge so it reads as holding the sheet,
