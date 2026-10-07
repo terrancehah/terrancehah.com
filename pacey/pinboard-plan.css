@@ -250,6 +250,16 @@
     color: var(--pacey-muted);
 }
 
+/* The two goal doors under the note — compact inline actions that wrap
+   beneath the text on narrow screens rather than stretching full width. */
+.pacey-plan-history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--pacey-space-sm);
+    margin-top: var(--pacey-space-sm);
+}
+
 .pacey-plan-fitness-toggle {
     display: flex;
     /* Wrap so the summary can take its own line at every width, not just on

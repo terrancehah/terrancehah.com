@@ -1202,10 +1202,17 @@
 
                             <!-- History-only mode (no race goal): there is no
                                  block to plan, so the page leads with a small
-                                 note instead of the race card. -->
+                                 note instead of the race card. The two doors
+                                 below it are the same ones the no-goal note
+                                 offers on the overview — the standalone goal
+                                 dialog, or the distance suggestions sheet. -->
                             <div class="pacey-plan-history-note" id="pacey-plan-history-note" hidden>
                                 <span class="pacey-plan-history-note-title">Your training log</span>
                                 <span class="pacey-plan-history-note-text">Set a race goal whenever you want a suggested plan.</span>
+                                <div class="pacey-plan-history-actions">
+                                    <button class="pacey-btn pacey-btn-primary pacey-btn-inline" id="pacey-plan-set-goal" type="button">Set a goal</button>
+                                    <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" id="pacey-plan-explore-goal" type="button">Explore my next goal</button>
+                                </div>
                             </div>
 
                             <!-- Build status — slim line shown while the plan

@@ -1321,8 +1321,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // the state, so no reminder or onboarding.
                 showDashboard();
             } else {
-                // New user or no persisted goal — go to onboarding
-                showScreen(onboardScreen);
+                // New user or no persisted goal — genuine first-run
+                // onboarding, the only flow that still uses the steps.
+                openOnboardingScreen();
             }
         } catch (err) {
             // User-facing copy stays plain — the dev hint (which local server
@@ -1599,11 +1600,21 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // The no-goal note's two doors: distance options, or the full form.
+    // The no-goal note's two doors: distance options, or the standalone
+    // goal dialog. First-run onboarding is untouched — it only runs for an
+    // account that has never chosen a goal.
     const noGoalExploreBtn = $('#pacey-no-goal-explore');
     if (noGoalExploreBtn) noGoalExploreBtn.addEventListener('click', () => openGoalSuggestions(noGoalExploreBtn));
     const noGoalSetBtn = $('#pacey-no-goal-set');
-    if (noGoalSetBtn) noGoalSetBtn.addEventListener('click', openOnboardingScreen);
+    if (noGoalSetBtn) noGoalSetBtn.addEventListener('click', () => openEditGoalPopup({ mode: 'create', trigger: noGoalSetBtn }));
+
+    // The Plan page's history-only note offers the same two doors. The
+    // suggestions sheet lives on the overview — openGoalSuggestions navigates
+    // there itself when the page is elsewhere.
+    const planSetGoalBtn = $('#pacey-plan-set-goal');
+    if (planSetGoalBtn) planSetGoalBtn.addEventListener('click', () => openEditGoalPopup({ mode: 'create', trigger: planSetGoalBtn }));
+    const planExploreGoalBtn = $('#pacey-plan-explore-goal');
+    if (planExploreGoalBtn) planExploreGoalBtn.addEventListener('click', () => openGoalSuggestions(planExploreGoalBtn));
 
     // =========================================================================
     // Show dashboard + load all data
@@ -1842,7 +1853,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const matched = findRaceActivity(goal, activities);
             if (matched) result = raceResultFromActivity(matched);
         }
-        if (!result) {
+        // A result without a real finish time is no result: a missing or
+        // malformed duration must not be read as a zero-minute finish, so it
+        // falls back to the same "no run linked" state as no match at all.
+        if (!result || !Number.isFinite(result.duration_min) || result.duration_min <= 0) {
             // Before the activity fetch lands, "no run matched" and "no data yet"
             // are the same state — reporting the first would ask the runner a
             // question the data may already answer. `pending` lets the caller hold
@@ -1851,8 +1865,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         const targetSec = goalTargetSeconds(goal);
-        const finishSec = Math.round((result.duration_min || 0) * 60);
-        const comparable = targetSec > 0 && finishSec > 0;
+        const finishSec = Math.round(result.duration_min * 60);
+        // The comparison needs a real number on both sides — an absent or
+        // malformed target means the finish is reported without a verdict.
+        const comparable = Number.isFinite(targetSec) && targetSec > 0
+            && Number.isFinite(finishSec) && finishSec > 0;
         return {
             isPostRace: true,
             detected: true,
@@ -1934,7 +1951,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // would read as a rebuke for something barely worth a sentence. Beyond that
     // the miss is stated plainly, with the time.
     function raceVerdict(state) {
-        if (state.deltaSeconds === null || state.achieved === null) return '';
+        // A verdict exists only for a real detected result compared against
+        // a real target. A pending lookup, an unmatched race day, or a
+        // malformed finish has nothing to pronounce on — and must not reach
+        // the formatting below, where undefined would surface as NaN.
+        if (!state || state.detected !== true
+            || typeof state.achieved !== 'boolean'
+            || !Number.isFinite(state.deltaSeconds)) return '';
         const d = Math.abs(state.deltaSeconds);
         if (state.achieved) {
             // Exactly on the target has no margin to state.
@@ -2587,9 +2610,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // What onboarding was opened over — set when a flow clears the local goal
-    // before the form is filled, so Back returns to the dashboard with the
-    // previous goal still in place rather than to an empty one.
+    // Kept for the back affordance below: a flow that once cleared the local
+    // goal before opening onboarding used it to restore on Back. The current
+    // replace flow keeps the goal until save, so nothing sets it now.
     let onboardingReturnSnapshot = null;
 
     // Show onboarding step 1. The back affordance only appears when there is
@@ -2604,33 +2627,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (firstField) firstField.focus();
     }
 
-    // A suggestion prefills the form but never saves: race name and race date
-    // are the runner's own, and the goal is only written by the form's submit.
+    // A suggestion prefills the standalone goal dialog but never saves: race
+    // name and race date are the runner's own, and the goal is only written
+    // by the form's submit. The name is kept for the callers that knew it,
+    // but the destination is the goal modal — picking an option no longer
+    // opens the first-run onboarding screen.
     function prefillOnboardingFromSuggestion(s) {
         if (!s) return;
-        // The option supplies only distance and (maybe) a starting target —
-        // race name and date are always the runner's own, so whatever a
-        // previous visit left in the form is cleared first.
-        const nameEl = $('#pacey-race-name');
-        if (nameEl) nameEl.value = '';
-        const dateEl = $('#pacey-race-date');
-        if (dateEl) dateEl.value = '';
-        const purposeSel = $('#pacey-purpose');
-        if (purposeSel) purposeSel.value = s.purpose || '';
-        // The four options map onto the standard race types, so the custom
-        // distance field stays hidden.
-        const customField = $('#pacey-custom-distance-field');
-        if (customField) customField.hidden = !purposeSel || purposeSel.value !== 'Custom';
-        // A saved-result benchmark prefills the target; without one the
-        // fields reset to blank — a previous option's time must not linger.
-        const parts = s.target_time ? String(s.target_time).split(':') : null;
-        const hEl = $('#pacey-time-h');
-        const mEl = $('#pacey-time-m');
-        const sEl = $('#pacey-time-s');
-        if (hEl) hEl.value = parts ? (parts[0] || '0') : '';
-        if (mEl) mEl.value = parts ? (parts[1] || '00') : '';
-        if (sEl) sEl.value = parts ? (parts[2] || '00') : '';
-        openOnboardingScreen();
+        // An existing goal is replaced rather than edited: the suggestion is
+        // a starting point for the next goal, not a tweak to the current one.
+        openEditGoalPopup({
+            mode: raceGoal ? 'replace' : 'create',
+            suggestion: s,
+        });
     }
 
     // The written recap, cached in localStorage against the result it describes.
@@ -3160,7 +3169,10 @@ document.addEventListener('DOMContentLoaded', function () {
             if (actionBtn) {
                 const action = actionBtn.getAttribute('data-recap-action');
                 if (action === 'link') openLinkRaceModal();
-                if (action === 'new-goal') openEditGoalPopup();
+                // A goal after a finished race replaces it — replace mode
+                // opens blank rather than offering the old goal's fields as
+                // the new one's starting point.
+                if (action === 'new-goal') openEditGoalPopup({ mode: 'replace', trigger: actionBtn });
                 if (action === 'review-readiness') openReadinessReviewModal();
                 // Next-goal options — the suggestions sheet lives on the
                 // overview, so the button navigates there first if needed.
@@ -3197,8 +3209,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             // "Use this starting goal" / "Use this distance" — the sheet
-            // closes and onboarding step 1 is prefilled from the option;
-            // nothing is saved until the runner submits the form themselves.
+            // closes and the standalone goal dialog opens prefilled from
+            // the option; nothing is saved until the runner submits the
+            // form themselves. closeGoalSuggestions has already returned
+            // focus to the sheet's opener, which becomes the dialog's
+            // return-focus target.
             const useBtn = e.target.closest('[data-use-suggestion]');
             if (useBtn) {
                 const s = goalSuggestionsData[Number(useBtn.getAttribute('data-use-suggestion'))];
@@ -8582,7 +8597,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const editGoalForm = $('#pacey-edit-goal-form');
     const editGoalBtn = $('#pacey-edit-goal-btn');
     let editGoalTrigger = null;
-    let editGoalSavePending = false; // an onboarding save is in flight
+    let editGoalSavePending = false; // a goal save is in flight
 
     // While the save runs, the whole dialog locks: edited values must not
     // change under the request, and backdrop/Escape dismissal is skipped.
@@ -8591,47 +8606,109 @@ document.addEventListener('DOMContentLoaded', function () {
         setModalControlsDisabled(editGoalPopup, pending);
     }
 
-    // Open the edit-goal popup — pre-fills the form with the current race goal
-    function openEditGoalPopup() {
-        editGoalTrigger = document.activeElement;
+    // The standalone goal dialog — one single-step form for every "set or
+    // change the goal" action outside first-run onboarding, which keeps its
+    // own multi-step flow. options:
+    //   mode       'edit' pre-fills the live goal; 'create' opens blank;
+    //              'replace' opens blank over an existing goal that the save
+    //              then replaces. Default: edit when a goal exists, else
+    //              create.
+    //   suggestion an options-sheet choice — supplies race type and target
+    //              time only; race name and date stay the runner's own.
+    //   trigger    the control that opened the dialog, for focus return.
+    // Saving here writes the goal and returns to the dashboard — it never
+    // continues into the onboarding step screens.
+    function openEditGoalPopup({ mode: requestedMode, suggestion = null, trigger = null } = {}) {
+        // A save in flight owns the form — re-opening would wipe the values
+        // the request is still carrying.
+        if (editGoalSavePending || noGoalSavePending) return;
+        // 'edit' with nothing to edit collapses to a create rather than
+        // reading fields off a missing goal.
+        const mode = (requestedMode === 'edit' && !raceGoal) ? 'create'
+            : (requestedMode || (raceGoal ? 'edit' : 'create'));
+        editGoalTrigger = trigger || document.activeElement;
         // Close the settings popup if it's open (mobile edit-goal flow)
         if (settingsPopup && !settingsPopup.hidden) closeSettingsPopup();
 
-        // Pre-fill the form with current goal values
-        if (raceGoal) {
-            $('#pacey-edit-race-name').value = raceGoal.race_name || '';
-            $('#pacey-edit-purpose').value = raceGoal.purpose || '';
-            // A goal saved before the pickers changed can carry a type that no
-            // longer exists in the list (Ultra Marathon, Triathlon). Fall back to
-            // Custom and carry its distance across, so re-opening the modal
-            // never silently loses what the runner entered.
-            if (!$('#pacey-edit-purpose').value) $('#pacey-edit-purpose').value = 'Custom';
-            const editIsCustom = $('#pacey-edit-purpose').value === 'Custom';
-            $('#pacey-edit-custom-distance-field').hidden = !editIsCustom;
-            if (editIsCustom) {
-                const km = goalDistanceKm(raceGoal);
-                const inMiles = raceGoal.distance_unit === 'mi';
-                $('#pacey-edit-custom-distance').value = km
-                    ? Math.round((inMiles ? km / KM_PER_MILE : km) * 10) / 10
-                    : '';
-                $('#pacey-edit-custom-distance-unit').value = inMiles ? 'mi' : 'km';
-            }
-            // Parse time target "HH:MM:SS" into separate fields
-            const parts = (raceGoal.time_target || '00:00:00').split(':');
-            $('#pacey-edit-time-h').value = parts[0] || '0';
-            $('#pacey-edit-time-m').value = parts[1] || '00';
-            $('#pacey-edit-time-s').value = parts[2] || '00';
-            $('#pacey-edit-race-date').value = raceGoal.race_date || '';
-            $('#pacey-edit-mileage').value = raceGoal.weekly_mileage || '';
-            $('#pacey-edit-mileage-unit').value = raceGoal.mileage_unit || 'km';
-            $('#pacey-edit-gender').value = raceGoal.gender || '';
-            $('#pacey-edit-age').value = raceGoal.age || '';
-        }
+        const editing = mode === 'edit';
+        // Race-identity fields: the live goal's values in edit mode, blank in
+        // create/replace — a new goal is never built on the old one's name or
+        // date, and a previous open's leftovers are cleared the same way.
+        $('#pacey-edit-race-name').value = editing ? (raceGoal.race_name || '') : '';
+        $('#pacey-edit-race-date').value = editing ? (raceGoal.race_date || '') : '';
+        $('#pacey-edit-purpose').value = editing
+            ? (raceGoal.purpose || '')
+            : (suggestion && suggestion.purpose) || '';
+        // A goal saved before the pickers changed can carry a type that no
+        // longer exists in the list (Ultra Marathon, Triathlon). Fall back to
+        // Custom and carry its distance across, so re-opening the modal
+        // never silently loses what the runner entered.
+        if (editing && !$('#pacey-edit-purpose').value) $('#pacey-edit-purpose').value = 'Custom';
+        const editIsCustom = $('#pacey-edit-purpose').value === 'Custom';
+        $('#pacey-edit-custom-distance-field').hidden = !editIsCustom;
+        const customKm = editing ? goalDistanceKm(raceGoal)
+            : (suggestion && Number.isFinite(Number(suggestion.distance_km))
+                ? Number(suggestion.distance_km) : 0);
+        const customMiles = editing && raceGoal.distance_unit === 'mi';
+        $('#pacey-edit-custom-distance').value = editIsCustom && customKm
+            ? Math.round((customMiles ? customKm / KM_PER_MILE : customKm) * 10) / 10
+            : '';
+        $('#pacey-edit-custom-distance-unit').value = customMiles ? 'mi' : 'km';
+        // Target time — the goal's own in edit, the suggestion's estimate in
+        // replace/create, blank otherwise. Both the "H:MM:SS" and "MM:SS"
+        // shapes the rest of the code accepts split into the three fields.
+        const timeTarget = editing ? (raceGoal.time_target || '')
+            : (suggestion && suggestion.target_time ? String(suggestion.target_time) : '');
+        const parts = timeTarget ? String(timeTarget).split(':') : [];
+        const hms = parts.length === 3 ? parts
+            : (parts.length === 2 ? ['0', parts[0], parts[1]] : ['', '', '']);
+        $('#pacey-edit-time-h').value = hms[0] || '';
+        $('#pacey-edit-time-m').value = hms[1] || '';
+        $('#pacey-edit-time-s').value = hms[2] || '';
+        // Profile fields carry over only from the account's own goal — never
+        // from values another account may have left in the form. A create
+        // with no goal leaves them blank for the runner to fill.
+        $('#pacey-edit-mileage').value = (raceGoal && raceGoal.weekly_mileage) || '';
+        $('#pacey-edit-mileage-unit').value = (raceGoal && raceGoal.mileage_unit) || 'km';
+        $('#pacey-edit-gender').value = (raceGoal && raceGoal.gender) || '';
+        $('#pacey-edit-age').value = (raceGoal && raceGoal.age) || '';
+
+        // Heading, submit label and opt-out follow the mode. The opt-out only
+        // exists beside a live goal — on a create there is nothing to opt out
+        // of that the close button doesn't already do.
+        const setting = mode !== 'edit';
+        const title = setting ? 'Set a race goal' : 'Edit race goal';
+        editGoalPopup.setAttribute('aria-label', title);
+        const titleEl = editGoalPopup.querySelector('.pacey-edit-goal-title');
+        if (titleEl) titleEl.textContent = title;
+        // The X is the only dismissal — its name follows the dialog's mode
+        // so a screen reader hears what is actually being closed.
+        const closeLabel = setting ? 'Close goal dialog' : 'Close edit goal dialog';
+        editGoalClose.setAttribute('aria-label', closeLabel);
+        editGoalClose.title = closeLabel;
+        const btnText = editGoalBtn && editGoalBtn.querySelector('.pacey-btn-text');
+        if (btnText) btnText.textContent = setting ? 'Set goal' : 'Save changes';
+        const nogoalBtn = $('#pacey-edit-goal-nogoal');
+        if (nogoalBtn) nogoalBtn.hidden = !(mode === 'edit' && !!raceGoal);
+        const nogoalErr = $('#pacey-edit-goal-nogoal-error');
+        if (nogoalErr) nogoalErr.hidden = true;
+        // Errors from a failed earlier submit are cleared on open, the same
+        // as on close — the dialog never opens already scolding.
+        $$('.pacey-input.error').forEach(el => {
+            if (editGoalForm.contains(el)) el.classList.remove('error');
+        });
+        $$('.pacey-field-error').forEach(el => {
+            if (editGoalForm.contains(el)) el.hidden = true;
+        });
+
         editGoalPopup.hidden = false;
         editGoalClose.focus();
     }
 
     function closeEditGoalPopup() {
+        // A save in flight owns the dialog — it closes itself once the
+        // request settles, and programmatic dismissals until then no-op.
+        if (editGoalSavePending || noGoalSavePending) return;
         editGoalPopup.hidden = true;
         // Clear any error states
         $$('.pacey-input.error').forEach(el => {
@@ -8662,6 +8739,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const editPurposeValue = $('#pacey-edit-purpose').value;
         const required = [
+            // Trimmed — a whitespace-only name is no name, matching the
+            // onboarding form's treatment of the same field.
+            { id: 'pacey-edit-race-name', val: $('#pacey-edit-race-name').value.trim() },
             { id: 'pacey-edit-purpose', val: editPurposeValue },
             // The custom distance only matters when Custom is picked. The field
             // is hidden otherwise, so requiring it unconditionally would block
@@ -8698,7 +8778,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const editDist = formGoalDistance(editPurposeValue, $('#pacey-edit-custom-distance').value, $('#pacey-edit-custom-distance-unit').value);
 
         const body = {
-            race_name: $('#pacey-edit-race-name').value,
+            race_name: $('#pacey-edit-race-name').value.trim(),
             // The type is kept so the modal can re-open on it, but every
             // read-only view of the goal works from the distance instead.
             purpose: $('#pacey-edit-purpose').value,
@@ -8782,10 +8862,17 @@ document.addEventListener('DOMContentLoaded', function () {
             // The course is titled after the race goal, so an edited goal
             // re-titles it.
             updateCourseHead();
-            // Reload all data with the new goal (charts, radar, insights).
-            // Pass forceAIRefresh=true so the server regenerates AI insights
-            // against the new goal instead of returning the stale cache.
-            loadAllData(true);
+            // The full canonical dashboard render — the same load the login
+            // path does — so a create out of no-goal mode restores the goal
+            // chrome (note, readiness nav, course, sidebar) exactly once, and
+            // a save made from the Plan page re-renders its card too.
+            showDashboard(true);
+            // The dialog refuses to close while it is locked — release the
+            // save flag first so this dismissal (and only this one) passes
+            // the guard. The finally below re-locks nothing; it just keeps
+            // the flag honest on the failure paths.
+            setEditGoalSavePending(false);
+            setButtonLoading(editGoalBtn, false);
             closeEditGoalPopup();
         } catch (err) { alert('Network error. Please try again.'); }
         finally {
@@ -8922,39 +9009,25 @@ document.addEventListener('DOMContentLoaded', function () {
         // Show the dashboard first so the edit-goal popup has the right
         // context, then open the edit popup
         showDashboard();
-        setTimeout(() => openEditGoalPopup(), 100);
+        setTimeout(() => openEditGoalPopup({ trigger: goalReminderEdit }), 100);
     });
 
-    // New — clear the existing goal and go to onboarding. Also clear the
-    // AI and coach caches so the server regenerates against the new goal
-    // instead of returning stale insights from the old goal. A plan still in
-    // progress is about to be discarded, so confirm first.
+    // New — open the standalone goal dialog in replace mode. The existing
+    // goal, its course and its caches stay in place until the new goal
+    // actually saves: the form's submit raises the plan-change warning, and
+    // applyEditedGoal does the old-goal cleanup — so nothing is discarded by
+    // opening the dialog, and backing out loses nothing.
     function startNewGoalFlow() {
         closeGoalReminderPopup();
-        // Remember the goal being replaced: backing out of onboarding returns
-        // to the dashboard with it restored — nothing is written until the
-        // new goal's form actually saves.
-        onboardingReturnSnapshot = { raceGoal, goalMode };
-        raceGoal = null;
-        localStorage.removeItem('pacey_race_goal');
-        clearAICache();
-        clearCoachCache();
-        // Also drop the in-memory plan so the Plan page rebuilds for the new goal
-        coachLoaded = false;
-        coachLoadedWeekKey = '';
-        coachPlanData = null;
-        coachEditingDate = null;
-        coachSyncedDates.clear();
-        openOnboardingScreen();
+        // The dashboard sits behind the dialog — the goal being replaced
+        // stays visible there until the save lands.
+        showDashboard();
+        openEditGoalPopup({ mode: 'replace', trigger: goalReminderNew });
     }
 
-    goalReminderNew.addEventListener('click', () => {
-        if (planChangeWarning()) {
-            openGoalChangeConfirm(startNewGoalFlow);
-            return;
-        }
-        startNewGoalFlow();
-    });
+    // No pre-warning on the click itself — the goal form's own submit raises
+    // the plan-change confirmation once, at the moment the change is made.
+    goalReminderNew.addEventListener('click', startNewGoalFlow);
 
     // Run without a goal — the same opt-out the onboarding screen offers,
     // here from the welcome-back reminder. A live plan still gets the change
@@ -10482,6 +10555,11 @@ document.addEventListener('DOMContentLoaded', function () {
             renderPostRacePlan();
             return;
         }
+        // A real goal means the history-only note no longer applies — hide
+        // it up front rather than leaving it on screen through the build
+        // (or after a failed one, when no calendar re-render ever lands).
+        const planHistoryNote = $('#pacey-plan-history-note');
+        if (planHistoryNote) planHistoryNote.hidden = true;
         if (coachLoaded && coachPlanData) {
             renderCoachCalendar(coachPlanData);
         } else {
@@ -10723,9 +10801,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 raceGoal && raceGoal.race_date
                     ? new Date(raceGoal.race_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                     : '',
+                // While the activity lookup is in flight the card says so;
+                // a landed lookup with no match states that plainly rather
+                // than implying a finish the data doesn't have.
                 postRace.detected
                     ? `${formatFinishTime((postRace.raceResult.duration_min || 0) * 60)} finish`
-                    : 'race day passed',
+                    : (postRace.pending ? 'Checking for a race result' : 'No race result linked'),
                 raceVerdict(postRace),
             ].filter(Boolean).join(' · ');
             // The drawer showed the paces the block was built around, and the
@@ -11677,7 +11758,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 showDashboard();
                 return true;
             }
-            showScreen(onboardScreen);
+            openOnboardingScreen();
             return true;
         }
         showDashboard(true);
@@ -11740,7 +11821,7 @@ document.addEventListener('DOMContentLoaded', function () {
         } else if (goalMode === 'no_goal') {
             showDashboard();
         } else {
-            showScreen(onboardScreen);
+            openOnboardingScreen();
         }
 
         // Verify session in the background — if invalid, fall back to demo mode

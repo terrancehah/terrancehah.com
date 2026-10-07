@@ -768,9 +768,9 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
 
 /* The no-goal offer is a preference, not one of the recap's choices — it
    sits on its own row below them, left-aligned like the quiet links. */
-#pacey-content .pacey-race-recap-no-goal {
-    /* margin-top: var(--pacey-space-sm); */
-}
+/* #pacey-content .pacey-race-recap-no-goal {
+    margin-top: var(--pacey-space-sm);
+} */
 /* The ghost's generic margin:auto would centre it in the row; it stays
    content-sized and left-aligned like the other compact actions. */
 #pacey-content .pacey-race-recap-no-goal .pacey-btn {

@@ -386,6 +386,9 @@
 
 .pacey-onboard-nogoal-note {
     margin: 0;
+    /* Explicit body face — the note sits inside the paper form, which does
+       not inherit it the way the fields do. */
+    font-family: var(--font-fuzzy);
     font-size: var(--pacey-text-label);
     color: var(--pacey-muted);
 }
