@@ -301,14 +301,23 @@
 }
 .pacey-btn-ghost:hover { color: var(--pacey-accent-red); background: color-mix(in srgb, var(--pacey-accent-red) 6%, transparent); }
 
-/* Running without a goal is an ordinary preference, not a destructive action.
-   Keep its treatment consistent across onboarding, dialogs and race recaps. */
+/* Running without a goal is an ordinary preference, not a destructive
+   action, so its control stays a quiet text link everywhere: muted ink, no
+   border, no shadow, no raised background and no lift on hover or focus.
+   The keyboard outline stays — quiet must not mean unreachable — and red
+   remains reserved for the save error these buttons can surface. */
 .pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]) {
-    color: var(--pacey-blue);
+    color: var(--pacey-muted);
+    background: none;
+    border: none;
+    box-shadow: none;
 }
-.pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]):hover {
+.pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]):is(:hover, :focus) {
     color: var(--pacey-navy);
-    background: var(--pacey-sky);
+    background: none;
+    border: none;
+    box-shadow: none;
+    transform: none;
 }
 
 .pacey-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }

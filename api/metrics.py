@@ -12,6 +12,7 @@ from lib._shared import (
     _get_garmin_client, _get_session, create_app,
     _fetch_physio_trends, _fetch_activities_for_ai, _cache_garmin_data,
     _get_cached_garmin_data, _compute_goal_pace_ms, _slim_activity,
+    _classification_pace_ms,
     _compute_weekly_mileage, _save_fitness_snapshot, ALLOWED_ACTIVITY_TYPES,
     _garmin_last_sync,
 )
@@ -276,22 +277,34 @@ async def metrics(token: str = ""):
     # payload fails — otherwise those endpoints log into Garmin themselves,
     # which is exactly the concurrent-login race this ordering avoids.
     goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
+    # The UI's easy/steady tags compare against the goal pace when a race is
+    # set and against the latest actual finish once there is none — the same
+    # baseline /activities reports, kept in the bundle so readers can spot a
+    # changed reference and re-tag from raw data.
+    classification_pace_ms = _classification_pace_ms(sess)
     try:
         # Slim UI list — filtered to allowed activity types (running +
         # cross-training) so the activities page only shows relevant sports.
-        # Goal pace is passed so each activity carries its run_tag (computed by
-        # the same single classifier the AI lap-selection uses).
+        # The classification pace is passed so each activity carries its
+        # run_tag (computed by the same single classifier the AI lap-selection
+        # uses).
         # Fetch well past the 20 the UI page shows: coach-plan reads this list
         # over an 8-week fitness window (FITNESS_WINDOW_DAYS) so the endurance
         # verdict rests on several long runs, not just the last couple.
-        ui_activities = [
-            _slim_activity(a, goal_pace_ms)
-            for a in client.get_activities(0, 60)
+        raw_activities = [
+            a for a in client.get_activities(0, 60)
             if (a.get("activityType", {}).get("typeKey", "unknown")).lower() in ALLOWED_ACTIVITY_TYPES
         ]
+        ui_activities = [_slim_activity(a, classification_pace_ms) for a in raw_activities]
         weekly_mileage = _compute_weekly_mileage(client, weeks=12)
         _cache_garmin_data(token, {
             "ui_activities": ui_activities,
+            # The unrounded Garmin summaries the tags were built from —
+            # /activities re-classifies these when the pace baseline moves
+            # instead of re-deriving tags from already-rounded values.
+            "ui_activity_summaries": raw_activities,
+            # The baseline the cached tags were computed against.
+            "classification_pace_ms": classification_pace_ms,
             "weekly_mileage": weekly_mileage,
         })
     except Exception:

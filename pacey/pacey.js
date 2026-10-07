@@ -93,6 +93,19 @@ document.addEventListener('DOMContentLoaded', function () {
     // must still land on onboarding.
     let goalMode = localStorage.getItem('pacey_goal_mode') || '';
     let raceGoalPaceMs = 0; // race goal pace in m/s — used for run classification
+    // The latest completed race's ACTUAL finish, reported by the account and
+    // mirrored here. It is the pace-chart and run-tag baseline once there is
+    // no active goal — never the goal's original target — and it belongs to
+    // the account, so it is cleared on logout and on account swap.
+    let paceReference = null;
+    try {
+        const rawRef = localStorage.getItem('pacey_pace_reference');
+        const parsedRef = rawRef ? JSON.parse(rawRef) : null;
+        if (parsedRef && typeof parsedRef === 'object'
+                && Number.isFinite(parsedRef.pace_ms) && parsedRef.pace_ms > 0) {
+            paceReference = parsedRef;
+        }
+    } catch (e) { paceReference = null; }
     // Two-factor login state, declared with the rest of the module state rather
     // than down in the login section: closeLoginModal() resets it, and that
     // function is defined earlier, so a `let` down there could be read before
@@ -289,6 +302,46 @@ document.addEventListener('DOMContentLoaded', function () {
     // missing goal: only the tombstone mode gets the no-goal dashboard.
     function isNoGoalMode() {
         return goalMode === 'no_goal' && !raceGoal;
+    }
+
+    // The account's latest finished race as a pacing baseline. Only a real
+    // reference (an actual result with a positive pace) is kept — anything
+    // else clears the mirror. Returns whether the stored value changed so
+    // callers can repaint the chart.
+    function setPaceReference(next) {
+        const ref = (next && typeof next === 'object'
+            && Number.isFinite(next.pace_ms) && next.pace_ms > 0) ? next : null;
+        const changed = JSON.stringify(ref) !== JSON.stringify(paceReference);
+        paceReference = ref;
+        if (ref) localStorage.setItem('pacey_pace_reference', JSON.stringify(ref));
+        else localStorage.removeItem('pacey_pace_reference');
+        return changed;
+    }
+
+    // Demo sessions have no server to report the reference, so the goal's own
+    // saved result stands in — same "actual finish, not target" rule the
+    // backend applies. Null when there is no completed race to point at.
+    function derivePaceReferenceFromGoal(goal) {
+        const result = goal && goal.race_result;
+        if (!result || !(Number.isFinite(result.distance_km) && result.distance_km > 0)
+                || !(Number.isFinite(result.duration_min) && result.duration_min > 0)) return null;
+        return {
+            date: result.date || goal.race_date || '',
+            distance_km: result.distance_km,
+            duration_min: result.duration_min,
+            pace_ms: (result.distance_km * 1000) / (result.duration_min * 60),
+            race_name: goal.race_name || goal.purpose || 'Saved race',
+            source: 'completed_race',
+        };
+    }
+
+    // Mirror the server-reported reference into local state and repaint the
+    // pace chart when it moved — a corrected result on another device shows
+    // up without waiting for the next activities fetch.
+    function syncPaceReference(next) {
+        if (setPaceReference(next) && lastPaceDistActivities) {
+            renderPaceDistribution(lastPaceDistActivities);
+        }
     }
 
     // Login modal open/close — replaces the old full-screen login.
@@ -1223,6 +1276,12 @@ document.addEventListener('DOMContentLoaded', function () {
             // never on the reminder or onboarding.
             setGoalMode(data.goal_mode === 'no_goal' ? 'no_goal'
                 : (data.has_race_goal && data.race_goal ? 'race' : ''));
+            // The account swap also swaps the pacing baseline — the login
+            // response's reference replaces whatever the previous account
+            // (or the demo) left in the mirror, and an older backend that
+            // omits the field still clears it: nothing may survive an
+            // account change.
+            setPaceReference(data.pace_reference || null);
             // A new account owns this session now — anything a suggestions
             // fetch could still deliver belonged to the previous one.
             invalidateGoalSuggestions();
@@ -1542,7 +1601,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // The no-goal note's two doors: distance options, or the full form.
     const noGoalExploreBtn = $('#pacey-no-goal-explore');
-    if (noGoalExploreBtn) noGoalExploreBtn.addEventListener('click', openGoalSuggestions);
+    if (noGoalExploreBtn) noGoalExploreBtn.addEventListener('click', () => openGoalSuggestions(noGoalExploreBtn));
     const noGoalSetBtn = $('#pacey-no-goal-set');
     if (noGoalSetBtn) noGoalSetBtn.addEventListener('click', openOnboardingScreen);
 
@@ -2224,13 +2283,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (opts.button) setButtonLoading(opts.button, true);
         if (modal) setModalControlsDisabled(modal, true);
         let saved = false;
+        // The accepted reference is captured here — in demo mode it comes
+        // from the goal's own result, which must be read before the goal is
+        // cleared below.
+        let acceptedReference = null;
         try {
             if (window.__demoMode) {
+                acceptedReference = derivePaceReferenceFromGoal(raceGoal);
                 saved = true;
             } else {
                 const resp = await apiCall('POST', 'onboarding', { mode: 'no_goal' }, true);
                 const data = await resp.json().catch(() => ({}));
                 if (resp.ok) {
+                    // The server's own reference — the race just archived —
+                    // is preferred over anything derived locally.
+                    acceptedReference = data.pace_reference || null;
                     saved = true;
                 } else if (errorEl) {
                     errorEl.textContent = data.error || 'Could not save that choice. Please try again.';
@@ -2247,6 +2314,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (opts.button) setButtonLoading(opts.button, false);
         if (modal) setModalControlsDisabled(modal, false);
         if (saved) {
+            // The reference lands before the local clear so the chart's
+            // immediate re-render already centres on the actual finish.
+            setPaceReference(acceptedReference);
             applyNoGoalModeLocally();
             if (typeof opts.closeModal === 'function') opts.closeModal();
             showDashboard();
@@ -2254,9 +2324,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Next-goal suggestions ---------------------------------------------
-    // The four fixed distance options, annotated with saved race results by
-    // the server. Deterministic — a plain GET, not an AI call — so the
-    // loading state uses the ordinary skeleton lines, not the AI shimmer.
+    // The four fixed distance options, each carrying an estimate the server
+    // derives from the latest actual finish or recent running — plain GET,
+    // ordinary skeleton. The optional coach's-perspective prose is a second
+    // request that fills the cards' AI-shimmer slots when it lands.
 
     // Bumped per fetch: a late response after a mode/user change must never
     // paint over the dashboard's current state.
@@ -2267,28 +2338,153 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Retire anything a suggestions fetch could still deliver — called from
     // every seam where the account or mode it was loaded under has changed
-    // (logout, a no-goal save, a new goal, a canonical reconcile).
+    // (logout, a no-goal save, a new goal, a canonical reconcile) and from
+    // closeGoalSuggestions. The sheet stays dismissed: hiding it here means
+    // a redraw or a late response can never bring it back on its own.
     function invalidateGoalSuggestions() {
         goalSuggestionsReq++;
         goalSuggestionsData = [];
+        const box = $('#pacey-goal-suggestions');
+        if (box) box.hidden = true;
     }
 
+    // The element that last opened the sheet — closeGoalSuggestions hands
+    // focus back to it when it is still on the page rather than stranding
+    // focus on a node that just went hidden.
+    let goalSuggestionsTrigger = null;
+
+    // What demo mode shows for the four distances — labelled illustrations,
+    // never fetched and never explained, since a demo session has no Garmin
+    // evidence behind it.
+    function demoGoalOptions() {
+        const label = 'Illustrative — connect Garmin to see yours';
+        return [
+            { purpose: '5K', distance_km: 5, title: 'Build speed',
+              description: 'A shorter race to work on speed without committing to a long block.',
+              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+            { purpose: '10K', distance_km: 10, title: 'Find a steady rhythm',
+              description: 'A balanced next step for practising a sustained effort.',
+              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+            { purpose: 'Half Marathon', distance_km: 21.1, title: 'Build endurance',
+              description: 'A longer-distance option if you want time to build your endurance.',
+              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+            { purpose: 'Marathon', distance_km: 42.2, title: 'Take on a longer block',
+              description: 'A longer commitment. Choose it only if the training fits your life.',
+              target_time: null, target_pace_sec: null, source: 'demo', source_label: label },
+        ];
+    }
+
+    // One card per option: distance and purpose lead the header, the title
+    // supports it, and the proposed time (with its /km pace) or an honest
+    // more-data note sits beside the evidence label. Details hold the
+    // estimate disclaimer, the coach's explanation when it arrives, and the
+    // commitment the option carries.
     function renderGoalSuggestions(suggestions) {
         const listEl = $('#pacey-goal-suggestions-list');
         if (!listEl) return;
-        listEl.innerHTML = suggestions.map((s, i) => `
+        listEl.innerHTML = suggestions.map((s, i) => {
+            const hasTime = !!s.target_time;
+            const paceLine = (hasTime && s.target_pace_sec > 0)
+                ? `<span class="pacey-goal-suggestion-pace">${escapeHtml(formatPace(1000 / s.target_pace_sec))} /km</span>`
+                : '';
+            const targetBlock = hasTime
+                ? `<span class="pacey-goal-suggestion-time">${escapeHtml(s.target_time)}</span>${paceLine}`
+                : `<span class="pacey-goal-suggestion-need">${escapeHtml(s.source_label || 'More running data needed for an estimate.')}</span>`;
+            const sourceLine = (hasTime && s.source_label)
+                ? `<span class="pacey-goal-suggestion-source">${escapeHtml(s.source_label)}</span>` : '';
+            return `
             <div class="pacey-goal-suggestion">
-                <button class="pacey-goal-suggestion-toggle" type="button" aria-expanded="false" data-suggestion-index="${i}">
-                    <span class="pacey-goal-suggestion-name">${escapeHtml(s.title || '')}</span>
-                    <span class="pacey-goal-suggestion-purpose">${escapeHtml(s.purpose || '')} · ${escapeHtml(String(s.distance_km))} km</span>
-                    ${s.benchmark_time ? `<span class="pacey-goal-suggestion-benchmark">From ${escapeHtml(s.benchmark_time)}</span>` : ''}
+                <button class="pacey-goal-suggestion-toggle" type="button" aria-expanded="false" aria-controls="pacey-goal-suggestion-detail-${i}" data-suggestion-index="${i}">
+                    <span class="pacey-goal-suggestion-main">
+                        <span class="pacey-goal-suggestion-distance">${escapeHtml(s.purpose || '')} · ${escapeHtml(String(s.distance_km))} km</span>
+                        <span class="pacey-goal-suggestion-title">${escapeHtml(s.title || '')}</span>
+                    </span>
+                    <span class="pacey-goal-suggestion-target">${targetBlock}</span>
+                    ${sourceLine}
                     <svg class="pacey-goal-suggestion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div class="pacey-goal-suggestion-detail" hidden>
+                <div class="pacey-goal-suggestion-detail" id="pacey-goal-suggestion-detail-${i}" hidden>
                     <p class="pacey-goal-suggestion-desc">${escapeHtml(s.description || '')}</p>
-                    <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestion-use" type="button" data-use-suggestion="${i}">Use this distance</button>
+                    <div class="pacey-goal-suggestion-why" id="pacey-goal-suggestion-why-${i}" data-explain-state="pending" aria-live="polite">
+                        <div class="pacey-goal-suggestion-why-skeleton pacey-ai-insight-loading" role="status" aria-label="Generating coach perspective"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>
+                    </div>
+                    <button class="pacey-btn pacey-btn-secondary pacey-goal-suggestion-use" type="button" data-use-suggestion="${i}">${hasTime ? 'Use this starting goal' : 'Use this distance'}</button>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
+    }
+
+    // A coach's explanation lands in the option's own slot — labelled only
+    // once real prose exists, so a pending shimmer never wears the label.
+    function attachGoalExplanation(index, text) {
+        const option = goalSuggestionsData[index];
+        const slot = $(`#pacey-goal-suggestion-why-${index}`);
+        if (!option || !slot) return;
+        option.explanation = text;
+        slot.setAttribute('data-explain-state', 'ready');
+        slot.innerHTML = `<span class="pacey-goal-suggestion-why-label">Coach&rsquo;s perspective</span><p class="pacey-goal-suggestion-why-text">${escapeHtml(text)}</p>`;
+    }
+
+    // One slot's honest note — when the prose cannot be had (demo, no key,
+    // AI trouble, evidence that moved mid-flight) it says so plainly rather
+    // than wearing a fake coach's voice.
+    function markGoalExplanationUnavailable(i) {
+        const slot = $(`#pacey-goal-suggestion-why-${i}`);
+        if (slot) {
+            slot.setAttribute('data-explain-state', 'unavailable');
+            slot.innerHTML = '<p class="pacey-goal-suggestion-why-unavailable">The coach&rsquo;s perspective isn&rsquo;t available for this option.</p>';
+        }
+    }
+
+    function markGoalExplanationsUnavailable() {
+        goalSuggestionsData.forEach((s, i) => markGoalExplanationUnavailable(i));
+    }
+
+    // Phase two: the options are already on screen and usable — this request
+    // only adds the coach's prose. Same token and hidden-sheet guards as the
+    // options fetch, so a late answer can never reopen or repaint a sheet
+    // the runner has dismissed.
+    async function loadGoalExplanations(req) {
+        const box = $('#pacey-goal-suggestions');
+        try {
+            const resp = await apiCallWithAuthRetry('GET', 'onboarding?explain=true');
+            const data = await resp.json().catch(() => ({}));
+            if (req !== goalSuggestionsReq || !box || box.hidden) return;
+            if (resp.ok && data.explanation_status === 'available'
+                    && Array.isArray(data.suggestions)) {
+                const byPurpose = {};
+                data.suggestions.forEach((opt) => {
+                    if (opt && typeof opt.explanation === 'string' && opt.explanation.trim()) {
+                        byPurpose[opt.purpose] = opt;
+                    }
+                });
+                goalSuggestionsData.forEach((s, i) => {
+                    const opt = byPurpose[s.purpose];
+                    if (!opt) return;
+                    // The prose describes the evidence the AI was shown — if
+                    // the estimate moved between the two requests (a result
+                    // corrected on another device, say) the explanation
+                    // belongs to numbers the runner never saw. Mark that
+                    // option unavailable rather than attach stale prose.
+                    if (opt.target_time !== s.target_time
+                            || opt.source !== s.source
+                            || opt.source_label !== s.source_label) {
+                        markGoalExplanationUnavailable(i);
+                        return;
+                    }
+                    attachGoalExplanation(i, opt.explanation);
+                });
+                // Options the AI said nothing about still get the honest note.
+                goalSuggestionsData.forEach((s, i) => {
+                    if (!s.explanation) markGoalExplanationUnavailable(i);
+                });
+                return;
+            }
+            markGoalExplanationsUnavailable();
+        } catch (err) {
+            if (req !== goalSuggestionsReq || !box || box.hidden) return;
+            markGoalExplanationsUnavailable();
+        }
     }
 
     function showGoalSuggestionsError(message) {
@@ -2305,6 +2501,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const box = $('#pacey-goal-suggestions');
         if (!box) return;
         const req = ++goalSuggestionsReq;
+        // Demo sessions have no server evidence — the four distances render
+        // as labelled illustrations and the explain request is never made.
+        if (window.__demoMode || !sessionToken || sessionToken === 'demo') {
+            goalSuggestionsData = demoGoalOptions();
+            renderGoalSuggestions(goalSuggestionsData);
+            markGoalExplanationsUnavailable();
+            return;
+        }
         try {
             const resp = await apiCallWithAuthRetry('GET', 'onboarding');
             const data = await resp.json().catch(() => ({}));
@@ -2321,6 +2525,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // back on "Explore my next goal" — hand it to the first option.
             const firstRow = $('#pacey-goal-suggestions-list .pacey-goal-suggestion-toggle');
             if (firstRow) firstRow.focus();
+            // The coach's prose follows on its own request — selection and
+            // dismissal never wait on it.
+            loadGoalExplanations(req);
         } catch (err) {
             if (req !== goalSuggestionsReq || box.hidden) return;
             showGoalSuggestionsError('Network error. Please try again.');
@@ -2328,23 +2535,39 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Reveal the suggestions sheet and fetch — shared by the no-goal note and
-    // the post-race recap. Always lands on the overview, where it lives.
-    function openGoalSuggestions() {
+    // the post-race recap. Always lands on the overview, where it lives. The
+    // element that opened it is remembered so closing can hand focus back —
+    // buttons do not always take DOM focus on click, so it is passed rather
+    // than read back from document.activeElement.
+    function openGoalSuggestions(trigger) {
         const box = $('#pacey-goal-suggestions');
         const list = $('#pacey-goal-suggestions-list');
         const status = $('#pacey-goal-suggestions-status');
         if (!box || !list) return;
         if (getPageFromHash() !== 'overview') window.location.hash = 'overview';
+        goalSuggestionsTrigger = trigger || document.activeElement || null;
         box.hidden = false;
         if (status) status.hidden = true;
-        // Ordinary skeleton lines, not the AI shimmer — this is a deterministic
-        // lookup, not a coach thinking.
+        // Ordinary skeleton lines while the options themselves load — the
+        // coach's prose gets its own AI shimmer inside each card later.
         list.innerHTML = '<div class="pacey-goal-suggestion-skeleton"><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div><div class="pacey-skeleton-line"></div></div>';
         // Smooth-scroll unless the runner has asked for reduced motion.
         const reduceMotion = window.matchMedia
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
         box.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
         loadGoalSuggestions();
+    }
+
+    // Explicit dismissal: the sheet hides, outstanding requests are retired,
+    // and focus goes back to whatever opened it. The dismissal holds across
+    // redraws — nothing but another Explore opens the sheet again.
+    function closeGoalSuggestions() {
+        invalidateGoalSuggestions();
+        const trigger = goalSuggestionsTrigger;
+        goalSuggestionsTrigger = null;
+        if (trigger && trigger.isConnected !== false && !trigger.hidden) {
+            try { trigger.focus(); } catch (e) {}
+        }
     }
 
     // What onboarding was opened over — set when a flow clears the local goal
@@ -2924,7 +3147,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (action === 'review-readiness') openReadinessReviewModal();
                 // Next-goal options — the suggestions sheet lives on the
                 // overview, so the button navigates there first if needed.
-                if (action === 'explore') openGoalSuggestions();
+                if (action === 'explore') openGoalSuggestions(actionBtn);
                 // Run without a goal — saved server-side as the account-wide
                 // tombstone; post-race there is no live plan to warn about, so
                 // the save runs straight through.
@@ -2953,12 +3176,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 return;
             }
-            // "Use this distance" — prefills onboarding step 1 from the option;
+            // "Use this starting goal" / "Use this distance" — the sheet
+            // closes and onboarding step 1 is prefilled from the option;
             // nothing is saved until the runner submits the form themselves.
             const useBtn = e.target.closest('[data-use-suggestion]');
             if (useBtn) {
                 const s = goalSuggestionsData[Number(useBtn.getAttribute('data-use-suggestion'))];
+                closeGoalSuggestions();
                 prefillOnboardingFromSuggestion(s);
+                return;
+            }
+            // "Not now" — an explicit dismiss that also retires any in-flight
+            // options or explanation requests.
+            if (e.target.closest('.pacey-goal-suggestions-close')) {
+                closeGoalSuggestions();
                 return;
             }
             // A failed suggestions fetch offers a Retry in its status line.
@@ -4894,6 +5125,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const mileageData = await mileageResp.json();
             if (activitiesResp.ok && activitiesData.activities) {
                 const acts = activitiesData.activities;
+                // The response carries the account's pace baseline with the
+                // page — keep the mirror current before the chart reads it.
+                // An older backend that omits the field leaves it alone.
+                if ('pace_reference' in activitiesData) {
+                    setPaceReference(activitiesData.pace_reference);
+                }
                 // Store for the activities page pagination
                 fullActivitiesLoaded = acts;
                 activitiesLoaded = true;
@@ -4959,6 +5196,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await resp.json();
             if (resp.ok && data.activities) {
                 const newActs = data.activities;
+                // Later pages carry the same reference — keep the mirror
+                // current so a long-lived page still tracks corrections.
+                if ('pace_reference' in data) syncPaceReference(data.pace_reference);
                 fullActivitiesLoaded = fullActivitiesLoaded.concat(newActs);
                 activitiesOffset += newActs.length;
                 // Re-render the full activities list with all accumulated activities.
@@ -6529,49 +6769,84 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderPaceDistribution(activities) {
         const canvas = document.getElementById('pacey-pace-distribution-chart');
-        if (!canvas || !activities.length) return;
-        if (paceDistChart) paceDistChart.destroy();
+        if (!canvas) return;
+        // Tear the previous draw down once, up front — every early return
+        // below leaves a cleared canvas and no dangling chart pointer.
+        if (paceDistChart) { paceDistChart.destroy(); paceDistChart = null; }
         // Store activities for theme-change re-render
         lastPaceDistActivities = activities;
+        if (!activities.length) return;
         const chartFonts = pinboardChartFonts(canvas);
 
         // Filter: only running activities, exclude warmup (<2km) and non-running types
         const runs = activities.filter(a => isRunningActivity(a) && (a.distance || 0) >= 2);
         if (!runs.length) return;
 
-        // Compute goal pace in decimal min/km
-        const goalPaceMinPerKm = raceGoalPaceMs > 0 ? (1000 / raceGoalPaceMs) / 60 : 0;
+        // The baseline the buckets centre on, in priority order: the active
+        // goal's target pace; with no goal, the latest completed race's
+        // ACTUAL finish pace (the account-supplied reference — never its
+        // typed target); and with neither, the median pace of the loaded
+        // runs so the histogram still has a sensible middle.
+        let baselineSecPerKm = 0;
+        let baselineLabel = '';
+        if (raceGoalPaceMs > 0) {
+            baselineSecPerKm = 1000 / raceGoalPaceMs;
+            baselineLabel = '(Race Pace)';
+        } else if (paceReference && Number.isFinite(paceReference.pace_ms) && paceReference.pace_ms > 0) {
+            baselineSecPerKm = 1000 / paceReference.pace_ms;
+            baselineLabel = '(Last race pace)';
+        } else {
+            const runSecs = runs
+                .filter(a => Number.isFinite(a.avg_pace) && a.avg_pace > 0)
+                .map(a => 1000 / a.avg_pace)
+                .sort((x, y) => x - y);
+            if (runSecs.length) {
+                // Even-length medians average the middle two, matching the
+                // backend's statistics.median semantics.
+                const mid = Math.floor(runSecs.length / 2);
+                baselineSecPerKm = runSecs.length % 2
+                    ? runSecs[mid]
+                    : (runSecs[mid - 1] + runSecs[mid]) / 2;
+                baselineLabel = '(Typical running pace)';
+            }
+        }
+        // No baseline at all — no goal, no finished race, no usable paces —
+        // means there is nothing meaningful to centre the chart on; the
+        // teardown above already cleared whatever was drawn.
+        if (!(baselineSecPerKm > 0)) return;
 
         // Dynamic 30-second pace buckets — 5 columns total, centered on the
-        // goal pace so it always falls in the 3rd bucket (index 2, green).
-        // The goal bucket spans ±15 seconds around the goal pace (30 sec
-        // total), placing the target dead-center in the green bar. Two
-        // faster buckets step down in 30-second increments below it, two
-        // slower buckets step up above it. All calculations are done in
-        // seconds for precision, then converted to decimal minutes.
-        const goalPaceSec = goalPaceMinPerKm * 60; // seconds per km
+        // baseline pace so it always falls in the 3rd bucket (index 2,
+        // green). The baseline bucket spans ±15 seconds around it (30 sec
+        // total), placing it dead-center in the green bar. Two faster
+        // buckets step down in 30-second increments below it, two slower
+        // buckets step up above it. All calculations are done in seconds
+        // for precision, then converted to decimal minutes.
         const bucketWidthSec = 30; // 30 seconds per bucket
         const goalBucketIndex = 2; // 3rd bucket — always green
-        // Goal bucket: ±15 seconds around the goal pace
-        const goalBucketMinSec = goalPaceSec - 15;
-        const goalBucketMaxSec = goalPaceSec + 15;
+        // Baseline bucket: ±15 seconds around the centre pace. Edges are
+        // floored at 1s so an unusually fast baseline can never produce a
+        // zero or negative bound.
+        const edge = (s) => Math.max(1, s);
+        const goalBucketMinSec = edge(baselineSecPerKm - 15);
+        const goalBucketMaxSec = baselineSecPerKm + 15;
         // Convert seconds to decimal minutes for bucket ranges
         const secToMin = (s) => s / 60;
         const buckets = [
-            { label: `<${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}`, min: 0, max: secToMin(goalBucketMinSec - bucketWidthSec) },
-            { label: `${formatPaceLabel(secToMin(goalBucketMinSec - bucketWidthSec))}–${formatPaceLabel(secToMin(goalBucketMinSec))}`, min: secToMin(goalBucketMinSec - bucketWidthSec), max: secToMin(goalBucketMinSec) },
-            // Goal bucket — the "(Race Pace)" caption is part of the label
-            // itself (as a second line via Chart.js multi-line array) so it
-            // renders naturally under the pace range without a custom plugin.
-            { label: [`${formatPaceLabel(secToMin(goalBucketMinSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec))}`, '(Race Pace)'], min: secToMin(goalBucketMinSec), max: secToMin(goalBucketMaxSec) },
-            { label: `${formatPaceLabel(secToMin(goalBucketMaxSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec + bucketWidthSec))}`, min: secToMin(goalBucketMaxSec), max: secToMin(goalBucketMaxSec + bucketWidthSec) },
-            { label: `>${formatPaceLabel(secToMin(goalBucketMaxSec + bucketWidthSec))}`, min: secToMin(goalBucketMaxSec + bucketWidthSec), max: 99 },
+            { label: `<${formatPaceLabel(secToMin(edge(goalBucketMinSec - bucketWidthSec)))}`, min: -Infinity, max: secToMin(edge(goalBucketMinSec - bucketWidthSec)) },
+            { label: `${formatPaceLabel(secToMin(edge(goalBucketMinSec - bucketWidthSec)))}–${formatPaceLabel(secToMin(goalBucketMinSec))}`, min: secToMin(edge(goalBucketMinSec - bucketWidthSec)), max: secToMin(goalBucketMinSec) },
+            // Baseline bucket — its caption is part of the label itself (as
+            // a second line via Chart.js multi-line array) so it renders
+            // naturally under the pace range without a custom plugin.
+            { label: [`${formatPaceLabel(secToMin(goalBucketMinSec))}–${formatPaceLabel(secToMin(goalBucketMaxSec))}`, baselineLabel], min: secToMin(goalBucketMinSec), max: secToMin(goalBucketMaxSec) },
+            { label: `${formatPaceLabel(secToMin(goalBucketMaxSec))}–${formatPaceLabel(secToMin(edge(goalBucketMaxSec + bucketWidthSec)))}`, min: secToMin(goalBucketMaxSec), max: secToMin(edge(goalBucketMaxSec + bucketWidthSec)) },
+            { label: `>${formatPaceLabel(secToMin(edge(goalBucketMaxSec + bucketWidthSec)))}`, min: secToMin(edge(goalBucketMaxSec + bucketWidthSec)), max: Infinity },
         ];
 
         // Compute total distance and average HR per bucket
         const bucketData = buckets.map(b => ({ label: b.label, distance: 0, hrSum: 0, count: 0 }));
         runs.forEach(a => {
-            if (!a.avg_pace || a.avg_pace <= 0) return;
+            if (!Number.isFinite(a.avg_pace) || a.avg_pace <= 0) return;
             const paceMinPerKm = (1000 / a.avg_pace) / 60; // convert m/s → min/km
             for (let i = 0; i < buckets.length; i++) {
                 if (paceMinPerKm >= buckets[i].min && paceMinPerKm < buckets[i].max) {
@@ -9111,6 +9386,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // not the browser, so it is re-read on the next login rather than
         // kept here.
         setGoalMode('');
+        // The pace reference is account state too — the next session can be
+        // a different runner whose baseline must come from the server.
+        setPaceReference(null);
         // The account itself changed — a suggestions response loaded for the
         // previous one must never paint.
         invalidateGoalSuggestions();
@@ -11325,6 +11603,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const resp = await apiCall('GET', 'check-session');
             const data = await resp.json();
             if (!resp.ok || !data.valid) return false;
+            // The reference is synced before reconcile can return early — a
+            // corrected result elsewhere must repaint even when the goal
+            // itself did not change. Older responses without the field leave
+            // the mirror alone.
+            if ('pace_reference' in data) syncPaceReference(data.pace_reference);
             // Reconcile first: if the canonical goal changed it drops the
             // local course copy, and releasing the deferred insight before
             // that could read the obsolete course.
@@ -11384,6 +11667,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Refresh avatar + greeting in case the data changed
                 greetingEl.textContent = displayName;
                 updateAvatar();
+                // The reference mirrors ahead of reconcile so an unchanged
+                // goal cannot skip a pace correction made on another device.
+                if ('pace_reference' in data) syncPaceReference(data.pace_reference);
                 // Local storage paints immediately, but the email-keyed server
                 // goal is canonical and replaces any stale browser copy.
                 reconcileServerRaceGoal(data);
@@ -11414,6 +11700,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // The mode travels with the account — an expired session
                 // leaves nothing to show it against in demo mode.
                 setGoalMode('');
+                setPaceReference(null);
                 clearSWRCaches();
                 clearAICache();
                 clearCoachCache();
@@ -11472,6 +11759,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const mileageData = await mileageResp.json();
                 if (activitiesResp.ok && activitiesData.activities) {
                     const acts = activitiesData.activities;
+                    // Every activity page carries the account baseline — the
+                    // background refresh is a sync seam like the first load.
+                    if ('pace_reference' in activitiesData) {
+                        syncPaceReference(activitiesData.pace_reference);
+                    }
                     fullActivitiesLoaded = acts;
                     activitiesOffset = acts.length;
                     renderActivities(acts);

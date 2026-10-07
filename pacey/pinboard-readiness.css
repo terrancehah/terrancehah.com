@@ -869,6 +869,41 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     margin-top: var(--pacey-space-lg);
 }
 
+/* Sheet header — the section's accessible heading beside its dismiss. */
+#pacey-content .pacey-goal-suggestions-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-sm);
+}
+
+#pacey-content .pacey-goal-suggestions-title {
+    margin: 0;
+    font-family: var(--font-caveat);
+    font-size: 1.35rem;
+    color: var(--pinboard-ink);
+}
+
+/* "Not now" is a quiet dismiss — flat text like the no-goal links, so the
+   paper's button shadow and border come off on base and hover alike, and it
+   never moves. The keyboard outline stays visible. */
+#pacey-content .pacey-goal-suggestions-close {
+    width: auto;
+    min-height: 44px;
+    margin: 0;
+    padding: var(--pacey-space-sm) var(--pacey-space-md);
+    border: none;
+    border-radius: var(--pacey-radius-sm);
+    box-shadow: none;
+}
+#pacey-content .pacey-goal-suggestions-close:is(:hover, :focus) {
+    color: var(--pinboard-ink);
+    background: none;
+    border: none;
+    box-shadow: none;
+    transform: none;
+}
+
 #pacey-content .pacey-goal-suggestions-intro {
     margin: 0;
     font-size: 0.95rem;
@@ -880,17 +915,26 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     flex-direction: column;
 }
 
-/* One row per option — a ruled list on the sheet rather than four identical
+/* One ruled row per option — a list on the sheet rather than four identical
    cards, so the set reads as choices weighed together. */
 #pacey-content .pacey-goal-suggestion + .pacey-goal-suggestion {
     border-top: 1px dashed var(--pinboard-line);
 }
 
+/* The row's grid keeps the choice on the left, its proposed time beside it
+   and a dedicated chevron on the far right; the evidence label wraps on its
+   own line so it can never overflow the paper. */
 #pacey-content .pacey-goal-suggestion-toggle {
-    display: flex;
-    align-items: baseline;
-    gap: var(--pacey-space-sm);
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+        "main target chevron"
+        "source source chevron";
+    align-items: center;
+    column-gap: var(--pacey-space-md);
+    row-gap: 0.15rem;
     width: 100%;
+    min-height: 44px;
     padding: var(--pacey-space-sm) 0;
     border: 0;
     background: none;
@@ -901,29 +945,68 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     cursor: pointer;
 }
 
-#pacey-content .pacey-goal-suggestion-name {
+#pacey-content .pacey-goal-suggestion-main {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+/* Distance and purpose lead; the title is the supporting line. */
+#pacey-content .pacey-goal-suggestion-distance {
     font-family: var(--font-caveat);
-    font-size: 1.15rem;
+    font-size: 1.2rem;
     font-weight: 700;
 }
 
-#pacey-content .pacey-goal-suggestion-purpose {
+#pacey-content .pacey-goal-suggestion-title {
     color: var(--pinboard-muted);
     font-size: 0.9rem;
 }
 
-#pacey-content .pacey-goal-suggestion-benchmark {
-    color: var(--pinboard-pin-blue);
-    font-size: 0.9rem;
-    font-weight: 700;
+#pacey-content .pacey-goal-suggestion-target {
+    grid-area: target;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.1rem;
+    min-width: 0;
 }
 
-/* The chevron sits at the far right and tips down when the row is open. */
+#pacey-content .pacey-goal-suggestion-time {
+    font-family: var(--font-caveat);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--pinboard-pin-blue);
+}
+
+#pacey-content .pacey-goal-suggestion-pace {
+    font-size: 0.85rem;
+    color: var(--pinboard-muted);
+}
+
+/* The honest stand-in when no target exists — more data is needed before an
+   estimate can be offered. */
+#pacey-content .pacey-goal-suggestion-need {
+    font-size: 0.85rem;
+    color: var(--pinboard-muted);
+    text-align: right;
+    overflow-wrap: anywhere;
+}
+
+#pacey-content .pacey-goal-suggestion-source {
+    grid-area: source;
+    font-size: 0.8rem;
+    color: var(--pinboard-muted);
+    overflow-wrap: anywhere;
+}
+
+/* The chevron sits in its own column and tips down when the row is open. */
 #pacey-content .pacey-goal-suggestion-chevron {
+    grid-area: chevron;
     width: 1rem;
     height: 1rem;
-    margin-left: auto;
-    align-self: center;
     flex-shrink: 0;
     color: var(--pinboard-muted);
     transition: transform 0.2s ease;
@@ -941,6 +1024,36 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     margin: 0 0 var(--pacey-space-sm);
     color: var(--pinboard-muted);
     font-size: 0.95rem;
+}
+
+/* The coach's-perspective slot: skeleton lines while the optional prose
+   request is in flight, the labelled paragraph when it lands, and a plain
+   note when it cannot be had — never invented text. */
+#pacey-content .pacey-goal-suggestion-why {
+    margin: 0 0 var(--pacey-space-sm);
+}
+
+#pacey-content .pacey-goal-suggestion-why-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    color: var(--pinboard-muted);
+}
+
+#pacey-content .pacey-goal-suggestion-why-label {
+    display: block;
+    font-family: var(--font-caveat);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--pinboard-pin-blue);
+    margin-bottom: 0.15rem;
+}
+
+#pacey-content .pacey-goal-suggestion-why-text,
+#pacey-content .pacey-goal-suggestion-why-unavailable {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--pinboard-muted);
 }
 
 #pacey-content .pacey-goal-suggestions-status {
@@ -965,15 +1078,45 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: var(--pacey-accent-red);
 }
 
+/* The recap's no-goal link lives on the paper — keep it quiet there too:
+   no paper shadow, border or lift, just muted ink like its modal twins. */
+#pacey-content .pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]) {
+    color: var(--pinboard-muted);
+    background: none;
+    border: none;
+    border-radius: var(--pacey-radius-sm);
+    box-shadow: none;
+}
+#pacey-content .pacey-btn:is(#pacey-onboard-nogoal, #pacey-settings-nogoal-btn, #pacey-edit-goal-nogoal, #pacey-goal-reminder-nogoal, [data-recap-action="no-goal"]):is(:hover, :focus) {
+    color: var(--pinboard-ink);
+    background: none;
+    border: none;
+    box-shadow: none;
+    transform: none;
+}
+
 @media (max-width: 48rem) {
-    /* Narrow board: the note's actions and the suggestion rows stack. */
+    /* Narrow board: the note's actions and the suggestion rows stack — the
+       target and the evidence line drop under the choice, the chevron keeps
+       its own column so nothing wraps over it. */
     #pacey-content .pacey-no-goal-actions {
         flex-direction: column;
         align-items: stretch;
     }
 
     #pacey-content .pacey-goal-suggestion-toggle {
-        flex-wrap: wrap;
-        row-gap: 0.1rem;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "main chevron"
+            "target chevron"
+            "source chevron";
+    }
+
+    #pacey-content .pacey-goal-suggestion-target {
+        align-items: flex-start;
+    }
+
+    #pacey-content .pacey-goal-suggestion-need {
+        text-align: left;
     }
 }

@@ -7,7 +7,7 @@ import re
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _is_no_goal_marker, _get_persistent_ai_cache, _get_persistent_coach_cache, _get_persistent_plan_syncs, create_app
+from lib._shared import _session_exists, _get_session, _delete_session, _get_persistent_race_goal, _is_no_goal_marker, _get_latest_race_reference, _get_persistent_ai_cache, _get_persistent_coach_cache, _get_persistent_plan_syncs, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/check-session so routes at "/" match)
@@ -89,6 +89,9 @@ async def check_session(token: str = ""):
         "has_race_goal": race_goal is not None,
         "race_goal": race_goal,
         "goal_mode": goal_mode or None,
+        # The latest completed race's actual finish pace — the UI's tag and
+        # pace-chart baseline once there is no active goal.
+        "pace_reference": _get_latest_race_reference(sess),
         "cached_ai_insights": cached_ai_payload,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
         "plan_sync_history": plan_sync_history,

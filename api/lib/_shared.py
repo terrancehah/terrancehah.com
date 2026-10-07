@@ -35,6 +35,7 @@ from garminconnect import (
     GarminConnectAuthenticationError,
     GarminConnectTooManyRequestsError,
 )
+from lib._goal_suggestions import latest_race_reference
 
 
 class _StripPrefixMiddleware:
@@ -234,6 +235,40 @@ def _with_canonical_race_goal(sess: dict) -> dict:
     current["race_goal"] = goal
     current["goal_mode"] = "race"
     return current
+
+
+def _get_latest_race_reference(sess: dict) -> dict | None:
+    """The runner's most recent completed race as a pace reference.
+
+    Archived goals are supplied oldest-first with the current goal appended
+    last, so a corrected result on the current goal wins a same-date tie —
+    and the authored selector reads the actual finish, never the typed
+    target. None when the account has no completed race at all.
+    """
+    if not isinstance(sess, dict):
+        return None
+    email = sess.get("email", "")
+    goals = list(_get_race_history(email)) if email else []
+    current = sess.get("race_goal")
+    if isinstance(current, dict) and not _is_no_goal_marker(current):
+        goals.append(current)
+    return latest_race_reference(goals)
+
+
+def _classification_pace_ms(sess: dict) -> float:
+    """The m/s pace the UI's run tags compare against.
+
+    An active goal's target pace wins; without one the latest completed
+    race's ACTUAL finish pace stands in so history still reads sensibly
+    across devices. 0 when there is neither. This is a display baseline only
+    — AI race-goal, plan and readiness work keeps the real goal pace.
+    """
+    goal = sess.get("race_goal") if isinstance(sess, dict) else None
+    goal_pace = _compute_goal_pace_ms(goal)
+    if goal_pace > 0:
+        return goal_pace
+    ref = _get_latest_race_reference(sess)
+    return ref["pace_ms"] if ref else 0
 
 
 def _get_session(token: str) -> dict:

@@ -1,6 +1,7 @@
 """POST /api/onboarding — Save the user's race goal via form data.
 
-GET /api/onboarding — Deterministic next-goal suggestions (no AI).
+GET /api/onboarding — Evidence-based next-goal options (authored estimates,
+never AI numerics); explain=true adds the coach's optional prose.
 """
 
 from fastapi import Form
@@ -14,115 +15,83 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_session, _update_session, _save_persistent_race_goal, create_app,
     _delete_persistent_ai_cache, _delete_persistent_coach_cache,
-    _delete_persistent_plan_syncs,
-    _get_persistent_race_goal, _archive_race_goal, _get_race_history,
-    _is_no_goal_marker, _race_distance_km, _save_persistent_course,
+    _delete_persistent_plan_syncs, _get_cached_garmin_data,
+    _get_persistent_race_goal, _archive_race_goal,
+    _save_persistent_course, _call_ai, RUNNING_TYPES,
+    _get_fitness_snapshot, _get_latest_race_reference,
 )
+from lib._goal_suggestions import build_goal_options, goal_explanation_prompt
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/onboarding so routes at "/" match)
 app = create_app("onboarding")
 
 
-# The fixed suggestion set — always all four, always in this order. The
-# purpose is the race type the onboarding form's picker already uses; the
-# title is the plain-language reason a runner would pick it. Nothing here is
-# computed, scored or predicted: these are distance options, not
-# recommendations.
-_SUGGESTION_CANDIDATES = [
-    ("5K", 5, "Build speed",
-     "A shorter race to work on speed without committing to a long block."),
-    ("10K", 10, "Find a steady rhythm",
-     "A balanced next step for practising a sustained effort."),
-    ("Half Marathon", 21.1, "Build endurance",
-     "A longer-distance option if you want time to build your endurance."),
-    ("Marathon", 42.2, "Take on a longer block",
-     "A longer commitment. Choose it only if the training fits your life."),
-]
+def _option_activities(email: str, token: str) -> list:
+    """Recent UI activities for the training-benchmark fallback.
 
-# Saved results sit this close to the nominal distance to count as "at this
-# distance" — a 42.2 marathon goal matches a 42.195 result.
-_SUGGESTION_DISTANCE_TOLERANCE_KM = 0.01
+    The email-keyed fitness snapshot wins (it is what the coach plan and the
+    trajectory already read, so the benchmark matches across devices); this
+    session's Garmin cache is the fallback. No new Garmin call is made here.
+    """
+    snapshot = _get_fitness_snapshot(email) or {}
+    activities = snapshot.get("ui_activities")
+    if activities:
+        return activities
+    cached = _get_cached_garmin_data(token) or {}
+    return cached.get("ui_activities") or []
 
 
-def _format_suggestion_time(seconds: int) -> str:
-    """H:MM:SS for a benchmark finish time, e.g. 1:48:00."""
-    seconds = max(0, int(seconds))
-    hours, rem = divmod(seconds, 3600)
-    mins, secs = divmod(rem, 60)
-    return f"{hours}:{mins:02d}:{secs:02d}"
+# Explanation prose is kept on a short leash — anything longer reads as a
+# generated essay rather than a coach's aside.
+_MAX_EXPLANATION_CHARS = 1000
 
 
 @app.get("/")
-async def onboarding_suggestions(token: str = ""):
-    """Return the four fixed next-goal options, annotated with saved results.
+async def onboarding_suggestions(token: str = "", explain: bool = False):
+    """Return the four fixed next-goal options with evidence-based targets.
 
-    Deterministic — no AI, no readiness scoring, no projections. A saved race
-    at the same distance is offered as the starting target only, so the runner
-    can adjust it before saving; nothing is selected or stored here.
+    Numerics come from the authored build_goal_options — the latest completed
+    race's ACTUAL finish as the Riegel reference, or a clearly-labelled
+    recent-training median when no race exists. explain=true asks the coach
+    for prose over that same fixed evidence; an AI failure degrades to
+    'unavailable', never to invented estimates.
     """
     # Authenticate first — suggestions are an account feature.
     sess = _get_session(token)
     email = sess.get("email", "") if isinstance(sess, dict) else ""
 
-    # Sources for a benchmark, in priority order: the current goal's own saved
-    # result first, then archived races newest-first.
-    sources = []
-    current_goal = sess.get("race_goal")
-    if isinstance(current_goal, dict) and not _is_no_goal_marker(current_goal):
-        result = current_goal.get("race_result") or {}
-        try:
-            if float(result.get("duration_min") or 0) > 0:
-                sources.append(current_goal)
-        except (TypeError, ValueError):
-            pass
-    sources.extend(reversed(_get_race_history(email)))
+    reference = _get_latest_race_reference(sess)
+    activities = _option_activities(email, token)
+    options, training = build_goal_options(reference, activities, RUNNING_TYPES)
 
-    suggestions = []
-    any_matched = False
-    for purpose, distance_km, title, description in _SUGGESTION_CANDIDATES:
-        benchmark_time = None
-        for source in sources:
-            result = source.get("race_result") or {}
+    payload = {"suggestions": options, "training": training}
+    if explain:
+        # The prose is optional by design: the options stand on their own, so
+        # any failure — missing key, bad JSON, odd shape — degrades to an
+        # explicit 'unavailable' instead of failing the whole request.
+        explanation_status = "unavailable"
+        api_key = os.getenv("RACE_GOAL_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+        if api_key:
             try:
-                duration_min = float(result.get("duration_min") or 0)
-            except (TypeError, ValueError):
-                continue
-            if duration_min <= 0:
-                continue
-            if abs(_race_distance_km(source) - distance_km) > _SUGGESTION_DISTANCE_TOLERANCE_KM:
-                continue
-            benchmark_time = _format_suggestion_time(round(duration_min * 60))
-            break
-        if benchmark_time:
-            any_matched = True
-            suggestions.append({
-                "purpose": purpose,
-                "distance_km": distance_km,
-                "title": title,
-                "description": (
-                    f"Your saved result at this distance is {benchmark_time}. "
-                    "You can use it as a starting target and adjust it before saving."
-                ),
-                # The saved result is the starting target verbatim — never a
-                # predicted improvement.
-                "benchmark_time": benchmark_time,
-                "target_time": benchmark_time,
-            })
-        else:
-            suggestions.append({
-                "purpose": purpose,
-                "distance_km": distance_km,
-                "title": title,
-                "description": description,
-                "benchmark_time": None,
-                "target_time": None,
-            })
-
-    return JSONResponse(content={
-        "suggestions": suggestions,
-        "based_on": "saved_race" if any_matched else "distance_options",
-    })
+                parsed = await _call_ai(
+                    goal_explanation_prompt(options, reference, training), api_key)
+                explanations = parsed.get("explanations") or {}
+                attached = 0
+                for option in options:
+                    text = explanations.get(option["purpose"])
+                    # Valid prose only: a non-empty string of sane length, and
+                    # only for purposes this response actually offers.
+                    if (isinstance(text, str) and text.strip()
+                            and len(text.strip()) <= _MAX_EXPLANATION_CHARS):
+                        option["explanation"] = text.strip()
+                        attached += 1
+                if attached:
+                    explanation_status = "available"
+            except Exception:
+                pass
+        payload["explanation_status"] = explanation_status
+    return JSONResponse(content=payload)
 
 
 @app.post("/")
@@ -179,6 +148,11 @@ async def onboarding(
             "message": "Running without a goal.",
             "goal": None,
             "goal_mode": "no_goal",
+            # The race just archived is the latest completed one, so its
+            # actual finish becomes this device's pace reference directly —
+            # no follow-up check-session needed to paint the chart.
+            "pace_reference": _get_latest_race_reference(
+                {"email": email, "race_goal": None}),
         })
     goal = {
         "race_name": race_name,

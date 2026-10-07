@@ -19,6 +19,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from lib._shared import (
     _get_garmin_client, _get_session, _get_cached_garmin_data,
     _slim_activity, _compute_goal_pace_ms, ALLOWED_ACTIVITY_TYPES, RUNNING_TYPES, create_app,
+    _classification_pace_ms, _get_latest_race_reference,
     _call_ai, _fetch_lap_summaries, _format_finish_time, _format_pace_per_km,
     _get_activity_insight, _save_activity_insight,
     _get_race_history, _race_distance_km, _goal_target_seconds, _parse_float,
@@ -99,10 +100,40 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0, mode: st
     # zero logins / Garmin calls on the common path. Pagination (offset > 0)
     # always goes to Garmin since the cache only holds the first batch.
     # The cache is pre-filtered to ALLOWED_ACTIVITY_TYPES by metrics.py.
+    #
+    # A cached page is only served when it was tagged against the pace
+    # baseline the account currently resolves to — goal pace with a race,
+    # latest actual finish without one. A corrected result or a new
+    # tombstone shifts that baseline, so raw summaries are re-tagged on the
+    # spot and a tag-only legacy bundle falls through to a normal fetch;
+    # either way page one can never disagree with the pages after it.
+    sess = _get_session(token)
+    pace_reference = _get_latest_race_reference(sess)
+    classification_pace_ms = _classification_pace_ms(sess)
     if offset == 0:
         cached = _get_cached_garmin_data(token)
-        if cached and cached.get("ui_activities"):
-            return JSONResponse(content={"activities": cached["ui_activities"][:limit]})
+        if cached:
+            raw_summaries = cached.get("ui_activity_summaries")
+            if raw_summaries:
+                if (cached.get("classification_pace_ms") == classification_pace_ms
+                        and cached.get("ui_activities")):
+                    slim = cached["ui_activities"][:limit]
+                else:
+                    slim = [_slim_activity(a, classification_pace_ms)
+                            for a in raw_summaries][:limit]
+                return JSONResponse(content={
+                    "activities": slim,
+                    "pace_reference": pace_reference,
+                })
+            # A raw-less bundle is trusted only while it carries a matching
+            # baseline stamp — older entries predate it and fetch fresh.
+            if (cached.get("ui_activities")
+                    and cached.get("classification_pace_ms") is not None
+                    and cached.get("classification_pace_ms") == classification_pace_ms):
+                return JSONResponse(content={
+                    "activities": cached["ui_activities"][:limit],
+                    "pace_reference": pace_reference,
+                })
 
     client = _get_garmin_client(token)
     # Over-fetch to compensate for excluded activities that get filtered out.
@@ -114,18 +145,18 @@ async def activities(token: str = "", limit: int = 10, offset: int = 0, mode: st
 
     # Filter to allowed activity types (running + cross-training) and convert
     # to slim format. _slim_activity handles both running (pace-based tag) and
-    # non-running (type-based tag) activities.
-    sess = _get_session(token)
-    goal_pace_ms = _compute_goal_pace_ms(sess.get("race_goal"))
+    # non-running (type-based tag) activities. The same classification
+    # baseline the cached first page uses tags every fresh page, so a run can
+    # never change bands just because it arrived on a later page.
     slim = []
     for a in activities:
         type_key = a.get("activityType", {}).get("typeKey", "unknown")
         if type_key.lower() not in ALLOWED_ACTIVITY_TYPES:
             continue
-        slim.append(_slim_activity(a, goal_pace_ms))
+        slim.append(_slim_activity(a, classification_pace_ms))
     # Trim to the requested limit after filtering
     slim = slim[:limit]
-    return JSONResponse(content={"activities": slim})
+    return JSONResponse(content={"activities": slim, "pace_reference": pace_reference})
 
 
 # Tolerance for calling a run "the race" by date and distance alone — mirrors

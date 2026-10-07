@@ -17,7 +17,7 @@ from garminconnect import (
 import sys, os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from lib._shared import GarminAuthRequest, _save_session, _update_session, _get_persistent_race_goal, _is_no_goal_marker, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
+from lib._shared import GarminAuthRequest, _save_session, _update_session, _get_persistent_race_goal, _is_no_goal_marker, _get_latest_race_reference, _get_persistent_ai_cache, _get_persistent_coach_cache, create_app
 
 # create_app() wraps the app with prefix-stripping + CORS middleware for
 # Vercel file-based mode (strips /api/garmin-auth so routes at "/" match)
@@ -359,6 +359,10 @@ async def _finish_login(client, email: str):
         "has_race_goal": existing_goal is not None,
         "race_goal": existing_goal,
         "goal_mode": "no_goal" if no_goal else ("race" if existing_goal else None),
+        # Same pace reference check-session reports — the dashboard's chart and
+        # run tags use the latest actual finish once no goal is active.
+        "pace_reference": _get_latest_race_reference(
+            {"email": email, "race_goal": existing_goal}),
         "cached_ai_insights": cached_ai["data"] if cached_ai else None,
         "cached_coach_plan": cached_coach["data"] if cached_coach else None,
         "message": "Authenticated successfully."

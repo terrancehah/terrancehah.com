@@ -746,12 +746,18 @@
                             </div>
 
                             <!-- Next-goal suggestions — the four fixed distance options,
-                                 annotated with saved race results where they exist.
-                                 Deterministic rather than AI: nothing is recommended,
+                                 each carrying an estimate built from the latest actual
+                                 finish or recent running. The numbers are fixed
+                                 arithmetic, never AI: nothing is recommended,
                                  predicted or saved here — each row only prefills the
-                                 onboarding form when the runner picks it. Revealed from
-                                 the no-goal note above or the post-race recap. -->
-                            <div class="pacey-goal-suggestions" id="pacey-goal-suggestions" hidden>
+                                 onboarding form when the runner picks it. An optional
+                                 coach's-perspective note follows on its own request.
+                                 Revealed from the no-goal note above or the post-race recap. -->
+                            <div class="pacey-goal-suggestions" id="pacey-goal-suggestions" role="region" aria-labelledby="pacey-goal-suggestions-heading" hidden>
+                                <div class="pacey-goal-suggestions-head">
+                                    <h3 class="pacey-goal-suggestions-title" id="pacey-goal-suggestions-heading">Explore your next goal</h3>
+                                    <button class="pacey-btn pacey-btn-ghost pacey-goal-suggestions-close" id="pacey-goal-suggestions-close" type="button">Not now</button>
+                                </div>
                                 <p class="pacey-goal-suggestions-intro">These are options, not predictions. Saved race times are starting points, not guarantees.</p>
                                 <div class="pacey-goal-suggestions-list" id="pacey-goal-suggestions-list"></div>
                                 <p class="pacey-goal-suggestions-status" id="pacey-goal-suggestions-status" hidden></p>
