@@ -2176,6 +2176,13 @@ html[data-theme="dark"] #pacey-readiness-review-modal .pacey-pillar-section-labe
     color: var(--pinboard-ink);
 }
 
+/* The entry's actions sit together on one compact row — "View recap" points
+   the readiness page at the archive, "Review readiness" opens its snapshot. */
+.pacey-past-race-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pacey-space-sm);
+}
 .pacey-past-race-review { align-self: flex-start; }
 
 /* The review button follows the app's button treatment — the same hand-cut

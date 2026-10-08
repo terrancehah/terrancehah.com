@@ -93,6 +93,20 @@ document.addEventListener('DOMContentLoaded', function () {
     // must still land on onboarding.
     let goalMode = localStorage.getItem('pacey_goal_mode') || '';
     let raceGoalPaceMs = 0; // race goal pace in m/s — used for run classification
+    // The archived races, or null before the first fetch. Declared up here —
+    // before the initial navigateTo() below — because routing reads it (a
+    // no-goal #readiness hash stays reachable once history exists). Held in
+    // memory rather than localStorage: the server is the source of truth, so
+    // a local copy could only go stale across devices.
+    let pastRaces = null;
+    // The archived race the readiness page is pointed at, held by identity
+    // rather than index — a refreshed list can move an entry's slot, and the
+    // same race should still be found. Cleared whenever the live goal changes
+    // so the page resumes the current race's own view. The index is the
+    // ephemeral pin for the rare entry with no identity to reconcile (no
+    // stored result and no recap fingerprint).
+    let selectedPastRaceKey = null;
+    let selectedPastRaceIndex = null;
     // The latest completed race's ACTUAL finish, reported by the account and
     // mirrored here. It is the pace-chart and run-tag baseline once there is
     // no active goal — never the goal's original target — and it belongs to
@@ -485,7 +499,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Readiness measures fitness against a race — with no goal there is
         // nothing to measure, so a direct #readiness hash lands on the
         // overview instead (its nav entries are hidden by applyGoalModeChrome).
-        if (page === 'readiness' && isNoGoalMode()) page = 'overview';
+        // Once the archive has races the page has something to show even
+        // without a goal — the latest race's recap — so it stays reachable.
+        if (page === 'readiness' && isNoGoalMode() && !(pastRaces && pastRaces.length)) page = 'overview';
         // Update active nav (sidebar items + bottom tab bar items)
         $$('.pacey-nav-item').forEach(item => {
             item.classList.toggle('active', item.getAttribute('href') === `#${page}`);
@@ -1966,11 +1982,50 @@ document.addEventListener('DOMContentLoaded', function () {
         return d < 60 ? 'Just over target' : `Missed target by ${formatFinishTime(d)}`;
     }
 
+    // The actions an archived race's recap offers. The readiness review reuses
+    // the archive's own stored snapshot — shown only when one was filed with
+    // the race. With no live goal the way forward stays open through the same
+    // standalone dialog and suggestions sheet the overview offers; with a live
+    // goal the runner returns to their own race instead. History is read-only,
+    // so the live recap's link and opt-out actions never appear here.
+    function historicalRecapActions(entry) {
+        const idx = (pastRaces || []).indexOf(entry);
+        const snapshot = entry.race_readiness || {};
+        const hasReadiness = !!((snapshot.data || {}).dimensions || []).length;
+        const actions = [];
+        if (hasReadiness && idx !== -1) {
+            actions.push(`
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="review-readiness" data-past-race-index="${idx}">Review race readiness</button>
+            `);
+        }
+        if (isNoGoalMode()) {
+            actions.push(`
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="explore">Explore my next goal</button>
+                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="set-goal">Set a goal</button>
+            `);
+        }
+        return actions.length ? `<div class="pacey-race-recap-actions">${actions.join('')}</div>` : '';
+    }
+
     // One recap, rendered in two places: the overview's goal section (which it
     // replaces outright) and the whole Readiness page. Both get the same markup
-    // so the two can never report different numbers.
-    function raceRecapHtml(state, goal) {
+    // so the two can never report different numbers. With `opts.historical` the
+    // same layout renders an archived race instead — a closed record that uses
+    // its stored result and saved read only, so nothing is matched, fetched or
+    // linked for it.
+    function raceRecapHtml(state, goal, opts = {}) {
+        const historical = !!(opts && opts.historical);
         if (!state.detected) {
+            if (historical) {
+                // The entry was archived without a usable finish — say so
+                // plainly. There is no run to point at and nothing to link:
+                // history can no longer be rewritten.
+                return `
+                    <p class="pacey-race-recap-question">No race result saved</p>
+                    <p class="pacey-race-recap-note">This race was archived without a linked finish, so there is no result to compare against the goal.</p>
+                    ${historicalRecapActions(goal)}
+                `;
+            }
             return `
                 <p class="pacey-race-recap-question">Did you run the race?</p>
                 <p class="pacey-race-recap-note">We couldn't find a run on race day that matches your goal distance.</p>
@@ -2003,10 +2058,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </div>` : '';
 
+        // The read block differs by source: the live recap's prose is fetched
+        // into a shimmer slot, while an archived race already carries its saved
+        // paragraph — rendered directly, with no data-recap-prose hook, so a
+        // late live-goal response can never repaint over the archive. A stored
+        // entry with no saved read gets the quiet unavailable line.
+        const histProse = historical ? ((goal.race_recap || {}).text || '').trim() : '';
+        const readBlock = historical
+            ? `<div class="pacey-race-recap-prose">${histProse
+                ? escapeHtml(histProse)
+                : `<span class="pacey-race-recap-unavailable">${escapeHtml(RACE_RECAP_UNAVAILABLE)}</span>`}</div>`
+            : `<div class="pacey-race-recap-prose" data-recap-prose>
+                    <div class="pacey-race-recap-prose-skeleton">
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line"></div>
+                        <div class="pacey-skeleton-line pacey-skeleton-line--short"></div>
+                    </div>
+                </div>`;
+
         // Reading order: which race it was, then how it went, then the figures,
         // then the coach's prose. The course preview takes the top-right corner
         // beside the race name — it is what the runner raced, so it belongs with
-        // the identity of the race rather than buried among the numbers.
+        // the identity of the race rather than buried among the numbers. An
+        // archived race gets no map slot: the live map belongs to the current
+        // goal's own surfaces and is never relocated into history.
         return `
             <div class="pacey-race-recap-top">
                 <div class="pacey-race-recap-id">
@@ -2016,7 +2093,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <!-- The course preview is moved in here from the goal card by
                      placeGoalMapNote() — it holds a live map, so it cannot be
                      duplicated and has to be relocated rather than rebuilt. -->
-                <div class="pacey-race-recap-map" data-recap-map></div>
+                ${historical ? '' : '<div class="pacey-race-recap-map" data-recap-map></div>'}
             </div>
             <!-- Goal and result sit side by side so the comparison is direct —
                  what was set against what was run. Each is its own panel, so
@@ -2026,23 +2103,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 ${group('The result', raceRecapStats(state))}
             </div>
             <!-- The coach's read closes the recap: it is the only prose here, and
-                 it reads as the last word rather than as an introduction. Filled
-                 by loadRaceRecapProse(). -->
+                 it reads as the last word rather than as an introduction. For a
+                 live race it is filled by loadRaceRecapProse(). -->
             <div class="pacey-race-recap-read">
                 <span class="pacey-race-recap-group-label">The coach's read</span>
-                <!-- The placeholder is the paragraph's own shape rather than a
-                     label: a few full lines and a short last one, so the block
-                     does not change height when the prose lands. -->
-                <div class="pacey-race-recap-prose" data-recap-prose>
-                    <div class="pacey-race-recap-prose-skeleton">
-                        <div class="pacey-skeleton-line"></div>
-                        <div class="pacey-skeleton-line"></div>
-                        <div class="pacey-skeleton-line"></div>
-                        <div class="pacey-skeleton-line"></div>
-                        <div class="pacey-skeleton-line pacey-skeleton-line--short"></div>
-                    </div>
-                </div>
+                ${readBlock}
             </div>
+            ${historical ? historicalRecapActions(goal) : `
             <div class="pacey-race-recap-actions">
                 <!-- The six-area analysis gives way to the recap post-race, so
                      this keeps it reachable: it opens the readiness that stood
@@ -2050,7 +2117,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="review-readiness">Review race readiness</button>
                 <!-- Distance options for what comes next — the same sheet the
                      no-goal note opens. Choosing one only ever prefills the
-                     onboarding form; it never saves or removes this race. -->
+                     standalone goal dialog; it never saves or removes this
+                     race. -->
                 <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="explore">Explore my next goal</button>
                 <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="new-goal">Set a new goal</button>
             </div>
@@ -2061,6 +2129,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button class="pacey-btn pacey-btn-ghost" type="button" data-recap-action="no-goal">Run without a goal</button>
             </div>
             <p class="pacey-race-recap-nogoal-error" hidden></p>
+            `}
         `;
     }
 
@@ -2112,9 +2181,67 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pillarsSection) pillarsSection.hidden = post;
 
         // --- Readiness page: the whole analysis becomes the recap ---
+        renderReadinessRecap(state, goal);
+        syncReadinessNav();
+
+        // Finally, put the course preview in whichever recap is on screen.
+        placeGoalMapNote(showRecap);
+    }
+
+    // One repaint of the whole readiness page — title row, recap, analysis —
+    // for the current goal's own state, or for the archived race the page is
+    // pointed at when one is selected (or defaulted to in no-goal mode). Kept
+    // in one function because several seams re-render it — mode changes, goal
+    // saves, the history load — and the historical view must win the last word
+    // whenever it applies, so a current-goal repaint can never paint over it.
+    function renderReadinessRecap(state, goal) {
+        const post = !!(state && state.isPostRace);
+        const showRecap = post && !state.pending;
         const readinessTitle = $('#pacey-readiness-title');
-        if (readinessTitle) readinessTitle.textContent = post ? 'Recap' : 'Race Readiness';
         const readinessSub = $('#pacey-readiness-sub');
+        const dimensionBtn = $('#pacey-dimension-info-btn');
+        const recapMark = $('#pacey-recap-mark');
+        const readinessUpdated = $('#pacey-readiness-updated');
+        const readinessRecap = $('#pacey-readiness-recap');
+        const readinessAnalysis = $('#pacey-readiness-analysis');
+        const historyBar = $('#pacey-readiness-history-bar');
+
+        // A pointed-at (or defaulted) archive entry owns the page outright:
+        // its own stored result and read, no live analysis, no course map.
+        const entry = currentPastRace();
+        if (entry) {
+            // The archived recap has no map host. If a live goal's course
+            // preview was sitting inside the recap this page just had, bring
+            // it home first — the innerHTML swap below would destroy it.
+            placeGoalMapNote(false);
+            if (readinessTitle) readinessTitle.textContent = 'Recap';
+            if (readinessSub) {
+                if (!readinessSub.dataset.defaultHtml) readinessSub.dataset.defaultHtml = readinessSub.innerHTML;
+                readinessSub.innerHTML = 'Looking back at a race from your history.';
+            }
+            if (dimensionBtn) dimensionBtn.hidden = true;
+            if (recapMark) recapMark.hidden = false;
+            if (readinessUpdated) readinessUpdated.hidden = true;
+            if (readinessRecap) {
+                readinessRecap.innerHTML = raceRecapHtml(pastRaceState(entry), entry, { historical: true });
+                readinessRecap.hidden = false;
+            }
+            if (readinessAnalysis) readinessAnalysis.hidden = true;
+            if (historyBar) {
+                historyBar.hidden = false;
+                // In no-goal mode the archive IS what the page is for — there
+                // is no current view to go back to, so the return stays away.
+                const backBtn = $('#pacey-readiness-back-btn');
+                if (backBtn) {
+                    backBtn.hidden = isNoGoalMode();
+                    backBtn.textContent = post ? 'Back to current recap' : 'Back to current readiness';
+                }
+            }
+            return;
+        }
+        if (historyBar) historyBar.hidden = true;
+
+        if (readinessTitle) readinessTitle.textContent = post ? 'Recap' : 'Race Readiness';
         if (readinessSub) {
             if (!readinessSub.dataset.defaultHtml) readinessSub.dataset.defaultHtml = readinessSub.innerHTML;
             readinessSub.innerHTML = post
@@ -2123,35 +2250,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // The six-dimension explainer has nothing to explain once the six areas
         // are gone; the summary mark takes its place beside the title.
-        const dimensionBtn = $('#pacey-dimension-info-btn');
         if (dimensionBtn) dimensionBtn.hidden = post;
-        const recapMark = $('#pacey-recap-mark');
         if (recapMark) recapMark.hidden = !post;
         // The "last analysed" stamp belongs to the six-area analysis, not the recap.
-        const readinessUpdated = $('#pacey-readiness-updated');
         if (readinessUpdated && post) readinessUpdated.hidden = true;
-        const readinessRecap = $('#pacey-readiness-recap');
         if (readinessRecap) {
-            readinessRecap.innerHTML = recapHtml;
+            readinessRecap.innerHTML = showRecap ? raceRecapHtml(state, goal) : '';
             readinessRecap.hidden = !showRecap;
         }
-        const readinessAnalysis = $('#pacey-readiness-analysis');
-        if (readinessAnalysis) readinessAnalysis.hidden = post;
+        if (readinessAnalysis) readinessAnalysis.hidden = post || isNoGoalMode();
+        // Back from the archive: the live recap has a map host again, so the
+        // course preview (sent home while the page was historical) re-joins
+        // it. Pre-race or pending this is a no-op — the note is already home.
+        placeGoalMapNote(showRecap);
+    }
 
-        // The nav points at the same page under both names, so its glyph and
-        // label follow the mode rather than being fixed to one of them — a tab
-        // reading "Readiness" that opens a recap would be a lie. Both glyphs are
-        // stroked sketchyicons shapes on the same 24-unit grid, so they share the
-        // nav's weight rule and swap cleanly.
+    // The sidebar and tab entries for the readiness page. The page doubles as
+    // the recap view — post-race, or pointed at an archived race — so the
+    // label and glyph follow what it would actually open. In no-goal mode the
+    // entries survive only while the archive has a race to look back at.
+    function syncReadinessNav() {
+        const noGoal = isNoGoalMode();
+        const hasHistory = !!(pastRaces && pastRaces.length);
+        const post = !noGoal && postRaceState(raceGoal, fullActivitiesLoaded).isPostRace;
+        const recap = post || !!currentPastRace();
+        $$('.pacey-nav-item[href="#readiness"], .pacey-tab-item[href="#readiness"]')
+            .forEach(el => { el.hidden = noGoal && !hasHistory; });
+        // Both glyphs are stroked sketchyicons shapes on the same 24-unit grid,
+        // so they share the nav's weight rule and swap cleanly.
         const navLabel = $('#pacey-nav-readiness-label');
-        if (navLabel) navLabel.textContent = post ? 'Recap' : 'Readiness';
+        if (navLabel) navLabel.textContent = recap ? 'Recap' : 'Readiness';
         ['#pacey-nav-readiness-icon', '#pacey-tab-readiness-icon'].forEach((sel) => {
             const use = document.querySelector(`${sel} use`);
-            if (use) use.setAttribute('href', post ? '#pacey-icon-recap' : '#pacey-icon-readiness');
+            if (use) use.setAttribute('href', recap ? '#pacey-icon-recap' : '#pacey-icon-readiness');
         });
-
-        // Finally, put the course preview in whichever recap is on screen.
-        placeGoalMapNote(showRecap);
     }
 
     /**
@@ -2210,11 +2342,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // chrome must keep it hidden there too, not unhide it.
         const postRace = !noGoal && postRaceState(raceGoal, fullActivitiesLoaded).isPostRace;
 
-        // Readiness has nothing to measure without a race — its nav entries
-        // (sidebar + mobile tab bar) go away, and navigateTo lands a stray
-        // #readiness hash on the overview.
-        $$('.pacey-nav-item[href="#readiness"], .pacey-tab-item[href="#readiness"]')
-            .forEach(el => { el.hidden = noGoal; });
+        // The readiness nav follows what the page would open — hidden with no
+        // goal unless the archive still has a race's recap to show.
+        syncReadinessNav();
 
         const goalRow = $('#pacey-goal-row');
         if (goalRow) goalRow.hidden = noGoal || postRace;
@@ -2235,6 +2365,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!noGoal && !postRace && suggestionsBox) suggestionsBox.hidden = true;
 
         if (noGoal) {
+            // With no live goal the readiness page's only job is the archive:
+            // render its default recap (or leave it empty when there is no
+            // history) before the blanket hides below land last.
+            renderReadinessRecap(postRaceState(raceGoal, fullActivitiesLoaded), raceGoal);
             // Every race-shaped surface the AI payload would paint is hidden
             // outright, so a stale cached response cannot repaint them.
             ['pacey-overall-insight', 'pacey-overall-insight-skeleton',
@@ -2348,6 +2482,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // immediate re-render already centres on the actual finish.
             setPaceReference(acceptedReference);
             applyNoGoalModeLocally();
+            // Entering no-goal mode retires the live goal — the readiness
+            // page's job is now the archive's default recap, not a race
+            // picked earlier. showDashboard's loadPastRaces paints it once
+            // the refreshed list lands.
+            clearPastRaceSelection();
             if (typeof opts.closeModal === 'function') opts.closeModal();
             showDashboard();
         }
@@ -2800,6 +2939,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Quota or private mode — the server copy below is the durable one.
         }
 
+        // The live goal changed — an archive view would now sit over stale
+        // context, so the readiness page resumes the current race's own recap.
+        clearPastRaceSelection();
         const state = postRaceState(raceGoal, fullActivitiesLoaded);
         renderGoalSpecifics(raceGoal);
         applyRaceRecapMode(state, raceGoal);
@@ -3077,10 +3219,81 @@ document.addEventListener('DOMContentLoaded', function () {
     // its recap and pre-race readiness survive the overwrite. This is that list,
     // newest first — the way back to a race after the goal has moved on.
 
-    // The archived races, or null before the first fetch. Held in memory rather
-    // than localStorage: the server is the source of truth, so a local copy
-    // could only go stale across devices.
-    let pastRaces = null;
+    // Identity for an archived race, mirroring the server's _race_history_key:
+    // race date + result date + duration, else the recap fingerprint, else ''.
+    function pastRaceIdentity(entry) {
+        const result = (entry || {}).race_result || null;
+        if (result && Object.keys(result).length) {
+            return [entry.race_date || '', result.date || '', result.duration_min || ''].join('|');
+        }
+        const recapKey = ((entry || {}).race_recap || {}).key || '';
+        return recapKey ? `recap:${recapKey}` : '';
+    }
+
+    // The archived race the readiness page is showing right now, if any. An
+    // explicit selection wins; no-goal mode defaults to the latest race with
+    // a real result — or the newest entry when none has one. With a live goal
+    // and no selection the page stays on the current race.
+    function currentPastRace() {
+        if (!pastRaces || !pastRaces.length) return null;
+        if (selectedPastRaceKey != null || selectedPastRaceIndex != null) {
+            const found = selectedPastRaceKey
+                ? pastRaces.find(e => pastRaceIdentity(e) === selectedPastRaceKey)
+                : null;
+            // A vanished identity falls back to the latest entry rather than
+            // to whatever now sits in the old slot. Only entries with no
+            // identity at all keep the index pin. History arrives newest
+            // first, so index 0 is the latest.
+            return found || (selectedPastRaceKey ? null : pastRaces[selectedPastRaceIndex]) || pastRaces[0];
+        }
+        if (isNoGoalMode()) {
+            return pastRaces.find(e => {
+                const d = ((e || {}).race_result || {}).duration_min;
+                return Number.isFinite(d) && d > 0;
+            }) || pastRaces[0];
+        }
+        return null;
+    }
+
+    // Post-race state for an archived race, built from the entry's own stored
+    // result only — history is a closed record: there is nothing to match
+    // against current activities and nothing to wait on, so no pending state.
+    function pastRaceState(entry) {
+        const result = (entry && entry.race_result) || null;
+        if (!result || !Number.isFinite(result.duration_min) || result.duration_min <= 0) {
+            return { isPostRace: true, detected: false, pending: false, raceResult: null };
+        }
+        const targetSec = goalTargetSeconds(entry);
+        const finishSec = Math.round(result.duration_min * 60);
+        const comparable = Number.isFinite(targetSec) && targetSec > 0
+            && Number.isFinite(finishSec) && finishSec > 0;
+        return {
+            isPostRace: true,
+            detected: true,
+            raceResult: result,
+            achieved: comparable ? finishSec <= targetSec : null,
+            deltaSeconds: comparable ? finishSec - targetSec : null,
+        };
+    }
+
+    function selectPastRace(entry) {
+        selectedPastRaceKey = pastRaceIdentity(entry) || null;
+        selectedPastRaceIndex = (pastRaces || []).indexOf(entry);
+        if (selectedPastRaceIndex < 0) selectedPastRaceIndex = null;
+    }
+    function clearPastRaceSelection() {
+        selectedPastRaceKey = null;
+        selectedPastRaceIndex = null;
+    }
+
+    // Re-run everything the archive drives once it (re)loads — the readiness
+    // nav, and the readiness page when it depends on the archive. A current
+    // goal's own readiness or recap is never touched here.
+    function syncPastRaceSelection() {
+        syncReadinessNav();
+        if (selectedPastRaceKey == null && selectedPastRaceIndex == null && !isNoGoalMode()) return;
+        renderReadinessRecap(postRaceState(raceGoal, fullActivitiesLoaded), raceGoal);
+    }
 
     // Fetch the history and reveal the entrance when there is anything to show.
     // Called on dashboard load; the list is small and read whole.
@@ -3090,6 +3303,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // race has been archived yet.
             pastRaces = [];
             syncPastRacesButton();
+            syncPastRaceSelection();
             return;
         }
         try {
@@ -3101,6 +3315,13 @@ document.addEventListener('DOMContentLoaded', function () {
             pastRaces = [];
         }
         syncPastRacesButton();
+        syncPastRaceSelection();
+        // A #readiness hash opened before the archive was known was redirected
+        // to the overview. Now that a race exists the page has a recap to show
+        // — go there, unless the runner has since navigated somewhere else.
+        if (pastRaces.length && isNoGoalMode() && getPageFromHash() === 'readiness') {
+            navigateTo('readiness');
+        }
     }
 
     // The entrance stays out of sight until there is a race to look back at, so
@@ -3125,6 +3346,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // Every race starts collapsed so the history remains scannable until
         // the runner chooses an entry to review.
         const panelId = `pacey-past-race-panel-${index}`;
+        // "View recap" points the readiness page at this archive entry;
+        // "Review readiness" opens its stored six-area snapshot in place.
+        const actions = [
+            `<button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-past-race-view-recap" type="button" data-past-race-view="${index}">View recap</button>`,
+            hasReadiness ? `<button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-past-race-review" type="button" data-past-race-index="${index}">Review readiness</button>` : '',
+        ].filter(Boolean).join('');
         return `
             <article class="pacey-past-race">
                 <button class="pacey-past-race-head" type="button" data-past-race-toggle aria-expanded="false" aria-controls="${panelId}">
@@ -3135,7 +3362,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="pacey-past-race-panel" id="${panelId}" inert aria-hidden="true">
                     <div class="pacey-past-race-panel-inner">
                         ${recap ? `<p class="pacey-past-race-recap">${escapeHtml(recap)}</p>` : ''}
-                        ${hasReadiness ? `<button class="pacey-btn pacey-btn-secondary pacey-btn-inline pacey-past-race-review" type="button" data-past-race-index="${index}">Review readiness</button>` : ''}
+                        <div class="pacey-past-race-actions">${actions}</div>
                     </div>
                 </div>
             </article>`;
@@ -3173,7 +3400,25 @@ document.addEventListener('DOMContentLoaded', function () {
                 // opens blank rather than offering the old goal's fields as
                 // the new one's starting point.
                 if (action === 'new-goal') openEditGoalPopup({ mode: 'replace', trigger: actionBtn });
-                if (action === 'review-readiness') openReadinessReviewModal();
+                // From a historical recap — a fresh goal, not a replacement:
+                // the same standalone create dialog the overview offers.
+                if (action === 'set-goal') openEditGoalPopup({ mode: 'create', trigger: actionBtn });
+                if (action === 'review-readiness') {
+                    // On a historical recap the button carries the archive
+                    // index, so the review opens that race's stored snapshot
+                    // rather than the live goal's.
+                    const idx = actionBtn.getAttribute('data-past-race-index');
+                    const archived = idx != null ? (pastRaces || [])[Number(idx)] : null;
+                    if (archived) {
+                        const snapshot = archived.race_readiness || {};
+                        openReadinessReviewModal({
+                            data: snapshot.data || {},
+                            generatedAt: snapshot.generated_at || '',
+                        });
+                    } else {
+                        openReadinessReviewModal();
+                    }
+                }
                 // Next-goal options — the suggestions sheet lives on the
                 // overview, so the button navigates there first if needed.
                 if (action === 'explore') openGoalSuggestions(actionBtn);
@@ -3280,6 +3525,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
                 return;
             }
+            // "View recap" on an archived race — point the readiness page at
+            // that entry, close the picker, and navigate there. The repaint
+            // runs before the navigation so the page is already the recap.
+            const viewRecap = e.target.closest('[data-past-race-view]');
+            if (viewRecap) {
+                const entry = (pastRaces || [])[Number(viewRecap.getAttribute('data-past-race-view'))];
+                if (entry) {
+                    selectPastRace(entry);
+                    renderReadinessRecap(postRaceState(raceGoal, fullActivitiesLoaded), raceGoal);
+                    syncReadinessNav();
+                    closePastRacesModal();
+                    window.location.hash = 'readiness';
+                }
+                return;
+            }
             // Review readiness on an archived race — the index points back into
             // the loaded history, so the modal gets that race's own snapshot.
             const pastRace = e.target.closest('[data-past-race-index]');
@@ -3336,6 +3596,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pastRacesModal) {
             pastRacesModal.addEventListener('click', (e) => { if (e.target === pastRacesModal) closePastRacesModal(); });
         }
+
+        // Historical view chrome — "Change race" re-opens the same archive
+        // picker; "Back" clears the selection so the page resumes the current
+        // goal's own readiness or recap.
+        const changeRaceBtn = $('#pacey-readiness-change-race');
+        if (changeRaceBtn) changeRaceBtn.addEventListener('click', openPastRacesModal);
+        const readinessBackBtn = $('#pacey-readiness-back-btn');
+        if (readinessBackBtn) readinessBackBtn.addEventListener('click', () => {
+            clearPastRaceSelection();
+            // The current race's recap is rebuilt fresh, so its read block is
+            // a shimmer again — refill it the same way the live render does.
+            // A no-op when the current view has no detected result to read.
+            const state = postRaceState(raceGoal, fullActivitiesLoaded);
+            renderReadinessRecap(state, raceGoal);
+            syncReadinessNav();
+            loadRaceRecapProse(state, raceGoal);
+        });
     })();
 
     // Turn the two form pickers into the stored pair. The four standard types
@@ -8830,6 +9107,9 @@ document.addEventListener('DOMContentLoaded', function () {
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Saving a real goal leaves no-goal mode on this device too.
             setGoalMode('race');
+            // The live goal changed — a pointed-at past race goes back to the
+            // archive so the readiness page resumes the current goal's view.
+            clearPastRaceSelection();
             // A changed goal needs its own course. Wait for the remote clear so
             // the dashboard reload cannot fetch the previous race's map again.
             await clearCourse();
@@ -11728,6 +12008,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // The canonical goal moved — even with the mode unchanged the race
         // history behind any in-flight suggestions fetch has changed.
         invalidateGoalSuggestions();
+        // A goal changed on another device ends a pointed-at archive view the
+        // same way a local save does — the readiness page resumes the current
+        // race's own readiness or recap.
+        clearPastRaceSelection();
         if (raceGoal) {
             localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
         } else {

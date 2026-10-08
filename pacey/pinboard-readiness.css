@@ -821,6 +821,36 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     align-self: flex-start;
 }
 
+/* A stored race with no saved read — a quiet line where the paragraph would
+   sit, rather than a shimmer that never resolves. */
+#pacey-content .pacey-race-recap-unavailable {
+    color: var(--pinboard-muted);
+}
+
+/* ---- The "Viewing a past race" bar ----
+   A quiet context row under the page sub while the readiness page is pointed
+   at the archive: the label says what is being viewed, Change race re-opens
+   the picker, and the ghost Back returns to the current goal's own view. */
+#pacey-content .pacey-readiness-history-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--pacey-space-sm);
+    margin-bottom: var(--pacey-space-md);
+}
+
+#pacey-content .pacey-readiness-history-label {
+    font-family: var(--font-fuzzy);
+    font-size: var(--pacey-text-label);
+    color: var(--pinboard-muted);
+}
+
+/* The ghost's generic margin:auto would centre Back inside the row — it stays
+   content-sized and left-aligned like the other compact actions. */
+#pacey-content .pacey-readiness-history-bar .pacey-btn {
+    margin: 0;
+}
+
 /* ---- The summary mark beside the Readiness page title ----
    Sketchyicons' "summary", standing in for the six-dimension explainer button
    once there are no dimensions left to explain. Sized to match that button so
