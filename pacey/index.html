@@ -1091,21 +1091,22 @@
                                 <button class="pacey-past-races-btn" data-past-races-open type="button" hidden>Past races</button>
                             </h2>
                             <p class="pacey-section-sub" id="pacey-readiness-sub">How ready you are across six areas of fitness, based on your recent runs. Each score shows how close you are to where you need to be on race day. <span class="pacey-tap-hint">Select a label for details.</span></p>
-                            <!-- Historical view — shown when the page is pointed at a race
-                                 from the archive rather than the current goal: it says so,
-                                 re-opens the race picker, and (with a live goal) offers the
-                                 way back. Hidden in the ordinary view; controlled by
-                                 renderReadinessRecap(). -->
-                            <div class="pacey-readiness-history-bar" id="pacey-readiness-history-bar" hidden>
-                                <span class="pacey-readiness-history-label">Viewing a past race</span>
-                                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" id="pacey-readiness-change-race" type="button">Change race</button>
-                                <button class="pacey-btn pacey-btn-ghost pacey-btn-inline" id="pacey-readiness-back-btn" type="button" hidden>Back to current readiness</button>
-                            </div>
                             <!-- Post-race the whole analysis is replaced by the race recap:
                                  the six areas score fitness against a race that has already
                                  happened. Filled by applyRaceRecapMode(); everything inside
                                  #pacey-readiness-analysis is hidden while it is shown. -->
                             <div class="pacey-race-recap" id="pacey-readiness-recap" hidden></div>
+                            <!-- Archive-view actions — an unboxed row outside the recap
+                                 card, shown only while the page is pointed at a past race:
+                                 the way back when a live goal exists, or the way forward
+                                 (explore, set a goal) when it does not. The archive picker
+                                 itself stays on the Past races button in the title row.
+                                 Controlled by renderReadinessRecap(). -->
+                            <div class="pacey-readiness-archive-actions" id="pacey-readiness-archive-actions" hidden>
+                                <button class="pacey-btn pacey-btn-ghost pacey-btn-inline" id="pacey-readiness-back-btn" type="button" hidden>Back to current readiness</button>
+                                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" id="pacey-readiness-explore-goal" type="button" data-recap-action="explore" hidden>Explore my next goal</button>
+                                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" id="pacey-readiness-set-goal" type="button" data-recap-action="set-goal" hidden>Set a goal</button>
+                            </div>
                             <div id="pacey-readiness-analysis">
                             <!-- Race detail — states the goal the six scores below
                                  are measured against, so the radar has something

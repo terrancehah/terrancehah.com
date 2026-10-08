@@ -1982,29 +1982,20 @@ document.addEventListener('DOMContentLoaded', function () {
         return d < 60 ? 'Just over target' : `Missed target by ${formatFinishTime(d)}`;
     }
 
-    // The actions an archived race's recap offers. The readiness review reuses
-    // the archive's own stored snapshot — shown only when one was filed with
-    // the race. With no live goal the way forward stays open through the same
-    // standalone dialog and suggestions sheet the overview offers; with a live
-    // goal the runner returns to their own race instead. History is read-only,
-    // so the live recap's link and opt-out actions never appear here.
+    // The one action an archived race's recap offers inside the card: the
+    // readiness review reuses the archive's own stored snapshot — shown only
+    // when one was filed with the race. The way forward (explore, set a goal)
+    // sits outside the card in the archive actions row — it is about the
+    // future, not this race. History is read-only, so the live recap's link
+    // and opt-out actions never appear here.
     function historicalRecapActions(entry) {
         const idx = (pastRaces || []).indexOf(entry);
         const snapshot = entry.race_readiness || {};
         const hasReadiness = !!((snapshot.data || {}).dimensions || []).length;
-        const actions = [];
-        if (hasReadiness && idx !== -1) {
-            actions.push(`
-                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="review-readiness" data-past-race-index="${idx}">Review race readiness</button>
-            `);
-        }
-        if (isNoGoalMode()) {
-            actions.push(`
-                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="explore">Explore my next goal</button>
-                <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="set-goal">Set a goal</button>
-            `);
-        }
-        return actions.length ? `<div class="pacey-race-recap-actions">${actions.join('')}</div>` : '';
+        if (!hasReadiness || idx === -1) return '';
+        return `<div class="pacey-race-recap-actions">
+            <button class="pacey-btn pacey-btn-secondary pacey-btn-inline" type="button" data-recap-action="review-readiness" data-past-race-index="${idx}">Review race readiness</button>
+        </div>`;
     }
 
     // One recap, rendered in two places: the overview's goal section (which it
@@ -2204,7 +2195,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const readinessUpdated = $('#pacey-readiness-updated');
         const readinessRecap = $('#pacey-readiness-recap');
         const readinessAnalysis = $('#pacey-readiness-analysis');
-        const historyBar = $('#pacey-readiness-history-bar');
+        const archiveActions = $('#pacey-readiness-archive-actions');
 
         // A pointed-at (or defaulted) archive entry owns the page outright:
         // its own stored result and read, no live analysis, no course map.
@@ -2215,10 +2206,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // it home first — the innerHTML swap below would destroy it.
             placeGoalMapNote(false);
             if (readinessTitle) readinessTitle.textContent = 'Recap';
-            if (readinessSub) {
-                if (!readinessSub.dataset.defaultHtml) readinessSub.dataset.defaultHtml = readinessSub.innerHTML;
-                readinessSub.innerHTML = 'Looking back at a race from your history.';
-            }
+            // The sub describes the six-area read, which an archived race does
+            // not carry — it steps aside entirely rather than repeat itself.
+            if (readinessSub) readinessSub.hidden = true;
             if (dimensionBtn) dimensionBtn.hidden = true;
             if (recapMark) recapMark.hidden = false;
             if (readinessUpdated) readinessUpdated.hidden = true;
@@ -2227,22 +2217,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 readinessRecap.hidden = false;
             }
             if (readinessAnalysis) readinessAnalysis.hidden = true;
-            if (historyBar) {
-                historyBar.hidden = false;
-                // In no-goal mode the archive IS what the page is for — there
-                // is no current view to go back to, so the return stays away.
+            if (archiveActions) {
+                archiveActions.hidden = false;
+                // In no-goal mode the archive IS what the page is for — the
+                // row carries the way forward instead of a way back.
+                const noGoal = isNoGoalMode();
                 const backBtn = $('#pacey-readiness-back-btn');
                 if (backBtn) {
-                    backBtn.hidden = isNoGoalMode();
+                    backBtn.hidden = noGoal;
                     backBtn.textContent = post ? 'Back to current recap' : 'Back to current readiness';
                 }
+                const exploreBtn = $('#pacey-readiness-explore-goal');
+                if (exploreBtn) exploreBtn.hidden = !noGoal;
+                const setGoalBtn = $('#pacey-readiness-set-goal');
+                if (setGoalBtn) setGoalBtn.hidden = !noGoal;
             }
             return;
         }
-        if (historyBar) historyBar.hidden = true;
+        if (archiveActions) archiveActions.hidden = true;
 
         if (readinessTitle) readinessTitle.textContent = post ? 'Recap' : 'Race Readiness';
         if (readinessSub) {
+            readinessSub.hidden = false;
             if (!readinessSub.dataset.defaultHtml) readinessSub.dataset.defaultHtml = readinessSub.innerHTML;
             readinessSub.innerHTML = post
                 ? 'How the race went, and what comes next.'
@@ -3597,11 +3593,9 @@ document.addEventListener('DOMContentLoaded', function () {
             pastRacesModal.addEventListener('click', (e) => { if (e.target === pastRacesModal) closePastRacesModal(); });
         }
 
-        // Historical view chrome — "Change race" re-opens the same archive
-        // picker; "Back" clears the selection so the page resumes the current
-        // goal's own readiness or recap.
-        const changeRaceBtn = $('#pacey-readiness-change-race');
-        if (changeRaceBtn) changeRaceBtn.addEventListener('click', openPastRacesModal);
+        // Historical view chrome — "Back" clears the selection so the page
+        // resumes the current goal's own readiness or recap. The archive
+        // picker stays on the Past races button in the title row.
         const readinessBackBtn = $('#pacey-readiness-back-btn');
         if (readinessBackBtn) readinessBackBtn.addEventListener('click', () => {
             clearPastRaceSelection();

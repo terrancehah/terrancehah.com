@@ -827,11 +827,12 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     color: var(--pinboard-muted);
 }
 
-/* ---- The "Viewing a past race" bar ----
-   A quiet context row under the page sub while the readiness page is pointed
-   at the archive: the label says what is being viewed, Change race re-opens
-   the picker, and the ghost Back returns to the current goal's own view. */
-#pacey-content .pacey-readiness-history-bar {
+/* ---- The archive-view actions ----
+   An unboxed row under the recap card while the readiness page is pointed at
+   the archive: the way back to the current goal's view when one exists, or
+   the way forward (explore, set a goal) when it does not. No card or shadow —
+   these sit in the page flow like the other compact actions. */
+#pacey-content .pacey-readiness-archive-actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -839,15 +840,9 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
     margin-bottom: var(--pacey-space-md);
 }
 
-#pacey-content .pacey-readiness-history-label {
-    font-family: var(--font-fuzzy);
-    font-size: var(--pacey-text-label);
-    color: var(--pinboard-muted);
-}
-
 /* The ghost's generic margin:auto would centre Back inside the row — it stays
    content-sized and left-aligned like the other compact actions. */
-#pacey-content .pacey-readiness-history-bar .pacey-btn {
+#pacey-content .pacey-readiness-archive-actions .pacey-btn {
     margin: 0;
 }
 
