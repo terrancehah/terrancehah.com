@@ -55,7 +55,7 @@
    width, generous air. */
 .landing-board,
 .landing-final {
-    max-width: 68rem;
+    max-width: 80rem;
     margin-inline: auto;
     padding-inline: var(--pacey-content-padding);
 }
@@ -73,7 +73,7 @@
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
-    max-width: 68rem;
+    max-width: 80rem;
     margin-inline: auto;
     padding: var(--pacey-space-md) var(--pacey-content-padding);
 }
@@ -100,52 +100,14 @@
     line-height: 1;
 }
 
-.landing-nav {
-    display: flex;
-    align-items: center;
-    gap: var(--pacey-space-xs);
-    margin-left: auto;
-    /* Never wraps — below tablet width the header's own grid gives the
-       nav a dedicated full-width row instead. */
-}
-
-.landing-nav-link {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding-inline: var(--pacey-space-md);
-    color: var(--pacey-text);
-    text-decoration: none;
-    font-size: 0.95rem;
-    border-radius: var(--pacey-radius-sm);
-    transition: color var(--pacey-transition);
-}
-
-.landing-nav-link:hover {
-    color: var(--pacey-blue);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-}
-
-/* The app entry is the nav's one action — it gets the primary button
-   treatment so it never reads as just another anchor. */
-.landing-nav-link--primary {
-    background: var(--pacey-navy);
-    color: var(--pacey-btn-primary-text);
-}
-
-.landing-nav-link--primary:hover {
-    background: var(--pacey-btn-primary-hover);
-    color: var(--pacey-btn-primary-text);
-    text-decoration: none;
-}
-
 /* Theme toggle — the shared .pacey-theme-toggle chip from
-   pinboard-theme.css; the landing only sizes it for the header row. */
+   pinboard-theme.css; the landing only sizes it for the header row.
+   With the nav gone the row is brand-left / toggle-right everywhere. */
 .landing-theme-toggle {
     display: inline-flex;
     width: 44px;
     height: 44px;
+    margin-inline-start: auto;
 }
 
 /* Same status semantics as the app's toggles: the glyph is the mode
@@ -409,37 +371,108 @@
     margin-top: var(--pacey-space-md);
 }
 
+/* The link keeps identical padding in every state — the selected marker
+   is painted behind the text by a pseudo-element, so nothing shifts
+   when it appears. isolation keeps the swipe under the link's own
+   content (and out of the way of its focus outline). */
 .landing-evidence-link {
     display: flex;
     align-items: center;
     gap: var(--pacey-space-sm);
     min-height: 44px;
-    padding: var(--pacey-space-xs) 0;
+    padding: var(--pacey-space-xs) var(--pacey-space-sm);
     color: var(--pacey-board-muted);
     text-decoration: none;
     font-size: 0.95rem;
+    position: relative;
+    isolation: isolate;
 }
 
 .landing-evidence-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 2rem;
+    min-height: 2rem;
     font-family: var(--font-caveat);
     font-size: 1.15rem;
     font-weight: 700;
     color: var(--pacey-board-muted);
+    /* Own stacking context for the sketched ring the active state draws. */
+    position: relative;
+}
+
+/* The ring is a real scribble path, not a border — it fills the 2rem cell
+   absolutely so the digit layout never changes. */
+.landing-evidence-sketch {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    overflow: visible;
+}
+
+.landing-evidence-sketch-path {
+    fill: none;
+    stroke: var(--pinboard-underline);
+    stroke-width: 5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    /* pathLength="100" normalises the dash to the app's ring trick. */
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
 }
 
 .landing-evidence-link:hover {
     color: var(--pacey-board-copy);
 }
 
-/* The section crossing the upper-third band is "current" — the marker
-   pins the running copy colour and a sketch underline on the number. */
+/* The section crossing the upper-third band is "current" — a rough
+   yellow highlighter pass behind the row. The clip-path's uneven
+   two-pass edges and the slight lean read as a dragged marker, not a
+   UI chip; paper noise keeps the flat fill in the board's material. */
 .landing-evidence-link[aria-current="location"] {
-    color: var(--pacey-board-copy);
+    color: var(--pinboard-ink);
+    font-weight: 700;
 }
 
+.landing-evidence-link[aria-current="location"]::before {
+    content: "";
+    position: absolute;
+    inset: 4px 0;
+    z-index: -1;
+    background-color: var(--pinboard-note-yellow);
+    background-image: var(--pinboard-paper-noise);
+    clip-path: polygon(0% 14%, 7% 4%, 24% 10%, 40% 2%, 57% 9%, 73% 3%, 91% 11%, 100% 24%,
+                       98% 66%, 100% 86%, 89% 97%, 71% 91%, 53% 98%, 35% 91%, 17% 97%, 4% 87%, 1% 54%);
+    /* The swipe paints left-to-right once when the row becomes current —
+       quick enough that the ink text on top never waits for contrast. */
+    transform-origin: left center;
+    animation: landing-evidence-mark 0.32s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes landing-evidence-mark {
+    from { transform: scaleX(0) rotate(-1deg); }
+    to { transform: scaleX(1) rotate(-1deg); }
+}
+
+/* The number's active mark draws itself on after the swipe lands — the
+   keyframe sits on the active rule, so re-marking replays it while a
+   resize (which never re-adds aria-current) stays still. */
 .landing-evidence-link[aria-current="location"] .landing-evidence-num {
-    color: var(--pacey-board-copy);
-    background: var(--pinboard-sketch-underline) bottom left / 100% 0.45rem no-repeat;
+    color: var(--pinboard-ink);
+}
+
+.landing-evidence-link[aria-current="location"] .landing-evidence-sketch-path {
+    animation: landing-evidence-sketch-draw 0.45s ease-out 80ms forwards;
+}
+
+@keyframes landing-evidence-sketch-draw {
+    from { stroke-dashoffset: 100; }
+    to { stroke-dashoffset: 0; }
 }
 
 /* --- Scroll reveal -------------------------------------------------------
@@ -735,9 +768,14 @@
    copy readable on both the paper-lit and the night cork. */
 .landing-questions {
     margin: 0;
-    max-width: 44rem;
+    max-width: 68rem;
     display: grid;
-    gap: var(--pacey-space-lg);
+    /* gap: var(--pacey-space-lg); */
+}
+
+.landing-question {
+    border-bottom: 2px solid var(--pacey-border);
+    padding: var(--pacey-space-sm) 0;
 }
 
 .landing-question-term {
@@ -816,7 +854,7 @@
 }
 
 .landing-question-answer-copy {
-    margin: var(--pacey-space-xs) 0 0;
+    margin: var(--pacey-space-xs) 0;
     color: var(--pacey-board-muted);
     max-width: 40rem;
 }
@@ -854,7 +892,7 @@
     justify-content: space-between;
     gap: var(--pacey-space-md);
     flex-wrap: wrap;
-    max-width: 68rem;
+    max-width: 80rem;
     margin-inline: auto;
     padding: var(--pacey-space-lg) var(--pacey-content-padding);
     border-top: 1px solid color-mix(in srgb, var(--pacey-board-muted) 40%, transparent);
@@ -908,7 +946,6 @@
     .landing-hero {
         animation: none;
     }
-    .landing-nav-link,
     .landing-theme-toggle,
     .landing-btn,
     .landing-footer-link {
@@ -929,6 +966,16 @@
         opacity: 1;
         translate: none;
         transition: none;
+    }
+    /* The evidence marker appears finished, instantly — full swipe, ring
+       already drawn. */
+    .landing-evidence-link[aria-current="location"]::before {
+        animation: none;
+        transform: rotate(-1deg);
+    }
+    .landing-evidence-link[aria-current="location"] .landing-evidence-sketch-path {
+        animation: none;
+        stroke-dashoffset: 0;
     }
 }
 
@@ -957,56 +1004,12 @@
     display: none;
 }
 
-/* Below tablet width the header becomes a deliberate two-row grid —
-   brand top left, theme toggle top right, and the nav spans the full
-   second row so all three links share one row instead of wrapping
-   wherever space happens to run out. The links are content-sized and
-   never wrap; the primary action anchors the right edge. One nav size
-   rule for the whole range — the 46→26rem jump caused the uneven link
-   widths it was meant to fix. */
+/* Below tablet width the header keeps the same simple flex row — brand
+   left, toggle right — just with a wider gutter for thumbs. */
 @media (max-width: 46rem) {
     .landing-header {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        column-gap: var(--pacey-space-md);
-        row-gap: var(--pacey-space-sm);
-        /* The wider default gutter is wasted beside three links fighting
-           for room — the floor needs every pixel. */
         padding-inline: var(--pacey-space-lg);
     }
-
-    .landing-brand {
-        grid-column: 1;
-        grid-row: 1;
-    }
-
-    .landing-theme-toggle {
-        grid-column: 2;
-        grid-row: 1;
-        justify-self: end;
-    }
-
-    .landing-nav {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        margin-left: 0;
-        flex-wrap: nowrap;
-        /* Links carry their own padding; the row must fit 304px of header
-           content at the 320px floor, so no extra inter-link gap. */
-        gap: 0;
-        justify-content: space-around;
-    }
-
-    .landing-nav-link {
-        flex: 0 0 auto;
-        white-space: nowrap;
-        font-size: 0.8rem;
-        padding-inline: var(--pacey-space-xs);
-    }
-
-    /* .landing-nav-link--primary {
-        margin-left: auto;
-    } */
 
     /* --- Mobile showcase — the same app components, sized and trimmed
        for one hand. Desktop keeps the full presentation. --- */

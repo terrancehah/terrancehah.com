@@ -234,17 +234,12 @@
         <symbol id="pacey-icon-moon" viewBox="0 0 155 146"><path d="M122 103.2C125.9 102.9 129.8 102.9 133.7 102.4C136.9 101.9 140 100.9 143.2 100.1C144.7 99.7 146.2 99.2 147.7 98.9C150 98.5 152 99.2 153.3 101.1C154.6 103 154.3 105 153.3 106.9C148.5 117 140.8 124.7 132 131.1C121.1 139.1 108.7 143.1 95.5 144.7C83.3 146.2 71 146.3 59 143.6C41.4 139.7 26.3 131.6 15.1 117.3C4.1 103.2 -0.1 87 1.5 69.3C2.8 53 8.5 37.4 18 24C23.4 16.2 29.9 9.4 38.1 4.3C41.1 2.4 44.4 0.9 48.1 0.7C51.9 0.5 53.3 2.4 51.6 5.9C49.1 10.8 47 15.8 46 21.3C44.6 28.8 45.1 36.3 46.8 43.7C50.4 59.7 57.4 73.9 69 85.6C78.1 95.1 90.4 101 103.5 102.2C109.6 102.9 115.8 103.1 121.9 103.6C121.9 103.4 121.9 103.3 122 103.2ZM135.2 114.5L134.7 113.7C132.9 113.8 131.1 113.8 129.3 114C121.5 114.7 113.6 114.7 105.8 113.9C85.5 112 69 103.1 56.3 87.2C46.7 75.2 40.2 61.1 37.3 46C35 34.9 35.1 24 39.3 13.3C39.4 13.1 39.2 12.7 39 12.2C37.6 13.4 36.3 14.5 35.1 15.7C18.8 31.9 10.6 51.6 10.2 74.5C9.9 89.8 14.8 103.4 25.4 114.7C34.7 124.8 46.5 130.5 59.7 133.4C72.5 136.3 85.5 136.1 98.5 133.9C108.9 132.2 118.6 128.5 127 121.9C129.9 119.6 132.5 117 135.2 114.5Z"/></symbol>
     </svg>
 
-    <!-- ===== Header: brand, section anchors, theme toggle ===== -->
+    <!-- ===== Header: brand, theme toggle ===== -->
     <header class="landing-header">
         <a class="landing-brand" href="/pacey/" aria-label="Pacey home">
             <img class="landing-brand-mark" src="/pacey/assets/icons/pacey-icon-192.png" alt="" width="36" height="36">
             <span class="landing-brand-name">Pacey</span>
         </a>
-        <nav class="landing-nav" aria-label="Landing">
-            <a class="landing-nav-link" href="#features">How Pacey helps</a>
-            <a class="landing-nav-link" href="/pacey/demo/">Try the demo</a>
-            <a class="landing-nav-link landing-nav-link--primary" href="/pacey/app/?entry=login">Open Pacey</a>
-        </nav>
         <!-- Same raised chip and sun/moon geometry as the app's own theme
              toggles — .pacey-theme-toggle is the shared presentation, the
              landing class only sizes it. The icon shows the current mode
@@ -317,9 +312,12 @@
                     <h2 class="landing-section-title" id="landing-evidence-title">The evidence behind your readiness</h2>
                     <p class="landing-section-text">Your daily metrics and race course give the coach the context to explain what to work on next.</p>
                     <nav class="landing-evidence-nav" aria-label="Evidence sections">
-                        <a class="landing-evidence-link" href="#metrics"><span class="landing-evidence-num" aria-hidden="true">01</span> Today's Metrics</a>
-                        <a class="landing-evidence-link" href="#course"><span class="landing-evidence-num" aria-hidden="true">02</span> Race Course</a>
-                        <a class="landing-evidence-link" href="#picture"><span class="landing-evidence-num" aria-hidden="true">03</span> The Big Picture</a>
+                        <!-- Each number carries a sketched ring — the same
+                             hand-drawn selection scribbles the app's mobile
+                             tabs use, drawn on when the link becomes current. -->
+                        <a class="landing-evidence-link" href="#metrics"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/></svg>01</span> Today's Metrics</a>
+                        <a class="landing-evidence-link" href="#course"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M60 8 C 78 8, 90 20, 91 36 C 92 52, 88 66, 78 76 C 68 86, 52 92, 38 90 C 24 88, 12 79, 8 65 C 4 51, 7 36, 15 25 C 23 14, 38 7, 52 8 C 60 8, 66 10, 72 15"/></svg>02</span> Race Course</a>
+                        <a class="landing-evidence-link" href="#picture"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M56 6 C 70 3, 82 10, 88 20 C 94 30, 90 44, 89 54 C 88 66, 80 76, 68 83 C 56 90, 40 92, 28 87 C 16 82, 7 71, 6 58 C 5 45, 10 31, 20 22 C 30 13, 44 7, 56 6 C 62 6, 68 8, 74 12"/></svg>03</span> The Big Picture</a>
                     </nav>
                 </div>
                 <div class="landing-evidence-stream">
