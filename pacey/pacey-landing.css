@@ -1,0 +1,707 @@
+/* =====================================================================
+   PACEY LANDING — /pacey
+   ---------------------------------------------------------------------
+   The calm editorial board the app lives behind. This page is its own
+   surface: cork body, the two handwriting faces, navy/sky accents — all
+   drawn from pacey-tokens.css. The previews are not sketches of the app:
+   they render the app's own classes (pacey-readiness-card, pacey-metric-
+   tile, pacey-cal-card, pacey-race-recap) inside #pacey-content, where
+   pinboard-theme, pinboard-readiness and pinboard-plan do the same
+   styling as in the app.
+
+   Palette split: text on cork uses the flipping --pacey-* tokens so dark
+   mode stays legible; text on paper uses --pinboard-ink/--pinboard-muted,
+   because paper keeps its own palette in both themes.
+   ===================================================================== */
+
+/* --- The cork table the page sits on --------------------------------- */
+/* Border-box scoped to the landing's own subtree — the page inherits no
+   site-wide reset, so sizing is set explicitly here including pseudos
+   (the pinboard sheets' tape and pins). */
+.landing-body,
+.landing-body *,
+.landing-body *::before,
+.landing-body *::after {
+    box-sizing: border-box;
+}
+
+.landing-body {
+    margin: 0;
+    min-height: 100vh;
+    background-color: var(--pinboard-cork);
+    color: var(--pacey-text);
+    font-family: var(--font-fuzzy);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* The cork grain sits on its own fixed layer at reduced opacity — same
+   tiles as the app's cork, just quieter, so muted board copy keeps its
+   edge instead of fighting the speckle. The colour stays on the body and
+   propagates to the canvas; the texture floats over it, behind content. */
+.landing-body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--pinboard-cork-fine), var(--pinboard-cork-noise);
+    background-size: 80px 80px, 220px 220px;
+    opacity: 0.45;
+}
+
+/* Shared measure for the board column and the closing block — editorial
+   width, generous air. */
+.landing-board,
+.landing-final {
+    max-width: 68rem;
+    margin-inline: auto;
+    padding-inline: var(--pacey-content-padding);
+}
+
+/* Grid items default to min-width:auto — long headings and chart
+   canvases would otherwise force their column wider than the track. */
+.landing-hero-copy,
+.landing-section,
+.landing-split > * {
+    min-width: 0;
+}
+
+/* --- Header ------------------------------------------------------------ */
+.landing-header {
+    display: flex;
+    align-items: center;
+    /* Wrap whenever brand + nav + toggle cannot share the row — needed well
+       above the phone breakpoint, around the 450–650px tablet range. */
+    flex-wrap: wrap;
+    gap: var(--pacey-space-md);
+    max-width: 68rem;
+    margin-inline: auto;
+    padding: var(--pacey-space-md) var(--pacey-content-padding);
+}
+
+.landing-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    min-height: 44px; /* fixed touch target, see .impeccable.md */
+    color: var(--pacey-text);
+    text-decoration: none;
+}
+
+.landing-brand-mark {
+    border-radius: var(--pacey-radius-sm);
+    display: block;
+}
+
+.landing-brand-name {
+    font-family: var(--font-caveat);
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: var(--pacey-navy);
+    line-height: 1;
+}
+
+.landing-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--pacey-space-xs);
+    margin-left: auto;
+    flex-wrap: wrap;
+}
+
+.landing-nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-inline: var(--pacey-space-md);
+    color: var(--pacey-text);
+    text-decoration: none;
+    font-size: 0.95rem;
+    border-radius: var(--pacey-radius-sm);
+    transition: color var(--pacey-transition);
+}
+
+.landing-nav-link:hover {
+    color: var(--pacey-blue);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+/* The app entry is the nav's one action — it gets the primary button
+   treatment so it never reads as just another anchor. */
+.landing-nav-link--primary {
+    background: var(--pacey-navy);
+    color: var(--pacey-btn-primary-text);
+}
+
+.landing-nav-link--primary:hover {
+    background: var(--pacey-btn-primary-hover);
+    color: var(--pacey-btn-primary-text);
+    text-decoration: none;
+}
+
+/* Theme toggle — the shared .pacey-theme-toggle chip from
+   pinboard-theme.css; the landing only sizes it for the header row. */
+.landing-theme-toggle {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+}
+
+/* Same status semantics as the app's toggles: the glyph is the mode
+   you're in — sun in light, moon in dark — while the label names the
+   action. */
+.landing-theme-icon--moon,
+[data-theme="dark"] .landing-theme-icon--sun {
+    display: none;
+}
+
+[data-theme="dark"] .landing-theme-icon--moon {
+    display: block;
+}
+
+/* --- Hero -------------------------------------------------------------
+   Just the promise and the doors — the previews open underneath in the
+   first feature section, so the intro stands alone, centred. */
+.landing-hero {
+    padding-block: clamp(var(--pacey-space-xl), 6vw, 4rem);
+    /* The one entrance the page allows itself — a slow rise as the board
+       settles. Killed entirely under prefers-reduced-motion below. */
+    animation: landing-hero-settle 0.9s cubic-bezier(0.4, 0, 0.2, 1) both;
+    /* Separates the hero from the first feature section, same dash the
+       sections use between themselves. */
+    border-bottom: 1px dashed var(--pacey-border);
+}
+
+.landing-hero-copy {
+    text-align: center;
+}
+
+.landing-hero-copy .landing-hero-lede,
+.landing-hero-copy .landing-hero-sub,
+.landing-hero-copy .landing-hero-note {
+    margin-inline: auto;
+}
+
+.landing-hero-copy .landing-hero-actions {
+    justify-content: center;
+}
+
+@keyframes landing-hero-settle {
+    from { opacity: 0; transform: translateY(0.75rem); }
+    to { opacity: 1; transform: none; }
+}
+
+.landing-hero-title {
+    font-family: var(--font-caveat);
+    font-size: clamp(2.6rem, 7vw, 4.25rem);
+    font-weight: 700;
+    line-height: 1.05;
+    color: var(--pacey-navy);
+    margin: 0 0 var(--pacey-space-sm);
+}
+
+.landing-hero-lede {
+    font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+    color: var(--pacey-text);
+    margin: 0 0 var(--pacey-space-md);
+    max-width: 40rem;
+}
+
+/* One short line under the lede naming what the previews are. */
+.landing-hero-sub {
+    color: var(--pacey-muted);
+    margin: 0 0 var(--pacey-space-xl);
+    max-width: 40rem;
+}
+
+.landing-hero-actions {
+    display: flex;
+    gap: var(--pacey-space-md);
+    flex-wrap: wrap;
+    margin-bottom: var(--pacey-space-md);
+}
+
+.landing-hero-note {
+    color: var(--pacey-muted);
+    font-size: 0.85rem;
+    margin: 0;
+    max-width: 34rem;
+}
+
+/* --- Buttons — paper-board anchors, not the app's pill system ---------- */
+.landing-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: var(--pacey-space-sm) var(--pacey-space-xl);
+    border-radius: var(--pacey-radius-sm);
+    font-family: var(--font-fuzzy);
+    font-size: 1.05rem;
+    text-decoration: none;
+    transition: background-color var(--pacey-transition), border-color var(--pacey-transition), color var(--pacey-transition);
+}
+
+.landing-btn--primary {
+    background: var(--pacey-navy);
+    color: var(--pacey-btn-primary-text);
+    border: 2px solid var(--pacey-navy);
+}
+
+.landing-btn--primary:hover {
+    background: var(--pacey-btn-primary-hover);
+    border-color: var(--pacey-btn-primary-hover);
+}
+
+.landing-btn--secondary {
+    background: transparent;
+    color: var(--pacey-text);
+    border: 2px solid var(--pacey-blue);
+}
+
+.landing-btn--secondary:hover {
+    border-color: var(--pacey-navy);
+    color: var(--pacey-navy);
+}
+
+/* --- The board wrapper --------------------------------------------------
+   #pacey-content scopes the app's pinboard presentation to the previews:
+   the same selectors that dress the readiness sheet, vitals tiles,
+   workout cards and the recap in the app run here. Chart labels read the
+   board fonts from these vars, the same way the app's chart code resolves
+   them. */
+.landing-board {
+    --pacey-chart-heading-font: 'Fuzzy Bubbles', 'Caveat', cursive;
+    --pacey-chart-body-font: 'Fuzzy Bubbles', 'Caveat', cursive;
+    padding-block: var(--pacey-space-lg);
+}
+
+.landing-section {
+    padding-block: clamp(2rem, 6vw, 3.5rem);
+}
+
+.landing-section + .landing-section {
+    border-top: 1px dashed var(--pacey-border);
+}
+
+/* #pacey-content remaps --pacey-text/--pacey-navy/--pacey-muted to paper
+   ink — correct for text ON the sheets, wrong for copy that sits on the
+   cork (hero text, the week heading and the day/rest labels). The
+   --pacey-board-* tokens pass through the remap untouched, so cork-side
+   copy keeps the flipping colours in both themes. */
+.landing-board .landing-hero-title,
+.landing-board .landing-hero-lede,
+.landing-board .landing-section-title,
+.landing-board .pacey-cal-week-title {
+    color: var(--pacey-board-copy);
+}
+
+.landing-board .landing-hero-sub,
+.landing-board .landing-hero-note,
+.landing-board .landing-section-text,
+.landing-board .pacey-cal-date-dow {
+    color: var(--pacey-board-muted);
+}
+
+/* The rest-day label sits on cork (the rest card itself is transparent),
+   but pinboard-plan.css pins it to paper ink at id specificity — on the
+   night board that vanishes. Match the board-muted cork copy instead. */
+#pacey-content.landing-board .pacey-cal-rest-label {
+    color: var(--pacey-board-muted);
+}
+
+/* The day-row separators remap to paper line — too dark to read as a
+   divider on the night board. Mix the board-muted token instead. */
+.landing-board .pacey-cal-row {
+    border-bottom-color: color-mix(in srgb, var(--pacey-board-muted) 30%, transparent);
+}
+
+/* The hero CTAs live inside the remapped board, where --pacey-navy
+   resolves to paper ink — near-black on dark cork. Pin them to the
+   cork-side tokens: the board's own copy colour carries the button, and
+   the cork itself is the ink on it. The closing CTA sits outside the
+   wrapper and keeps the root palette. */
+#pacey-content.landing-board .landing-btn--primary {
+    background: var(--pacey-board-copy);
+    border-color: var(--pacey-board-copy);
+    color: var(--pinboard-cork);
+}
+#pacey-content.landing-board .landing-btn--primary:hover {
+    background: var(--pacey-board-muted);
+    border-color: var(--pacey-board-muted);
+}
+#pacey-content.landing-board .landing-btn--secondary {
+    color: var(--pacey-board-copy);
+    border-color: var(--pacey-board-muted);
+}
+#pacey-content.landing-board .landing-btn--secondary:hover {
+    border-color: var(--pacey-board-copy);
+    color: var(--pacey-board-copy);
+}
+#pacey-content.landing-board :focus-visible {
+    outline-color: var(--pacey-board-copy);
+}
+
+.landing-section-title {
+    font-family: var(--font-caveat);
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--pacey-navy);
+    margin: 0 0 var(--pacey-space-sm);
+    text-wrap: balance;
+    /* The hand-sketched underline the board uses for its own titles. */
+    padding-bottom: var(--pacey-space-sm);
+    background: var(--pinboard-sketch-underline) bottom left / 15rem 0.9rem no-repeat;
+}
+
+.landing-section-text {
+    color: var(--pacey-text);
+    margin: 0 0 var(--pacey-space-lg);
+    max-width: 40rem;
+}
+
+/* --- Hero readiness card -------------------------------------------------
+   The app's readiness sheet as the first feature preview: heading, goal
+   identity and the shared radar. The base card padding lives in pacey.css
+   which this page does not load, so it is supplied here — same clamp the
+   app uses. */
+.landing-radar-card {
+    display: flex;
+    flex-direction: column;
+    padding: clamp(1rem, 1.8vw, 1.35rem);
+}
+
+/* The card heading is a <p> in app markup; give it a clean margin and
+   keep it clear of the centred pushpin. */
+.landing-radar-card .pacey-readiness-card-title {
+    margin: 0.15rem 0 0;
+}
+
+.landing-radar-goal {
+    margin: 0 0 var(--pacey-space-sm);
+    font-size: 0.9rem;
+    color: var(--pinboard-muted);
+}
+
+.landing-radar-card .pacey-radar-wrap {
+    /* Square plot, capped so the sheet doesn't run taller than the card
+       needs — the app wraps the same element the same way. */
+    max-width: 25rem;
+    width: 100%;
+}
+
+/* The printed scores — visible until JS draws the chart, and the whole
+   truth if it never does. Positioned over the wrap so it trades places
+   with the canvas rather than duplicating below it. */
+.landing-radar-fallback {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: var(--pacey-space-md);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--pacey-space-xs);
+    font-size: 0.95rem;
+    color: var(--pinboard-ink);
+}
+
+/* display:flex above beats the UA [hidden] rule, so redeclare the hidden
+   state — once the chart draws, the printed scores must actually go away. */
+.landing-radar-fallback[hidden] {
+    display: none;
+}
+
+/* --- Split sections ------------------------------------------------------
+   The readiness card and the plan preview sit beside their copy — chart
+   left/explanation right for readiness (source order gives phones the
+   chart first, the shape before the words), copy left/week agenda right
+   for the plan. The course deliberately does not split: its chalkboard
+   card runs the board's full measure beneath the intro so the route has
+   room to breathe. */
+.landing-readiness {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: clamp(var(--pacey-space-xl), 4vw, var(--pacey-space-2xl));
+    align-items: center;
+}
+
+.landing-readiness-copy {
+    min-width: 0;
+}
+
+.landing-split {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: clamp(var(--pacey-space-lg), 4vw, var(--pacey-space-2xl));
+    align-items: center;
+}
+
+/* --- Course preview ------------------------------------------------------
+   The chalkboard card is self-contained — dark slate and chalk in both
+   themes, so it needs nothing from the cork palette. Only the pieces the
+   landing adds live here: the pending note the static page shows before
+   the snapshot draws, and the SVG the fetch builds. */
+.landing-course-pending {
+    margin: 0;
+    align-self: center;
+    font-size: 0.8rem;
+    color: var(--pacey-course-chart-text);
+    opacity: 0.65;
+}
+
+.landing-course-chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* The MapLibre box is absolute over the wrap; while tiles load the drawn
+   trace must stay painted on top of it — the empty map canvas would
+   otherwise cover the fallback it is standing in for. JS removes the SVG
+   (hidden) only once the route layer is on the loaded map. */
+#pacey-content.landing-board .pacey-course-route-svg {
+    position: relative;
+    z-index: 1;
+}
+
+.landing-course-chart-grid {
+    stroke: var(--pacey-course-chart-grid);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+}
+
+.landing-course-chart-area {
+    fill: var(--pacey-course-chart-fill);
+}
+
+.landing-course-chart-line {
+    fill: none;
+    stroke: var(--pacey-course-chart-line);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+
+.landing-course-chart-tick {
+    fill: var(--pacey-course-chart-text);
+    font-family: var(--font-fuzzy);
+    font-size: 11px;
+}
+
+/* --- The week agenda ------------------------------------------------------
+   The app's own week markup (.pacey-cal-week-block with .pacey-cal-row
+   day rows — date column left, workout cards right). The row and card
+   geometry comes from pinboard-plan.css like everywhere else; only the
+   week header's own chrome lives in pinboard-overlays.css, which this
+   page does not load, so that row's layout is supplied here. */
+.landing-board .pacey-cal-week-head {
+    display: flex;
+    align-items: baseline;
+    padding: 0.15rem 0.1rem 0.5rem;
+}
+
+.landing-board .pacey-cal-week-block {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* Rest days read as the breathing space between sessions — the row
+   rhythm opens up a touch and the dashed day borders stay visible, so
+   the week scans as work and recovery, not a sparse list. */
+#pacey-content.landing-board .pacey-cal-row {
+    padding: var(--pacey-space-md) 0;
+}
+
+/* --- Passive previews ---------------------------------------------------
+   Everything on this board is for looking, not touching — in the app
+   these sheets lift on hover and some cards grab, but none of that is
+   true here. They rest AND hover on the static shadows, never lift,
+   never change the cursor. Scoped to the landing board only; the app's
+   own rules are untouched. */
+#pacey-content.landing-board .pacey-cal-card,
+#pacey-content.landing-board .pacey-metric-tile,
+#pacey-content.landing-board .pacey-course-map {
+    cursor: default;
+}
+
+#pacey-content.landing-board .pacey-cal-card {
+    box-shadow: var(--pinboard-shadow-static), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+}
+
+#pacey-content.landing-board .pacey-cal-card:hover {
+    transform: none;
+    box-shadow: var(--pinboard-shadow-static), 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+    z-index: auto;
+}
+
+/* Vitals tiles keep their own post-it resting shadow and tilt on hover —
+   the lift and the click cues are the only things suppressed. */
+#pacey-content.landing-board .pacey-metric-tile:hover {
+    transform: rotate(var(--tilt, 0deg));
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.14), 0 0.5rem 0.75rem rgba(0, 0, 0, 0.22), inset 0 -1.4rem 1.4rem -1.4rem rgba(0, 0, 0, 0.14);
+    z-index: auto;
+}
+
+/* The card body leaves room for a drag handle that the landing never
+   renders — pull the padding back so the slip's text sits symmetric. */
+#pacey-content.landing-board .pacey-cal-card-body {
+    padding-right: 0;
+}
+
+/* --- Final call + honest notes ----------------------------------------- */
+/* --- Questions ---------------------------------------------------------
+   A plain definition list on the cork — no cards, no disclosure chrome;
+   the questions and answers stay fully visible so people and crawlers
+   read the same text. Board tokens keep the copy readable on both the
+   paper-lit and the night cork. */
+.landing-questions {
+    margin: 0;
+    max-width: 44rem;
+    display: grid;
+    gap: var(--pacey-space-lg);
+}
+
+.landing-question-term {
+    font-family: var(--font-caveat);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--pacey-board-copy);
+}
+
+.landing-question-answer {
+    margin: var(--pacey-space-xs) 0 0;
+    color: var(--pacey-board-muted);
+    max-width: 40rem;
+}
+
+.landing-final {
+    padding-block: clamp(2.5rem, 7vw, 5rem);
+}
+
+.landing-final .landing-hero-actions {
+    margin-bottom: var(--pacey-space-xl);
+}
+
+.landing-notes {
+    max-width: 44rem;
+    display: grid;
+    gap: var(--pacey-space-sm);
+}
+
+.landing-note {
+    margin: 0;
+    font-size: 0.85rem;
+    /* Cork-side copy — board-muted passes through the board remap
+       untouched and is the lighter muted the night cork needs. */
+    color: var(--pacey-board-muted);
+}
+
+/* --- Footer ------------------------------------------------------------ */
+.landing-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-md);
+    flex-wrap: wrap;
+    max-width: 68rem;
+    margin-inline: auto;
+    padding: var(--pacey-space-lg) var(--pacey-content-padding);
+    border-top: 1px solid var(--pacey-border);
+    font-size: 0.9rem;
+}
+
+.landing-footer-links {
+    display: flex;
+    gap: var(--pacey-space-md);
+    flex-wrap: wrap;
+}
+
+.landing-footer-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--pacey-board-muted);
+    text-decoration: none;
+}
+
+.landing-footer-link:hover {
+    color: var(--pacey-blue);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
+.landing-footer-credit {
+    margin: 0;
+    color: var(--pacey-board-muted);
+}
+
+/* --- Accessibility ----------------------------------------------------- */
+/* Focus is always visible and always the app's blue — never removed. */
+.landing-body :focus-visible {
+    outline: 0.125rem solid var(--pacey-blue);
+    outline-offset: 0.1875rem;
+    border-radius: var(--pacey-radius-sm);
+}
+
+/* Reduced motion: the hero lands instantly and every transition drops.
+   A quality-floor requirement, same as the app. */
+@media (prefers-reduced-motion: reduce) {
+    .landing-hero {
+        animation: none;
+    }
+    .landing-nav-link,
+    .landing-theme-toggle,
+    .landing-btn,
+    .landing-footer-link {
+        transition: none;
+    }
+}
+
+/* --- Small screens ----------------------------------------------------- */
+/* The app's board turns the vitals grid into a two-row horizontal
+   carousel below 48rem — a scroll widget is the wrong signal for a
+   static preview, so the landing's tiles wrap in place instead. */
+@media (max-width: 48rem) {
+    #pacey-content.landing-board .pacey-metrics-grid {
+        grid-auto-flow: row;
+        grid-template-rows: none;
+        grid-auto-columns: auto;
+        grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+        overflow-x: visible;
+        scroll-snap-type: none;
+        padding: 0;
+    }
+    #pacey-content.landing-board .pacey-metric-tile {
+        scroll-snap-align: none;
+    }
+}
+
+/* One column below tablet width — the readiness chart stacks above its
+   copy (source order), and the plan collapses to copy-then-agenda. */
+@media (max-width: 46rem) {
+    .landing-readiness,
+    .landing-split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* 320px floor — the header wraps onto its own line. */
+@media (max-width: 26rem) {
+    .landing-body {
+        font-size: 0.98rem;
+    }
+
+    .landing-nav {
+        margin-left: 0;
+        order: 3;
+        width: 100%;
+    }
+}

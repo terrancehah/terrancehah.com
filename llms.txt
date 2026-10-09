@@ -1,0 +1,18 @@
+# Terrance Hah
+
+> Personal website and projects by Terrance Hah. Pacey is a race-readiness web application.
+
+## Public pages
+
+- [Home](https://terrancehah.com/): About Terrance Hah.
+- [Projects](https://terrancehah.com/projects): Project directory.
+- [Pacey](https://terrancehah.com/pacey): Race readiness, Garmin metrics, GPX course analysis, training plans and post-race reviews.
+- [Pacey questions](https://terrancehah.com/pacey#questions): Garmin requirements, readiness, training sync and course uploads.
+
+## Pacey facts
+
+Pacey compares recent running fitness with a goal time chosen by the runner. It does not predict finish times or guarantee race results. It displays Garmin training and recovery data and analyses uploaded GPX routes. Training blocks cover up to 26 weeks; the runner chooses whether to sync the current calendar week to Garmin. Later weeks are previews, and missed sessions are not automatically rescheduled. Pacey uses an unofficial Garmin integration, not a Garmin partnership. The public demo does not require a connected account.
+
+## Canonical content
+
+The public product page is https://terrancehah.com/pacey. App and demo URLs are interactive entry points, not separate product descriptions. API endpoints are not public reference content. Automated access does not bypass authentication.

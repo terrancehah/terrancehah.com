@@ -373,6 +373,125 @@
 }
 
 .pacey-refresh-btn { width: auto; align-self: flex-start; }
+/* =========================================================================
+   Pillar card — base presentation (moved from pacey.css so the landing's
+   previews can wear the same card without loading the app shell). The
+   #pacey-content-scoped rules below layer the board treatment on top.
+   ========================================================================= */
+.pacey-pillar-card {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: clamp(0.75rem, 1.5vw, 1rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-sm);
+}
+
+.pacey-pillar-header { display: flex; align-items: center; gap: var(--pacey-space-sm); }
+
+.pacey-pillar-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.pacey-pillar-name {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+}
+
+.pacey-pillar-score {
+    margin-left: auto;
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-blue);
+}
+
+/* Summary card variant — shown on the overview/home page. Contains only
+   the quick summary text (no concrete data) and a "View details" link.
+   The entire card is clickable and navigates to the full insight on the
+   insights page. */
+.pacey-pillar-card--summary {
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pacey-pillar-card--summary:hover {
+    border-color: var(--pacey-blue);
+    box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.12);
+}
+
+.pacey-pillar-summary {
+    font-size: var(--pacey-text-label);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+.pacey-pillar-view-details {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--pacey-blue);
+    margin-top: auto;
+    padding-top: 0.25rem;
+}
+
+.pacey-pillar-note {
+    /* Standardized to Raleway — matches all other body text in the dashboard */
+    font-size: var(--pacey-text-label);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* Strengths and Gaps sections within each pillar card */
+/* Each section has a colored label badge and the analysis text below it */
+.pacey-pillar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-xs);
+}
+
+.pacey-pillar-section-label {
+    font-weight: 700;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.5rem;
+    align-self: flex-start;
+}
+
+/* Strengths label — green tint indicating positive aspects */
+.pacey-pillar-section-label--strengths {
+    background: rgba(63, 123, 79, 0.15);
+    color: var(--pacey-accent-green);
+}
+
+/* Gaps label — yellow/amber tint indicating areas for improvement.
+   Yellow (rather than red) keeps gaps feeling actionable rather than
+   alarming, distinguishing them from error states. Text colour
+   darkened to #8a6313 (~5.2:1 on the tinted background) to meet WCAG
+   AA 4.5:1 for small text. */
+.pacey-pillar-section-label--gaps {
+    background: rgba(235, 189, 71, 0.75);
+    color: var(--pacey-run-tempo);
+}
+
+/* Dark mode overrides for section labels */
+[data-theme="dark"] .pacey-pillar-section-label--strengths {
+    background: rgba(63, 123, 79, 0.25);
+    color: #6dba82;
+}
+
+[data-theme="dark"] .pacey-pillar-section-label--gaps {
+    background: rgba(212, 160, 23, 0.75);
+    color: var(--pacey-run-tempo);
+}
+
 /* ---------------------------------------------------------------------
    1. FULL PILLAR CARDS — Strengths / Gaps blocks
    The readiness variant adds Strengths and Gaps sections inside each
@@ -1183,4 +1302,231 @@ html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) #pacey-conten
         min-width: 0;
         max-width: 100%;
     }
+}
+
+/* =====================================================================
+   OVERALL INSIGHT — the coach's top-level read (base presentation)
+   ---------------------------------------------------------------------
+   Moved from pacey.css: the readiness sheet, the review modal and the
+   landing's Big Picture preview all render the same markup, so the base
+   layout lives in the sheet the three share.
+   ===================================================================== */
+
+/* ---- Overall Insight ---- */
+/* The coach's top-level synthesized assessment. A single prominent card
+   that sits between Race Readiness and Training Vitals. Unlike the
+   per-pillar Pre Race Insights grid, this is one cohesive narrative
+   that tells the runner where they stand overall and what to focus on. */
+.pacey-overall-insight {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: clamp(1rem, 2vw, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+}
+
+/* Override [hidden] — display:flex would otherwise prevent the hidden
+   attribute from hiding the element during the skeleton loading state. */
+.pacey-overall-insight[hidden] { display: none; }
+
+/* Header row — verdict label on the left, score on the right */
+.pacey-overall-insight-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-sm);
+}
+
+.pacey-overall-insight-verdict {
+    font-weight: 700;
+    font-size: var(--pacey-text-subheading);
+    color: var(--pacey-navy);
+}
+
+/* Score — large number with small /10 suffix. Color is set inline by JS
+   based on the score value (green/amber/red from the AI score scale). */
+.pacey-overall-insight-score {
+    font-weight: 900;
+    font-size: var(--pacey-text-heading);
+    line-height: 1;
+}
+
+.pacey-overall-insight-score-max {
+    font-size: var(--pacey-text-label);
+    font-weight: 600;
+    color: var(--pacey-muted);
+    margin-left: 0.15rem;
+}
+
+/* Summary paragraph — the coach's opening assessment */
+.pacey-overall-insight-summary {
+    font-size: var(--pacey-text-body);
+    line-height: 1.6;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* Takeaways — two-column grid on desktop, stacked on mobile.
+   Shows the top strength and biggest gap side by side. */
+.pacey-overall-insight-takeaways {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--pacey-space-md);
+}
+
+@media (max-width: 37.5rem) {
+    .pacey-overall-insight-takeaways { grid-template-columns: 1fr; }
+}
+
+/* Individual takeaway card — tinted background distinguishes strength
+   (green tint) from gap (amber tint), matching the pillar section labels */
+.pacey-overall-insight-takeaway {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: var(--pacey-space-sm) var(--pacey-space-md);
+    border-radius: var(--pacey-radius-sm);
+}
+
+.pacey-overall-insight-takeaway--strength {
+    background: color-mix(in srgb, var(--pacey-accent-green) 15%, var(--pacey-surface));
+}
+
+.pacey-overall-insight-takeaway--gap {
+    background: color-mix(in srgb, var(--pacey-accent-amber) 8%, var(--pacey-surface));
+}
+
+.pacey-overall-insight-takeaway-label {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: var(--pacey-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pacey-muted);
+}
+
+.pacey-overall-insight-takeaway-name {
+    font-weight: 700;
+    font-size: var(--pacey-text-body);
+    color: var(--pacey-navy);
+}
+
+.pacey-overall-insight-takeaway-note {
+    font-size: var(--pacey-text-label);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* Focus callout — the single most impactful next action, highlighted
+   with a left accent border to draw the eye */
+.pacey-overall-insight-focus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding-left: var(--pacey-space-md);
+    border-left: 0.1875rem solid var(--pacey-blue);
+}
+
+.pacey-overall-insight-focus-label {
+    font-weight: 600;
+    font-size: var(--pacey-text-caption);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--pacey-blue);
+}
+
+.pacey-overall-insight-focus-text {
+    font-size: var(--pacey-text-body);
+    line-height: 1.55;
+    color: var(--pacey-text);
+    margin: 0;
+}
+
+/* CTA under the overall insight — leads to the full race-readiness chart.
+   Sized to content (not full-width) so it reads as an inline action. */
+.pacey-overall-insight-cta {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-btn-primary-text);
+    background: var(--pacey-navy);
+    border-radius: var(--pacey-radius-sm);
+    padding: 0.55rem 1rem;
+    text-decoration: none;
+    transition: background var(--pacey-transition), transform var(--pacey-transition);
+}
+.pacey-overall-insight-cta:hover { background: var(--pacey-btn-primary-hover); }
+.pacey-overall-insight-cta:active { transform: translateY(0.0625rem); }
+.pacey-overall-insight-cta:focus-visible {
+    outline: 0.125rem solid var(--pacey-blue);
+    outline-offset: 0.125rem;
+}
+.pacey-overall-insight-cta svg { width: 0.9rem; height: 0.9rem; }
+
+/* Skeleton loading state for the overall insight — mirrors the real
+   card layout (header, summary, takeaways, focus) with animated
+   skeleton lines inside the same card container so the loading
+   state matches the shape of the final content. */
+.pacey-overall-insight-skeleton {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: clamp(1rem, 2vw, 1.5rem);
+    display: flex;
+    flex-direction: column;
+    gap: var(--pacey-space-md);
+}
+
+.pacey-overall-insight-skeleton[hidden] { display: none; }
+
+/* Header row — verdict placeholder on left, score on right */
+.pacey-overall-insight-skeleton-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-sm);
+}
+
+/* Summary paragraph — three lines of varying width */
+.pacey-overall-insight-skeleton-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+/* Takeaways — two-column grid matching the real layout */
+.pacey-overall-insight-skeleton-takeaways {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--pacey-space-md);
+}
+
+@media (max-width: 37.5rem) {
+    .pacey-overall-insight-skeleton-takeaways { grid-template-columns: 1fr; }
+}
+
+/* Individual takeaway skeleton — tinted background matching the real
+   takeaway cards so the loading state has the same visual rhythm */
+.pacey-overall-insight-skeleton-takeaway {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: var(--pacey-space-sm) var(--pacey-space-md);
+    border-radius: var(--pacey-radius-sm);
+    background: var(--pacey-light);
+}
+
+/* Focus block skeleton — left accent border matching the real focus */
+.pacey-overall-insight-skeleton-focus {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding-left: var(--pacey-space-md);
+    border-left: 0.1875rem solid var(--pacey-border);
 }

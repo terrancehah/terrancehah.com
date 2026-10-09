@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /api/
+Disallow: /pacey/api/
+Disallow: /projects/pacey/api/
+
+Sitemap: https://terrancehah.com/sitemap.xml

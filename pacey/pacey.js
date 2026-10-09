@@ -83,6 +83,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // State
     let sessionToken = '';
+    // True while a demo started with ?entry=demo over a saved account runs —
+    // that demo is visit-only, so none of the account-owned localStorage keys
+    // (token, goal, mode, reference, course, prefs) may be written or cleared.
+    let demoEphemeral = false;
+    // The landing's entry links (?entry=login / ?entry=demo) and the
+    // dedicated /pacey/demo route are read once, up front: a forced demo
+    // must be known before initCourseCard's local restore further down can
+    // surface the account's cached course. The startup seam near the bottom
+    // of this file reuses these same values.
+    // The app shell's head script stashes the original query's entry intent
+    // on window.paceyEntryIntent before its canonicalisation rewrite drops
+    // the query — prefer it whenever it ran (a null there still means "no
+    // entry flag"); reading location.search alone would lose ?entry=login on
+    // a saved-session visit and bounce an expired session past sign-in.
+    const entryParam = 'paceyEntryIntent' in window
+        ? window.paceyEntryIntent
+        : new URLSearchParams(window.location.search).get('entry');
+    // /pacey/demo is the shareable demo URL — Vercel rewrites it to this
+    // shell, so the path itself is the explicit demo request even when no
+    // query survives. Counts the same as ?entry=demo.
+    const isDemoEntry = entryParam === 'demo'
+        || /^\/pacey\/demo\/?$/.test(window.location.pathname);
+    const savedSessionToken = localStorage.getItem('pacey_session_token');
+    if (isDemoEntry && savedSessionToken && savedSessionToken !== 'demo') {
+        demoEphemeral = true;
+    }
     let displayName = '';
     let raceGoal = null;
     // 'race' while a goal drives the dashboard, 'no_goal' once the runner has
@@ -308,6 +334,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // its response was loaded under the previous mode's dashboard.
         if (next !== goalMode) invalidateGoalSuggestions();
         goalMode = next;
+        // An ephemeral demo keeps the mode in memory only.
+        if (demoEphemeral) return;
         if (goalMode) localStorage.setItem('pacey_goal_mode', goalMode);
         else localStorage.removeItem('pacey_goal_mode');
     }
@@ -327,8 +355,11 @@ document.addEventListener('DOMContentLoaded', function () {
             && Number.isFinite(next.pace_ms) && next.pace_ms > 0) ? next : null;
         const changed = JSON.stringify(ref) !== JSON.stringify(paceReference);
         paceReference = ref;
-        if (ref) localStorage.setItem('pacey_pace_reference', JSON.stringify(ref));
-        else localStorage.removeItem('pacey_pace_reference');
+        // An ephemeral demo must not move the account's stored baseline.
+        if (!demoEphemeral) {
+            if (ref) localStorage.setItem('pacey_pace_reference', JSON.stringify(ref));
+            else localStorage.removeItem('pacey_pace_reference');
+        }
         return changed;
     }
 
@@ -432,7 +463,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('pacey_theme', theme);
+        // In an ephemeral demo the toggle still flips the theme visually —
+        // the visit just never stores a preference under the account's keys.
+        if (!demoEphemeral) localStorage.setItem('pacey_theme', theme);
         themeToggle.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
         // Update the label to show the current mode name
         const labelEl = $('#pacey-theme-label');
@@ -644,6 +677,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // serves its own persistent cache cheaply), not hand back the 24h client
     // copy — otherwise a run finished today never shows up until tomorrow.
     function clearClientPlanCache() {
+        // Ephemeral demo — a refresh must not evict the account's plan cache.
+        if (demoEphemeral) return;
         try { localStorage.removeItem('pacey_coach_plan_cache_v2'); } catch (e) { /* ignore */ }
     }
 
@@ -1071,16 +1106,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // matches the renewed AI prompt: coach-like, no jargon, one HR form per
     // sentence, strengths/gaps follow the plain-words-then-proof structure.
     function getMockPillars() {
-        return {
-            dimensions: [
-                { name: 'Lactate Threshold', score: 6, summary: 'Your threshold blocks are too short to prove you can hold race effort for 21km. This is your biggest limiter.', strengths: 'You have a foundation of threshold work to build on, which means your body knows what race effort feels like. Your 3x2km repeat session at 5:00/km shows you can hold a gear faster than race pace for short blocks. That is a useful starting point for extending the duration.', gaps: 'The thing to fix is simple — your threshold blocks are too short to confirm you can hold goal pace under fatigue. A 2km repeat at 5:00/km is faster than race pace but only lasts about 10 minutes. Holding 6:10/km for 21km is a different demand entirely, and it is the one your race will actually make. This is the gap that costs you the most time on race day.' },
-                { name: 'Aerobic Endurance', score: 7, summary: 'Volume and long-run distance are where a half marathon needs them. On track — a small bump in the final weeks would seal it.', strengths: 'Your aerobic base is solid enough to carry you through race day. You are running 35km per week with long runs reaching 21km, and most of your easy running sits at 6:40/km in an easy zone — that is good discipline. The consistent 4 to 5 runs per week tells me your body is absorbing the load well.', gaps: 'One small push would make you race-ready — your longest run matches race distance but has not gone past it. Twenty-one kilometres on fresh legs in training is not the same as twenty-one on race day, where a taper has you rested but the pace is faster and the last 5km arrives with nothing left to draw on. Going past race distance is less about fitness than about removing the unknown.' },
-                { name: 'Running Economy', score: 6, summary: 'Steady cadence, but no work at goal race pace. Race pace costs you more than it should.', strengths: 'Your form is stable and efficient at the paces you run most often. Cadence sits around 168 to 172 spm across your easy and long runs, which is a good range for your pace. You are not wasting energy bouncing between strides, and that consistency matters over 21km.', gaps: 'The missing piece is neuromuscular sharpness at race pace — most of your runs are either faster tempo work or slower easy efforts. You have no strides or drills in your recent history, so nothing has taught your legs to turn over efficiently at 6:10/km. That inefficiency shows up as a higher cost per kilometre, and you pay it on top of the aerobic work rather than instead of it.' },
-                { name: 'Strength / Durability', score: 6, summary: 'Consistent frequency, no strength work behind it. That gap only shows late, when your legs lose shape over the final 5km.', strengths: 'Your body is handling the running load well, which is the first box to tick. You are running 4 to 5 times a week with no gaps in frequency, and your trail runs add some elevation variety — up to 120m of gain in a session. That gives you a reasonable base of durability to build on.', gaps: 'The gap here is not the running — it is everything around it. There is nothing in your history beyond running, and weak hips and glutes are the most common reason half marathoners fade late: when they give out, your form goes with them and the pace drops no matter how fit the engine is. It is the kind of gap that stays invisible until the final 5km, when everything else has already been spent.' },
-                { name: 'VO₂max / Speed', score: 7, summary: 'Useful speed reserve above goal pace, but you visit it too rarely to hold on to it.', strengths: 'Your raw aerobic capacity gives you a comfortable cushion above race pace. Your VO2max of 52 is solid for your age, and your 400m intervals at 4:40/km show you can access a gear well faster than 6:10/km. That gap between your interval pace and goal pace is exactly what you want.', gaps: 'The risk is not a lack of speed — it is that you are not visiting it often enough. Your interval sessions show up only once or twice a month, and without regular stimulus that ceiling drifts down across a training block rather than holding where it is. That reserve above race pace is worth protecting: it is what makes 6:10/km feel like a gear you can reach for rather than a ceiling you are pressed against.' },
-                { name: 'Fatigue Resistance', score: 6, summary: 'You recover well day to day, but fade 8–12% late in long runs. That is what turns a 2:10 into a 2:15.', strengths: 'You bounce back the next day well, which tells me your body handles consecutive training stimuli. The day after a tempo session you are still running your easy run at the right pace, not grinding through it. That hard-easy pattern is building real resistance.', gaps: 'The thing to fix is your late-run pace — you are dropping off 8 to 12 percent in the final third of long runs. For a 2:10:00 target you need to hold 6:10/km the whole way, and an 8 percent fade over the closing 7km is roughly three minutes lost. That is the difference between 2:10 and 2:13, and it is the part of the race your training has not rehearsed yet.' },
-            ]
-        };
+        // Shared with the landing's sample previews via pacey-sample.js —
+        // returned as a copy so callers can annotate without mutating the
+        // module's canonical fixture.
+        return JSON.parse(JSON.stringify(window.PACEY_SAMPLE.pillars));
     }
 
     // Mock overall insight — the coach's top-level assessment that synthesizes
@@ -1133,8 +1162,13 @@ document.addEventListener('DOMContentLoaded', function () {
     // when a goal is replaced, which has not happened for this runner yet.
 
     // Start demo mode — used as the default landing and after logout
-    function startDemoMode() {
+    // persist:false runs the showcase in memory only — used by the landing's
+    // "Try the demo" when a saved account sits in this browser. Everything
+    // still works, but nothing the demo does may touch that account's stored
+    // session, goal, mode, reference, course or prefs.
+    function startDemoMode({ persist = true } = {}) {
         sessionToken = 'demo';
+        demoEphemeral = !persist;
         displayName = 'Demo Runner';
         raceGoal = {
             race_name: 'Kuala Lumpur Standard Chartered Half Marathon',
@@ -1153,8 +1187,10 @@ document.addEventListener('DOMContentLoaded', function () {
             gender: 'male',
             age: '30',
         };
-        localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
-        localStorage.setItem('pacey_session_token', 'demo');
+        if (persist) {
+            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            localStorage.setItem('pacey_session_token', 'demo');
+        }
         window.__demoMode = true;
         // Show demo CTAs across all pages
         const demoCta = $('#pacey-demo-cta');
@@ -1267,6 +1303,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             resetMfaStep();
             sessionToken = data.session_token;
+            // Signed in as a real account — an ephemeral demo ends here so the
+            // account writes below (mode, reference, seeded caches) all land.
+            demoEphemeral = false;
             displayName = data.display_name;
             profileImageUrl = data.profile_image_url || '';
             localStorage.setItem('pacey_session_token', sessionToken);
@@ -1320,6 +1359,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // edit, or replace it. Otherwise go to onboarding as before.
             closeLoginModal();
             window.__demoMode = false;
+            // A real session is set — settle the address on the everyday
+            // /pacey URL. This canonicalises even a login completed inside
+            // the demo: once authenticated, the runner is in the app.
+            // (Helper is defined by the app shell's head script.)
+            if (window.paceyCanonicalizeAppUrl) window.paceyCanonicalizeAppUrl();
             // Drop the demo course from memory (never from the server) so the
             // runner's own course can load in its place.
             resetCourseLocal();
@@ -1438,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
-            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            if (!demoEphemeral) localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Saving a real goal leaves no-goal mode on this device — the
             // server writes a real goal over the tombstone in the same call.
             setGoalMode('race');
@@ -1543,7 +1587,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
             fileRaceResultToHistory(raceGoal);
             raceGoal = data.goal;
-            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            if (!demoEphemeral) localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             setGoalMode('race');
             // The goal is saved — there is nothing left to return to.
             onboardingReturnSnapshot = null;
@@ -1607,7 +1651,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (onboardingReturnSnapshot) {
                 raceGoal = onboardingReturnSnapshot.raceGoal;
                 setGoalMode(onboardingReturnSnapshot.goalMode);
-                if (raceGoal) {
+                if (raceGoal && !demoEphemeral) {
                     localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
                 }
                 onboardingReturnSnapshot = null;
@@ -2397,7 +2441,8 @@ document.addEventListener('DOMContentLoaded', function () {
     function applyNoGoalModeLocally() {
         raceGoal = null;
         setGoalMode('no_goal');
-        localStorage.removeItem('pacey_race_goal');
+        // Ephemeral demo — the account's stored goal stays put.
+        if (!demoEphemeral) localStorage.removeItem('pacey_race_goal');
         clearAICache();
         clearCoachCache();
         coachLoaded = false;
@@ -2804,6 +2849,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function writeRaceRecapCache(state, text) {
+        if (demoEphemeral) return; // Visit-only demo — nothing is stored.
         try {
             localStorage.setItem(RACE_RECAP_CACHE_KEY, JSON.stringify({
                 key: raceRecapCacheKey(state),
@@ -2876,7 +2922,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (raceGoal && !data.cached) {
                 raceGoal.race_recap = { text: data.recap, key: raceRecapCacheKey(state) };
                 try {
-                    localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+                    if (!demoEphemeral) localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
                 } catch (err) {
                     // Quota or private mode — the server copy is the durable one.
                 }
@@ -2929,8 +2975,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // recap nothing matches.
         delete raceGoal.race_recap;
         try {
-            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
-            localStorage.removeItem(RACE_RECAP_CACHE_KEY);
+            // An ephemeral demo's result lives in memory only.
+            if (!demoEphemeral) {
+                localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+                localStorage.removeItem(RACE_RECAP_CACHE_KEY);
+            }
         } catch (err) {
             // Quota or private mode — the server copy below is the durable one.
         }
@@ -2958,6 +3007,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const RACE_HISTORY_KEY = 'pacey_race_history_v1';
 
     function fileRaceResultToHistory(goal) {
+        // An ephemeral demo's finishes never enter the account's archive.
+        if (demoEphemeral) return;
         if (!goal || !goal.race_result) return;
         try {
             const raw = localStorage.getItem(RACE_HISTORY_KEY);
@@ -5051,11 +5102,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.drop) el.drop.hidden = false;
         if (el.error) el.error.hidden = true;
         if (el.input) el.input.value = '';
-        localStorage.removeItem(COURSE_CACHE_KEY);
+        if (!demoEphemeral) localStorage.removeItem(COURSE_CACHE_KEY);
         await saveCourseRemote(); // A null record clears the server copy too.
     }
 
     function persistCourseLocal() {
+        // An ephemeral demo's course never becomes the account's stored one.
+        if (demoEphemeral) return;
         try {
             if (courseRecord) localStorage.setItem(COURSE_CACHE_KEY, JSON.stringify(courseRecord));
             else localStorage.removeItem(COURSE_CACHE_KEY);
@@ -5065,6 +5118,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function restoreCourseLocal() {
+        // An ephemeral demo never resurrects the account's cached course —
+        // the demo loads its own sample route instead.
+        if (demoEphemeral) return false;
         try {
             const raw = localStorage.getItem(COURSE_CACHE_KEY);
             if (!raw) return false;
@@ -5091,7 +5147,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function loadCourseRemote() {
         // No-goal mode has no race to attach a course to — skip the fetch.
-        if (window.__demoMode || courseRecord || isNoGoalMode()) return;
+        // demoEphemeral covers the init window before __demoMode is set, so a
+        // forced demo visit never sends the account's token after its course.
+        if (window.__demoMode || demoEphemeral || courseRecord || isNoGoalMode()) return;
         try {
             const resp = await apiCallWithAuthRetry('GET', 'coach-plan?action=course');
             const data = await resp.json();
@@ -5212,7 +5270,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (el.drop) el.drop.hidden = false;
         if (el.error) el.error.hidden = true;
         if (discardCache) {
-            localStorage.removeItem(COURSE_CACHE_KEY);
+            if (!demoEphemeral) localStorage.removeItem(COURSE_CACHE_KEY);
             if (el.input) el.input.value = '';
         }
         closeCourseMapModal();
@@ -5540,7 +5598,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // =========================================================================
 
     // Hand-drawn icons keyed by label. Each one points at a <symbol> in the
-    // sprite at the top of index.html, so the same glyph is not inlined once
+    // sprite at the top of app.html, so the same glyph is not inlined once
     // per tile. The class decides how it paints: plain .pacey-icon is a filled
     // ribbon glyph (Duma), .pacey-icon--stroke is an open-path one
     // (sketchyicons, which covers the three glyphs Duma has no equivalent for —
@@ -7461,51 +7519,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Radar chart — non-AI, uses /race-goal/radar (calculated from metrics)
     // =========================================================================
 
-    const RADAR_DIMENSIONS = [
-        'Lactate Threshold', 'Aerobic Endurance', 'Running Economy',
-        'Strength / Durability', 'VO₂max / Speed', 'Fatigue Resistance'
-    ];
-
-    // Split a dimension label into two lines at the natural break point.
-    // Used by the radar chart's pointLabels callback so labels take less
-    // horizontal space, allowing a larger radar polygon — especially on mobile.
-    // Returns an array of two strings for Chart.js multi-line rendering.
-    function splitRadarLabel(label) {
-        // Labels with a slash: break at the slash
-        if (label.includes(' / ')) {
-            const parts = label.split(' / ');
-            return [parts[0], parts.slice(1).join(' / ')];
-        }
-        // Labels with a space: break at the last space so the second line
-        // is shorter (e.g. "Lactate Threshold" → ["Lactate", "Threshold"])
-        const spaceIdx = label.lastIndexOf(' ');
-        if (spaceIdx > 0) {
-            return [label.slice(0, spaceIdx), label.slice(spaceIdx + 1)];
-        }
-        // No break point — return as single-line
-        return [label];
-    }
-    // Radar dimension colours — read from the same tokens used by the
-    // dimension explainer dots so the radar and the explainer modal stay
-    // in sync. Uses rgba via color-mix fallback parsing: since Chart.js
-    // needs rgba strings (not CSS variables), we read the computed hex
-    // tokens and apply 0.7 alpha inline.
-    const radarHex = (name, fallback) => {
-        const hex = cssVar(name, fallback);
-        // Convert hex (#rrggbb) to rgba(r,g,b,0.7)
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return `rgba(${r}, ${g}, ${b}, 0.7)`;
-    };
-    const RADAR_COLORS = [
-        radarHex('--pacey-run-speedwork', '#c44b4b'),  // lactate threshold — red
-        radarHex('--pacey-accent-green', '#3f7b4f'),   // aerobic endurance — green
-        radarHex('--pacey-run-tempo', '#8a6313'),      // running economy — amber
-        radarHex('--pacey-run-lsd', '#5d6db0'),        // strength/durability — purple
-        radarHex('--pacey-blue', '#457b9d'),           // vo2max/speed — blue
-        radarHex('--pacey-run-easy', '#388e8e'),       // fatigue resistance — teal
-    ];
+    // Radar presentation is shared with the landing's sample preview via
+    // pacey-radar.js — dimension names, label splitting and the point
+    // palette all come from the helper so the surfaces cannot drift.
+    const RADAR_DIMENSIONS = window.PaceyRadar.DIMENSIONS;
+    const RADAR_COLORS = window.PaceyRadar.dimensionColors();
     const RADAR_KEYS = [
         'lactate_threshold', 'aerobic_endurance', 'running_economy',
         'strength_durability', 'vo2max_speed', 'fatigue_resistance'
@@ -7760,112 +7778,62 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reset the loaded class so the canvas starts at opacity 0,
         // then add it after the chart is created to trigger the fade-in
         canvas.classList.remove('pacey-radar-loaded');
-        // Read colours from the canvas so the radar follows the surface it
-        // sits on (paper on the overview, app surface on Readiness)
+        // Shared radar presentation comes from pacey-radar.js (labels,
+        // palette, config). The app keeps its interactive callbacks —
+        // label-click tooltip and the external HTML tooltip — and the
+        // desaturated loading stand-in style app-side.
         const cssNavy = getComputedStyle(canvas).getPropertyValue('--pacey-navy').trim() || '#1d3557';
-        const cssMuted = getComputedStyle(canvas).getPropertyValue('--pacey-muted').trim() || '#5a7184';
-        // Tooltip background — use surface color so it adapts to theme
-        const cssSurface = getComputedStyle(canvas).getPropertyValue('--pacey-surface').trim() || '#ffffff';
-        const cssText = getComputedStyle(canvas).getPropertyValue('--pacey-text').trim() || '#1d3557';
-        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-        // On narrow screens (phone), use a smaller point label font to prevent clipping.
-        // The canvas width determines whether we're in a compact layout.
-        const isNarrow = canvas.clientWidth < 320;
-        const pointLabelFontSize = isNarrow ? 11 : 13;
         const chartFonts = pinboardChartFonts(canvas);
 
-        const chart = new Chart(canvas, {
-            type: 'radar',
-            data: {
-                labels: RADAR_DIMENSIONS,
-                datasets: [{
-                    data: values10,
-                    backgroundColor: radarLoading ? RADAR_LOADING_FILL : `rgba(69, 123, 157, 0.1)`,
-                    borderColor: radarLoading ? RADAR_LOADING_LINE : `rgba(69, 123, 157, 0.8)`,
-                    borderWidth: 2,
-                    pointBackgroundColor: radarLoading ? RADAR_LOADING_POINT : RADAR_COLORS,
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7,
-                }]
-            },
-            options: {
-                responsive: true,
-                // false: the chart fills the wrapper's flex-constrained height
-                // instead of expanding to maintain a square aspect ratio
-                maintainAspectRatio: false,
-                // Animate the radar polygon from center (0) to actual values
-                // when the chart is first created — creates a smooth grow-out
-                // effect as the data fills in after the skeleton fades out
-                animation: {
-                    duration: 1200,
-                    easing: 'easeOutQuart',
-                },
-                scales: {
-                    r: {
-                        beginAtZero: true, max: 10, min: 0,
-                        // Hide tick number labels — only show grid lines
-                        ticks: { display: false, stepSize: 2 },
-                        pointLabels: {
-                            font: { size: pointLabelFontSize, family: chartFonts.heading, weight: '600' },
-                            color: cssNavy,
-                            // Center-align multi-line labels so each line
-                            // is centered at its position around the radar
-                            align: 'center',
-                            // Break labels into two lines to save horizontal
-                            // space and allow a larger radar polygon
-                            callback: (label) => splitRadarLabel(label),
-                        },
-                        // Darker grid/angle lines for better web visibility — theme-aware
-                        grid: { color: `rgba(69, 123, 157, 0.25)` },
-                        angleLines: { color: `rgba(69, 123, 157, 0.25)` },
+        // Reduced motion drops the grow-out entrance — the radar lands
+        // already drawn, same as every other animated surface.
+        const reduceMotion = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const chart = window.PaceyRadar.create(canvas, {
+            labels: RADAR_DIMENSIONS,
+            values: values10,
+            animate: !reduceMotion,
+            headingFont: chartFonts.heading,
+            labelColor: cssNavy,
+            loading: radarLoading,
+            loadingFill: RADAR_LOADING_FILL,
+            loadingLine: RADAR_LOADING_LINE,
+            loadingPoint: RADAR_LOADING_POINT,
+            pointColors: RADAR_COLORS,
+            // External HTML tooltip so the score can link to the matching
+            // insight pillar — the built-in canvas tooltip can't render
+            // interactive HTML.
+            externalTooltip: radarExternalTooltipHandler,
+            // Click handler: clicking a point label area shows the tooltip.
+            // Since the external HTML tooltip is used (enabled: false),
+            // chart.tooltip.setActiveElements() doesn't trigger the
+            // external handler reliably. Instead, we directly show the
+            // HTML tooltip at the label's position.
+            onClick: (e, elements, chart) => {
+                // If a point (dot) was clicked, the external tooltip
+                // handler fires via normal interaction — don't interfere.
+                if (elements.length > 0) return;
+                const dims = RADAR_DIMENSIONS;
+                const scales = chart.scales.r;
+                const pos = Chart.helpers.getRelativePosition(e, chart);
+                // Check each label position — approximate by angle
+                const centerX = scales.xCenter;
+                const centerY = scales.yCenter;
+                const radius = scales.drawingArea;
+                const angleStep = (2 * Math.PI) / dims.length;
+                for (let i = 0; i < dims.length; i++) {
+                    const angle = -Math.PI / 2 + i * angleStep;
+                    // Label position is just outside the chart at the same angle
+                    // — slightly further out since two-line labels are taller
+                    const labelX = centerX + Math.cos(angle) * (radius + 20);
+                    const labelY = centerY + Math.sin(angle) * (radius + 20);
+                    const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
+                    if (dist < 40) {
+                        // Directly show the HTML tooltip at the label position
+                        showRadarHtmlTooltip(chart, labelX, labelY, i);
+                        return;
                     }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        // Use an external HTML tooltip so we can include a
-                        // clickable link to the corresponding insight pillar.
-                        // The built-in canvas tooltip can't render interactive HTML.
-                        enabled: false,
-                        external: radarExternalTooltipHandler,
-                        // Theme-aware colors passed to the external handler via
-                        // CSS variables on the tooltip element
-                    },
-                },
-                // Click handler: clicking a point label area shows the tooltip.
-                // Since the external HTML tooltip is used (enabled: false),
-                // chart.tooltip.setActiveElements() doesn't trigger the
-                // external handler reliably. Instead, we directly show the
-                // HTML tooltip at the label's position.
-                onClick: (e, elements, chart) => {
-                    // If a point (dot) was clicked, the external tooltip
-                    // handler fires via normal interaction — don't interfere.
-                    if (elements.length > 0) return;
-                    const dims = RADAR_DIMENSIONS;
-                    const scales = chart.scales.r;
-                    const pos = Chart.helpers.getRelativePosition(e, chart);
-                    // Check each label position — approximate by angle
-                    const centerX = scales.xCenter;
-                    const centerY = scales.yCenter;
-                    const radius = scales.drawingArea;
-                    const angleStep = (2 * Math.PI) / dims.length;
-                    for (let i = 0; i < dims.length; i++) {
-                        const angle = -Math.PI / 2 + i * angleStep;
-                        // Label position is just outside the chart at the same angle
-                        // — slightly further out since two-line labels are taller
-                        const labelX = centerX + Math.cos(angle) * (radius + 20);
-                        const labelY = centerY + Math.sin(angle) * (radius + 20);
-                        const dist = Math.hypot(pos.x - labelX, pos.y - labelY);
-                        if (dist < 40) {
-                            // Directly show the HTML tooltip at the label position
-                            showRadarHtmlTooltip(chart, labelX, labelY, i);
-                            return;
-                        }
-                    }
-                },
+                }
             },
         });
 
@@ -7913,7 +7881,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Write a stale-while-revalidate cache entry, scoped by session token.
+    // A single slot serves whichever account is active, so an ephemeral demo
+    // must not overwrite it.
     function writeSWRCache(key, data) {
+        if (demoEphemeral) return;
         try {
             localStorage.setItem(key, JSON.stringify({
                 scope: sessionToken || 'demo',
@@ -7927,6 +7898,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Clear all SWR caches (called on logout)
     function clearSWRCaches() {
+        if (demoEphemeral) return;
         localStorage.removeItem(METRICS_CACHE_KEY);
         localStorage.removeItem(MILEAGE_CACHE_KEY);
     }
@@ -7963,6 +7935,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Write AI radar data to localStorage cache
     function writeAICache(data) {
+        if (demoEphemeral) return; // Ephemeral demo never stores insights.
         try {
             localStorage.setItem(AI_CACHE_KEY, JSON.stringify({
                 key: getAICacheKey(),
@@ -7991,6 +7964,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Clear the AI cache (called when user clicks "Regenerate Insights")
     function clearAICache() {
+        if (demoEphemeral) return; // Not the demo's cache to evict.
         localStorage.removeItem(AI_CACHE_KEY);
     }
 
@@ -9098,7 +9072,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!resp.ok) { alert(data.error || 'Failed to save race goal.'); return; }
                 raceGoal = data.goal;
             }
-            localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
+            // An ephemeral demo's goal save stays in memory — it never
+            // replaces the account's stored goal below.
+            if (!demoEphemeral) localStorage.setItem('pacey_race_goal', JSON.stringify(raceGoal));
             // Saving a real goal leaves no-goal mode on this device too.
             setGoalMode('race');
             // The live goal changed — a pointed-at past race goes back to the
@@ -9813,11 +9789,14 @@ document.addEventListener('DOMContentLoaded', function () {
         coachPlanData = null;
         coachEditingDate = null;
         coachSyncedDates.clear();
-        // Clear all cached session data so the next load starts fresh
-        localStorage.removeItem('pacey_session_token');
-        localStorage.removeItem('pacey_race_goal');
-        localStorage.removeItem('pacey_display_name');
-        localStorage.removeItem('pacey_profile_image_url');
+        // Clear all cached session data so the next load starts fresh —
+        // unless this is an ephemeral demo, where none of it is ours.
+        if (!demoEphemeral) {
+            localStorage.removeItem('pacey_session_token');
+            localStorage.removeItem('pacey_race_goal');
+            localStorage.removeItem('pacey_display_name');
+            localStorage.removeItem('pacey_profile_image_url');
+        }
         // The no-goal tombstone is account state — it follows the account,
         // not the browser, so it is re-read on the next login rather than
         // kept here.
@@ -9832,8 +9811,12 @@ document.addEventListener('DOMContentLoaded', function () {
         clearCoachCache(); // clear cached coach plan when logging out
         clearSWRCaches(); // clear cached metrics + mileage when logging out
         loginForm.reset(); onboardForm.reset();
-        // Return to demo mode instead of login screen
-        startDemoMode();
+        // Return to demo mode instead of login screen. Read demoEphemeral
+        // BEFORE startDemoMode resets it: if this was ever an ephemeral demo
+        // visit (currently unreachable from the UI — the demo's settings
+        // button opens login — but kept correct defensively), the demo must
+        // stay visit-only rather than persisting over the account's keys.
+        startDemoMode({ persist: !demoEphemeral });
     }
 
     // =========================================================================
@@ -9973,6 +9956,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     function writeCoachPrefs(prefs) {
+        // Ephemeral demo — the account's plan prefs stay untouched.
+        if (demoEphemeral) return;
         try {
             localStorage.setItem(COACH_PREFS_KEY, JSON.stringify(prefs));
         } catch (e) {
@@ -10031,6 +10016,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // responses, so a cached copy could overwrite fresher receipts just
     // loaded on this device.
     function writeCoachCache(data) {
+        if (demoEphemeral) return; // Ephemeral demo never stores a plan.
         try {
             const cacheData = data && typeof data === 'object' ? { ...data } : data;
             if (cacheData) {
@@ -10048,6 +10034,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function clearCoachCache() {
+        if (demoEphemeral) return;
         localStorage.removeItem(COACH_CACHE_KEY);
     }
 
@@ -12076,10 +12063,18 @@ document.addEventListener('DOMContentLoaded', function () {
     // Restore session or default to demo mode
     // =========================================================================
 
-    const savedToken = localStorage.getItem('pacey_session_token');
-    if (savedToken && savedToken !== 'demo') {
+    const savedToken = savedSessionToken;
+    // entryParam and the ephemeral-demo flag were already resolved at the top
+    // of this file (before initCourseCard's restore) — demoVisitOnly here is
+    // simply that decision, kept under its own name so the branch reads
+    // clearly: a ?entry=demo visit over a saved account runs the showcase in
+    // memory and writes nothing, so the stored session and goal are exactly
+    // as the account left them on the next visit.
+    const demoVisitOnly = demoEphemeral;
+    if (savedToken && savedToken !== 'demo' && !demoVisitOnly) {
         // Real Garmin session — restore cached profile data for instant render
         sessionToken = savedToken;
+        demoEphemeral = false;
         displayName = localStorage.getItem('pacey_display_name') || 'Runner';
         profileImageUrl = localStorage.getItem('pacey_profile_image_url') || '';
         const cachedRaceGoal = localStorage.getItem('pacey_race_goal');
@@ -12139,7 +12134,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     writeCoachCache(data.cached_coach_plan);
                 }
             } else {
-                // Session expired — clear cache and fall back to demo mode
+                // Session expired — clear the account keys. An explicit
+                // ?entry=login visit keeps the login modal it was promised
+                // (over the demo backdrop); every other visit came here
+                // through the landing's saved-token hint, so it bounces
+                // back there flagged signed-out rather than silently
+                // dropping into the demo.
                 sessionToken = '';
                 localStorage.removeItem('pacey_session_token');
                 localStorage.removeItem('pacey_race_goal');
@@ -12153,7 +12153,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 clearAICache();
                 clearCoachCache();
                 coachLoadedWeekKey = '';
-                startDemoMode();
+                if (entryParam === 'login') {
+                    startDemoMode();
+                    openLoginModal();
+                } else {
+                    // Keep the app page hash on the bounce — the landing's
+                    // entry links carry it through so a fresh sign-in still
+                    // lands on the page the runner was on.
+                    const bouncedHash = /#(overview|activities|readiness|plan)$/.test(window.location.hash)
+                        ? window.location.hash : '';
+                    window.location.replace('/pacey/?signed-out=1' + bouncedHash);
+                }
             }
         }).catch(() => {
             // Network error — keep showing the cached dashboard.
@@ -12162,8 +12172,22 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn('Session check failed (network error) — showing cached data');
         });
     } else {
-        // No saved session or demo token — launch demo mode as default landing
-        startDemoMode();
+        // No usable saved session — run the demo as the backdrop either
+        // way (it owns no data requests), but only an explicit demo entry
+        // or a returning demo visitor lands on it silently. A direct app
+        // visit with no session is asked to sign in, since the demo is a
+        // deliberate choice on the landing, not the app's default door.
+        startDemoMode({ persist: !demoVisitOnly });
+    }
+
+    // Sign-in opens whenever there is no real account behind this visit and
+    // the visit didn't explicitly ask for the demo: the landing's
+    // "Open Pacey" (?entry=login) always does, and so does a plain
+    // first-time /pacey/app.html hit. A restored real account never sees
+    // it, and a returning demo session isn't nagged.
+    const realAccountBehindVisit = !!(savedToken && savedToken !== 'demo' && !demoVisitOnly);
+    if (!realAccountBehindVisit && (entryParam === 'login' || (!isDemoEntry && !savedToken))) {
+        openLoginModal();
     }
 
     // =========================================================================

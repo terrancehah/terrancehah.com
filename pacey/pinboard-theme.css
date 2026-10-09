@@ -772,3 +772,224 @@
     html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-app-footer { color: #b3a98f; }
     html[data-theme="dark"]:has(#pacey-dashboard-screen:not([hidden])) .pacey-app-footer a { color: #a7c9e6; }
     
+
+/* =========================================================================
+   Run type tag — colored badge indicating workout type (LSD, Easy, Tempo,
+   Interval). Lives with the board materials because it is part of the
+   shared presentation language: the app, the plan calendar, and the
+   landing's sample workout cards all wear the same tags.
+   ========================================================================= */
+.pacey-run-tag {
+    font-family: var(--font-fuzzy);
+    font-weight: 400;
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Tag color variants — each workout type uses a tokenized colour so
+   dark mode overrides are handled by the token, not per-tag rules.
+   The background keeps the bright token tint; the LABEL is mixed toward the
+   board ink so the small uppercase text clears contrast on that light tint. */
+.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-lsd) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 34%, transparent); color: color-mix(in srgb, var(--pacey-run-easy) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-speedwork) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-tempo) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--race-pace-long { background: color-mix(in srgb, var(--pacey-run-race-pace) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-race-pace) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-warmup) 45%, var(--pinboard-ink)); }
+.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-cross-train) 45%, var(--pinboard-ink)); }
+
+/* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
+   Text colour is already handled by the dark-mode token overrides. */
+[data-theme="dark"] .pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--race-pace-long { background: color-mix(in srgb, var(--pacey-run-race-pace) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 52%, transparent); }
+[data-theme="dark"] .pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 52%, transparent); }
+
+/* =========================================================================
+   Icon primitives — the sprite host and the two glyph kinds.
+   Symbols carry geometry only; fill/stroke are set on the host <svg> and
+   inherit into the <use> shadow tree. Duma glyphs are closed ribbons meant
+   to be filled; sketchyicons are open strokes that must not be filled.
+   .pacey-icon is the filled kind, .pacey-icon--stroke flips to stroked.
+   Stroke widths are in viewBox units, and the two hands draw on different
+   grids, which is why the stroked kind carries its own width variable.
+   Shared with the landing, which references a subset of the same sprite.
+   ========================================================================= */
+/* The sprite itself: never painted, only referenced. Sized to zero rather
+   than display:none, which some engines refuse to resolve <use> targets
+   from. */
+.pacey-icon-sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* Default kind — a filled ribbon glyph (Duma). */
+.pacey-icon {
+    fill: currentColor;
+    stroke: none;
+}
+
+/* Stroked kind — an open-path glyph (sketchyicons). */
+.pacey-icon--stroke {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: var(--pacey-icon-stroke, 2);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* =========================================================================
+   Metric tiles — the vitals post-its.
+   Base layout for the app's Today's Metrics grid; the post-it material
+   itself is the #pacey-content rules further up. Shared with the landing's
+   read-only preview so the tiles look identical in both places.
+   ========================================================================= */
+.pacey-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 18vw, 10rem), 1fr));
+    /* Increased gap for better visual breathing room between tiles */
+    gap: clamp(1rem, 1.5vw, 1.25rem);
+}
+
+.pacey-metric-tile {
+    background: var(--pacey-surface);
+    border: 0.0625rem solid var(--pacey-border);
+    border-radius: var(--pacey-radius);
+    padding: clamp(0.75rem, 1.5vw, 1.1rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    transition: box-shadow var(--pacey-transition), border-color var(--pacey-transition);
+    /* Indicate clickability — opens metric detail popup */
+    cursor: pointer;
+}
+
+.pacey-metric-tile:hover { box-shadow: var(--pacey-shadow-md); border-color: var(--pacey-blue); }
+
+/* Keyboard focus indicator — visible outline when navigating with Tab.
+   Uses :focus-visible so the outline only appears for keyboard users,
+   not after mouse clicks (which would be visually noisy). */
+.pacey-metric-tile:focus-visible {
+    outline: 0.125rem solid var(--pacey-blue);
+    outline-offset: 0.125rem;
+}
+
+.pacey-metric-top {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.pacey-metric-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--pacey-muted);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* SVG inside icon spans fills the container */
+.pacey-metric-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.pacey-metric-label {
+    font-weight: 500;
+    font-size: var(--pacey-text-caption);
+    color: var(--pacey-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Value + unit inline on the same row */
+.pacey-metric-value-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--pacey-space-xs);
+    flex-wrap: wrap;
+}
+
+.pacey-metric-value {
+    font-weight: 700;
+    font-size: var(--pacey-text-display);
+    color: var(--pacey-navy);
+    line-height: 1.1;
+}
+
+.pacey-metric-unit {
+    font-weight: 400;
+    font-size: var(--pacey-text-label);
+    color: var(--pacey-muted);
+}
+
+/* The metric row is the one place both icon hands share a row, and there
+   the relationship is the other way round: Duma's ribbons read lighter than
+   the stroked glyphs beside them. So the filled glyphs gain a stroke to
+   bring them up to the same weight. Stroked glyphs are excluded — they
+   already carry the weight this rule is chasing. */
+.pacey-metric-icon .pacey-icon:not(.pacey-icon--stroke),
+.pacey-metric-popup-icon .pacey-icon:not(.pacey-icon--stroke) {
+    stroke: currentColor;
+    stroke-width: var(--pacey-icon-metric-ink, 3);
+}
+
+/* Phone: two compact columns, with a gutter wide enough for the tiles'
+   shadows so they are not clipped at the content edge. */
+@media (max-width: 30rem) {
+    .pacey-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        /* Slightly more gap on phone for visual separation */
+        gap: 0.6rem;
+        /* The container carries its own gutter so the tiles' shadows land
+           inside it instead of running into the page edge. */
+        padding-inline: 0.7rem;
+    }
+
+    .pacey-metric-tile { padding: 0.6rem; }
+    .pacey-metric-value { font-size: var(--pacey-text-heading); }
+}
+
+/* ---- Theme toggle ------------------------------------------------------
+   The raised round-square chip every theme toggle shares — surface fill,
+   hairline border and a small shadow that deepens after dark. Positioning,
+   size and visibility stay with each surface (the app floats it above the
+   tab bar, the landing keeps it in the header), so this primitive carries
+   no display or placement. The icon is the status, the label the action. */
+.pacey-theme-toggle {
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 40%;
+    border: 0.0625rem solid var(--pacey-border);
+    background: var(--pacey-surface);
+    box-shadow: 0 0.125rem 0.5rem rgba(29, 53, 87, 0.12);
+    cursor: pointer;
+    color: var(--pacey-muted);
+    transition: background-color 0.3s ease, color 0.15s ease, transform 0.1s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.pacey-theme-toggle:hover { color: var(--pacey-navy); }
+.pacey-theme-toggle:active { transform: scale(0.9); }
+
+/* Dark mode: surface and border step back, shadow deepens, ink goes navy —
+   the same treatment the app's floating toggle always had. */
+[data-theme="dark"] .pacey-theme-toggle {
+    background: color-mix(in srgb, var(--pacey-surface) 90%, transparent);
+    border-color: color-mix(in srgb, var(--pacey-border) 60%, transparent);
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
+    color: var(--pacey-navy);
+}

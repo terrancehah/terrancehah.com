@@ -8,16 +8,54 @@
     <link href="/pacey/pacey.css" type="text/css" rel="stylesheet">
     <link rel="icon" href="/pacey/assets/icons/pacey-icon-32-white.png" type="image/png">
     <link rel="apple-touch-icon" href="/pacey/assets/icons/pacey-icon-180-white.png">
+    <!-- The shell is an interactive entry point, not product content —
+         /pacey stays the indexable canonical URL. follow keeps the
+         landing's links crawlable through here. The demo route serves
+         this same shell, so it inherits the directive too. -->
+    <meta name="robots" content="noindex,follow">
     <meta property="og:title" content="Pacey — Marathon Race Readiness">
     <meta property="og:description" content="Your race-readiness companion for marathon prep — whether you can hit the time, which part of fitness is the limiter, and a plan for the weeks until race day.">
     <meta property="og:image" content="https://terrancehah.com/pacey/assets/icons/pacey-icon-512-white.png">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://terrancehah.com/pacey/">
-    <!-- Canonical URL — the app lives at /pacey; the old /projects/pacey redirects here -->
-    <link rel="canonical" href="https://terrancehah.com/pacey/">
+    <meta property="og:url" content="https://terrancehah.com/pacey">
+    <!-- Canonical URL — /pacey is the everyday address: signed-in visits
+         are canonicalised onto it (script below), and the same URL serves
+         the landing to signed-out visitors. -->
+    <link rel="canonical" href="https://terrancehah.com/pacey">
     <meta name="twitter:card" content="summary_large_image">
+    <!-- Everyday address: /pacey. When the app shell is reached through its
+         internal /pacey/app[/|.html] URL with a real session saved (the
+         landing's saved-token hint, or a direct hit), the address settles to
+         /pacey — plus any app page hash — before paint. The saved token is
+         only a routing hint; check-session stays the auth of record. Demo
+         paths and ?entry=demo keep their own URLs — the demo must still read
+         as the demo — and an unproven sign-in stays on the clean app URL
+         until login succeeds, at which point pacey.js calls the same helper. -->
+    <script>
+        // The original URL's entry intent (?entry=login / ?entry=demo) must
+        // outlive the canonicalisation below — replaceState drops the query,
+        // so pacey.js reads this preserved value rather than location.search.
+        // Captured on every shell load, rewrite or not.
+        window.paceyEntryIntent =
+            new URLSearchParams(window.location.search).get('entry');
+        window.paceyCanonicalizeAppUrl = function () {
+            // Only hashes that name a page the app actually has ride along.
+            var hash = /#(overview|activities|readiness|plan)$/.test(window.location.hash)
+                ? window.location.hash : '';
+            try { history.replaceState(history.state, '', '/pacey' + hash); } catch (e) {}
+        };
+        (function () {
+            if (!/^\/pacey\/app(\/|\.html)?$/.test(window.location.pathname)) return;
+            var params = new URLSearchParams(window.location.search);
+            if (params.get('entry') === 'demo' || params.get('signed-out')) return;
+            var token = null;
+            try { token = localStorage.getItem('pacey_session_token'); } catch (e) {}
+            if (!token || token === 'demo') return;
+            window.paceyCanonicalizeAppUrl();
+        })();
+    </script>
     <meta name="twitter:image" content="https://terrancehah.com/pacey/assets/icons/pacey-icon-512-white.png">
 
     <title>Pacey — Marathon Race Readiness</title>
@@ -1291,7 +1329,7 @@
                              of the profile container on mobile. The same
                              #pacey-theme-toggle-mobile id is kept so the
                              existing JS listener continues to work. -->
-                        <button class="pacey-theme-toggle-mobile" id="pacey-theme-toggle-mobile" title="Toggle theme">
+                        <button class="pacey-theme-toggle pacey-theme-toggle-mobile" id="pacey-theme-toggle-mobile" title="Toggle theme">
                             <svg class="pacey-icon pacey-theme-toggle-mobile-sun" width="20" height="20"><use href="#pacey-icon-sun"/></svg>
                             <svg class="pacey-icon pacey-theme-toggle-mobile-moon" width="20" height="20"><use href="#pacey-icon-moon"/></svg>
                         </button>
@@ -1945,6 +1983,10 @@
          pacey.js, which reads the window.PaceyCourse global. Classic script,
          so defer preserves execution order. -->
     <script defer src="/pacey/pacey-course.js"></script>
+    <!-- Shared demo fixture + radar presentation — also used by the
+         landing's sample previews, so the two surfaces can't drift -->
+    <script defer src="/pacey/pacey-sample.js"></script>
+    <script defer src="/pacey/pacey-radar.js"></script>
     <script defer src="/pacey/pacey.js"></script>
 </body>
 </html>

@@ -132,6 +132,19 @@
     line-height: 1.3;
 }
 
+/* The hero title links to the project — keep it white like plain text,
+   underline on hover/focus so it still reads as a link. */
+.project-hero-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.project-hero-title a:hover,
+.project-hero-title a:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+}
+
 .project-hero-description {
     font-family: 'Baskervville', 'Baskerville', serif;
     font-weight: 400;

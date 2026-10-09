@@ -31,29 +31,9 @@
    unit one — which is why the stroked kind carries its own width variable
    rather than sharing the filled kind's. */
 
-/* The sprite itself: never painted, only referenced. Sized to zero rather than
-   display:none, which some engines refuse to resolve <use> targets from. */
-.pacey-icon-sprite {
-    position: absolute;
-    width: 0;
-    height: 0;
-    overflow: hidden;
-}
-
-/* Default kind — a filled ribbon glyph (Duma). */
-.pacey-icon {
-    fill: currentColor;
-    stroke: none;
-}
-
-/* Stroked kind — an open-path glyph (sketchyicons). */
-.pacey-icon--stroke {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: var(--pacey-icon-stroke, 2);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
+/* The sprite host and the two glyph-kind primitives (.pacey-icon-sprite,
+   .pacey-icon, .pacey-icon--stroke) live in pinboard-theme.css with the other
+   shared presentation — the landing references a subset of the same sprite. */
 
 /* Weight is set per context, because the two hands only have to agree with
    whatever they are standing next to, and that differs by slot.
@@ -67,17 +47,8 @@
     --pacey-icon-stroke: 1.4;
 }
 
-/* The metric row is the one place both hands share a row, and there the
-   relationship is the other way round: Duma's ribbons read lighter than the
-   stroked glyphs beside them. So the filled glyphs gain a stroke to bring them
-   up to the same weight. Stroked glyphs are excluded — they already carry the
-   weight this rule is chasing, and thickening them too would just invert the
-   problem. */
-.pacey-metric-icon .pacey-icon:not(.pacey-icon--stroke),
-.pacey-metric-popup-icon .pacey-icon:not(.pacey-icon--stroke) {
-    stroke: currentColor;
-    stroke-width: var(--pacey-icon-metric-ink, 3);
-}
+/* The metric-row icon weight rule moved to pinboard-theme.css with the tile
+   base presentation. */
 
 /* ========== LAYOUT SHELL ========== */
 /* Smooth color transition when switching themes */
@@ -216,9 +187,12 @@
 .pacey-duration-input::-webkit-inner-spin-button,
 .pacey-duration-input::-webkit-outer-spin-button {
     -webkit-appearance: none;
+    /* Standard counterpart — the prefixed rule alone no longer covers
+       browsers that have dropped the webkit alias. */
+    appearance: none;
     margin: 0;
 }
-.pacey-duration-input[type=number] { -moz-appearance: textfield; }
+.pacey-duration-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 .pacey-duration-sep {
     font-family: 'Lato', sans-serif;
@@ -662,7 +636,9 @@ header.pacey-header-offset.pacey-header-collapsed {
         0 0.125rem 0.375rem rgba(0, 0, 0, 0.25);
 }
 
-/* Mobile theme toggle — icon only, sticky bottom-right, above the tab bar */
+/* Mobile theme toggle — the shared .pacey-theme-toggle chip (presentation
+   lives in pinboard-theme.css) floated above the tab bar on phones. This
+   rule is only placement and visibility. */
 .pacey-theme-toggle-mobile {
     display: none; /* hidden on desktop, shown via media query */
     position: fixed;
@@ -671,17 +647,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     z-index: 30;
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 40%;
-    border: 0.0625rem solid var(--pacey-border);
-    background: var(--pacey-surface);
-    box-shadow: 0 0.125rem 0.5rem rgba(29, 53, 87, 0.12);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--pacey-muted);
-    transition: background-color 0.3s ease, color 0.15s ease, transform 0.1s ease;
-    -webkit-tap-highlight-color: transparent;
 }
 
 /* Hidden on desktop — only shown on mobile via media query override */
@@ -693,9 +658,6 @@ header.pacey-header-offset.pacey-header-collapsed {
     .pacey-theme-toggle-mobile { display: flex; }
 }
 
-.pacey-theme-toggle-mobile:hover { color: var(--pacey-navy); }
-.pacey-theme-toggle-mobile:active { transform: scale(0.9); }
-
 /* Show the current theme's icon: sun in light mode, moon in dark mode.
    This matches the sidebar theme toggle behaviour — the button shows
    what you're currently in, not what you'll switch to. */
@@ -703,15 +665,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 [data-theme="dark"] .pacey-theme-toggle-mobile-moon { display: block; }
 [data-theme="light"] .pacey-theme-toggle-mobile-sun { display: block; }
 [data-theme="light"] .pacey-theme-toggle-mobile-moon { display: none; }
-
-/* Dark mode styling for the toggle itself — surface/border at reduced
-   opacity, built from the theme tokens via color-mix */
-[data-theme="dark"] .pacey-theme-toggle-mobile {
-    background: color-mix(in srgb, var(--pacey-surface) 90%, transparent);
-    border-color: color-mix(in srgb, var(--pacey-border) 60%, transparent);
-    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.3);
-    color: var(--pacey-navy);
-}
 
 /* ---- Sidebar ---- */
 .pacey-sidebar {
@@ -1417,86 +1370,9 @@ header.pacey-header-offset.pacey-header-collapsed {
 }
 
 /* ---- Metrics tiles ---- */
-.pacey-metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 18vw, 10rem), 1fr));
-    /* Increased gap for better visual breathing room between tiles */
-    gap: clamp(1rem, 1.5vw, 1.25rem);
-}
-
-.pacey-metric-tile {
-    background: var(--pacey-surface);
-    border: 0.0625rem solid var(--pacey-border);
-    border-radius: var(--pacey-radius);
-    padding: clamp(0.75rem, 1.5vw, 1.1rem);
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    transition: box-shadow var(--pacey-transition), border-color var(--pacey-transition);
-    /* Indicate clickability — opens metric detail popup */
-    cursor: pointer;
-}
-
-.pacey-metric-tile:hover { box-shadow: var(--pacey-shadow-md); border-color: var(--pacey-blue); }
-
-/* Keyboard focus indicator — visible outline when navigating with Tab.
-   Uses :focus-visible so the outline only appears for keyboard users,
-   not after mouse clicks (which would be visually noisy). */
-.pacey-metric-tile:focus-visible {
-    outline: 0.125rem solid var(--pacey-blue);
-    outline-offset: 0.125rem;
-}
-
-.pacey-metric-top {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-}
-
-.pacey-metric-icon {
-    width: 1.1rem;
-    height: 1.1rem;
-    color: var(--pacey-muted);
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* SVG inside icon spans fills the container */
-.pacey-metric-icon svg {
-    width: 100%;
-    height: 100%;
-}
-
-.pacey-metric-label {
-    font-weight: 500;
-    font-size: var(--pacey-text-caption);
-    color: var(--pacey-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-/* Value + unit inline on the same row */
-.pacey-metric-value-row {
-    display: flex;
-    align-items: baseline;
-    gap: var(--pacey-space-xs);
-    flex-wrap: wrap;
-}
-
-.pacey-metric-value {
-    font-weight: 700;
-    font-size: var(--pacey-text-display);
-    color: var(--pacey-navy);
-    line-height: 1.1;
-}
-
-.pacey-metric-unit {
-    font-weight: 400;
-    font-size: var(--pacey-text-label);
-    color: var(--pacey-muted);
-}
+/* Metric tile base presentation (grid, tile, icon, label, value) lives in
+   pinboard-theme.css — shared with the landing's read-only preview. App-only
+   behaviour below: the disclosure toggle and the detail popup. */
 
 /* Vitals disclosure toggle — hidden on desktop where all tiles are visible.
    Shown only inside the max-width: 30rem media query below. On mobile it
@@ -1848,225 +1724,6 @@ header.pacey-header-offset.pacey-header-collapsed {
 /* Calendar legend (hidden by default) */
 .pacey-calendar-legend { display: none; }
 
-/* ---- Overall Insight ---- */
-/* The coach's top-level synthesized assessment. A single prominent card
-   that sits between Race Readiness and Training Vitals. Unlike the
-   per-pillar Pre Race Insights grid, this is one cohesive narrative
-   that tells the runner where they stand overall and what to focus on. */
-.pacey-overall-insight {
-    background: var(--pacey-surface);
-    border: 0.0625rem solid var(--pacey-border);
-    border-radius: var(--pacey-radius);
-    padding: clamp(1rem, 2vw, 1.5rem);
-    display: flex;
-    flex-direction: column;
-    gap: var(--pacey-space-md);
-}
-
-/* Override [hidden] — display:flex would otherwise prevent the hidden
-   attribute from hiding the element during the skeleton loading state. */
-.pacey-overall-insight[hidden] { display: none; }
-
-/* Header row — verdict label on the left, score on the right */
-.pacey-overall-insight-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--pacey-space-sm);
-}
-
-.pacey-overall-insight-verdict {
-    font-weight: 700;
-    font-size: var(--pacey-text-subheading);
-    color: var(--pacey-navy);
-}
-
-/* Score — large number with small /10 suffix. Color is set inline by JS
-   based on the score value (green/amber/red from the AI score scale). */
-.pacey-overall-insight-score {
-    font-weight: 900;
-    font-size: var(--pacey-text-heading);
-    line-height: 1;
-}
-
-.pacey-overall-insight-score-max {
-    font-size: var(--pacey-text-label);
-    font-weight: 600;
-    color: var(--pacey-muted);
-    margin-left: 0.15rem;
-}
-
-/* Summary paragraph — the coach's opening assessment */
-.pacey-overall-insight-summary {
-    font-size: var(--pacey-text-body);
-    line-height: 1.6;
-    color: var(--pacey-text);
-    margin: 0;
-}
-
-/* Takeaways — two-column grid on desktop, stacked on mobile.
-   Shows the top strength and biggest gap side by side. */
-.pacey-overall-insight-takeaways {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--pacey-space-md);
-}
-
-@media (max-width: 37.5rem) {
-    .pacey-overall-insight-takeaways { grid-template-columns: 1fr; }
-}
-
-/* Individual takeaway card — tinted background distinguishes strength
-   (green tint) from gap (amber tint), matching the pillar section labels */
-.pacey-overall-insight-takeaway {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: var(--pacey-space-sm) var(--pacey-space-md);
-    border-radius: var(--pacey-radius-sm);
-}
-
-.pacey-overall-insight-takeaway--strength {
-    background: color-mix(in srgb, var(--pacey-accent-green) 15%, var(--pacey-surface));
-}
-
-.pacey-overall-insight-takeaway--gap {
-    background: color-mix(in srgb, var(--pacey-accent-amber) 8%, var(--pacey-surface));
-}
-
-.pacey-overall-insight-takeaway-label {
-    font-family: var(--font-fuzzy);
-    font-weight: 400;
-    font-size: var(--pacey-text-caption);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--pacey-muted);
-}
-
-.pacey-overall-insight-takeaway-name {
-    font-weight: 700;
-    font-size: var(--pacey-text-body);
-    color: var(--pacey-navy);
-}
-
-.pacey-overall-insight-takeaway-note {
-    font-size: var(--pacey-text-label);
-    line-height: 1.55;
-    color: var(--pacey-text);
-    margin: 0;
-}
-
-/* Focus callout — the single most impactful next action, highlighted
-   with a left accent border to draw the eye */
-.pacey-overall-insight-focus {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding-left: var(--pacey-space-md);
-    border-left: 0.1875rem solid var(--pacey-blue);
-}
-
-.pacey-overall-insight-focus-label {
-    font-weight: 600;
-    font-size: var(--pacey-text-caption);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--pacey-blue);
-}
-
-.pacey-overall-insight-focus-text {
-    font-size: var(--pacey-text-body);
-    line-height: 1.55;
-    color: var(--pacey-text);
-    margin: 0;
-}
-
-/* CTA under the overall insight — leads to the full race-readiness chart.
-   Sized to content (not full-width) so it reads as an inline action. */
-.pacey-overall-insight-cta {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-weight: 600;
-    font-size: var(--pacey-text-label);
-    color: var(--pacey-btn-primary-text);
-    background: var(--pacey-navy);
-    border-radius: var(--pacey-radius-sm);
-    padding: 0.55rem 1rem;
-    text-decoration: none;
-    transition: background var(--pacey-transition), transform var(--pacey-transition);
-}
-.pacey-overall-insight-cta:hover { background: var(--pacey-btn-primary-hover); }
-.pacey-overall-insight-cta:active { transform: translateY(0.0625rem); }
-.pacey-overall-insight-cta:focus-visible {
-    outline: 0.125rem solid var(--pacey-blue);
-    outline-offset: 0.125rem;
-}
-.pacey-overall-insight-cta svg { width: 0.9rem; height: 0.9rem; }
-
-/* Skeleton loading state for the overall insight — mirrors the real
-   card layout (header, summary, takeaways, focus) with animated
-   skeleton lines inside the same card container so the loading
-   state matches the shape of the final content. */
-.pacey-overall-insight-skeleton {
-    background: var(--pacey-surface);
-    border: 0.0625rem solid var(--pacey-border);
-    border-radius: var(--pacey-radius);
-    padding: clamp(1rem, 2vw, 1.5rem);
-    display: flex;
-    flex-direction: column;
-    gap: var(--pacey-space-md);
-}
-
-.pacey-overall-insight-skeleton[hidden] { display: none; }
-
-/* Header row — verdict placeholder on left, score on right */
-.pacey-overall-insight-skeleton-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--pacey-space-sm);
-}
-
-/* Summary paragraph — three lines of varying width */
-.pacey-overall-insight-skeleton-summary {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-/* Takeaways — two-column grid matching the real layout */
-.pacey-overall-insight-skeleton-takeaways {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--pacey-space-md);
-}
-
-@media (max-width: 37.5rem) {
-    .pacey-overall-insight-skeleton-takeaways { grid-template-columns: 1fr; }
-}
-
-/* Individual takeaway skeleton — tinted background matching the real
-   takeaway cards so the loading state has the same visual rhythm */
-.pacey-overall-insight-skeleton-takeaway {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    padding: var(--pacey-space-sm) var(--pacey-space-md);
-    border-radius: var(--pacey-radius-sm);
-    background: var(--pacey-light);
-}
-
-/* Focus block skeleton — left accent border matching the real focus */
-.pacey-overall-insight-skeleton-focus {
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-    padding-left: var(--pacey-space-md);
-    border-left: 0.1875rem solid var(--pacey-border);
-}
-
 /* ---- 6-Pillar Grid ---- */
 .pacey-pillars-grid {
     display: grid;
@@ -2163,119 +1820,9 @@ header.pacey-header-offset.pacey-header-collapsed {
     }
 }
 
-.pacey-pillar-card {
-    background: var(--pacey-surface);
-    border: 0.0625rem solid var(--pacey-border);
-    border-radius: var(--pacey-radius);
-    padding: clamp(0.75rem, 1.5vw, 1rem);
-    display: flex;
-    flex-direction: column;
-    gap: var(--pacey-space-sm);
-}
-
-.pacey-pillar-header { display: flex; align-items: center; gap: var(--pacey-space-sm); }
-
-.pacey-pillar-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.pacey-pillar-name {
-    font-weight: 700;
-    font-size: var(--pacey-text-body);
-    color: var(--pacey-navy);
-}
-
-.pacey-pillar-score {
-    margin-left: auto;
-    font-weight: 700;
-    font-size: var(--pacey-text-body);
-    color: var(--pacey-blue);
-}
-
-/* Summary card variant — shown on the overview/home page. Contains only
-   the quick summary text (no concrete data) and a "View details" link.
-   The entire card is clickable and navigates to the full insight on the
-   insights page. */
-.pacey-pillar-card--summary {
-    cursor: pointer;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.pacey-pillar-card--summary:hover {
-    border-color: var(--pacey-blue);
-    box-shadow: 0 0.125rem 0.5rem rgba(69, 123, 157, 0.12);
-}
-
-.pacey-pillar-summary {
-    font-size: var(--pacey-text-label);
-    line-height: 1.55;
-    color: var(--pacey-text);
-    margin: 0;
-}
-
-.pacey-pillar-view-details {
-    font-weight: 600;
-    font-size: 0.875rem;
-    color: var(--pacey-blue);
-    margin-top: auto;
-    padding-top: 0.25rem;
-}
-
-.pacey-pillar-note {
-    /* Standardized to Raleway — matches all other body text in the dashboard */
-    font-size: var(--pacey-text-label);
-    line-height: 1.55;
-    color: var(--pacey-text);
-    margin: 0;
-}
-
-/* Strengths and Gaps sections within each pillar card */
-/* Each section has a colored label badge and the analysis text below it */
-.pacey-pillar-section {
-    display: flex;
-    flex-direction: column;
-    gap: var(--pacey-space-xs);
-}
-
-.pacey-pillar-section-label {
-    font-weight: 700;
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.5rem;
-    align-self: flex-start;
-}
-
-/* Strengths label — green tint indicating positive aspects */
-.pacey-pillar-section-label--strengths {
-    background: rgba(63, 123, 79, 0.15);
-    color: var(--pacey-accent-green);
-}
-
-/* Gaps label — yellow/amber tint indicating areas for improvement.
-   Yellow (rather than red) keeps gaps feeling actionable rather than
-   alarming, distinguishing them from error states. Text colour
-   darkened to #8a6313 (~5.2:1 on the tinted background) to meet WCAG
-   AA 4.5:1 for small text. */
-.pacey-pillar-section-label--gaps {
-    background: rgba(235, 189, 71, 0.75);
-    color: var(--pacey-run-tempo);
-}
-
-/* Dark mode overrides for section labels */
-[data-theme="dark"] .pacey-pillar-section-label--strengths {
-    background: rgba(63, 123, 79, 0.25);
-    color: #6dba82;
-}
-
-[data-theme="dark"] .pacey-pillar-section-label--gaps {
-    background: rgba(212, 160, 23, 0.75);
-    color: var(--pacey-run-tempo);
-}
+/* Pillar-card base presentation moved to pinboard-readiness.css — it is
+   readiness material shared by the app's pillar cards and the landing's
+   limiter preview, and the board treatments there layer on top. */
 
 /* ---- Skeleton loading state for AI insight pillars ---- */
 /* Animated shimmer effect indicates content is being generated */
@@ -2483,40 +2030,8 @@ header.pacey-header-offset.pacey-header-collapsed {
     flex-shrink: 0;
 }
 
-/* Run type tag — colored badge indicating workout type (LSD, Easy, Tempo, Interval) */
-.pacey-run-tag {
-    font-family: var(--font-fuzzy);
-    font-weight: 400;
-    font-size: 0.65rem;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    padding: 0.15rem 0.5rem;
-    border-radius: 0.75rem;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
-
-/* Tag color variants — each workout type uses a tokenized colour so
-   dark mode overrides are handled by the token, not per-tag rules.
-   The background keeps the bright token tint; the LABEL is mixed toward the
-   board ink so the small uppercase text clears contrast on that light tint. */
-.pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-lsd) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 34%, transparent); color: color-mix(in srgb, var(--pacey-run-easy) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-speedwork) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-tempo) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--race-pace-long { background: color-mix(in srgb, var(--pacey-run-race-pace) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-race-pace) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-warmup) 45%, var(--pinboard-ink)); }
-.pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 42%, transparent); color: color-mix(in srgb, var(--pacey-run-cross-train) 45%, var(--pinboard-ink)); }
-
-/* Dark mode tag backgrounds — stronger tint for visibility on dark surfaces.
-   Text colour is already handled by the dark-mode token overrides. */
-[data-theme="dark"] .pacey-run-tag--lsd { background: color-mix(in srgb, var(--pacey-run-lsd) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--easy { background: color-mix(in srgb, var(--pacey-run-easy) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--speedwork { background: color-mix(in srgb, var(--pacey-run-speedwork) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--tempo-long { background: color-mix(in srgb, var(--pacey-run-tempo) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--race-pace-long { background: color-mix(in srgb, var(--pacey-run-race-pace) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--warmup { background: color-mix(in srgb, var(--pacey-run-warmup) 52%, transparent); }
-[data-theme="dark"] .pacey-run-tag--cross-train { background: color-mix(in srgb, var(--pacey-run-cross-train) 52%, transparent); }
+/* Run-tag styles live in pinboard-theme.css — they are board materials
+   shared by the app and the landing's sample previews. */
 
 .pacey-activity-meta {
     display: flex;
@@ -2721,19 +2236,8 @@ header.pacey-header-offset.pacey-header-collapsed {
         --pacey-content-padding: 1.15rem;
     }
 
-    .pacey-metrics-grid {
-        grid-template-columns: repeat(2, 1fr);
-        /* Slightly more gap on phone for visual separation */
-        gap: 0.6rem;
-        /* Same treatment the pillars deck gets on this page: the container
-           carries its own gutter, so the tiles' shadows land inside it instead
-           of running into the page edge, where the content's overflow clip cuts
-           them off. Matched to the deck's gutter so the two sections line up. */
-        padding-inline: 0.7rem;
-    }
-
-    .pacey-metric-tile { padding: 0.6rem; }
-    .pacey-metric-value { font-size: var(--pacey-text-heading); }
+    /* The two-column phone grid and compact tile sizing moved to
+       pinboard-theme.css with the shared tile presentation. */
 
     /* Mobile vitals drawer — extra tiles are wrapped in a collapsible
        container that animates open/closed using the grid-template-rows

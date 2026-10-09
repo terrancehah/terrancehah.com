@@ -20,12 +20,23 @@
     --pacey-border: #dce8f2;
     --pacey-muted: #5a7184;
     --pacey-text: #1a2e40;
+    /* Copy colours for text that sits on the cork even when it lives
+       inside #pacey-content — the pinboard paper remap rewrites
+       --pacey-text/--pacey-muted for sheet copy, but these names pass
+       through untouched, so cork-side copy keeps the app colours. */
+    --pacey-board-copy: #1a2e40;
+    --pacey-board-muted: #5a7184;
     --pacey-accent-green: #3f7b4f;
     --pacey-accent-amber: #d4a017;
     --pacey-accent-red: #c44b4b;
     /* Top-tier / neutral zone hues — mid-tones that read on both themes */
     --pacey-accent-purple: #9b6dd0;
     --pacey-accent-grey: #999999;
+    /* Metric zone hues — the dark-on-light shades the vitals tiles use.
+       Fixed in both themes because the post-its they colour always stay
+       light; the darker app-wide accents would be unreadable on them. */
+    --pacey-metric-zone-green: #1a7f37;
+    --pacey-metric-zone-blue: #0b74c4;
     --pacey-radius: 0.75rem;
     --pacey-radius-sm: 0.5rem;
     --pacey-shadow: 0 0.0625rem 0.1875rem rgba(29, 53, 87, 0.06);
@@ -106,6 +117,11 @@
     --pacey-border: #2a3f56;
     --pacey-muted: #8ba5be;
     --pacey-text: #c8d8e8;
+    /* Dark-mode pair for the cork-side copy tokens above. The muted value
+       sits lighter than --pacey-muted — cork grain eats fine strokes, so
+       secondary copy on the night board needs the extra luminance. */
+    --pacey-board-copy: #c8d8e8;
+    --pacey-board-muted: #c6d3df;
     --pacey-accent-green: #5fae74;
     --pacey-accent-amber: #e0b840;
     --pacey-accent-red: #e07070;

@@ -17,6 +17,16 @@
             "source": "/projects/pacey/",
             "destination": "/pacey",
             "permanent": true
+        },
+        {
+            "source": "/pacey/landing",
+            "destination": "/pacey",
+            "permanent": true
+        },
+        {
+            "source": "/pacey/landing.html",
+            "destination": "/pacey",
+            "permanent": true
         }
     ],
     "rewrites": [
@@ -27,6 +37,22 @@
         {
             "source": "/pacey/api/(.*)",
             "destination": "/api/$1"
+        },
+        {
+            "source": "/pacey/demo",
+            "destination": "/pacey/app.html"
+        },
+        {
+            "source": "/pacey/demo/",
+            "destination": "/pacey/app.html"
+        },
+        {
+            "source": "/pacey/app",
+            "destination": "/pacey/app.html"
+        },
+        {
+            "source": "/pacey/app/",
+            "destination": "/pacey/app.html"
         },
         {
             "source": "/projects/pacey/api/(.*)",

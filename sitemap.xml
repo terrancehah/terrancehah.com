@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Public entry points only — the app shell, demo route and API paths are
+     intentionally absent: the shell and demo serve noindex content and the
+     APIs are not public reference content. cleanUrls on Vercel serves these
+     extensionless URLs. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>https://terrancehah.com/</loc>
+    </url>
+    <url>
+        <loc>https://terrancehah.com/projects</loc>
+    </url>
+    <url>
+        <loc>https://terrancehah.com/articles</loc>
+    </url>
+    <url>
+        <loc>https://terrancehah.com/playground</loc>
+    </url>
+    <url>
+        <loc>https://terrancehah.com/pacey</loc>
+    </url>
+</urlset>
