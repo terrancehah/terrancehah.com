@@ -193,17 +193,17 @@
                     {
                         "@type": "Question",
                         "name": "Do I need a Garmin account?",
-                        "acceptedAnswer": { "@type": "Answer", "text": "A Garmin account is needed to use your own training data. You can explore the demo without connecting an account. Pacey currently uses an unofficial Garmin integration, not a Garmin partnership." }
+                        "acceptedAnswer": { "@type": "Answer", "text": "Connect your Garmin account to use your own training data, or explore the demo with sample data. Pacey uses python-garminconnect, an open-source project on GitHub, to load your Garmin data." }
                     },
                     {
                         "@type": "Question",
-                        "name": "Does Pacey predict my finish time?",
-                        "acceptedAnswer": { "@type": "Answer", "text": "No. Race readiness compares your current fitness with the goal time you set. It is not a predicted finish time or a guarantee that you will achieve the goal." }
+                        "name": "How does race readiness relate to my goal time?",
+                        "acceptedAnswer": { "@type": "Answer", "text": "Race readiness compares your current fitness with the goal time you set. It highlights your strengths, the areas to develop and what to focus on before race day." }
                     },
                     {
                         "@type": "Question",
                         "name": "How does the training plan reach Garmin?",
-                        "acceptedAnswer": { "@type": "Answer", "text": "Pacey shows a training block of up to 26 weeks. You choose when to sync the current calendar week to Garmin; later weeks remain previews. Pacey does not automatically reschedule missed workouts." }
+                        "acceptedAnswer": { "@type": "Answer", "text": "Pacey shows a training block of up to 26 weeks. Choose when to sync the current calendar week’s suggested workouts to Garmin, with the weeks ahead available to review." }
                     },
                     {
                         "@type": "Question",
@@ -265,12 +265,12 @@
                 <div class="landing-hero-copy">
                     <h1 class="landing-hero-title" id="landing-hero-title">Pacey</h1>
                     <p class="landing-hero-lede">Your race-readiness companion — can you hit your time, what's the limiter, and what to do until race day.</p>
-                    <p class="landing-hero-sub">Connect Garmin, set your race goal, and see what your training says.</p>
+                    <p class="landing-hero-sub">Connect your Garmin account to pull in your training data.</p>
                     <div class="landing-hero-actions">
                         <a class="landing-btn landing-btn--primary" href="/pacey/app/?entry=login">Open Pacey</a>
                         <a class="landing-btn landing-btn--secondary" href="/pacey/demo/">Try the demo</a>
                     </div>
-                    <p class="landing-hero-note">Your own training needs a Garmin account. The demo runs on sample data and asks for nothing.</p>
+                    <p class="landing-hero-note">Explore the demo with sample data, or connect Garmin to see your own training.</p>
                 </div>
             </section>
 
@@ -304,20 +304,21 @@
             </section>
 
             <!-- Evidence chapter — a rail alongside names what the next
-                 three sections prove while the stream scrolls past. The
+                 four sections prove while the stream scrolls past. The
                  sections keep their own IDs and markup, so every existing
                  anchor and crawler target still lands where it did. -->
             <section class="landing-evidence" aria-labelledby="landing-evidence-title">
                 <div class="landing-evidence-rail">
                     <h2 class="landing-section-title" id="landing-evidence-title">The evidence behind your readiness</h2>
-                    <p class="landing-section-text">Your daily metrics and race course give the coach the context to explain what to work on next.</p>
+                    <p class="landing-section-text">Your daily metrics, training trends and race course give the coach the context to explain what to work on next.</p>
                     <nav class="landing-evidence-nav" aria-label="Evidence sections">
                         <!-- Each number carries a sketched ring — the same
                              hand-drawn selection scribbles the app's mobile
                              tabs use, drawn on when the link becomes current. -->
                         <a class="landing-evidence-link" href="#metrics"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M58 7 C 72 4, 84 9, 89 22 C 93 33, 92 42, 90 50 C 88 60, 82 70, 71 79 C 60 88, 46 93, 34 92 C 22 91, 12 84, 8 72 C 4 60, 6 46, 11 34 C 16 22, 26 12, 41 8 C 50 6, 59 7, 66 11"/></svg>01</span> Today's Metrics</a>
-                        <a class="landing-evidence-link" href="#course"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M60 8 C 78 8, 90 20, 91 36 C 92 52, 88 66, 78 76 C 68 86, 52 92, 38 90 C 24 88, 12 79, 8 65 C 4 51, 7 36, 15 25 C 23 14, 38 7, 52 8 C 60 8, 66 10, 72 15"/></svg>02</span> Race Course</a>
-                        <a class="landing-evidence-link" href="#picture"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M56 6 C 70 3, 82 10, 88 20 C 94 30, 90 44, 89 54 C 88 66, 80 76, 68 83 C 56 90, 40 92, 28 87 C 16 82, 7 71, 6 58 C 5 45, 10 31, 20 22 C 30 13, 44 7, 56 6 C 62 6, 68 8, 74 12"/></svg>03</span> The Big Picture</a>
+                        <a class="landing-evidence-link" href="#training-trends"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M60 8 C 78 8, 90 20, 91 36 C 92 52, 88 66, 78 76 C 68 86, 52 92, 38 90 C 24 88, 12 79, 8 65 C 4 51, 7 36, 15 25 C 23 14, 38 7, 52 8 C 60 8, 66 10, 72 15"/></svg>02</span> Training Trends</a>
+                        <a class="landing-evidence-link" href="#course"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M56 6 C 70 3, 82 10, 88 20 C 94 30, 90 44, 89 54 C 88 66, 80 76, 68 83 C 56 90, 40 92, 28 87 C 16 82, 7 71, 6 58 C 5 45, 10 31, 20 22 C 30 13, 44 7, 56 6 C 62 6, 68 8, 74 12"/></svg>03</span> Race Course</a>
+                        <a class="landing-evidence-link" href="#picture"><span class="landing-evidence-num" aria-hidden="true"><svg class="landing-evidence-sketch" viewBox="0 0 100 100" aria-hidden="true" focusable="false"><path class="landing-evidence-sketch-path" pathLength="100" d="M57 5 C 75 6, 88 16, 91 32 C 94 48, 86 64, 74 76 C 62 88, 44 94, 30 90 C 16 86, 6 73, 5 58 C 4 43, 12 28, 24 18 C 36 8, 50 5, 62 7 C 68 8, 73 10, 78 14"/></svg>04</span> The Big Picture</a>
                     </nav>
                 </div>
                 <div class="landing-evidence-stream">
@@ -423,6 +424,43 @@
                     </div>
                 </section>
 
+                <!-- Training Trends — the app's own chart cards fed by the
+                     frozen PACEY_SAMPLE.trainingTrends snapshot (a
+                     representative demo block, not the visitor's history).
+                     Read-only previews: the printed figures inside each wrap
+                     are the whole truth without Chart.js. -->
+                <section class="landing-section" id="training-trends" aria-labelledby="landing-trends-title">
+                    <h2 class="landing-section-title" id="landing-trends-title">Training Trends</h2>
+                    <p class="landing-section-text">See how your running builds over time and how your distance is spread across different paces. Weekly mileage and pace distribution make your training habits easier to spot.</p>
+
+                    <div class="pacey-charts-row landing-trends-charts">
+                        <div class="pacey-chart-card pacey-chart-card--equal">
+                            <h3 class="pacey-card-title">Weekly Mileage</h3>
+                            <p class="pacey-card-sub">Kilometres per week across a 12-week block.</p>
+                            <div class="pacey-chart-wrap landing-trend-wrap">
+                                <canvas id="landing-mileage-chart" class="pacey-chart-canvas" role="img"
+                                    aria-label="Weekly mileage, kilometres per week: W1 19, W2 22, W3 25, W4 28, W5 25, W6 31, W7 33, W8 30, W9 36, W10 38, W11 36, W12 22."></canvas>
+                                <p class="landing-chart-fallback" id="landing-mileage-fallback">Kilometres per week, W1 through W12: 19, 22, 25, 28, 25, 31, 33, 30, 36, 38, 36, 22.</p>
+                            </div>
+                        </div>
+                        <div class="pacey-chart-card pacey-chart-card--equal">
+                            <h3 class="pacey-card-title">Pace Distribution</h3>
+                            <p class="pacey-card-sub">Where the distance lands across pace ranges — the middle bucket is goal pace.</p>
+                            <div class="pacey-chart-wrap landing-trend-wrap">
+                                <canvas id="landing-pace-chart" class="pacey-chart-canvas" role="img"
+                                    aria-label="Distance per pace range: under 5:25 per kilometre 25 km, 5:25 to 5:55 41 km, 5:55 to 6:25 race pace 41.1 km, 6:25 to 6:55 64 km, over 6:55 19 km."></canvas>
+                                <ul class="landing-chart-fallback" id="landing-pace-fallback">
+                                    <li>Under 5:25/km — 25 km</li>
+                                    <li>5:25–5:55/km — 41 km</li>
+                                    <li>5:55–6:25/km, race pace — 41.1 km</li>
+                                    <li>6:25–6:55/km — 64 km</li>
+                                    <li>Over 6:55/km — 19 km</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Race Course — the app's own course card (the chalkboard
                      that stays dark in both themes) with the Brooks route and
                      elevation drawn from the supplied GPX's snapshot. -->
@@ -518,7 +556,7 @@
                      the same words the read would carry. -->
                 <section class="landing-section" id="picture" aria-labelledby="landing-picture-title">
                     <h2 class="landing-section-title" id="landing-picture-title">The Big Picture</h2>
-                    <p class="landing-section-text">Bring the training, recovery and course into one clear view of your race goal. The coach highlights what is already working, the main gap to address and where to focus next. You can then see why the plan asks for a particular kind of run, rather than following workouts without the context.</p>
+                    <p class="landing-section-text">Bring the training, recovery and course into one clear view of your race goal. The coach highlights what is already working, the main gap to address and where to focus next.</p>
 
                     <div class="pacey-overall-insight">
                         <div class="pacey-overall-insight-header">
@@ -554,7 +592,7 @@
                 <div class="landing-split">
                     <div class="landing-split-copy">
                         <h2 class="landing-section-title" id="landing-plan-title">Training Plan</h2>
-                        <p class="landing-section-text">See the weeks ahead, with workouts shaped around your readiness gaps. Review the full block and sync only the current week to Garmin when you choose.</p>
+                        <p class="landing-section-text">See the weeks ahead, with workouts shaped around your readiness gaps. Review the full block and sync the suggested workout for the week to your Garmin watch.</p>
                     </div>
 
                     <div class="pacey-cal-week-block">
@@ -740,15 +778,15 @@
                         <dt class="landing-question-term" id="landing-q2">Do I need a Garmin account?</dt>
                         <dd class="landing-question-answer is-open" id="landing-q2-answer" aria-labelledby="landing-q2">
                             <div class="landing-question-answer-inner">
-                                <p class="landing-question-answer-copy">A Garmin account is needed to use your own training data. You can explore the demo without connecting an account. Pacey currently uses an unofficial Garmin integration, not a Garmin partnership.</p>
+                                <p class="landing-question-answer-copy">Connect your Garmin account to use your own training data, or explore the demo with sample data. Pacey uses <a href="https://github.com/cyberjunky/python-garminconnect" target="_blank" rel="noopener">python-garminconnect</a>, an open-source project on GitHub, to load your Garmin data.</p>
                             </div>
                         </dd>
                     </div>
                     <div class="landing-question">
-                        <dt class="landing-question-term" id="landing-q3">Does Pacey predict my finish time?</dt>
+                        <dt class="landing-question-term" id="landing-q3">How does race readiness relate to my goal time?</dt>
                         <dd class="landing-question-answer is-open" id="landing-q3-answer" aria-labelledby="landing-q3">
                             <div class="landing-question-answer-inner">
-                                <p class="landing-question-answer-copy">No. Race readiness compares your current fitness with the goal time you set. It is not a predicted finish time or a guarantee that you will achieve the goal.</p>
+                                <p class="landing-question-answer-copy">Race readiness compares your current fitness with the goal time you set. It highlights your strengths, the areas to develop and what to focus on before race day.</p>
                             </div>
                         </dd>
                     </div>
@@ -756,7 +794,7 @@
                         <dt class="landing-question-term" id="landing-q4">How does the training plan reach Garmin?</dt>
                         <dd class="landing-question-answer is-open" id="landing-q4-answer" aria-labelledby="landing-q4">
                             <div class="landing-question-answer-inner">
-                                <p class="landing-question-answer-copy">Pacey shows a training block of up to 26 weeks. You choose when to sync the current calendar week to Garmin; later weeks remain previews. Pacey does not automatically reschedule missed workouts.</p>
+                                <p class="landing-question-answer-copy">Pacey shows a training block of up to 26 weeks. Choose when to sync the current calendar week’s suggested workouts to Garmin, with the weeks ahead available to review.</p>
                             </div>
                         </dd>
                     </div>
@@ -780,8 +818,9 @@
                 <a class="landing-btn landing-btn--secondary" href="/pacey/demo/">Try the demo</a>
             </div>
             <div class="landing-notes">
-                <p class="landing-note">Unofficial Garmin integration, not a Garmin partnership — sign-in details pass through Pacey’s server to authenticate with Garmin.</p>
-                <p class="landing-note">The coach's reads are context, not medical advice. For anything that feels like injury or illness, talk to a professional.</p>
+                <p class="landing-note">We use <a href="https://github.com/cyberjunky/python-garminconnect" target="_blank" rel="noopener">python-garminconnect</a> to talk to Garmin.</p>
+                <p class="landing-note">Your credentials are used to log in; the password isn’t saved.</p>
+                <p class="landing-note">We stay signed in so Pacey can load your runs and add workouts when you ask.</p>
             </div>
         </section>
     </main>

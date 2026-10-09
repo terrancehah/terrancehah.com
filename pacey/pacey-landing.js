@@ -218,6 +218,7 @@
         var revealEls = Array.prototype.slice.call(document.querySelectorAll([
             '.landing-radar-card',
             '#metrics .pacey-metrics-grid',
+            '#training-trends .pacey-charts-row',
             '#course .pacey-course-card',
             '#picture .pacey-overall-insight',
             '#plan .pacey-cal-week-block',
@@ -803,35 +804,366 @@
             });
     })();
 
+    /* ---- Training trends ----
+       The app's two chart cards rendered from the frozen sample fixture
+       — never live data, never recomputed, so the preview cannot drift
+       from what the markup prints. Charts mount lazily the first time
+       the section scrolls into view (the grow-in plays on screen, not
+       while the page loads), stay fully inert — no events, no tooltips —
+       and each printed fallback keeps its place until its own chart
+       exists. Runs ahead of the radar block so a missing Chart.js cannot
+       take either down with it. */
+    (function () {
+        var trends = window.PACEY_SAMPLE && PACEY_SAMPLE.trainingTrends;
+        var mileageCanvas = document.getElementById('landing-mileage-chart');
+        var paceCanvas = document.getElementById('landing-pace-chart');
+        if (!trends || !mileageCanvas || !paceCanvas) return;
+
+        // The query object is kept (not a one-shot boolean): the charts
+        // mount lazily, so the preference is read at creation time, and a
+        // mid-animation flip lands both charts instantly via the change
+        // listener below.
+        var reduceMotion = window.matchMedia
+            ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+        var trendCharts = [];
+
+        // Same lookup the app's pinboardChartFonts does — the handwriting
+        // stacks and the paper ink arrive through CSS vars on the canvas.
+        var canvasVar = function (el, varName, fallbackValue) {
+            var value = getComputedStyle(el).getPropertyValue(varName).trim();
+            return value || fallbackValue;
+        };
+
+        var buildCharts = function () {
+            if (!window.Chart) return;
+            var headingFont = canvasVar(mileageCanvas, '--pacey-chart-heading-font',
+                "'Fuzzy Bubbles', 'Caveat', cursive");
+            var muted = canvasVar(mileageCanvas, '--pacey-muted', '#5f5546');
+            var grid = canvasVar(mileageCanvas, '--pacey-border', '#dce8f2');
+            var animation = (reduceMotion && reduceMotion.matches)
+                ? { duration: 0 }
+                : { duration: 700, easing: 'easeOutQuart' };
+
+            try {
+                trendCharts.push(new Chart(mileageCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: trends.mileage.labels,
+                        datasets: [{
+                            // Display-rounded, same as the app's mileage chart
+                            data: trends.mileage.kilometers.map(function (km) {
+                                return Math.round(km);
+                            }),
+                            backgroundColor: 'rgba(69, 123, 157, 0.65)',
+                            borderColor: 'rgba(69, 123, 157, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }],
+                    },
+                    options: {
+                        // Fully inert preview — hover and touch do nothing.
+                        events: [],
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: animation,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false },
+                        },
+                        scales: {
+                            x: {
+                                ticks: { font: { family: headingFont, size: 10 }, color: muted },
+                                grid: { display: false },
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'km',
+                                    font: { family: headingFont, size: 11 },
+                                    color: muted,
+                                },
+                                ticks: {
+                                    font: { family: headingFont, size: 10 },
+                                    color: muted,
+                                    callback: function (v) { return Math.round(v); },
+                                },
+                                grid: { color: grid },
+                            },
+                        },
+                    },
+                }));
+                document.getElementById('landing-mileage-fallback').hidden = true;
+            } catch (err) {
+                // The printed figures stay the whole truth.
+            }
+
+            try {
+                // The app's pace-bucket palette: hot to cold, goal pace
+                // (the middle bucket) always green.
+                var paceColors = [
+                    'rgba(196, 75, 75, 0.8)',
+                    'rgba(204, 182, 42, 0.8)',
+                    'rgba(63, 123, 79, 0.8)',
+                    'rgba(38, 139, 139, 0.8)',
+                    'rgba(69, 123, 157, 0.8)',
+                ];
+                trendCharts.push(new Chart(paceCanvas, {
+                    type: 'bar',
+                    data: {
+                        // Multi-line labels — each array entry prints as
+                        // its own tick line, so they wrap on narrow cards.
+                        labels: trends.pace.labels,
+                        datasets: [{
+                            data: trends.pace.kilometers,
+                            backgroundColor: paceColors,
+                            borderColor: paceColors.map(function (c) {
+                                return c.replace('0.8', '1');
+                            }),
+                            borderWidth: 1,
+                            borderRadius: 4,
+                        }],
+                    },
+                    options: {
+                        events: [],
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: animation,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false },
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Pace (min/km)',
+                                    font: { family: headingFont, size: 11 },
+                                    color: muted,
+                                },
+                                ticks: { font: { family: headingFont, size: 10 }, color: muted },
+                                grid: { display: false },
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'km',
+                                    font: { family: headingFont, size: 11 },
+                                    color: muted,
+                                },
+                                ticks: {
+                                    font: { family: headingFont, size: 10 },
+                                    color: muted,
+                                    callback: function (v) { return Math.round(v); },
+                                },
+                                grid: { color: grid },
+                            },
+                        },
+                    },
+                }));
+                document.getElementById('landing-pace-fallback').hidden = true;
+            } catch (err) {
+                // The printed figures stay the whole truth.
+            }
+        };
+
+        // A mid-animation flip to reduced motion stops the grow-in where
+        // it stands and renders the final bars in the same frame.
+        if (reduceMotion && reduceMotion.addEventListener) {
+            reduceMotion.addEventListener('change', function (e) {
+                if (!e.matches) return;
+                trendCharts.forEach(function (c) {
+                    c.stop();
+                    c.update('none');
+                });
+            });
+        }
+
+        /* First time the section crosses the viewport — never while it
+           sits below the fold animating unseen. No observer (or a failed
+           one) draws immediately instead. */
+        var section = document.getElementById('training-trends');
+        if ('IntersectionObserver' in window && section) {
+            try {
+                var trendsObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            trendsObserver.disconnect();
+                            buildCharts();
+                        }
+                    });
+                }, { threshold: 0.15 });
+                trendsObserver.observe(section);
+            } catch (err) {
+                buildCharts();
+            }
+        } else {
+            buildCharts();
+        }
+    })();
+
     /* ---- Sample radar ----
-       The same chart the readiness page draws, built from the Brooks
-       supplied scores — read-only here: no tooltip, no click handler.
-       Without Chart.js the printed scores inside the wrap are the whole
-       truth, so nothing hides. */
+       The same chart the readiness page draws, mounted lazily the first
+       time its card scrolls into view. It opens on the app's desaturated
+       loading palette with plausible stand-in scores, morphs through a
+       fresh random shape every 300ms for two seconds (like the app's
+       skeleton shimmer), then settles on Brooks's real scores with the
+       standard dataset palette — all on one chart instance, updated in
+       place. Reduced motion and a hidden tab skip straight to the real
+       scores, and without Chart.js the printed scores inside the wrap
+       are the whole truth, so nothing hides. */
     var brooks = window.PACEY_BROOKS_SAMPLE;
-    var canvas = document.getElementById('landing-radar');
-    var fallback = document.getElementById('landing-radar-fallback');
-    if (!canvas || !fallback) return;
-    if (!window.Chart || !window.PaceyRadar || !brooks) return;
+    var radarCanvas = document.getElementById('landing-radar');
+    var radarFallback = document.getElementById('landing-radar-fallback');
+    if (radarCanvas && radarFallback && brooks) (function () {
+        var finalValues = brooks.dimensions.map(function (d) { return d.score; });
+        var reduceMotion = window.matchMedia
+            ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+        var chart = null;
+        var timers = [];
+        var settled = false;
+        // Shuffle budget: a fresh stand-in shape every 300ms for two
+        // seconds, then the settle morph lands the real scores — ~2.4s
+        // end to end.
+        var radarShuffleDurationMs = 2000;
+        var radarShuffleStepMs = 300;
 
-    var reduceMotion = window.matchMedia
-        && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var values = brooks.dimensions.map(function (d) { return d.score; });
+        // Same stand-in palette and plausible-score range the app's
+        // loading radar uses — never empty, never perfect.
+        var randomScores = function () {
+            return PaceyRadar.DIMENSIONS.map(function () {
+                return 3 + Math.floor(Math.random() * 7);
+            });
+        };
 
-    PaceyRadar.create(canvas, {
-        labels: PaceyRadar.DIMENSIONS,
-        values: values,
-        animate: !reduceMotion,
-        // Fully inert — no event listeners, no hover growth on points
-        readOnly: true,
-    });
+        var clearTimers = function () {
+            timers.forEach(function (t) { clearTimeout(t); });
+            timers = [];
+        };
 
-    // Same fade-in the app triggers: two frames so the initial opacity-0
-    // paint happens before the loaded class fires the transition.
-    fallback.hidden = true;
-    requestAnimationFrame(function () {
-        requestAnimationFrame(function () {
-            canvas.classList.add('pacey-radar-loaded');
+        /* Land the real Brooks scores on the live chart — the standard
+           dataset palette comes from the shared config, copied property
+           by property so the instance is never destroyed. */
+        var settle = function () {
+            if (!chart || settled) return;
+            settled = true;
+            clearTimers();
+            var finalConfig = PaceyRadar.createConfig({
+                canvas: radarCanvas,
+                labels: PaceyRadar.DIMENSIONS,
+                values: finalValues,
+                readOnly: true,
+            });
+            var ds = chart.data.datasets[0];
+            var finalDs = finalConfig.data.datasets[0];
+            ds.data = finalDs.data;
+            ds.backgroundColor = finalDs.backgroundColor;
+            ds.borderColor = finalDs.borderColor;
+            ds.pointBackgroundColor = finalDs.pointBackgroundColor;
+            // The settle morph only animates while it can be seen and the
+            // visitor hasn't asked for stillness — otherwise it lands now.
+            var animate = !(reduceMotion && reduceMotion.matches)
+                && document.visibilityState !== 'hidden';
+            chart.options.animation = animate
+                ? { duration: 400, easing: 'easeOutQuart' }
+                : { duration: 0 };
+            // 'none' applies the final data instantly — no animation
+            // frame gets scheduled while the tab is hidden.
+            chart.update(animate ? undefined : 'none');
+        };
+
+        var shuffleStep = function () {
+            if (!chart || settled) return;
+            chart.data.datasets[0].data = randomScores();
+            chart.options.animation = { duration: 260, easing: 'easeOutQuart' };
+            chart.update();
+        };
+
+        var begin = function () {
+            if (chart || settled) return;
+            if (!window.Chart || !window.PaceyRadar) return;
+            try {
+                chart = PaceyRadar.create(radarCanvas, {
+                    labels: PaceyRadar.DIMENSIONS,
+                    values: randomScores(),
+                    animate: false,
+                    // Fully inert — no event listeners, no hover growth.
+                    readOnly: true,
+                    loading: true,
+                    loadingFill: 'rgba(122, 134, 142, 0.07)',
+                    loadingLine: 'rgba(122, 134, 142, 0.5)',
+                    loadingPoint: 'rgba(122, 134, 142, 0.55)',
+                });
+            } catch (err) {
+                // Creation failed — the printed scores stay visible.
+                chart = null;
+                return;
+            }
+            // The chart exists, so the print list trades places. The
+            // shuffle stays unblurred — the desaturated palette alone
+            // reads as the stand-in.
+            radarFallback.hidden = true;
+            radarCanvas.classList.add('pacey-radar-loaded');
+
+            // Reduced motion (or a hidden tab at first paint): skip the
+            // shuffle entirely and land the real scores at once.
+            if ((reduceMotion && reduceMotion.matches)
+                    || document.visibilityState === 'hidden') {
+                settle();
+                return;
+            }
+            // Seven shapes in the shuffle: the creation draw at ~0ms,
+            // then a fresh random set every 300ms until the 2000ms beat
+            // settles on the real scores.
+            for (var t = radarShuffleStepMs; t < radarShuffleDurationMs; t += radarShuffleStepMs) {
+                timers.push(setTimeout(shuffleStep, t));
+            }
+            timers.push(setTimeout(settle, radarShuffleDurationMs));
+        };
+
+        /* Motion should stop the moment it can no longer be wanted or
+           seen. If the shuffle is still running, land the real scores now;
+           if settle already started a morph, kill that too — the settled
+           guard makes settle() a no-op once data is final, so this halts
+           an in-flight animation as well as a pending one. */
+        var stopMotion = function () {
+            if (!chart) return;
+            if (!settled) {
+                settle();
+                return;
+            }
+            clearTimers();
+            chart.stop();
+            chart.update('none');
+        };
+        if (reduceMotion && reduceMotion.addEventListener) {
+            reduceMotion.addEventListener('change', function (e) {
+                if (e.matches) stopMotion();
+            });
+        }
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') stopMotion();
         });
-    });
+
+        // Mount on first sight — no IntersectionObserver means it draws
+        // immediately rather than never.
+        if ('IntersectionObserver' in window) {
+            try {
+                var radarObserver = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            radarObserver.disconnect();
+                            begin();
+                        }
+                    });
+                }, { threshold: 0.15 });
+                radarObserver.observe(radarCanvas);
+            } catch (err) {
+                begin();
+            }
+        } else {
+            begin();
+        }
+    })();
 })();

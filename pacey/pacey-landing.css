@@ -173,7 +173,7 @@
 /* One short line under the lede naming what the previews are. */
 .landing-hero-sub {
     color: var(--pacey-muted);
-    margin: 0 0 var(--pacey-space-xl);
+    margin: 0 0 var(--pacey-space-lg);
     max-width: 40rem;
 }
 
@@ -181,7 +181,7 @@
     display: flex;
     gap: var(--pacey-space-md);
     flex-wrap: wrap;
-    margin-bottom: var(--pacey-space-md);
+    margin-bottom: var(--pacey-space-lg);
 }
 
 .landing-hero-note {
@@ -311,17 +311,17 @@
     font-weight: 700;
     line-height: 1.1;
     color: var(--pacey-navy);
-    margin: 0 0 var(--pacey-space-sm);
+    margin: 0 0 var(--pacey-space-md);
     text-wrap: balance;
     /* The hand-sketched underline the board uses for its own titles. */
-    padding-bottom: var(--pacey-space-sm);
+    padding-bottom: var(--pacey-space-md);
     background: var(--pinboard-sketch-underline) bottom left / 15rem 0.9rem no-repeat;
 }
 
 .landing-section-text {
     color: var(--pacey-text);
     margin: 0 0 var(--pacey-space-lg);
-    max-width: 40rem;
+    max-width: 56rem;
 }
 
 /* Deep links land on any section — the offset keeps the target clear of
@@ -557,9 +557,9 @@
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
-    #pacey-content.landing-board .landing-evidence-stream .pacey-metric-tile[data-metric-label="Readiness"] {
+    /* #pacey-content.landing-board .landing-evidence-stream .pacey-metric-tile[data-metric-label="Readiness"] {
         grid-column: span 2;
-    }
+    } */
 }
 
 /* The rail's numbered links duplicate what the stream already shows —
@@ -579,6 +579,9 @@
     display: flex;
     flex-direction: column;
     padding: clamp(1rem, 1.8vw, 1.35rem);
+    width: max-content;
+    height: max-content;
+    margin: auto;
 }
 
 /* The card heading is a <p> in app markup; give it a clean margin and
@@ -621,6 +624,67 @@
    state — once the chart draws, the printed scores must actually go away. */
 .landing-radar-fallback[hidden] {
     display: none;
+}
+
+/* --- Training Trends ------------------------------------------------------
+   The app's chart-card pair fed by the frozen sample fixture. The landing
+   does not load pacey.css (which supplies the app's row grid, card padding
+   and chart-wrap sizing), so the layout is declared here — the paper skin,
+   tape, tilts, handwriting and row gap still come from pinboard-theme.css. */
+.landing-trends-charts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* Card padding the app's pacey.css rule would have supplied. */
+#pacey-content.landing-board .landing-trends-charts .pacey-chart-card {
+    padding: clamp(1rem, 2vw, 1.5rem);
+}
+
+.landing-trends-charts .pacey-card-title {
+    margin: 0 0 0.4rem;
+}
+
+.landing-trends-charts .pacey-card-sub {
+    margin: 0 0 0.75rem;
+    color: var(--pacey-muted);
+}
+
+/* Fixed-height plot (~240px — concise on phones): Chart.js fills the wrap
+   (maintainAspectRatio: false) and the printed figures trade places over
+   the same box, exactly like the radar fallback. */
+.landing-trend-wrap {
+    position: relative;
+    width: 100%;
+    height: 15rem;
+}
+
+.landing-chart-fallback {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: var(--pacey-space-sm);
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--pacey-space-xs);
+    font-size: 0.95rem;
+    color: var(--pinboard-ink);
+}
+
+/* display:flex above beats the UA [hidden] rule — redeclare so the printed
+   figures really leave once their chart draws. */
+.landing-chart-fallback[hidden] {
+    display: none;
+}
+
+/* Two columns only where the stream is wide enough for both charts to
+   stay readable (~1100px and up); narrower widths stack full-width. */
+@media (min-width: 68.75rem) {
+    .landing-trends-charts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 /* --- Split sections ------------------------------------------------------
@@ -856,7 +920,7 @@
 .landing-question-answer-copy {
     margin: var(--pacey-space-xs) 0;
     color: var(--pacey-board-muted);
-    max-width: 40rem;
+    max-width: 56rem;
 }
 
 .landing-final {
@@ -868,7 +932,7 @@
 }
 
 .landing-notes {
-    max-width: 44rem;
+    max-width: 56rem;
     display: grid;
     gap: var(--pacey-space-sm);
 }
@@ -879,6 +943,20 @@
     /* Cork-side copy — board-muted passes through the board remap
        untouched and is the lighter muted the night cork needs. */
     color: var(--pacey-board-muted);
+}
+
+/* Real links inside the closing notes and the FAQ answers read as links:
+   board-copy ink with a drawn underline on either cork. The padded box is
+   the 44px target — on an inline anchor, vertical padding paints and
+   clicks without pushing the sentence's lines apart. Focus stays the
+   shared :focus-visible outline. */
+.landing-note a,
+.landing-question-answer-copy a {
+    color: var(--pacey-board-copy);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.18em;
+    padding-block: 0.9rem;
 }
 
 /* --- Footer --------------------------------------------------------------

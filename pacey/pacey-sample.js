@@ -56,4 +56,35 @@ window.PACEY_SAMPLE = {
         { label: 'Stress', value: '28', unit: '/100', colorToken: 'blue', icon: 'pacey-icon-stress', stroke: true },
         { label: 'Fitness Age', value: '25', unit: 'years', colorToken: 'green', icon: 'pacey-icon-calendar' },
     ],
+
+    /* Training-trends preview — a frozen representative snapshot of the
+       demo runner's base paces and weekly volume, not the visitor's
+       history and not the Brooks race recap. Landing-only display data:
+       the app computes both charts live from real activities. Week
+       labels are fixed (W1–W12), never rolling dates. kilometres keeps
+       the raw weekly values — the chart rounds for display exactly the
+       way the app's mileage chart does. The pace labels are Chart.js
+       multi-line arrays (each entry prints as its own tick line). */
+    trainingTrends: {
+        mileage: {
+            labels: [
+                'W1', 'W2', 'W3', 'W4', 'W5', 'W6',
+                'W7', 'W8', 'W9', 'W10', 'W11', 'W12',
+            ],
+            kilometers: [
+                18.5, 22, 25.3, 28, 24.5, 31.2,
+                33, 29.8, 35.5, 38, 36.2, 22,
+            ],
+        },
+        pace: {
+            labels: [
+                '<5:25',
+                ['5:25', '5:55'],
+                ['5:55–6:25', 'Race pace'],
+                ['6:25', '6:55'],
+                '>6:55',
+            ],
+            kilometers: [25, 41, 41.1, 64, 19],
+        },
+    },
 };

@@ -11,7 +11,7 @@
 
 ## Pacey facts
 
-Pacey compares recent running fitness with a goal time chosen by the runner. It does not predict finish times or guarantee race results. It displays Garmin training and recovery data and analyses uploaded GPX routes. Training blocks cover up to 26 weeks; the runner chooses whether to sync the current calendar week to Garmin. Later weeks are previews, and missed sessions are not automatically rescheduled. Pacey uses an unofficial Garmin integration, not a Garmin partnership. The public demo does not require a connected account.
+Pacey compares recent running fitness with a goal time chosen by the runner, highlighting strengths and areas to develop. It displays Garmin training and recovery data and analyses uploaded GPX routes. Training blocks cover up to 26 weeks; the runner chooses when to sync the current calendar week to Garmin, with later weeks available to review. Pacey uses the open-source python-garminconnect project (https://github.com/cyberjunky/python-garminconnect) to access Garmin data. The public demo can be explored with sample data.
 
 ## Canonical content
 
