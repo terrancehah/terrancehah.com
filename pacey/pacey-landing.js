@@ -53,6 +53,244 @@
         });
     }
 
+    /* ---- Questions accordion ----
+       Progressive enhancement only: the markup ships every answer open
+       inside a grid-rows panel, so no-JS and crawlers read the full FAQ
+       (and it mirrors the FAQPage schema verbatim). Here each dt's text
+       is wrapped in a real button with a chevron, wired to its dd, and
+       only then is the panel collapsed — an enhancement that fails
+       halfway still leaves the answers visible. Independent drawers:
+       opening one never closes another. */
+    var questionList = document.querySelector('.landing-questions');
+    if (questionList) {
+        var SVG_NS_Q = 'http://www.w3.org/2000/svg';
+
+        // One shared open/close for the drawers — mirrors the app's
+        // disclosure contract: is-open drives the CSS animation, inert
+        // and aria-hidden keep a closed panel out of both tab order and
+        // the accessibility tree, and a collapse that steals focus hands
+        // it back to the toggle.
+        var setLandingDisclosureExpanded = function (panel, open, trigger) {
+            panel.classList.toggle('is-open', open);
+            panel.inert = !open;
+            if (open) {
+                panel.removeAttribute('aria-hidden');
+            } else {
+                panel.setAttribute('aria-hidden', 'true');
+                if (panel.contains(document.activeElement)) {
+                    trigger.focus();
+                }
+            }
+            trigger.setAttribute('aria-expanded', String(open));
+        };
+
+        questionList.querySelectorAll('.landing-question-term').forEach(function (dt) {
+            var dd = dt.parentElement.querySelector('.landing-question-answer');
+            if (!dd || !dd.id) return;
+
+            // The question text becomes the button label; the chevron is
+            // decorative and marked hidden.
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'landing-question-toggle';
+            btn.setAttribute('aria-controls', dd.id);
+            btn.setAttribute('aria-expanded', 'true');
+            var q = document.createElement('span');
+            q.className = 'landing-question-toggle-text';
+            q.textContent = dt.textContent;
+            var chev = document.createElementNS(SVG_NS_Q, 'svg');
+            chev.setAttribute('class', 'landing-question-chevron');
+            chev.setAttribute('viewBox', '0 0 16 16');
+            chev.setAttribute('aria-hidden', 'true');
+            chev.setAttribute('focusable', 'false');
+            var path = document.createElementNS(SVG_NS_Q, 'path');
+            path.setAttribute('d', 'M3 6l5 5 5-5');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', 'currentColor');
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke-linecap', 'round');
+            path.setAttribute('stroke-linejoin', 'round');
+            chev.appendChild(path);
+            btn.appendChild(q);
+            btn.appendChild(chev);
+            dt.textContent = '';
+            dt.appendChild(btn);
+
+            // Attach first, collapse second — a listener must exist before
+            // the panel closes or the drawer could end up sealed shut.
+            btn.addEventListener('click', function () {
+                setLandingDisclosureExpanded(dd, !dd.classList.contains('is-open'), btn);
+            });
+            setLandingDisclosureExpanded(dd, false, btn);
+        });
+    }
+
+    /* ---- Evidence rail marker + scroll reveals ----
+       One observer marks whichever stream section crosses the
+       upper-third band as the rail's "current" link; a second stamps
+       .landing-reveal-ready on the big preview blocks as they enter.
+       Everything fails open — no IntersectionObserver, reduced motion or
+       a thrown setup leaves every block fully visible, and this runs
+       before the radar's early returns so a missing Chart.js can never
+       disable the effects. */
+    (function () {
+        var reduceMotion = window.matchMedia
+            ? window.matchMedia('(prefers-reduced-motion: reduce)')
+            : null;
+
+        // The rail's location marker — a thin band a third of the way
+        // down the viewport decides which chapter is current. Whichever
+        // stream section covers the band wins; ties go to the topmost
+        // one in document order.
+        var railLinks = document.querySelectorAll('.landing-evidence-link');
+        if (railLinks.length && 'IntersectionObserver' in window) {
+            try {
+                var streamIds = [];
+                railLinks.forEach(function (link) {
+                    streamIds.push(link.getAttribute('href').slice(1));
+                });
+                var inBand = {};
+                var railObserver = null;
+                var setActive = function (id) {
+                    railLinks.forEach(function (link) {
+                        if (link.getAttribute('href') === '#' + id) {
+                            link.setAttribute('aria-current', 'location');
+                        } else {
+                            link.removeAttribute('aria-current');
+                        }
+                    });
+                };
+                // Deepest intersecting section wins — the standard
+                // scrollspy rule: a section claims the marker the moment
+                // its top enters the band, even while the previous one
+                // still overlaps it (and symmetrically scrolling up).
+                var pickCurrent = function () {
+                    var hit = null;
+                    for (var i = 0; i < streamIds.length; i++) {
+                        if (inBand[streamIds[i]]) hit = streamIds[i];
+                    }
+                    if (hit) setActive(hit);
+                };
+                // rootMargin percentages resolve against the root's WIDTH,
+                // not its height — so the upper-third band is spelled out
+                // in pixels from innerHeight and rebuilt on resize.
+                var buildRailObserver = function () {
+                    if (railObserver) railObserver.disconnect();
+                    inBand = {};
+                    var h = window.innerHeight || 800;
+                    railObserver = new IntersectionObserver(function (entries) {
+                        entries.forEach(function (entry) {
+                            inBand[entry.target.id] = entry.isIntersecting;
+                        });
+                        pickCurrent();
+                    }, {
+                        rootMargin: (-Math.round(h * 0.3)) + 'px 0px ' +
+                            (-Math.round(h * 0.6)) + 'px 0px',
+                        threshold: 0
+                    });
+                    streamIds.forEach(function (id) {
+                        var section = document.getElementById(id);
+                        if (section) railObserver.observe(section);
+                    });
+                };
+                buildRailObserver();
+                // A resize changes the band's pixel geometry — rebuild the
+                // observer (rAF-debounced) and clear inBand so no stale
+                // selection survives the swap.
+                var railResizeTick = null;
+                window.addEventListener('resize', function () {
+                    if (railResizeTick) return;
+                    railResizeTick = requestAnimationFrame(function () {
+                        railResizeTick = null;
+                        buildRailObserver();
+                    });
+                });
+            } catch (railErr) {
+                // The marker is decorative — a failed setup just leaves the
+                // links plain, and the reveals below still run.
+            }
+        }
+
+        // Entrance reveals — targets are whole preview blocks (the radar
+        // card, the metrics grid as one unit, the course card, the
+        // overall insight, the week block, the recap), never individual
+        // paragraphs or tiles.
+        var revealEls = Array.prototype.slice.call(document.querySelectorAll([
+            '.landing-radar-card',
+            '#metrics .pacey-metrics-grid',
+            '#course .pacey-course-card',
+            '#picture .pacey-overall-insight',
+            '#plan .pacey-cal-week-block',
+            '#recap .pacey-race-recap'
+        ].join(', ')));
+        if (!revealEls.length) return;
+        var revealAll = function () {
+            revealEls.forEach(function (el) {
+                el.classList.add('landing-reveal', 'landing-reveal-ready');
+            });
+        };
+
+        // No observer or motion-averse preference: never hide anything.
+        if (!('IntersectionObserver' in window) || (reduceMotion && reduceMotion.matches)) {
+            return;
+        }
+
+        try {
+            var revealObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('landing-reveal-ready');
+                        revealObserver.unobserve(entry.target);
+                    }
+                });
+                // A deep anchor can jump after this script ran: anything
+                // the browser has already scrolled past is revealed
+                // outright — it stays offscreen anyway, so no flash.
+                revealEls.forEach(function (el) {
+                    if (!el.classList.contains('landing-reveal-ready') &&
+                        el.getBoundingClientRect().bottom <= 0) {
+                        el.classList.add('landing-reveal-ready');
+                        revealObserver.unobserve(el);
+                    }
+                });
+            }, { threshold: 0.1, rootMargin: '0px 0px -32px 0px' });
+            revealEls.forEach(function (el) {
+                el.classList.add('landing-reveal');
+                // Blocks already scrolled past (deep anchors, restored
+                // scroll positions) get the ready class in the same style
+                // flush — no fade, nothing hidden above the fold.
+                if (el.getBoundingClientRect().bottom <= 0) {
+                    el.classList.add('landing-reveal-ready');
+                } else {
+                    revealObserver.observe(el);
+                }
+            });
+
+            // Plan rows ride their week block's reveal with a small
+            // capped stagger — DOM order, 45ms a row, 180ms at most.
+            var weekBlock = document.querySelector('#plan .pacey-cal-week-block');
+            if (weekBlock) {
+                weekBlock.querySelectorAll('.pacey-cal-row').forEach(function (row, i) {
+                    row.style.setProperty('--landing-stagger', Math.min(i * 45, 180) + 'ms');
+                });
+            }
+
+            // A mid-visit flip to reduced motion drops the animation and
+            // shows everything that was still waiting.
+            if (reduceMotion && reduceMotion.addEventListener) {
+                reduceMotion.addEventListener('change', function (e) {
+                    if (e.matches) {
+                        revealObserver.disconnect();
+                        revealAll();
+                    }
+                });
+            }
+        } catch (err) {
+            // Fail open: undo any hidden state the setup managed to stamp.
+            revealAll();
+        }
+    })();
+
     /* ---- Metric tiles ----
        Same drift guard as the week: the static markup already carries the
        right numbers, and this pass rewrites them from the shared fixture

@@ -72,10 +72,7 @@
 .landing-header {
     display: flex;
     align-items: center;
-    /* Wrap whenever brand + nav + toggle cannot share the row — needed well
-       above the phone breakpoint, around the 450–650px tablet range. */
-    flex-wrap: wrap;
-    gap: var(--pacey-space-md);
+    gap: var(--pacey-space-sm);
     max-width: 68rem;
     margin-inline: auto;
     padding: var(--pacey-space-md) var(--pacey-content-padding);
@@ -108,7 +105,8 @@
     align-items: center;
     gap: var(--pacey-space-xs);
     margin-left: auto;
-    flex-wrap: wrap;
+    /* Never wraps — below tablet width the header's own grid gives the
+       nav a dedicated full-width row instead. */
 }
 
 .landing-nav-link {
@@ -364,6 +362,181 @@
     max-width: 40rem;
 }
 
+/* Deep links land on any section — the offset keeps the target clear of
+   the sticky rail's edge and gives the heading room to breathe. */
+.landing-section {
+    scroll-margin-top: 2rem;
+}
+
+/* --- Evidence chapter ----------------------------------------------------
+   The three proof sections (metrics, course, big picture) share one
+   chapter: a rail on the left names what the stream on the right shows.
+   The sections inside keep their own IDs, markup and spacing — only the
+   framing changes. */
+.landing-evidence {
+    padding-block: clamp(2rem, 6vw, 3.5rem);
+    scroll-margin-top: 2rem;
+}
+
+/* The chapter inherits the same dashed chapter-divider rhythm the
+   flat sections used. */
+.landing-section + .landing-evidence {
+    border-top: 1px dashed var(--pacey-border);
+}
+
+.landing-evidence + .landing-section {
+    border-top: 1px dashed var(--pacey-border);
+}
+
+.landing-evidence-rail .landing-section-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+.landing-evidence-rail .landing-section-text {
+    margin-bottom: 0;
+    font-size: 0.95rem;
+}
+
+/* The rail's contents sit above the stream until there is room to put
+   them side by side. */
+.landing-evidence-rail {
+    margin-bottom: var(--pacey-space-lg);
+}
+
+.landing-evidence-nav {
+    display: grid;
+    gap: var(--pacey-space-xs);
+    margin-top: var(--pacey-space-md);
+}
+
+.landing-evidence-link {
+    display: flex;
+    align-items: center;
+    gap: var(--pacey-space-sm);
+    min-height: 44px;
+    padding: var(--pacey-space-xs) 0;
+    color: var(--pacey-board-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.landing-evidence-num {
+    font-family: var(--font-caveat);
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--pacey-board-muted);
+}
+
+.landing-evidence-link:hover {
+    color: var(--pacey-board-copy);
+}
+
+/* The section crossing the upper-third band is "current" — the marker
+   pins the running copy colour and a sketch underline on the number. */
+.landing-evidence-link[aria-current="location"] {
+    color: var(--pacey-board-copy);
+}
+
+.landing-evidence-link[aria-current="location"] .landing-evidence-num {
+    color: var(--pacey-board-copy);
+    background: var(--pinboard-sketch-underline) bottom left / 100% 0.45rem no-repeat;
+}
+
+/* --- Scroll reveal -------------------------------------------------------
+   JS stamps .landing-reveal on the big preview blocks it can watch, then
+   .landing-reveal-ready the moment one enters the viewport. The translate
+   property (not transform) keeps each card's paper rotation intact, and
+   without JS nothing is ever hidden — the classes are the whole trick. */
+.landing-reveal {
+    opacity: 0;
+    translate: 0 12px;
+    transition: opacity 0.4s ease-out, translate 0.4s ease-out;
+}
+
+.landing-reveal.landing-reveal-ready {
+    opacity: 1;
+    translate: 0 0;
+}
+
+/* Plan rows stagger behind their week block: each row lifts on the
+   parent's reveal with a small --landing-stagger delay (JS caps it at
+   180ms), so the column reads top-to-bottom once instead of blinking in
+   as seven separate pieces. */
+.pacey-cal-week-block.landing-reveal .pacey-cal-row {
+    opacity: 0;
+    translate: 0 8px;
+    transition: opacity 0.25s ease-out, translate 0.25s ease-out;
+    transition-delay: var(--landing-stagger, 0ms);
+}
+
+.pacey-cal-week-block.landing-reveal-ready .pacey-cal-row {
+    opacity: 1;
+    translate: 0 0;
+}
+
+/* Rail + stream share a row on wide screens: a slim sticky guide on the
+   left, the previews running past it on the right. The rail is sticky
+   within the chapter only — nothing pins longer than the content it
+   describes, so the tall course card never dangles over empty space. */
+@media (min-width: 64rem) {
+    .landing-evidence {
+        display: grid;
+        grid-template-columns: 15rem minmax(0, 1fr);
+        gap: var(--pacey-space-lg);
+        align-items: start;
+    }
+
+    .landing-evidence-rail {
+        position: sticky;
+        top: 2rem;
+        margin-bottom: 0;
+    }
+
+    /* A hairline column rule the full height of the chapter — it separates
+       the sticky guide from the stream it narrates, so it takes the quiet
+       board-muted mix rather than an accent stripe. Only exists while the
+       rail actually sits beside the stream. */
+    .landing-evidence-stream {
+        border-inline-start: 1px solid color-mix(in srgb, var(--pacey-board-muted) 40%, transparent);
+        padding-inline-start: var(--pacey-space-2xl);
+    }
+
+    /* The narrower stream would squeeze the app's side-by-side course
+       visual, so inside the chapter the route stacks over the profile
+       with deliberate heights — the axis labels stay legible at 140px. */
+    .landing-evidence-stream .pacey-course-visual {
+        grid-template-columns: minmax(0, 1fr);
+        height: auto;
+    }
+
+    #pacey-content.landing-board .landing-evidence-stream .pacey-course-route {
+        height: 210px;
+    }
+
+    #pacey-content.landing-board .landing-evidence-stream .pacey-course-elevation {
+        height: 140px;
+    }
+
+    /* The vitals grid gets a deliberate three-column mix in the stream:
+       Readiness leads spanning two tracks, the other eight fill in. The
+       source order never changes — only the desktop arrangement. */
+    #pacey-content.landing-board .landing-evidence-stream .pacey-metrics-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #pacey-content.landing-board .landing-evidence-stream .pacey-metric-tile[data-metric-label="Readiness"] {
+        grid-column: span 2;
+    }
+}
+
+/* The rail's numbered links duplicate what the stream already shows —
+   on narrower widths they are noise, so only the chapter intro keeps. */
+@media (max-width: 60rem) {
+    .landing-evidence-nav {
+        display: none;
+    }
+}
+
 /* --- Hero readiness card -------------------------------------------------
    The app's readiness sheet as the first feature preview: heading, goal
    identity and the shared radar. The base card padding lives in pacey.css
@@ -557,10 +730,9 @@
 
 /* --- Final call + honest notes ----------------------------------------- */
 /* --- Questions ---------------------------------------------------------
-   A plain definition list on the cork — no cards, no disclosure chrome;
-   the questions and answers stay fully visible so people and crawlers
-   read the same text. Board tokens keep the copy readable on both the
-   paper-lit and the night cork. */
+   A definition list on the cork, enhanced into animated answer drawers.
+   Without JavaScript every answer stays visible. Board tokens keep the
+   copy readable on both the paper-lit and the night cork. */
 .landing-questions {
     margin: 0;
     max-width: 44rem;
@@ -576,7 +748,74 @@
     color: var(--pacey-board-copy);
 }
 
+/* The question toggle — built by JS around the dt's own text (the dt keeps
+   the plain question for no-JS, so nothing is ever a dead button). The
+   full row is the tap target; the question keeps the Caveat heading look. */
+.landing-question-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--pacey-space-md);
+    width: 100%;
+    min-height: 44px;
+    padding: var(--pacey-space-xs) 0;
+    border: 0;
+    background: none;
+    font-family: var(--font-caveat);
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: left;
+    color: var(--pacey-board-copy);
+    cursor: pointer;
+}
+
+.landing-question-toggle:hover {
+    color: var(--pacey-blue);
+}
+
+/* Hand-drawn chevron — points down at rest (tap to reveal), rotates to
+   face up while the answer is open. */
+.landing-question-chevron {
+    flex: none;
+    width: 1.1rem;
+    height: 1.1rem;
+    transform: rotate(0deg);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-question-toggle[aria-expanded="true"] .landing-question-chevron {
+    transform: rotate(180deg);
+}
+
+/* The answer is a grid-rows drawer: 0fr collapsed, 1fr open — the inner
+   wrapper clips and fades so no max-height guess or display swap is
+   needed. Markup ships is-open so the answer renders for no-JS; JS
+   collapses after the toggle exists. */
 .landing-question-answer {
+    margin: 0;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-question-answer.is-open {
+    grid-template-rows: 1fr;
+}
+
+/* The clipping child — no padding here, so the drawer closes fully. */
+.landing-question-answer-inner {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.landing-question-answer.is-open .landing-question-answer-inner {
+    opacity: 1;
+}
+
+.landing-question-answer-copy {
     margin: var(--pacey-space-xs) 0 0;
     color: var(--pacey-board-muted);
     max-width: 40rem;
@@ -604,7 +843,11 @@
     color: var(--pacey-board-muted);
 }
 
-/* --- Footer ------------------------------------------------------------ */
+/* --- Footer --------------------------------------------------------------
+   Two calm jobs, kept apart: the navigation belongs on the left, the
+   credit on the right — the old wrap could blur them into one ambiguous
+   group. The divider uses the board-muted mix rather than the root
+   border, which was tuned for paper and washes out on the night cork. */
 .landing-footer {
     display: flex;
     align-items: center;
@@ -614,14 +857,15 @@
     max-width: 68rem;
     margin-inline: auto;
     padding: var(--pacey-space-lg) var(--pacey-content-padding);
-    border-top: 1px solid var(--pacey-border);
+    border-top: 1px solid color-mix(in srgb, var(--pacey-board-muted) 40%, transparent);
     font-size: 0.9rem;
 }
 
 .landing-footer-links {
     display: flex;
+    align-items: center;
     gap: var(--pacey-space-md);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .landing-footer-link {
@@ -630,6 +874,13 @@
     min-height: 44px;
     color: var(--pacey-board-muted);
     text-decoration: none;
+}
+
+/* A hairline rule between the two destinations — drawn with a border so
+   there is no separator character for a screen reader to announce. */
+.landing-footer-link + .landing-footer-link {
+    border-left: 1px solid color-mix(in srgb, var(--pacey-board-muted) 35%, transparent);
+    padding-left: var(--pacey-space-md);
 }
 
 .landing-footer-link:hover {
@@ -663,6 +914,22 @@
     .landing-footer-link {
         transition: none;
     }
+    /* The FAQ drawer opens instantly — no height travel, no chevron spin,
+       no fade. */
+    .landing-question-answer,
+    .landing-question-answer-inner,
+    .landing-question-chevron {
+        transition: none;
+    }
+    /* Entrance reveals never play — anything still waiting is simply
+       shown. (JS also skips stamping .landing-reveal at all when the
+       preference is already set, so this covers the mid-visit flip.) */
+    .landing-reveal,
+    .landing-reveal .pacey-cal-row {
+        opacity: 1;
+        translate: none;
+        transition: none;
+    }
 }
 
 /* --- Small screens ----------------------------------------------------- */
@@ -684,24 +951,138 @@
     }
 }
 
-/* One column below tablet width — the readiness chart stacks above its
-   copy (source order), and the plan collapses to copy-then-agenda. */
-@media (max-width: 46rem) {
-    .landing-readiness,
-    .landing-split {
-        grid-template-columns: minmax(0, 1fr);
-    }
+/* Mobile-only content — hidden on desktop, restored inside the ≤46rem
+   block (where .landing-desktop-only does the reverse). */
+.landing-mobile-only {
+    display: none;
 }
 
-/* 320px floor — the header wraps onto its own line. */
-@media (max-width: 26rem) {
-    .landing-body {
-        font-size: 0.98rem;
+/* Below tablet width the header becomes a deliberate two-row grid —
+   brand top left, theme toggle top right, and the nav spans the full
+   second row so all three links share one row instead of wrapping
+   wherever space happens to run out. The links are content-sized and
+   never wrap; the primary action anchors the right edge. One nav size
+   rule for the whole range — the 46→26rem jump caused the uneven link
+   widths it was meant to fix. */
+@media (max-width: 46rem) {
+    .landing-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: var(--pacey-space-md);
+        row-gap: var(--pacey-space-sm);
+        /* The wider default gutter is wasted beside three links fighting
+           for room — the floor needs every pixel. */
+        padding-inline: var(--pacey-space-lg);
+    }
+
+    .landing-brand {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .landing-theme-toggle {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
     }
 
     .landing-nav {
+        grid-column: 1 / -1;
+        grid-row: 2;
         margin-left: 0;
-        order: 3;
-        width: 100%;
+        flex-wrap: nowrap;
+        /* Links carry their own padding; the row must fit 304px of header
+           content at the 320px floor, so no extra inter-link gap. */
+        gap: 0;
+        justify-content: space-around;
+    }
+
+    .landing-nav-link {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        font-size: 0.8rem;
+        padding-inline: var(--pacey-space-xs);
+    }
+
+    /* .landing-nav-link--primary {
+        margin-left: auto;
+    } */
+
+    /* --- Mobile showcase — the same app components, sized and trimmed
+       for one hand. Desktop keeps the full presentation. --- */
+    .landing-desktop-only {
+        display: none;
+    }
+
+    .landing-mobile-only {
+        /* revert restores each element's own display — block for the
+           summary/read paragraphs, inline for the week title span. */
+        display: revert;
+    }
+
+    /* Readiness: explanation leads, the chart follows, and the radar
+       plot caps at ~18rem centred — Chart.js redraws to the smaller
+       wrap, so every axis label survives without transform shrink. */
+    .landing-readiness {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .landing-readiness-copy {
+        order: -1;
+    }
+
+    .landing-radar-card .pacey-radar-wrap {
+        max-width: 18rem;
+        margin-inline: auto;
+    }
+
+    /* Plan collapses to copy-then-agenda. The week shows a deliberate
+       three-day slice — Tue/Wed/Thu rows stay visible, the rest hide
+       (markup untouched; the desktop week is complete). */
+    .landing-split {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #pacey-content.landing-board .pacey-cal-row[data-sample-day="0"],
+    #pacey-content.landing-board .pacey-cal-row[data-sample-day="4"],
+    #pacey-content.landing-board .pacey-cal-row[data-sample-day="5"],
+    #pacey-content.landing-board .pacey-cal-row[data-sample-day="6"] {
+        display: none;
+    }
+
+    /* Course: tighter heights for the two-note stack — a readable map
+       with its attribution, and an elevation trace still tall enough for
+       its axis labels to stay legible (90px squashed them to slivers).
+       The loss stat is redundant next to gain on a phone-width row. */
+    #pacey-content.landing-board .pacey-course-route {
+        height: 180px;
+    }
+
+    #pacey-content.landing-board .pacey-course-elevation {
+        height: 140px;
+    }
+
+    #pacey-content.landing-board .pacey-course-stat:last-child {
+        display: none;
+    }
+
+    /* Footer stacks on phones: links stay on their own row, the credit
+       drops to its own line — the two jobs never merge into one group. */
+    .landing-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--pacey-space-sm);
+    }
+
+    .landing-footer-links {
+        gap: var(--pacey-space-lg);
+    }
+}
+
+/* 320px floor — body copy shrinks a touch; the nav's sizing now lives in
+   the 46rem block so there is no abrupt style change mid-phone range. */
+@media (max-width: 26rem) {
+    .landing-body {
+        font-size: 0.98rem;
     }
 }
