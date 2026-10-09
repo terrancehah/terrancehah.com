@@ -211,18 +211,18 @@
             }
         }
 
-        // Entrance reveals — targets are whole preview blocks (the radar
-        // card, the metrics grid as one unit, the course card, the
-        // overall insight, the week block, the recap), never individual
-        // paragraphs or tiles.
+        // Entrance reveals — targets are whole exhibits (the readiness,
+        // trends, course, picture, plan and recap figures, so each card
+        // arrives together with its phone caption, plus the metrics grid
+        // as one unit), never individual paragraphs or tiles.
         var revealEls = Array.prototype.slice.call(document.querySelectorAll([
-            '.landing-radar-card',
+            '#features .landing-feature-exhibit',
             '#metrics .pacey-metrics-grid',
-            '#training-trends .pacey-charts-row',
-            '#course .pacey-course-card',
-            '#picture .pacey-overall-insight',
-            '#plan .pacey-cal-week-block',
-            '#recap .pacey-race-recap'
+            '#training-trends .landing-feature-exhibit',
+            '#course .landing-feature-exhibit',
+            '#picture .landing-feature-exhibit',
+            '#plan .landing-feature-exhibit',
+            '#recap .landing-feature-exhibit'
         ].join(', ')));
         if (!revealEls.length) return;
         var revealAll = function () {

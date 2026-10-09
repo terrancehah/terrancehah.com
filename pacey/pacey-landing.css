@@ -495,16 +495,26 @@
    parent's reveal with a small --landing-stagger delay (JS caps it at
    180ms), so the column reads top-to-bottom once instead of blinking in
    as seven separate pieces. */
-.pacey-cal-week-block.landing-reveal .pacey-cal-row {
+.landing-feature-exhibit.landing-reveal .pacey-cal-row {
     opacity: 0;
     translate: 0 8px;
     transition: opacity 0.25s ease-out, translate 0.25s ease-out;
     transition-delay: var(--landing-stagger, 0ms);
 }
 
-.pacey-cal-week-block.landing-reveal-ready .pacey-cal-row {
+.landing-feature-exhibit.landing-reveal-ready .pacey-cal-row {
     opacity: 1;
     translate: 0 0;
+}
+
+/* --- Feature exhibits ----------------------------------------------------
+   Each preview sits in a semantic figure so a caption can label it on
+   phones. The figure adds nothing visual of its own — no card, no
+   spacing — it simply stands in for the block it wraps, so the same
+   grids, reveals and gaps apply. */
+.landing-feature-exhibit {
+    margin: 0;
+    min-width: 0;
 }
 
 /* Rail + stream share a row on wide screens: a slim sticky guide on the
@@ -1115,6 +1125,48 @@
     .landing-radar-card .pacey-radar-wrap {
         max-width: 18rem;
         margin-inline: auto;
+    }
+
+    /* Exhibit captions sit on the cork beneath the paper — Caveat, board
+       ink — so the note reads as the exhibit's label, not a card footer.
+       The readiness and course notes open with a tiny hand-drawn arrow
+       pointing back up at the exhibit; decorative, never announced. */
+    .landing-feature-caption {
+        margin-top: var(--pacey-space-md);
+        font-family: var(--font-caveat);
+        font-size: 1.25rem;
+        line-height: 1.3;
+        color: var(--pacey-board-copy);
+        text-align: center;
+    }
+
+    .landing-caption-arrow {
+        display: inline-block;
+        width: 2rem;
+        height: auto;
+        margin-right: var(--pacey-space-xs);
+        vertical-align: -0.4em;
+        pointer-events: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+        transform: rotate(-6deg);
+    }
+
+    /* Words already said: the section heading names the readiness card
+       above it, and the section intro plus caption carry what the chart
+       sub-lines repeat. Titles, axes, units and every bar stay. */
+    .landing-radar-card .pacey-readiness-card-title,
+    .landing-trends-charts .pacey-card-sub {
+        display: none;
+    }
+
+    /* The radar card keeps its desktop width: max-content — clamp each
+       exhibit's contents to the column so a 320px measure can't spill. */
+    .landing-feature-exhibit > * {
+        max-width: 100%;
     }
 
     /* Plan collapses to copy-then-agenda. The week shows a deliberate

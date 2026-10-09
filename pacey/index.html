@@ -278,24 +278,29 @@
                  opens on it. The app's own readiness card and radar at the
                  Brooks saved scores on the left, the explanation right. -->
             <section class="landing-section landing-readiness" id="features" aria-labelledby="landing-readiness-title">
-                <div class="pacey-readiness-card landing-radar-card">
-                    <p class="pacey-readiness-card-title">Race Readiness</p>
-                    <p class="landing-radar-goal">Brooks Half Marathon · 21.1 km · Goal 01:50:00</p>
-                    <div class="pacey-radar-wrap">
-                        <canvas id="landing-radar" class="pacey-radar-chart" role="img"
-                            aria-label="Six areas of fitness for Brooks Half Marathon: Lactate Threshold 7, Aerobic Endurance 8, Running Economy 7, Strength / Durability 8, VO₂max / Speed 8, Fatigue Resistance 8, each out of 10."></canvas>
-                        <!-- Textual fallback — the scores in plain words for
-                             screen readers and for no-JS / no-Chart.js loads. -->
-                        <ol class="landing-radar-fallback" id="landing-radar-fallback" aria-label="Six areas of fitness, each out of 10">
-                            <li>Lactate Threshold — 7/10</li>
-                            <li>Aerobic Endurance — 8/10</li>
-                            <li>Running Economy — 7/10</li>
-                            <li>Strength / Durability — 8/10</li>
-                            <li>VO₂max / Speed — 8/10</li>
-                            <li>Fatigue Resistance — 8/10</li>
-                        </ol>
+                <figure class="landing-feature-exhibit">
+                    <div class="pacey-readiness-card landing-radar-card">
+                        <p class="pacey-readiness-card-title">Race Readiness</p>
+                        <p class="landing-radar-goal">Brooks Half Marathon · 21.1 km · Goal 01:50:00</p>
+                        <div class="pacey-radar-wrap">
+                            <canvas id="landing-radar" class="pacey-radar-chart" role="img"
+                                aria-label="Six areas of fitness for Brooks Half Marathon: Lactate Threshold 7, Aerobic Endurance 8, Running Economy 7, Strength / Durability 8, VO₂max / Speed 8, Fatigue Resistance 8, each out of 10."></canvas>
+                            <!-- Textual fallback — the scores in plain words for
+                                 screen readers and for no-JS / no-Chart.js loads. -->
+                            <ol class="landing-radar-fallback" id="landing-radar-fallback" aria-label="Six areas of fitness, each out of 10">
+                                <li>Lactate Threshold — 7/10</li>
+                                <li>Aerobic Endurance — 8/10</li>
+                                <li>Running Economy — 7/10</li>
+                                <li>Strength / Durability — 8/10</li>
+                                <li>VO₂max / Speed — 8/10</li>
+                                <li>Fatigue Resistance — 8/10</li>
+                            </ol>
+                        </div>
                     </div>
-                </div>
+                    <!-- Phone captions label each exhibit in Caveat on the
+                         cork; the little arrow points back up at the paper. -->
+                    <figcaption class="landing-feature-caption landing-mobile-only"><svg class="landing-caption-arrow" viewBox="0 0 32 28" aria-hidden="true" focusable="false"><path d="M27 25 C 21 23 12 19 10 9 C 9.6 6.5 10 4.8 11.5 3.5"/><path d="M6.5 9 L 11.5 3.5 L 15.5 9"/></svg>See which areas support your goal—and where to focus.</figcaption>
+                </figure>
 
                 <div class="landing-readiness-copy">
                     <h2 class="landing-section-title" id="landing-readiness-title">Race Readiness</h2>
@@ -433,32 +438,35 @@
                     <h2 class="landing-section-title" id="landing-trends-title">Training Trends</h2>
                     <p class="landing-section-text">See how your running builds over time and how your distance is spread across different paces. Weekly mileage and pace distribution make your training habits easier to spot.</p>
 
-                    <div class="pacey-charts-row landing-trends-charts">
-                        <div class="pacey-chart-card pacey-chart-card--equal">
-                            <h3 class="pacey-card-title">Weekly Mileage</h3>
-                            <p class="pacey-card-sub">Kilometres per week across a 12-week block.</p>
-                            <div class="pacey-chart-wrap landing-trend-wrap">
-                                <canvas id="landing-mileage-chart" class="pacey-chart-canvas" role="img"
-                                    aria-label="Weekly mileage, kilometres per week: W1 19, W2 22, W3 25, W4 28, W5 25, W6 31, W7 33, W8 30, W9 36, W10 38, W11 36, W12 22."></canvas>
-                                <p class="landing-chart-fallback" id="landing-mileage-fallback">Kilometres per week, W1 through W12: 19, 22, 25, 28, 25, 31, 33, 30, 36, 38, 36, 22.</p>
+                    <figure class="landing-feature-exhibit">
+                        <div class="pacey-charts-row landing-trends-charts">
+                            <div class="pacey-chart-card pacey-chart-card--equal">
+                                <h3 class="pacey-card-title">Weekly Mileage</h3>
+                                <p class="pacey-card-sub">Kilometres per week across a 12-week block.</p>
+                                <div class="pacey-chart-wrap landing-trend-wrap">
+                                    <canvas id="landing-mileage-chart" class="pacey-chart-canvas" role="img"
+                                        aria-label="Weekly mileage, kilometres per week: W1 19, W2 22, W3 25, W4 28, W5 25, W6 31, W7 33, W8 30, W9 36, W10 38, W11 36, W12 22."></canvas>
+                                    <p class="landing-chart-fallback" id="landing-mileage-fallback">Kilometres per week, W1 through W12: 19, 22, 25, 28, 25, 31, 33, 30, 36, 38, 36, 22.</p>
+                                </div>
+                            </div>
+                            <div class="pacey-chart-card pacey-chart-card--equal">
+                                <h3 class="pacey-card-title">Pace Distribution</h3>
+                                <p class="pacey-card-sub">Where the distance lands across pace ranges — the middle bucket is goal pace.</p>
+                                <div class="pacey-chart-wrap landing-trend-wrap">
+                                    <canvas id="landing-pace-chart" class="pacey-chart-canvas" role="img"
+                                        aria-label="Distance per pace range: under 5:25 per kilometre 25 km, 5:25 to 5:55 41 km, 5:55 to 6:25 race pace 41.1 km, 6:25 to 6:55 64 km, over 6:55 19 km."></canvas>
+                                    <ul class="landing-chart-fallback" id="landing-pace-fallback">
+                                        <li>Under 5:25/km — 25 km</li>
+                                        <li>5:25–5:55/km — 41 km</li>
+                                        <li>5:55–6:25/km, race pace — 41.1 km</li>
+                                        <li>6:25–6:55/km — 64 km</li>
+                                        <li>Over 6:55/km — 19 km</li>
+                                    </ul>
+                                </div>
                             </div>
                         </div>
-                        <div class="pacey-chart-card pacey-chart-card--equal">
-                            <h3 class="pacey-card-title">Pace Distribution</h3>
-                            <p class="pacey-card-sub">Where the distance lands across pace ranges — the middle bucket is goal pace.</p>
-                            <div class="pacey-chart-wrap landing-trend-wrap">
-                                <canvas id="landing-pace-chart" class="pacey-chart-canvas" role="img"
-                                    aria-label="Distance per pace range: under 5:25 per kilometre 25 km, 5:25 to 5:55 41 km, 5:55 to 6:25 race pace 41.1 km, 6:25 to 6:55 64 km, over 6:55 19 km."></canvas>
-                                <ul class="landing-chart-fallback" id="landing-pace-fallback">
-                                    <li>Under 5:25/km — 25 km</li>
-                                    <li>5:25–5:55/km — 41 km</li>
-                                    <li>5:55–6:25/km, race pace — 41.1 km</li>
-                                    <li>6:25–6:55/km — 64 km</li>
-                                    <li>Over 6:55/km — 19 km</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
+                        <figcaption class="landing-feature-caption landing-mobile-only">Follow your weekly volume and the mix of paces you run.</figcaption>
+                    </figure>
                 </section>
 
                 <!-- Race Course — the app's own course card (the chalkboard
@@ -468,87 +476,90 @@
                     <h2 class="landing-section-title" id="landing-course-title">Race Course</h2>
                     <p class="landing-section-text">Drop in your race's GPX file and the course joins the board — the route, the climbing and where it arrives. The coach's read takes the shape of the course into account.</p>
 
-                    <div class="pacey-course-card">
-                        <div class="pacey-course-loaded">
-                            <!-- Same sketch filter and split-dot gradient the app
-                                 carries — the landing's route trace uses them the
-                                 same way, without a map library. -->
-                            <svg class="pacey-course-defs" width="0" height="0" aria-hidden="true" focusable="false">
-                                <defs>
-                                    <filter id="pacey-course-sketch" x="-10%" y="-10%" width="120%" height="120%">
-                                        <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="7" result="paceyCourseNoise"/>
-                                        <feDisplacementMap in="SourceGraphic" in2="paceyCourseNoise" scale="2.5"
-                                                           xChannelSelector="R" yChannelSelector="G"/>
-                                    </filter>
-                                    <linearGradient id="pacey-course-split" x1="0" y1="0" x2="1" y2="0">
-                                        <stop offset="0" stop-color="#2f8f4e"/>
-                                        <stop offset="0.5" stop-color="#2f8f4e"/>
-                                        <stop offset="0.5" stop-color="#b83b2e"/>
-                                        <stop offset="1" stop-color="#b83b2e"/>
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="pacey-course-head">
-                                <p class="pacey-course-name">Brooks Half Marathon</p>
-                                <p class="pacey-course-meta">21.27 km · 63 m gain</p>
-                            </div>
+                    <figure class="landing-feature-exhibit">
+                        <div class="pacey-course-card">
+                            <div class="pacey-course-loaded">
+                                <!-- Same sketch filter and split-dot gradient the app
+                                     carries — the landing's route trace uses them the
+                                     same way, without a map library. -->
+                                <svg class="pacey-course-defs" width="0" height="0" aria-hidden="true" focusable="false">
+                                    <defs>
+                                        <filter id="pacey-course-sketch" x="-10%" y="-10%" width="120%" height="120%">
+                                            <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" seed="7" result="paceyCourseNoise"/>
+                                            <feDisplacementMap in="SourceGraphic" in2="paceyCourseNoise" scale="2.5"
+                                                               xChannelSelector="R" yChannelSelector="G"/>
+                                        </filter>
+                                        <linearGradient id="pacey-course-split" x1="0" y1="0" x2="1" y2="0">
+                                            <stop offset="0" stop-color="#2f8f4e"/>
+                                            <stop offset="0.5" stop-color="#2f8f4e"/>
+                                            <stop offset="0.5" stop-color="#b83b2e"/>
+                                            <stop offset="1" stop-color="#b83b2e"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                                <div class="pacey-course-head">
+                                    <p class="pacey-course-name">Brooks Half Marathon</p>
+                                    <p class="pacey-course-meta">21.27 km · 63 m gain</p>
+                                </div>
 
-                            <div class="pacey-course-visual">
-                                <figure class="pacey-course-route">
-                                    <!-- MapLibre basemap is primary, as in the
-                                         app; the drawn SVG trace is the fallback
-                                         shown until the map and route are ready,
-                                         and forever if tiles never load. -->
-                                    <div class="pacey-course-map-wrap">
-                                        <div class="pacey-course-map" id="landing-course-map" hidden></div>
-                                        <svg class="pacey-course-route-svg" id="landing-course-route-svg"
-                                             viewBox="0 0 560 320" preserveAspectRatio="xMidYMid meet"
-                                             role="img" aria-labelledby="landing-course-route-label">
-                                            <path class="pacey-course-route-line" id="landing-course-route-line" d=""
-                                                  filter="url(#pacey-course-sketch)"/>
-                                            <path class="pacey-course-route-pin pacey-course-route-pin--start"
-                                                  id="landing-course-route-start" d=""/>
-                                            <path class="pacey-course-route-pin pacey-course-route-pin--end"
-                                                  id="landing-course-route-end" d="" hidden/>
-                                        </svg>
-                                        <svg class="pacey-course-frame" viewBox="0 0 300 200"
-                                             preserveAspectRatio="none" aria-hidden="true">
-                                            <rect x="4" y="4" width="292" height="192" rx="4"
-                                                  filter="url(#pacey-course-sketch)"/>
-                                        </svg>
+                                <div class="pacey-course-visual">
+                                    <figure class="pacey-course-route">
+                                        <!-- MapLibre basemap is primary, as in the
+                                             app; the drawn SVG trace is the fallback
+                                             shown until the map and route are ready,
+                                             and forever if tiles never load. -->
+                                        <div class="pacey-course-map-wrap">
+                                            <div class="pacey-course-map" id="landing-course-map" hidden></div>
+                                            <svg class="pacey-course-route-svg" id="landing-course-route-svg"
+                                                 viewBox="0 0 560 320" preserveAspectRatio="xMidYMid meet"
+                                                 role="img" aria-labelledby="landing-course-route-label">
+                                                <path class="pacey-course-route-line" id="landing-course-route-line" d=""
+                                                      filter="url(#pacey-course-sketch)"/>
+                                                <path class="pacey-course-route-pin pacey-course-route-pin--start"
+                                                      id="landing-course-route-start" d=""/>
+                                                <path class="pacey-course-route-pin pacey-course-route-pin--end"
+                                                      id="landing-course-route-end" d="" hidden/>
+                                            </svg>
+                                            <svg class="pacey-course-frame" viewBox="0 0 300 200"
+                                                 preserveAspectRatio="none" aria-hidden="true">
+                                                <rect x="4" y="4" width="292" height="192" rx="4"
+                                                      filter="url(#pacey-course-sketch)"/>
+                                            </svg>
+                                        </div>
+                                        <figcaption class="pacey-course-caption" id="landing-course-route-label">Race route</figcaption>
+                                    </figure>
+                                    <figure class="pacey-course-elevation">
+                                        <div class="pacey-course-chart-wrap" id="landing-course-chart-wrap">
+                                            <p class="landing-course-pending" id="landing-course-pending">The route and profile draw from the course file.</p>
+                                        </div>
+                                        <figcaption class="pacey-course-caption">Elevation profile</figcaption>
+                                    </figure>
+                                </div>
+
+                                <div class="pacey-course-stats">
+                                    <div class="pacey-course-stat">
+                                        <span class="pacey-course-stat-label">Distance</span>
+                                        <span class="pacey-course-stat-value">21.27<span class="pacey-course-stat-unit">km</span></span>
                                     </div>
-                                    <figcaption class="pacey-course-caption" id="landing-course-route-label">Race route</figcaption>
-                                </figure>
-                                <figure class="pacey-course-elevation">
-                                    <div class="pacey-course-chart-wrap" id="landing-course-chart-wrap">
-                                        <p class="landing-course-pending" id="landing-course-pending">The route and profile draw from the course file.</p>
+                                    <div class="pacey-course-stat">
+                                        <span class="pacey-course-stat-label">Elevation gain</span>
+                                        <span class="pacey-course-stat-value">63<span class="pacey-course-stat-unit">m</span></span>
                                     </div>
-                                    <figcaption class="pacey-course-caption">Elevation profile</figcaption>
-                                </figure>
-                            </div>
+                                    <div class="pacey-course-stat">
+                                        <span class="pacey-course-stat-label">Elevation loss</span>
+                                        <span class="pacey-course-stat-value">55<span class="pacey-course-stat-unit">m</span></span>
+                                    </div>
+                                </div>
 
-                            <div class="pacey-course-stats">
-                                <div class="pacey-course-stat">
-                                    <span class="pacey-course-stat-label">Distance</span>
-                                    <span class="pacey-course-stat-value">21.27<span class="pacey-course-stat-unit">km</span></span>
+                                <div class="pacey-course-insight">
+                                    <p class="pacey-course-insight-label">Coach's read on this course</p>
+                                    <p class="pacey-course-insight-text landing-desktop-only">Most of the route is flat, so the early kilometres give you room to settle into a controlled pace. About half of the climbing comes in the final third, when tired legs have less to spare. Keep some effort in reserve rather than trying to build a large lead early. On the late rise, hold a steady effort and let the pace ease if you need to.</p>
+                                    <p class="pacey-course-insight-text landing-mobile-only">Mostly flat, with much of the climbing late. Save enough effort for the closing rise.</p>
                                 </div>
-                                <div class="pacey-course-stat">
-                                    <span class="pacey-course-stat-label">Elevation gain</span>
-                                    <span class="pacey-course-stat-value">63<span class="pacey-course-stat-unit">m</span></span>
-                                </div>
-                                <div class="pacey-course-stat">
-                                    <span class="pacey-course-stat-label">Elevation loss</span>
-                                    <span class="pacey-course-stat-value">55<span class="pacey-course-stat-unit">m</span></span>
-                                </div>
-                            </div>
-
-                            <div class="pacey-course-insight">
-                                <p class="pacey-course-insight-label">Coach's read on this course</p>
-                                <p class="pacey-course-insight-text landing-desktop-only">Most of the route is flat, so the early kilometres give you room to settle into a controlled pace. About half of the climbing comes in the final third, when tired legs have less to spare. Keep some effort in reserve rather than trying to build a large lead early. On the late rise, hold a steady effort and let the pace ease if you need to.</p>
-                                <p class="pacey-course-insight-text landing-mobile-only">Mostly flat, with much of the climbing late. Save enough effort for the closing rise.</p>
                             </div>
                         </div>
-                    </div>
+                        <figcaption class="landing-feature-caption landing-mobile-only"><svg class="landing-caption-arrow" viewBox="0 0 32 28" aria-hidden="true" focusable="false"><path d="M27 25 C 21 23 12 19 10 9 C 9.6 6.5 10 4.8 11.5 3.5"/><path d="M6.5 9 L 11.5 3.5 L 15.5 9"/></svg>See where the climbs arrive before you reach the start line.</figcaption>
+                    </figure>
                 </section>
 
                 <!-- The Big Picture — the app's overall-insight card: verdict,
@@ -558,29 +569,32 @@
                     <h2 class="landing-section-title" id="landing-picture-title">The Big Picture</h2>
                     <p class="landing-section-text">Bring the training, recovery and course into one clear view of your race goal. The coach highlights what is already working, the main gap to address and where to focus next.</p>
 
-                    <div class="pacey-overall-insight">
-                        <div class="pacey-overall-insight-header">
-                            <div class="pacey-overall-insight-verdict">A strong base, with one thing to watch</div>
-                        </div>
-                        <p class="pacey-overall-insight-summary landing-desktop-only">Your longer runs show you can cover the distance and run near your target pace. The main question is how much effort that pace costs when you are tired. The late climbing makes it worth practising a controlled start, so you still have something left for the closing kilometres.</p>
-                        <p class="pacey-overall-insight-summary landing-mobile-only">You have the endurance for the distance. The next step is holding goal pace with less effort, especially on the late climb.</p>
-                        <div class="pacey-overall-insight-takeaways">
-                            <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--strength">
-                                <span class="pacey-overall-insight-takeaway-label">Top strength</span>
-                                <span class="pacey-overall-insight-takeaway-name">Aerobic Endurance</span>
-                                <p class="pacey-overall-insight-takeaway-note">A full-length easy run shows the distance is within reach. Your longer, quicker sessions add useful practice at keeping the effort going.</p>
+                    <figure class="landing-feature-exhibit">
+                        <div class="pacey-overall-insight">
+                            <div class="pacey-overall-insight-header">
+                                <div class="pacey-overall-insight-verdict">A strong base, with one thing to watch</div>
                             </div>
-                            <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--gap">
-                                <span class="pacey-overall-insight-takeaway-label">Biggest gap</span>
-                                <span class="pacey-overall-insight-takeaway-name">Lactate Threshold</span>
-                                <p class="pacey-overall-insight-takeaway-note">Goal pace is there, but the harder efforts still take a lot out of you. The next step is holding that pace with more control, not simply adding more speed.</p>
+                            <p class="pacey-overall-insight-summary landing-desktop-only">Your longer runs show you can cover the distance and run near your target pace. The main question is how much effort that pace costs when you are tired. The late climbing makes it worth practising a controlled start, so you still have something left for the closing kilometres.</p>
+                            <p class="pacey-overall-insight-summary landing-mobile-only">You have the endurance for the distance. The next step is holding goal pace with less effort, especially on the late climb.</p>
+                            <div class="pacey-overall-insight-takeaways">
+                                <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--strength">
+                                    <span class="pacey-overall-insight-takeaway-label">Top strength</span>
+                                    <span class="pacey-overall-insight-takeaway-name">Aerobic Endurance</span>
+                                    <p class="pacey-overall-insight-takeaway-note">A full-length easy run shows the distance is within reach. Your longer, quicker sessions add useful practice at keeping the effort going.</p>
+                                </div>
+                                <div class="pacey-overall-insight-takeaway pacey-overall-insight-takeaway--gap">
+                                    <span class="pacey-overall-insight-takeaway-label">Biggest gap</span>
+                                    <span class="pacey-overall-insight-takeaway-name">Lactate Threshold</span>
+                                    <p class="pacey-overall-insight-takeaway-note">Goal pace is there, but the harder efforts still take a lot out of you. The next step is holding that pace with more control, not simply adding more speed.</p>
+                                </div>
+                            </div>
+                            <div class="pacey-overall-insight-focus landing-desktop-only">
+                                <span class="pacey-overall-insight-focus-label">What to focus on next</span>
+                                <p class="pacey-overall-insight-focus-text">Practise a controlled effort near goal pace, without starting too hard. Keep the surrounding easy days relaxed so you can absorb the work.</p>
                             </div>
                         </div>
-                        <div class="pacey-overall-insight-focus landing-desktop-only">
-                            <span class="pacey-overall-insight-focus-label">What to focus on next</span>
-                            <p class="pacey-overall-insight-focus-text">Practise a controlled effort near goal pace, without starting too hard. Keep the surrounding easy days relaxed so you can absorb the work.</p>
-                        </div>
-                    </div>
+                        <figcaption class="landing-feature-caption landing-mobile-only">Turn the numbers into a clear training focus.</figcaption>
+                    </figure>
                     </section>
                 </div>
             </section>
@@ -595,94 +609,97 @@
                         <p class="landing-section-text">See the weeks ahead, with workouts shaped around your readiness gaps. Review the full block and sync the suggested workout for the week to your Garmin watch.</p>
                     </div>
 
-                    <div class="pacey-cal-week-block">
-                        <div class="pacey-cal-week-head">
-                            <span class="pacey-cal-week-title landing-desktop-only">This week</span>
-                            <!-- Phones see a deliberate three-day slice below —
-                                 the heading names it honestly. -->
-                            <span class="pacey-cal-week-title landing-mobile-only">A few days in your plan</span>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="0">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Mon</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--rest">
-                                    <span class="pacey-cal-rest-label">Rest day</span>
+                    <figure class="landing-feature-exhibit">
+                        <div class="pacey-cal-week-block">
+                            <div class="pacey-cal-week-head">
+                                <span class="pacey-cal-week-title landing-desktop-only">This week</span>
+                                <!-- Phones see a deliberate three-day slice below —
+                                     the heading names it honestly. -->
+                                <span class="pacey-cal-week-title landing-mobile-only">A few days in your plan</span>
+                            </div>
+                            <div class="pacey-cal-row" data-sample-day="0">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Mon</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--rest">
+                                        <span class="pacey-cal-rest-label">Rest day</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="1">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Tue</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--suggested">
-                                    <div class="pacey-cal-card-body">
-                                        <div class="pacey-cal-card-title-row">
-                                            <span class="pacey-cal-card-title">6 x 400m</span>
-                                            <span class="pacey-run-tag pacey-run-tag--speedwork">Speedwork</span>
-                                        </div>
-                                        <div class="pacey-cal-card-row">
-                                            <span class="pacey-cal-card-meta">6 km · 5:35/km</span>
+                            <div class="pacey-cal-row" data-sample-day="1">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Tue</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--suggested">
+                                        <div class="pacey-cal-card-body">
+                                            <div class="pacey-cal-card-title-row">
+                                                <span class="pacey-cal-card-title">6 x 400m</span>
+                                                <span class="pacey-run-tag pacey-run-tag--speedwork">Speedwork</span>
+                                            </div>
+                                            <div class="pacey-cal-card-row">
+                                                <span class="pacey-cal-card-meta">6 km · 5:35/km</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="2">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Wed</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--rest">
-                                    <span class="pacey-cal-rest-label">Rest day</span>
+                            <div class="pacey-cal-row" data-sample-day="2">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Wed</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--rest">
+                                        <span class="pacey-cal-rest-label">Rest day</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="3">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Thu</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--suggested">
-                                    <div class="pacey-cal-card-body">
-                                        <div class="pacey-cal-card-title-row">
-                                            <span class="pacey-cal-card-title">Easy 6km</span>
-                                            <span class="pacey-run-tag pacey-run-tag--easy">Easy</span>
-                                        </div>
-                                        <div class="pacey-cal-card-row">
-                                            <span class="pacey-cal-card-meta">6 km · 6:30/km</span>
+                            <div class="pacey-cal-row" data-sample-day="3">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Thu</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--suggested">
+                                        <div class="pacey-cal-card-body">
+                                            <div class="pacey-cal-card-title-row">
+                                                <span class="pacey-cal-card-title">Easy 6km</span>
+                                                <span class="pacey-run-tag pacey-run-tag--easy">Easy</span>
+                                            </div>
+                                            <div class="pacey-cal-card-row">
+                                                <span class="pacey-cal-card-meta">6 km · 6:30/km</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="4">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Fri</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--rest">
-                                    <span class="pacey-cal-rest-label">Rest day</span>
+                            <div class="pacey-cal-row" data-sample-day="4">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Fri</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--rest">
+                                        <span class="pacey-cal-rest-label">Rest day</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="5">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Sat</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--suggested">
-                                    <div class="pacey-cal-card-body">
-                                        <div class="pacey-cal-card-title-row">
-                                            <span class="pacey-cal-card-title">Long 16km</span>
-                                            <span class="pacey-run-tag pacey-run-tag--lsd">Long Run</span>
-                                        </div>
-                                        <div class="pacey-cal-card-row">
-                                            <span class="pacey-cal-card-meta">16 km · 6:25/km</span>
+                            <div class="pacey-cal-row" data-sample-day="5">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Sat</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--suggested">
+                                        <div class="pacey-cal-card-body">
+                                            <div class="pacey-cal-card-title-row">
+                                                <span class="pacey-cal-card-title">Long 16km</span>
+                                                <span class="pacey-run-tag pacey-run-tag--lsd">Long Run</span>
+                                            </div>
+                                            <div class="pacey-cal-card-row">
+                                                <span class="pacey-cal-card-meta">16 km · 6:25/km</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="pacey-cal-row" data-sample-day="6">
-                            <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Sun</span></div>
-                            <div class="pacey-cal-cards">
-                                <div class="pacey-cal-card pacey-cal-card--rest">
-                                    <span class="pacey-cal-rest-label">Rest day</span>
+                            <div class="pacey-cal-row" data-sample-day="6">
+                                <div class="pacey-cal-date"><span class="pacey-cal-date-dow">Sun</span></div>
+                                <div class="pacey-cal-cards">
+                                    <div class="pacey-cal-card pacey-cal-card--rest">
+                                        <span class="pacey-cal-rest-label">Rest day</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        <figcaption class="landing-feature-caption landing-mobile-only">Know what each run is for, with recovery built in.</figcaption>
+                    </figure>
                 </div>
             </section>
 
@@ -693,65 +710,68 @@
                 <h2 class="landing-section-title" id="landing-recap-title">Race Recap</h2>
                 <p class="landing-section-text">Compare the goal you set with the race you ran. Your result and saved readiness review stay together in Past Races.</p>
 
-                <div class="pacey-race-recap landing-recap">
-                    <div class="pacey-race-recap-top">
-                        <div class="pacey-race-recap-id">
-                            <span class="pacey-race-recap-name">Brooks Half Marathon</span>
-                            <span class="pacey-race-recap-verdict is-achieved">Goal achieved — 0:12 under target</span>
+                <figure class="landing-feature-exhibit">
+                    <div class="pacey-race-recap landing-recap">
+                        <div class="pacey-race-recap-top">
+                            <div class="pacey-race-recap-id">
+                                <span class="pacey-race-recap-name">Brooks Half Marathon</span>
+                                <span class="pacey-race-recap-verdict is-achieved">Goal achieved — 0:12 under target</span>
+                            </div>
                         </div>
-                    </div>
-                    <!-- Goal and result side by side, as the app renders them. -->
-                    <div class="pacey-race-recap-figures">
-                        <div class="pacey-race-recap-group">
-                            <span class="pacey-race-recap-group-label">The goal</span>
-                            <div class="pacey-race-recap-stats">
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Date</span>
-                                    <span class="pacey-race-recap-stat-value">Sep 20, 2026</span>
+                        <!-- Goal and result side by side, as the app renders them. -->
+                        <div class="pacey-race-recap-figures">
+                            <div class="pacey-race-recap-group">
+                                <span class="pacey-race-recap-group-label">The goal</span>
+                                <div class="pacey-race-recap-stats">
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Date</span>
+                                        <span class="pacey-race-recap-stat-value">Sep 20, 2026</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Distance</span>
+                                        <span class="pacey-race-recap-stat-value">21.1 km</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Target time</span>
+                                        <span class="pacey-race-recap-stat-value">01:50:00</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Target pace</span>
+                                        <span class="pacey-race-recap-stat-value">5:13 /km</span>
+                                    </div>
                                 </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Distance</span>
-                                    <span class="pacey-race-recap-stat-value">21.1 km</span>
-                                </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Target time</span>
-                                    <span class="pacey-race-recap-stat-value">01:50:00</span>
-                                </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Target pace</span>
-                                    <span class="pacey-race-recap-stat-value">5:13 /km</span>
+                            </div>
+                            <div class="pacey-race-recap-group">
+                                <span class="pacey-race-recap-group-label">The result</span>
+                                <div class="pacey-race-recap-stats">
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Finish time</span>
+                                        <span class="pacey-race-recap-stat-value">1:49:48</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Average pace</span>
+                                        <span class="pacey-race-recap-stat-value">5:11 /km</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Average HR</span>
+                                        <span class="pacey-race-recap-stat-value">176 bpm</span>
+                                    </div>
+                                    <div class="pacey-race-recap-stat">
+                                        <span class="pacey-race-recap-stat-label">Elevation gain</span>
+                                        <span class="pacey-race-recap-stat-value">73 m</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="pacey-race-recap-group">
-                            <span class="pacey-race-recap-group-label">The result</span>
-                            <div class="pacey-race-recap-stats">
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Finish time</span>
-                                    <span class="pacey-race-recap-stat-value">1:49:48</span>
-                                </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Average pace</span>
-                                    <span class="pacey-race-recap-stat-value">5:11 /km</span>
-                                </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Average HR</span>
-                                    <span class="pacey-race-recap-stat-value">176 bpm</span>
-                                </div>
-                                <div class="pacey-race-recap-stat">
-                                    <span class="pacey-race-recap-stat-label">Elevation gain</span>
-                                    <span class="pacey-race-recap-stat-value">73 m</span>
-                                </div>
-                            </div>
+                        <!-- The coach's read closes the recap, same as in the app —
+                             the prose that turns the figures into the story. -->
+                        <div class="pacey-race-recap-read">
+                            <span class="pacey-race-recap-group-label">The coach's read</span>
+                            <div class="pacey-race-recap-prose">You finished Brooks Half Marathon in 1:49:48, beating your 1:50:00 target by 12 seconds. Your longer runs and faster sessions gave you the distance and pace you needed, and you brought them together on race day. It is a close margin, but the goal was achieved — a result worth recognising.</div>
                         </div>
                     </div>
-                    <!-- The coach's read closes the recap, same as in the app —
-                         the prose that turns the figures into the story. -->
-                    <div class="pacey-race-recap-read">
-                        <span class="pacey-race-recap-group-label">The coach's read</span>
-                        <div class="pacey-race-recap-prose">You finished Brooks Half Marathon in 1:49:48, beating your 1:50:00 target by 12 seconds. Your longer runs and faster sessions gave you the distance and pace you needed, and you brought them together on race day. It is a close margin, but the goal was achieved — a result worth recognising.</div>
-                    </div>
-                </div>
+                    <figcaption class="landing-feature-caption landing-mobile-only">Bring your race result back to the goal you set.</figcaption>
+                </figure>
             </section>
 
             <!-- ===== Questions — plain answers to the things people ask
