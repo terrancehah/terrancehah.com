@@ -51,7 +51,8 @@
 		return I18n ? I18n.areaLabel(a) : a ? a.label : "";
 	};
 
-	var OFFICIAL_CHECKIN_URL = "https://m.biwako1.jp/flow";
+	// Start official check-ins at the organiser's landing page.
+	var OFFICIAL_CHECKIN_URL = "https://m.biwako1.jp/";
 	var RALLY_CHECKIN_URL = "https://platinumaps.jp/d/cyclingrally2026";
 	var GOOGLE_TERMS_URL = "https://maps.google.com/help/terms_maps/";
 	var ROUTE_DEBOUNCE_MS = 800;
