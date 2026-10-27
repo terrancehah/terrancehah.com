@@ -365,7 +365,9 @@
             position: { lat: item.lat, lng: item.lng },
             map: item.visible === false ? null : map,
             title: item.label,
-            icon: RoutePreview.markerIcon(mapsNs, item.shape, item.visited, item.area)
+            // Map markers always paint the rich filled colour — the
+            // visited flag never pales a pin on the map page.
+            icon: RoutePreview.markerIcon(mapsNs, item.shape, true, item.area)
           });
           if (item.onClick) marker.addListener('click', item.onClick);
           markers.push({ marker: marker, key: item.key });

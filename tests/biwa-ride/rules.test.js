@@ -347,6 +347,34 @@ test('coordinate signature detects stale responses but ignores visit flags', () 
   assert.notStrictEqual(before, moved); // an edit must invalidate the preview
 });
 
+test('map page markers always paint the rich tone regardless of check-in state', () => {
+  // A pending (unvisited) pin must use the same rich fill as a visited one —
+  // the pale pending tone exists for other painters, never the map page.
+  const markerOpts = [];
+  const maps = {
+    Map: function () { return { fitBounds() {} }; },
+    Marker: function (opts) {
+      markerOpts.push(opts);
+      return { setMap() {}, addListener() {} };
+    },
+    Polyline: function () { return { setMap() {} }; },
+    Size: function (w, h) { return { width: w, height: h }; },
+    Point: function (x, y) { return { x: x, y: y }; },
+    LatLngBounds: function () { return { extend() {} }; }
+  };
+  const page = Preview.createMapPage({ innerHTML: '' }, maps);
+  page.setMarkers([
+    { key: 'a', lat: 35.0, lng: 136.0, label: 'Pending', shape: 'rally', visited: false },
+    { key: 'b', lat: 35.01, lng: 136.01, label: 'Done', shape: 'rally', visited: true }
+  ]);
+  assert.strictEqual(markerOpts.length, 2);
+  for (const opts of markerOpts) {
+    const svg = decodeURIComponent(opts.icon.url);
+    assert.ok(svg.includes('fill="#c5473d"'), 'rich rally tone used');
+    assert.ok(!svg.includes('#d5a6a0'), 'pale pending tone never reaches the map');
+  }
+});
+
 // --- page meta contract ---------------------------------------------------------
 
 test('referrer policy is strict-origin-when-cross-origin (Google key needs origin)', () => {
