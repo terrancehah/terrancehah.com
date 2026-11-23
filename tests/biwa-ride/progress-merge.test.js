@@ -60,6 +60,7 @@ function stubGlobals(fetchImpl, local, opts) {
 }
 
 const TripStore = require("../../projects/biwa-ride/trip-store.js");
+const Rules = require("../../projects/biwa-ride/checkpoint-rules.js");
 
 function jsonRes(status, body) {
 	return {
@@ -887,4 +888,145 @@ test("a conflicting boundary replace keeps the cleared flags inside its draft", 
 	assert.equal(server.trip.visitStatus["day-2-start"], undefined);
 	assert.equal(first.store._pendingDeltaList().length, 0);
 	assert.equal(first.store.hasUnsavedChanges(), false);
+});
+
+// --- skip deltas (kind:'skip') merge like every other progress write ----------
+
+test("a local skip auto-merges over a remote tick — both progress lands, no dialog", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	// The paired phone ticks a stop while our skip write is CAS-rejected.
+	remoteWrite(server, (doc) => {
+		doc.visitStatus["day2-s1"] = true;
+	});
+	const result = await first.store.applyLocalProgress(function (p) {
+		p.skippedStatus["day1-s1"] = true;
+	});
+	assert.equal(result, "saved");
+	assert.equal(first.store.conflict, null, "progress-only never dialogs");
+	assert.equal(
+		server.trip.skippedStatus["day1-s1"],
+		true,
+		"the skip delta replayed onto the fresh doc",
+	);
+	assert.equal(
+		server.trip.visitStatus["day2-s1"],
+		true,
+		"the remote tick rides along",
+	);
+	assert.equal(
+		server.trip.visitStatus["day1-s1"],
+		undefined,
+		"a skip is never a visit — merged or not",
+	);
+	assert.equal(first.store.localProgress.skippedStatus["day1-s1"], true);
+});
+
+test("a remote tick retires a racing unsent skip delta — arrival wins the merge", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	// The paired phone ticks THE SAME stop while our skip write is in
+	// flight — the landed arrival must win; the dismissal never lands.
+	remoteWrite(server, (doc) => {
+		doc.visitStatus["day1-s1"] = true;
+	});
+	const result = await first.store.applyLocalProgress(function (p) {
+		Rules.applySkip(p, "day1-s1", true, first.store.trip);
+	});
+	assert.equal(result, "saved");
+	assert.equal(first.store.conflict, null);
+	assert.equal(server.trip.visitStatus["day1-s1"], true);
+	assert.equal(
+		(server.trip.skippedStatus || {})["day1-s1"],
+		undefined,
+		"the skip delta retired instead of hiding under the tick",
+	);
+	assert.equal(
+		(first.store.localProgress.skippedStatus || {})["day1-s1"],
+		undefined,
+		"the mirror adopts the doc's state",
+	);
+	assert.equal(first.store._pendingDeltaList().length, 0);
+});
+
+test("an unskip delta replays through a merge — the latest local action wins", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	await first.store.applyLocalProgress(function (p) {
+		p.skippedStatus["day1-s1"] = true;
+	});
+	assert.equal(server.trip.skippedStatus["day1-s1"], true);
+	// A remote bump rejects our undo PUT; the skip:false delta must merge.
+	remoteWrite(server, (doc) => {
+		doc.notes = "remote note";
+	});
+	const result = await first.store.applyLocalProgress(function (p) {
+		delete p.skippedStatus["day1-s1"];
+	});
+	assert.equal(result, "saved");
+	assert.equal(first.store.conflict, null);
+	assert.equal(
+		server.trip.skippedStatus["day1-s1"],
+		undefined,
+		"the undo landed — deleted, not true",
+	);
+	assert.equal(server.trip.notes, "remote note", "remote edit preserved");
+	assert.equal(first.store.localProgress.skippedStatus["day1-s1"], undefined);
+});
+
+test("a skip delta for a stop that lost eligibility retires cleanly, never lands", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	// Remote plan edit strips Mizudori's official membership — its day2-s4
+	// occurrence is still stored but can no longer carry a skip flag.
+	remoteWrite(server, (doc) => {
+		doc.places.forEach((p) => {
+			if (p.placeId === "mizudori-station") p.programmes = ["rally"];
+		});
+	});
+	const result = await first.store.applyLocalProgress(function (p) {
+		p.skippedStatus["day2-s4"] = true;
+	});
+	assert.equal(result, "saved");
+	assert.equal(first.store.conflict, null);
+	assert.equal(
+		(server.trip.skippedStatus || {})["day2-s4"],
+		undefined,
+		"an ineligible occurrence never gains a flag",
+	);
+	// Retired at ack — no pending wedge, pairing stays reachable.
+	assert.equal(first.store._pendingDeltaList().length, 0);
+	assert.equal(first.store.pendingDraft, null);
+	assert.equal(first.store.state, "saved");
+	assert.equal(first.store.hasUnsavedChanges(), false);
+	assert.equal(await first.store._retryPendingDraft(), "skipped");
+});
+
+test("an offline skip survives reload and merges after a remote advance", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	server.down = true;
+	const offline = await first.store.applyLocalProgress(function (p) {
+		p.skippedStatus["day1-s1"] = true;
+	});
+	assert.notEqual(offline, "saved");
+	assert.ok(JSON.parse(local.get(DRAFT_KEY)), "durable copy persisted");
+	// While we were offline the paired phone ticked another stop.
+	server.down = false;
+	remoteWrite(server, (doc) => {
+		doc.visitStatus["day1-s4"] = true;
+	});
+	// Reload: the restored draft retries at its own base, 409s, and its
+	// persisted 'skip:' metadata replays onto the fresh doc.
+	const second = await newStore(server, local);
+	assert.equal(second.store.state, "saved");
+	assert.equal(second.store.conflict, null);
+	assert.equal(server.trip.skippedStatus["day1-s1"], true);
+	assert.equal(server.trip.visitStatus["day1-s4"], true);
+	assert.equal(local.has(DRAFT_KEY), false, "durable copy cleared on ack");
 });

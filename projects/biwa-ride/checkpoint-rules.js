@@ -12,8 +12,17 @@
  *   trip.visitStatus       — {occurrenceId: true} manual per-occurrence visits
  *   trip.programmeStatus   — {rally: {placeId: true}, official: {placeId: true}}
  *                            shared manual checklist, keyed by programme FAMILY
+ *   trip.skippedStatus     — {occurrenceId: true} optional per-occurrence skip
+ *                            dismissal: the stop keeps its itinerary and route
+ *                            slot but leaves the "next" queue — never a visit,
+ *                            never programme progress; only Undo skip clears
+ *                            it (a check while skipped is a no-op)
  *   One arrival tick marks the row's visit flag AND every programme family
  *   the place belongs to — a shared checkpoint (Mizudori) clears both.
+ *   The stamp rally is retired from the active surface: rally-only records
+ *   stay immutable in the catalogue and stored snapshots, but dayPoints
+ *   filters them out — no itinerary row, route anchor or next target. A
+ *   shared official+rally record (Mizudori) renders as official only.
  */
 (function (global) {
   'use strict';
@@ -49,6 +58,20 @@
     return (trip.places || []).filter(function (p) {
       return BiwaRules.placeInProgramme(p, 'rally');
     });
+  };
+
+  // A place belonging ONLY to the stamp rally — shared checkpoints like
+  // Mizudori keep their official membership and are never caught by this.
+  // Rally-only records stay immutable in the catalogue and stored trips;
+  // the active surface simply never offers them to the rider.
+  BiwaRules.isRallyOnly = function (place) {
+    return !!(
+      place &&
+      BiwaRules.placeInProgramme(place, 'rally') &&
+      BiwaRules.programmeFamilies(place.programmes).indexOf(
+        'official'
+      ) === -1
+    );
   };
 
   // All catalogue places for one official area, e.g. 'south' -> official-south.
@@ -92,16 +115,31 @@
 
   // Derived arrival state for a row: its own visit flag, plus — for
   // programme places — the shared family check (a tick on one occurrence is
-  // reflected on the place's other occurrences).
+  // reflected on the place's other occurrences). A skipped occurrence is
+  // never read as arrived: the dismissal is intentional, so even a shared
+  // programme tick landed elsewhere leaves it skipped — only Undo skip
+  // restores it, at which point any stored visit flag shows through again.
   BiwaRules.arrivalChecked = function (trip, occurrenceId, place) {
+    if (BiwaRules.isSkipped(trip, occurrenceId)) return false;
     if (trip.visitStatus && trip.visitStatus[occurrenceId]) return true;
     return BiwaRules.placeProgrammeChecked(trip, place);
   };
 
   // Apply one arrival tick: the row's own visit flag plus EVERY programme
   // family the place belongs to. Unchecking clears the place's programme
-  // flags but never other occurrences' own visit flags.
+  // flags but never other occurrences' own visit flags. There is no
+  // direct skipped -> visited transition: a check while the occurrence is
+  // skipped is a complete no-op (no visit, no programme writes — Undo skip
+  // must come first), and unchecking never silently undoes the dismissal
+  // either; only applySkip(false) clears a skip flag.
   BiwaRules.applyArrival = function (draft, occurrenceId, place, checked) {
+    if (
+      checked &&
+      occurrenceId &&
+      BiwaRules.isSkipped(draft, occurrenceId)
+    ) {
+      return;
+    }
     draft.visitStatus = draft.visitStatus || {};
     if (occurrenceId) {
       if (checked) draft.visitStatus[occurrenceId] = true;
@@ -110,6 +148,75 @@
     BiwaRules.programmeFamilies(place && place.programmes).forEach(function (family) {
       BiwaRules.checkProgramme(draft, family, place.placeId, checked);
     });
+  };
+
+  // Per-occurrence skip flags — a dismissal of the stop, independent of
+  // visitStatus and the programme families.
+  BiwaRules.isSkipped = function (trip, occurrenceId) {
+    return !!(
+      trip &&
+      trip.skippedStatus &&
+      occurrenceId &&
+      trip.skippedStatus[occurrenceId] === true
+    );
+  };
+
+  // The stop+place pair behind a skippable occurrence — an official
+  // checkpoint that is still an itinerary stop. Endpoints are day
+  // boundaries not stops; custom/extra places, route-waypoint anchors and
+  // rally-only records never qualify either.
+  function skippableTarget(trip, occurrenceId) {
+    if (!trip || !occurrenceId) return null;
+    var places = BiwaRules.placesById(trip);
+    var target = null;
+    (trip.days || []).some(function (day) {
+      return (day.stops || []).some(function (stop) {
+        if (stop.occurrenceId !== occurrenceId) return false;
+        var place = places[stop.placeId];
+        if (
+          place &&
+          BiwaRules.programmeFamilies(place.programmes).indexOf(
+            'official'
+          ) !== -1
+        ) {
+          target = { stop: stop, place: place };
+          return true;
+        }
+        return false;
+      });
+    });
+    return target;
+  }
+
+  // Only official checkpoint occurrences that are still itinerary stops may
+  // be skipped — never endpoints (they are day boundaries, not stops),
+  // custom/extra places, route-waypoint anchors or rally-only records.
+  BiwaRules.skippableOccurrence = function (trip, occurrenceId) {
+    return !!skippableTarget(trip, occurrenceId);
+  };
+
+  // A skip is a dismissal, never a visit: it touches only skippedStatus so
+  // the row keeps its itinerary order, route geometry and visit state — and
+  // no programme family is ever marked. Setting the flag is refused for an
+  // ineligible occurrence or one already arrived — a completed stop can
+  // never carry a hidden dismissal. Clearing is unconditional: undo must
+  // still reach a flag whose eligibility or visit state changed since.
+  // Progress writers mutate a progress-only draft ({visitStatus,
+  // programmeStatus, skippedStatus} — no days/places), so they pass the
+  // live trip as tripContext: eligibility and arrival resolve against the
+  // real itinerary while the draft's progress maps win the overlay.
+  BiwaRules.applySkip = function (draft, occurrenceId, skipped, tripContext) {
+    draft.skippedStatus = draft.skippedStatus || {};
+    if (!skipped) {
+      delete draft.skippedStatus[occurrenceId];
+      return;
+    }
+    var effective = Object.assign({}, tripContext || draft, draft);
+    var target = skippableTarget(effective, occurrenceId);
+    if (!target) return;
+    if (BiwaRules.arrivalChecked(effective, occurrenceId, target.place))
+      return;
+    draft.skippedStatus[occurrenceId] = true;
   };
 
   // Rally progress: shared manual checks against the ten-stop catalogue.
@@ -151,22 +258,26 @@
   // Group checklist completion is a housekeeping label, not an official
   // award — the UI must say "Group checklist complete", never "Certificate
   // earned", because this app neither submits nor verifies official stamps.
+  // With the rally retired from the active ride, completion gates on the
+  // official shores alone; the rally sub-result still reports any persisted
+  // rally progress for compatibility.
   BiwaRules.groupChecklist = function (trip) {
     var rally = BiwaRules.rallyProgress(trip);
     var official = BiwaRules.officialAreaProgress(trip);
     return {
       rally: rally,
       official: official,
-      complete: rally.complete && official.complete,
+      complete: official.complete,
       label: 'Group checklist complete'
     };
   };
 
-  // Programme badges for a stop row, e.g. ['Rally', 'Official · North'].
+  // Programme badges for a stop row, e.g. ['Official · North']. The rally
+  // chip is retired with the rally surface — a shared official+rally record
+  // emits 'Official · X' alone.
   BiwaRules.placeBadges = function (place) {
     var badges = [];
     if (!place || !place.programmes) return badges;
-    if (place.programmes.indexOf('rally') !== -1) badges.push('Rally');
     BiwaRules.OFFICIAL_AREAS.forEach(function (area) {
       if (place.programmes.indexOf(area.programme) !== -1) {
         badges.push('Official · ' + area.label.replace(' shore', ''));
@@ -185,6 +296,7 @@
     var places = BiwaRules.placesById(trip);
     var points = [];
     function placePoint(p, kind, occurrenceId) {
+      var visited = BiwaRules.arrivalChecked(trip, occurrenceId, p);
       return {
         kind: kind,
         occurrenceId: occurrenceId,
@@ -196,7 +308,21 @@
         address: p.address || null,
         category: p.category || null,
         place: p,
-        visited: BiwaRules.arrivalChecked(trip, occurrenceId, p)
+        visited: visited,
+        // Skipped is a dismissal flag, not a visit — the row keeps its
+        // slot but leaves the next queue. Endpoints never carry it, and
+        // arrivalChecked already reports a skipped row unvisited, so the
+        // flag alone decides the face until it is undone.
+        skipped:
+          kind === 'stop' && BiwaRules.isSkipped(trip, occurrenceId),
+        // Only official checkpoint stop occurrences may be skipped —
+        // endpoints, custom/extra places, waypoints and rally-only
+        // records are never eligible.
+        skippable:
+          kind === 'stop' &&
+          BiwaRules.programmeFamilies(p.programmes).indexOf(
+            'official'
+          ) !== -1
       };
     }
     function pushEndpoint(endpoint, kind) {
@@ -217,7 +343,9 @@
           address: null,
           category: 'pin',
           place: null,
-          visited: !!(trip.visitStatus && trip.visitStatus[occurrenceId])
+          visited: !!(trip.visitStatus && trip.visitStatus[occurrenceId]),
+          skipped: false,
+          skippable: false
         });
       }
     }
@@ -225,6 +353,10 @@
     (day.stops || []).forEach(function (stop) {
       var p = places[stop.placeId];
       if (!p) return;
+      // Rally-only records stay stored in day.stops (immutable source
+      // data) but never reach the active itinerary — no row, route
+      // anchor or next target.
+      if (BiwaRules.isRallyOnly(p)) return;
       points.push(placePoint(p, 'stop', stop.occurrenceId));
     });
     pushEndpoint(day.end, 'end');
@@ -243,11 +375,12 @@
 
   // The next unvisited row for the "up next" card — endpoints included, so
   // the day's first pending point may be the start lodging or the rental
-  // finish, not only scheduled stops.
+  // finish, not only scheduled stops. Skipped occurrences are dismissed
+  // from this queue but keep their itinerary slot.
   BiwaRules.nextUnvisitedStop = function (trip, day) {
     var points = BiwaRules.visibleDayPoints(trip, day);
     for (var i = 0; i < points.length; i++) {
-      if (!points[i].visited) return points[i];
+      if (!points[i].visited && !points[i].skipped) return points[i];
     }
     return null;
   };

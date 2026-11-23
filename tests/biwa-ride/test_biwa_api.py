@@ -475,6 +475,40 @@ class ValidationTests(unittest.TestCase):
         trip["visitStatus"]["day-1-end"] = True
         self.assertTrue(any("visitStatus" in e for e in biwa_models.validate_trip(trip)))
 
+    def test_skipped_status_accepts_eligible_official_occurrences(self):
+        # Official itinerary stops may carry dismissal flags — the seed's
+        # day1-s1 (official south) and the shared Mizudori occurrence both
+        # qualify; the field is optional and old snapshots simply omit it.
+        trip = seed_trip()
+        trip["skippedStatus"] = {"day1-s1": True, "day2-s4": True}
+        self.assertEqual(biwa_models.validate_trip(trip), [])
+
+    def test_skipped_status_rejects_ineligible_occurrences(self):
+        # Eligibility mirrors the client: only official day.stops
+        # occurrences — never endpoints, rally-only rows, route-waypoint
+        # anchors, custom places or ghosts.
+        trip = seed_trip()
+        trip["skippedStatus"] = {
+            "day-1-start": True,   # endpoint boundary, not a stop
+            "day1-s2": True,       # rally-rental — rally-only
+            "day1-s8": True,       # extra-chomeiji-183 — route-waypoint
+            "ghost-occurrence": True,
+        }
+        errors = biwa_models.validate_trip(trip)
+        for key in ("day-1-start", "day1-s2", "day1-s8", "ghost-occurrence"):
+            self.assertTrue(any(f"skippedStatus['{key}']" in e for e in errors), key)
+
+    def test_skipped_status_rejects_non_true_values_and_bad_shape(self):
+        # True-only flags on eligible ids — a false or string value and a
+        # non-object container all fail validation.
+        trip = seed_trip()
+        trip["skippedStatus"] = {"day1-s1": False}
+        self.assertTrue(any("skippedStatus['day1-s1']" in e for e in biwa_models.validate_trip(trip)))
+        trip["skippedStatus"] = {"day1-s1": "yes"}
+        self.assertTrue(any("skippedStatus['day1-s1']" in e for e in biwa_models.validate_trip(trip)))
+        trip["skippedStatus"] = ["day1-s1"]
+        self.assertTrue(any("skippedStatus must be an object" in e for e in biwa_models.validate_trip(trip)))
+
 
 class RouteEndpointTests(unittest.TestCase):
     def setUp(self):

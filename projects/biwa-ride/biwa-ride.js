@@ -9,6 +9,17 @@
  * the destination sheet while the checkbox/handle never do; provider
  * geometry renders only on a real Google Map with attribution; and Google
  * content is transient — never persisted into the trip snapshot.
+ *
+ * Two retirement-era behaviours: the stamp rally no longer surfaces — its
+ * records stay immutable in the catalogue but rally-only places appear
+ * nowhere (itinerary, route, markers, pickers, progress, links), and a
+ * shared official+rally checkpoint (Mizudori) renders solely as official.
+ * An official checkpoint stop may also be SKIPPED — a per-occurrence
+ * dismissal flag (trip.skippedStatus): the row keeps its itinerary and
+ * route slot with a neutral skipped face (never the green tick), leaves
+ * the Up Next queue, and restores only with Undo skip — there is no
+ * direct skipped -> visited path. Skipped is never a visit and never
+ * programme progress.
  */
 (function () {
 	"use strict";
@@ -40,12 +51,17 @@
 	var dayTitle = function (d) {
 		return I18n ? I18n.dayTitle(d) : d ? d.title : "";
 	};
-	// Chips per badge string — 'Official · South' yields programme + shore
-	// parts; the no-i18n fallback keeps the combined label on one chip.
+	// Chips per badge string — 'Official · South' renders as the shore chip
+	// alone; the no-i18n fallback strips the programme prefix the same way.
 	var badgeParts = function (b) {
-		return I18n && I18n.badgeParts
-			? I18n.badgeParts(b)
-			: [{ text: b, programme: b === "Rally" ? "rally" : "official" }];
+		if (I18n && I18n.badgeParts) return I18n.badgeParts(b);
+		var m = /^Official · (.+)$/.exec(b);
+		return [
+			{
+				text: m ? m[1] : b,
+				programme: b === "Rally" ? "rally" : "official",
+			},
+		];
 	};
 	var areaText = function (a) {
 		return I18n ? I18n.areaLabel(a) : a ? a.label : "";
@@ -53,6 +69,8 @@
 
 	// Start official check-ins at the organiser's landing page.
 	var OFFICIAL_CHECKIN_URL = "https://m.biwako1.jp/";
+	// The stamp-rally site URL is retired with the rally surface — kept as
+	// provenance only, no link renders anywhere.
 	var RALLY_CHECKIN_URL = "https://platinumaps.jp/d/cyclingrally2026";
 	var GOOGLE_TERMS_URL = "https://maps.google.com/help/terms_maps/";
 	var ROUTE_DEBOUNCE_MS = 800;
@@ -93,13 +111,13 @@
 	var placeDetailsCache = {}; // placeId -> normalized details | 'unavailable'
 
 	// Marker type toggles — official checkpoints split per shore area so the
-	// map can isolate one coast at a time. Day chips control polylines.
+	// map can isolate one coast at a time. Day chips control polylines. The
+	// rally toggle is retired with the rally surface.
 	var mapFilters = {
 		"official-south": true,
 		"official-east": true,
 		"official-north": true,
 		"official-west": true,
-		rally: true,
 		accommodation: true,
 		extra: true,
 	};
@@ -145,9 +163,11 @@
 	// Simple inline SVG icons (no emoji — they render inconsistently and are
 	// not translatable style tokens). Names reflect purpose.
 	var ICONS = {
-		// Flat filled icons — no strokes anywhere. The warning triangle keeps
-		// its exclamation by punching the mark out of the solid fill with
-		// fill-rule="evenodd", so the hole shows whatever surface is beneath.
+		// Flat filled icons — the lone exception is statusSkipped, a bold
+		// stroke outline by request so the dismissal reads unmistakably.
+		// The warning triangle keeps its exclamation by punching the mark
+		// out of the solid fill with fill-rule="evenodd", so the hole shows
+		// whatever surface is beneath.
 		warn: '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 3 22 20H2zM11.1 9.6h1.8v4.6h-1.8zM11.1 15.6h1.8v1.8h-1.8z" fill="currentColor" fill-rule="evenodd"/></svg>',
 		grip: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="9" cy="6" r="1.6" fill="currentColor"/><circle cx="15" cy="6" r="1.6" fill="currentColor"/><circle cx="9" cy="12" r="1.6" fill="currentColor"/><circle cx="15" cy="12" r="1.6" fill="currentColor"/><circle cx="9" cy="18" r="1.6" fill="currentColor"/><circle cx="15" cy="18" r="1.6" fill="currentColor"/></svg>',
 		chev: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5-2-2L12 12 7.5 7.5z" fill="currentColor"/></svg>',
@@ -160,6 +180,12 @@
 			'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="var(--biwa-success)"/><path d="M4.4 8.2 5.9 6.7 7.1 8.2 10.9 4.5 12.1 6.1 7.1 11.2z" fill="var(--biwa-paper)"/></svg>',
 		statusPending:
 			'<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="7" fill="var(--biwa-petal)"/><circle cx="8" cy="8" r="2" fill="var(--biwa-rosy)"/></svg>',
+		// Skipped is a dismissal, never a visit — a bold outline skip-forward
+		// glyph in ink, deliberately never the green done disc so it can never
+		// be mistaken for a completion. 24px inside the 30px check well; the
+		// map's day list reuses it at its compact status size via CSS.
+		statusSkipped:
+			'<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6.5 4.8 15 12l-8.5 7.2z" fill="none" stroke="var(--biwa-ink)" stroke-width="2.4" stroke-linejoin="round"/><path d="M18 5.2v13.6" fill="none" stroke="var(--biwa-ink)" stroke-width="2.4" stroke-linecap="round"/></svg>',
 		stay: '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M4 11 12 4l8 7v8h-5v-5h-6v5H4z" fill="currentColor"/></svg>',
 		star: '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.5l-5.8 3 1.1-6.5-4.7-4.6 6.5-.9z" fill="currentColor"/></svg>',
 	};
@@ -179,6 +205,7 @@
 			"biwa-next-stop-directions",
 			"biwa-next-actions",
 			"biwa-next-complete",
+			"biwa-next-skip",
 			"biwa-next-credit",
 			"biwa-next-checkins",
 			"biwa-mini-bar",
@@ -397,6 +424,9 @@
 		});
 		els["biwa-next-stop-name"].addEventListener("click", openNextStopSheet);
 		els["biwa-next-complete"].addEventListener("click", completeNextStop);
+		// Skip dismisses only the Up Next target — the stop stays on the
+		// itinerary and route; Undo lives on the row, sheet and map list.
+		els["biwa-next-skip"].addEventListener("click", skipNextStop);
 		// The mini bar reuses the exact same actions — its body opens the
 		// sheet, its tick completes the same live-resolved next stop.
 		els["biwa-mini-open"].addEventListener("click", openNextStopSheet);
@@ -496,6 +526,106 @@
 		) {
 			burstLeaves();
 		}
+	}
+
+	// --- checkpoint skipping -------------------------------------------------------
+	// A skip is a reversible dismissal: the flag lives in trip.skippedStatus
+	// (per occurrence, independent of visits and programme families), the row
+	// keeps its itinerary and route slot, and only the Up Next queue moves on.
+	// Eligibility is the rules layer's: official itinerary stop occurrences
+	// only — never endpoints, custom places or rally records.
+
+	// Count of skip flags that still name a live itinerary stop — a flag on a
+	// since-removed occurrence can never inflate the completion copy.
+	function skippedCount(trip) {
+		var n = 0;
+		(trip.days || []).forEach(function (day) {
+			Rules.visibleDayPoints(trip, day).forEach(function (p) {
+				if (p.skipped) n++;
+			});
+		});
+		return n;
+	}
+
+	// The single write path for both directions — the mirror diff turns it
+	// into a 'skip:' delta so CAS merges replay it like any other progress.
+	// The toast waits for the write result and announces only a durable
+	// outcome: 'saved', or 'local' while the mirror provably reached disk —
+	// the same storageAvailable/draftPersisted gate the check-in pill uses.
+	// A failed write stays silent rather than claiming a dismissal that
+	// never persisted; the connection notice already owns the failure copy.
+	function applySkipChange(occurrenceId, skipped, name) {
+		var resultP = store.applyLocalProgress(function (draft) {
+			// The draft is progress-only (no days/places) — the live trip is
+			// the eligibility/arrival context, the draft's maps win.
+			Rules.applySkip(draft, occurrenceId, skipped, store.trip);
+		});
+		resultP.then(function (result) {
+			var durable =
+				result === "saved" ||
+				(result === "local" &&
+					store.storageAvailable === true &&
+					store.draftPersisted === true);
+			if (!durable) return;
+			showToast(
+				skipped
+					? t("Skipped — {name}", { name: name })
+					: t("{name} is back in Up Next", { name: name }),
+				4000,
+				"notice",
+			);
+		});
+	}
+
+	// The Up Next card's Skip — resolved live at click time exactly like the
+	// complete action, and gated on the same official-checkpoint eligibility.
+	function skipNextStop() {
+		if (store._saving) return;
+		var day = currentDay(store.trip);
+		var next = day && Rules.nextUnvisitedStop(store.trip, day);
+		if (!next || !next.skippable) return;
+		applySkipChange(
+			next.occurrenceId,
+			true,
+			next.place ? placeName(next.place) : next.label,
+		);
+	}
+
+	// Neutral skipped face in the checkbox slot — same hitbox as the arrival
+	// check but never green; its only action is Undo skip.
+	function skipStateCheck(trip, occurrenceId, label) {
+		var btn = el("button", {
+			class: "biwa-skip-state",
+			type: "button",
+			"aria-label": t("Undo skip: {name}", { name: label }),
+			title: t("Undo skip"),
+			"data-focus-key": "skip-" + occurrenceId,
+		});
+		var box = el("span", {
+			class: "biwa-skip-box",
+			"aria-hidden": "true",
+		});
+		box.innerHTML = ICONS.statusSkipped;
+		btn.appendChild(box);
+		btn.addEventListener("click", function (ev) {
+			ev.stopPropagation();
+			if (store._saving) return;
+			applySkipChange(occurrenceId, false, label);
+		});
+		return btn;
+	}
+
+	// Icon-only skipped status for the map's compact day list — the same
+	// neutral glyph, speaking "Skipped" through its role label; the row
+	// itself opens the sheet where Undo skip lives.
+	function skippedStateIcon() {
+		var icon = el("span", {
+			class: "biwa-dayroute-skip-icon",
+			role: "img",
+			"aria-label": t("Skipped"),
+		});
+		icon.innerHTML = ICONS.statusSkipped;
+		return icon;
 	}
 
 	// Open the sheet for whatever is next right now. Pin endpoints have no
@@ -831,11 +961,14 @@
 	}
 
 	// --- certificate progress accordion ----------------------------------------------
-	// Two native details/summary sections stacked on ONE paper surface —
-	// Official first, then Rally, each independent and initially closed.
-	// The block rebuilds on every render, so data-dkey markers hand the open
-	// state to captureUiState/restoreUiState and polls/saves/language changes
-	// never collapse an expanded section. No provider imagery lives here.
+	// One native details/summary section on the paper surface — the official
+	// shore checklist is the only active programme. The stamp rally's
+	// section is retired (its source records stay immutable in the
+	// catalogue); a shared official+rally place counts in the official row
+	// alone. The block rebuilds on every render, so data-dkey markers hand
+	// the open state to captureUiState/restoreUiState and polls/saves/
+	// language changes never collapse an expanded section. No provider
+	// imagery lives here.
 	function renderProgressStrip(trip) {
 		var host = els["biwa-progress-strip"];
 		var official = Rules.officialAreaProgress(trip);
@@ -848,7 +981,6 @@
 		var content = host.querySelector(".biwa-progress-content");
 		content.innerHTML = "";
 		content.appendChild(renderOfficialProgress(official));
-		content.appendChild(renderRallyProgress(trip));
 
 		// Certificate wording stays honest: the shared checklist completing is
 		// not the same as an official certificate being earned.
@@ -856,7 +988,7 @@
 			content.appendChild(
 				el("span", {
 					class: "biwa-progress-complete",
-					text: t("Both certificate checklists completed"),
+					text: t("Official checkpoints covered"),
 				}),
 			);
 		}
@@ -995,11 +1127,10 @@
 		return section;
 	}
 
-	// Rally: all stops in the programme must be completed. The expanded panel
-	// lists every rally place in stable catalogue order as a read-only row —
-	// full name plus an always-present state tick, green when completed and
-	// a faint grey when not. No links or completion controls live here; the
-	// shared-checkpoint note explains Mizudori counts for both programmes.
+	// DORMANT — the stamp rally's progress section is retired from the
+	// active surface (nothing calls this anymore). Kept intact for a
+	// possible restore: it still paints correctly against the immutable
+	// rally memberships and any persisted rally progress.
 	function renderRallyProgress(trip) {
 		var rally = Rules.rallyProgress(trip);
 		var section = el("details", {
@@ -1204,16 +1335,19 @@
 
 	// A riding day is finished only when it genuinely has an itinerary —
 	// both endpoints set and at least one row — and every row (stops AND
-	// endpoints) is manually ticked. Rules.groupChecklist tracks the two
-	// certificate programmes and must never stand in for itinerary state.
+	// endpoints) is settled: manually ticked OR dismissed via skip. A skip
+	// is an explicit decision, not a pending row — the completion copy then
+	// says how many were skipped rather than claiming every stop visited.
+	// Rules.groupChecklist tracks certificate programmes and must never
+	// stand in for itinerary state.
 	function dayFinished(trip, day) {
 		if (!day || !day.start || !day.end) return false;
-		// Hidden route-waypoint anchors never count as rows to tick.
+		// Hidden route-waypoint anchors never count as rows to settle.
 		var points = Rules.visibleDayPoints(trip, day);
 		return (
 			points.length > 0 &&
 			points.every(function (p) {
-				return p.visited;
+				return p.visited || p.skipped;
 			})
 		);
 	}
@@ -1237,19 +1371,16 @@
 		renderTrack(trip, day);
 	}
 
-	// Programme-family card tint, ordered so the louder semantic wins:
-	// accommodation first, a place in both programmes reads 'shared', then
-	// rally/official, and everything else is a plain extra stop. Painted as
-	// data-card-type on cards and the sheet root.
+	// Programme-family card tint: accommodation first, then official, and
+	// everything else is a plain extra stop. The rally and shared washes
+	// are retired with the rally surface — a shared official+rally record
+	// (Mizudori) types as 'official' alone. Painted as data-card-type on
+	// cards and the sheet root.
 	function placeCardType(place) {
 		if (!place) return "extra";
 		if (place.category === "accommodation") return "accommodation";
 		var fams = Rules.programmeFamilies(place.programmes);
-		var rally = fams.indexOf("rally") !== -1;
-		var official = fams.indexOf("official") !== -1;
-		if (rally && official) return "shared";
-		if (rally) return "rally";
-		if (official) return "official";
+		if (fams.indexOf("official") !== -1) return "official";
 		return "extra";
 	}
 
@@ -1328,17 +1459,43 @@
 		// visibility — never display — so the reserved row keeps its height,
 		// and the name button disables so a completion state opens no sheet.
 		var actionsVisible = false;
+		// Completion copy must never claim every stop was visited — a day or
+		// trip that finished with skipped checkpoints says so plainly.
+		var skippedTotal = skippedCount(trip);
+		var daySkipped = points.filter(function (p) {
+			return p.skipped;
+		}).length;
 		if (tripFinished(trip)) {
 			labelEl.textContent = t("Ride Complete");
-			nameEl.textContent = t(
-				"Three days around Lake Biwa — every planned stop completed.",
-			);
+			nameEl.textContent = skippedTotal
+				? t(
+						skippedTotal === 1
+							? "Three days around Lake Biwa — ride complete, {n} checkpoint skipped."
+							: "Three days around Lake Biwa — ride complete, {n} checkpoints skipped.",
+						{ n: skippedTotal },
+					)
+				: t(
+						"Three days around Lake Biwa — every planned stop completed.",
+					);
 			dirEl.removeAttribute("href");
 			nextCard.dataset.cardType = "completed";
 		} else if (dayFinished(trip, day)) {
 			labelEl.textContent = t("{day} Complete", { day: dayLabel(day) });
-			nameEl.textContent =
-				day.dayId === "day-3"
+			nameEl.textContent = daySkipped
+				? day.dayId === "day-3"
+					? t(
+							daySkipped === 1
+								? "Day 3 complete — {n} checkpoint skipped, and you’re back in Otsu."
+								: "Day 3 complete — {n} checkpoints skipped, and you’re back in Otsu.",
+							{ n: daySkipped },
+						)
+					: t(
+							daySkipped === 1
+								? "Day complete — {n} checkpoint skipped. Time to rest and recharge."
+								: "Day complete — {n} checkpoints skipped. Time to rest and recharge.",
+							{ n: daySkipped },
+						)
+				: day.dayId === "day-3"
 					? t("Day 3 complete. You’re back in Otsu.")
 					: t("Every stop visited. Time to rest and recharge.");
 			dirEl.removeAttribute("href");
@@ -1372,6 +1529,13 @@
 		// reserves phantom rows in the compact status card.
 		els["biwa-next-actions"].hidden = !actionsVisible;
 		els["biwa-next-checkins"].hidden = !actionsVisible;
+		// Skip is offered only for official checkpoint occurrences — endpoints,
+		// customs and extras dismiss no Up Next target.
+		els["biwa-next-skip"].hidden = !(
+			actionsVisible &&
+			next &&
+			next.skippable
+		);
 		compEl.disabled = !actionsVisible;
 		nameEl.disabled = !actionsVisible;
 		// The action label matches the mini bar's completion wording — one
@@ -1536,19 +1700,17 @@
 		}
 	}
 
-	// Programme check-in links ride the CURRENT next stop only — a stop can
-	// belong to the official certificate, the rally, both (e.g. Mizudori) or
-	// neither. The row is permanent: an inapplicable state leaves an inert
-	// visibility-hidden slot so the card height never moves.
+	// Programme check-in links ride the CURRENT next stop only — a stop is
+	// either an official checkpoint or not. The rally link is retired with
+	// the rally surface: a shared checkpoint (Mizudori) shows the official
+	// link alone. The row is permanent: an inapplicable state leaves an
+	// inert visibility-hidden slot so the card height never moves.
 	function renderNextCheckins(host, place) {
 		host.innerHTML = "";
 		var programmes = (place && place.programmes) || [];
 		var official = programmes.some(function (p) {
 			return p.indexOf("official-") === 0;
 		});
-		var rally = programmes.indexOf("rally") !== -1;
-		// One label per programme site regardless of membership count — the
-		// action is the same hand-off on a shared (dual) stop.
 		if (official) {
 			host.appendChild(
 				el("a", {
@@ -1557,17 +1719,6 @@
 					target: "_blank",
 					rel: "noopener noreferrer",
 					text: t("Check In on Official Site"),
-				}),
-			);
-		}
-		if (rally) {
-			host.appendChild(
-				el("a", {
-					class: "biwa-btn biwa-btn-secondary biwa-next-checkin",
-					href: RALLY_CHECKIN_URL,
-					target: "_blank",
-					rel: "noopener noreferrer",
-					text: t("Check In on Rally Site"),
 				}),
 			);
 		}
@@ -1664,12 +1815,16 @@
 			},
 		];
 
-		// Route-waypoint anchors stay in day.stops (routing order depends on
-		// them) but never render as check-in rows — numbering runs 1..N over
-		// the visible sequence only.
+		// Route-waypoint anchors and retired rally-only records stay in
+		// day.stops (route order depends on the anchors; the rally rows are
+		// preserved source data) but never render as check-in rows —
+		// numbering runs 1..N over the visible sequence only.
 		var stops = (day.stops || []).filter(function (stop) {
 			var p = places[stop.placeId];
-			return !(p && p.category === "route-waypoint");
+			return !(
+				p &&
+				(p.category === "route-waypoint" || Rules.isRallyOnly(p))
+			);
 		});
 		if (!stops.length) {
 			var empty = el("li", { class: "biwa-track-row" });
@@ -1992,8 +2147,8 @@
 		if (!place) return nodes;
 		var badges = el("span", { class: "biwa-badges" });
 		Rules.placeBadges(place).forEach(function (b) {
-			// 'Official · South' splits into two chips — programme (官方) plus a
-			// shore chip whose data-area takes that shore's map-marker colour.
+			// 'Official · South' renders as a single shore chip whose
+			// data-area takes that shore's map-marker colour.
 			badgeParts(b).forEach(function (part) {
 				badges.appendChild(
 					el("span", {
@@ -2457,6 +2612,10 @@
 
 	function stopRow(trip, day, stop, place, index) {
 		var visited = Rules.arrivalChecked(trip, stop.occurrenceId, place);
+		// A skipped occurrence always keeps the neutral face — arrivalChecked
+		// already reports it unvisited (even under a shared programme tick),
+		// so the flag alone decides the checkbox slot until it is undone.
+		var skipped = Rules.isSkipped(trip, stop.occurrenceId);
 		var row = el("li", {
 			class: "biwa-track-row",
 			dataset: {
@@ -2464,6 +2623,7 @@
 				occ: stop.occurrenceId,
 				day: day.dayId,
 				visited: String(visited),
+				skipped: String(skipped),
 				index: String(index),
 			},
 		});
@@ -2482,15 +2642,19 @@
 		});
 		// Affordance order: drag grip on the LEFT, tick, body, chevron on the
 		// right — grip-left reads as "reorderable", chevron-right as "opens".
+		// A skipped row swaps the green stamp for the neutral skip control —
+		// its only action is Undo skip, which returns the stop to the queue.
 		card.appendChild(dragHandle(day, stop, place));
 		card.appendChild(
-			arrivalCheck(
-				trip,
-				stop.occurrenceId,
-				place,
-				placeName(place),
-				visited,
-			),
+			skipped
+				? skipStateCheck(trip, stop.occurrenceId, placeName(place))
+				: arrivalCheck(
+						trip,
+						stop.occurrenceId,
+						place,
+						placeName(place),
+						visited,
+					),
 		);
 
 		var body = el("button", {
@@ -2678,14 +2842,18 @@
 		});
 	}
 
-	// The day's non-waypoint stops in stored order — same objects, so a
+	// The day's rendered stops in stored order — same objects, so a
 	// reorder of this array permutes references that get written back into
-	// the anchored slots by moveStopWithinDay.
+	// the anchored slots by moveStopWithinDay. Both hidden kinds drop out:
+	// route-waypoint anchors and retired rally-only records.
 	function visibleStops(day) {
 		var places = Rules.placesById(store.trip);
 		return (day.stops || []).filter(function (s) {
 			var p = places[s.placeId];
-			return !(p && p.category === "route-waypoint");
+			return !(
+				p &&
+				(p.category === "route-waypoint" || Rules.isRallyOnly(p))
+			);
 		});
 	}
 
@@ -3006,9 +3174,9 @@
 	}
 
 	// Reorders run on the visible sequence only: the reordered stops are
-	// written back into the ORIGINAL non-waypoint slots, so hidden
-	// route-waypoint anchors keep their stored index — and the provider
-	// route keeps hugging the road they were placed to preserve.
+	// written back into the ORIGINAL non-hidden slots, so route-waypoint
+	// anchors and retired rally-only records keep their stored index — the
+	// provider route keeps hugging the road they were placed to preserve.
 	function moveStopWithinDay(day, fromIndex, toIndex) {
 		store.save(function (draft) {
 			var d = draft.days.filter(function (x) {
@@ -3016,17 +3184,20 @@
 			})[0];
 			if (!d) return;
 			var places = Rules.placesById(draft);
-			var isWaypoint = function (s) {
+			var isHidden = function (s) {
 				var p = places[s.placeId];
-				return !!(p && p.category === "route-waypoint");
+				return !!(
+					p &&
+					(p.category === "route-waypoint" || Rules.isRallyOnly(p))
+				);
 			};
 			var visible = (d.stops || []).filter(function (s) {
-				return !isWaypoint(s);
+				return !isHidden(s);
 			});
 			Rules.moveStopWithinDay({ stops: visible }, fromIndex, toIndex);
 			var next = 0;
 			d.stops = (d.stops || []).map(function (s) {
-				if (isWaypoint(s)) return s;
+				if (isHidden(s)) return s;
 				return visible[next++];
 			});
 		});
@@ -3262,9 +3433,9 @@
 
 		var badges = el("div", { class: "biwa-badges" });
 		Rules.placeBadges(place).forEach(function (b) {
-			// Same two-chip split as the row badges — data-area drives the map
-			// marker colour per shore; data-checked still overrides to green on
-			// both chips of the split pair.
+			// Same single shore chip as the row badges — data-area drives the
+			// map marker colour per shore; data-checked still overrides to
+			// green on the chip.
 			badgeParts(b).forEach(function (part) {
 				badges.appendChild(
 					el("span", {
@@ -3358,8 +3529,12 @@
 
 	// Footer action set — deliberately small and always in the same order:
 	// Navigate (primary, full width, a free Maps URL — never a provider
-	// call), then Check In on Official Site for official checkpoints and the
-	// manual Completed toggle. No removal or programme explainer UI lives here.
+	// call), then Check In on Official Site for official checkpoints, the
+	// reversible Skip/Undo skip control, and the manual Completed toggle.
+	// The rally link is retired; a shared checkpoint shows the official
+	// link alone. While any occurrence of the place is skipped the sheet
+	// shows only Undo skip buttons — no check-in path of any kind. No
+	// removal or programme explainer UI lives here.
 	function renderSheetActions(ctx) {
 		var host = els["biwa-sheet-actions"];
 		host.innerHTML = "";
@@ -3380,10 +3555,49 @@
 		var isOfficial = programmes.some(function (m) {
 			return typeof m === "string" && m.indexOf("official-") === 0;
 		});
-		var isRally = programmes.indexOf("rally") !== -1;
-		// Check-in hands off to each programme's own organiser flow. A shared
-		// checkpoint (Mizudori) shows both — one fixed label per site,
-		// identical to the next-panel links.
+
+		// The same one-tick arrival action as the track rows — manual only; GPS
+		// never ticks anything for the rider.
+		var occ = ctx.occurrenceId;
+		var checked = occ
+			? Rules.arrivalChecked(store.trip, occ, place)
+			: Rules.placeProgrammeChecked(store.trip, place);
+		// A skipped occurrence gates EVERY check-in path: there is no direct
+		// skipped -> visited transition, so neither the completion toggle nor
+		// the official-site handoff renders until the dismissal is undone.
+		// For a catalogue/map open (no occurrence) every skipped occurrence of
+		// the place gets its own Undo skip — an unambiguous per-occurrence
+		// restore rather than a silent tick-over. Clearing them all brings the
+		// normal controls back on the next paint.
+		var skippedOccs = occ
+			? Rules.isSkipped(store.trip, occ)
+				? [{ occurrenceId: occ }]
+				: []
+			: Rules.occurrencesOf(store.trip, place.placeId).filter(
+					function (o) {
+						return Rules.isSkipped(store.trip, o.occurrenceId);
+					},
+				);
+		if (skippedOccs.length) {
+			skippedOccs.forEach(function (o) {
+				var undoBtn = el("button", {
+					class: "biwa-btn biwa-btn-secondary",
+					type: "button",
+					"data-focus-key": "sheet-skip-" + o.occurrenceId,
+					text: t("Undo skip"),
+				});
+				undoBtn.addEventListener("click", function () {
+					if (store._saving) return;
+					applySkipChange(o.occurrenceId, false, placeName(place));
+				});
+				row.appendChild(undoBtn);
+			});
+			host.appendChild(row);
+			return;
+		}
+
+		// Check-in hands off to the official organiser flow — the rally site
+		// link is retired with the rally surface.
 		if (isOfficial) {
 			row.appendChild(
 				el("a", {
@@ -3395,26 +3609,29 @@
 				}),
 			);
 		}
-		if (isRally) {
-			row.appendChild(
-				el("a", {
-					class: "biwa-btn biwa-btn-secondary",
-					href: RALLY_CHECKIN_URL,
-					target: "_blank",
-					rel: "noopener noreferrer",
-					// A rally-only stop's link goes to the RALLY site — matching the
-					// next-card copy (was 'Check In on Official Site', which lied).
-					text: t("Check In on Rally Site"),
-				}),
-			);
-		}
 
-		// The same one-tick arrival action as the track rows — manual only; GPS
-		// never ticks anything for the rider.
-		var occ = ctx.occurrenceId;
-		var checked = occ
-			? Rules.arrivalChecked(store.trip, occ, place)
-			: Rules.placeProgrammeChecked(store.trip, place);
+		// Skip rides alongside the tick for eligible occurrences — official
+		// itinerary stops only (never endpoints, customs or catalogue opens).
+		// A completed row never offers Skip: a finished stop can never carry
+		// a hidden dismissal behind the green state.
+		var skippable =
+			ctx.kind === "stop" &&
+			occ &&
+			Rules.skippableOccurrence(store.trip, occ);
+		if (skippable && !checked) {
+			var skipBtn = el("button", {
+				class: "biwa-btn biwa-btn-secondary",
+				type: "button",
+				"aria-pressed": "false",
+				"data-focus-key": "sheet-skip",
+				text: t("Skip checkpoint"),
+			});
+			skipBtn.addEventListener("click", function () {
+				if (store._saving) return;
+				applySkipChange(occ, true, placeName(place));
+			});
+			row.appendChild(skipBtn);
+		}
 		// Text-only like every other destination action — the decorative
 		// stamp box once left a blank icon slot in the pending state.
 		var tick = el("button", {
@@ -3881,10 +4098,12 @@
 		(store.trip.places || [])
 			.slice()
 			.filter(function (p) {
-				// Route anchors are not check-in destinations, and the legacy
-				// station record is hidden while its canonical record exists —
-				// neither is offered as an addable stop.
+				// Route anchors are not check-in destinations, retired
+				// rally-only records never re-enter the active plan, and the
+				// legacy station record is hidden while its canonical record
+				// exists — none is offered as an addable stop.
 				if (p.category === "route-waypoint") return false;
+				if (Rules.isRallyOnly(p)) return false;
 				return !(
 					p.placeId === "extra-takashima-station" &&
 					catalogue["official-west-information"]
@@ -4185,9 +4404,14 @@
 		(store.trip.places || [])
 			.slice()
 			.filter(function (p) {
-				// Route anchors and the hidden legacy station record are never
-				// offered as start/overnight destinations either.
+				// Route anchors, retired rally-only records and the hidden
+				// legacy station record are never offered as start/overnight
+				// destinations either. Exception: the CURRENTLY set endpoint
+				// stays selectable — the seed's rental return is a rally
+				// record, and hiding it would silently lose the value.
+				if (current && current.placeId === p.placeId) return true;
 				if (p.category === "route-waypoint") return false;
+				if (Rules.isRallyOnly(p)) return false;
 				return !(
 					p.placeId === "extra-takashima-station" &&
 					endpointCatalogue["official-west-information"]
@@ -4448,14 +4672,15 @@
 		return area;
 	}
 
+	// Marker filter keys follow the ACTIVE programmes only — the rally chip
+	// is retired, so a shared official+rally record (Mizudori) keys to its
+	// official shore alone and filters out cleanly with that shore.
 	function markerFilterKeys(p) {
 		var keys = [];
 		Rules.OFFICIAL_AREAS.forEach(function (a) {
 			if (p.programmes && p.programmes.indexOf(a.programme) !== -1)
 				keys.push(a.programme);
 		});
-		if (p.programmes && p.programmes.indexOf("rally") !== -1)
-			keys.push("rally");
 		if (!keys.length)
 			keys.push(
 				p.category === "accommodation" ? "accommodation" : "extra",
@@ -4481,10 +4706,23 @@
 	function refreshMapMarkers() {
 		if (!mapPage || !store.trip) return;
 		var placesById = Rules.placesById(store.trip);
+		// Rally-only records draw no pin — unless a live endpoint references
+		// one: the rental return is the ride's finish boundary, and dropping
+		// its pin would leave the route ending at an unmarked point.
+		var endpointPlaceIds = {};
+		(store.trip.days || []).forEach(function (day) {
+			["start", "end"].forEach(function (which) {
+				var ep = day[which];
+				if (ep && ep.placeId) endpointPlaceIds[ep.placeId] = true;
+			});
+		});
 		var items = (store.trip.places || [])
 			.filter(function (p) {
 				// The legacy station record is the same physical stop as the
-				// canonical information centre — one pin only, never a duplicate.
+				// canonical information centre — one pin only, never a
+				// duplicate. Retired rally-only records never draw a pin.
+				if (Rules.isRallyOnly(p) && !endpointPlaceIds[p.placeId])
+					return false;
 				return !(
 					p.placeId === "extra-takashima-station" &&
 					placesById["official-west-information"]
@@ -4495,17 +4733,46 @@
 					typeof p.lat === "number"
 						? { lat: p.lat, lng: p.lng }
 						: transientLocations[p.placeId];
+				// A rally-only record kept only because it is a live endpoint
+				// wears the plain extra pin — the rally star is retired, and
+				// its fill follows the endpoint's own visit flag, never the
+				// dormant rally progress map.
+				var endpointOnly =
+					Rules.isRallyOnly(p) && endpointPlaceIds[p.placeId];
 				return {
-					key: p.placeId + "|" + markerFilterKeys(p).join("+"),
+					key:
+						p.placeId +
+						"|" +
+						(endpointOnly
+							? "extra"
+							: markerFilterKeys(p).join("+")),
 					lat: loc ? loc.lat : null,
 					lng: loc ? loc.lng : null,
 					label:
 						p.category === "route-waypoint"
 							? placeName(p) + " " + t("(route point)")
 							: placeName(p),
-					shape: Preview.markerShape(p),
-					area: markerArea(p),
-					visited: markerVisited(store.trip, p),
+					shape: endpointOnly ? "extra" : Preview.markerShape(p),
+					area: endpointOnly ? null : markerArea(p),
+					visited: endpointOnly
+						? (store.trip.days || []).some(function (day) {
+								return ["start", "end"].some(function (which) {
+									var ep = day[which];
+									return (
+										ep &&
+										ep.placeId === p.placeId &&
+										Rules.arrivalChecked(
+											store.trip,
+											Rules.endpointOccurrenceId(
+												day,
+												which,
+											),
+											p,
+										)
+									);
+								});
+							})
+						: markerVisited(store.trip, p),
 					// Route-waypoint anchors plot as quiet dots but open no sheet.
 					onClick:
 						p.category === "route-waypoint"
@@ -4521,8 +4788,8 @@
 				};
 			});
 		mapPage.setMarkers(items);
-		// A shared checkpoint stays visible while ANY of its families is on —
-		// the rally chip alone keeps Mizudori, and so does its shore chip.
+		// A marker stays visible while ANY of its filter keys is on — a shared
+		// checkpoint now keys to its official shore alone.
 		mapPage.setMarkerVisible(function (key) {
 			return key
 				.split("|")[1]
@@ -4833,7 +5100,8 @@
 			};
 		})
 			.concat([
-				{ key: "rally", label: t("Rally stops"), shape: "rally" },
+				// The rally legend chip is retired with the rally surface —
+				// official shores carry the shared checkpoint now.
 				{
 					key: "accommodation",
 					label: t("Stays"),
@@ -4879,10 +5147,20 @@
 	// and wraps the same spans in a full-width button opening the existing
 	// destination sheet; a missing/empty row passes nothing and stays
 	// plain static text — missing rows get no tick at all (there is no
-	// destination to complete).
-	function dayRouteLocationItem(name, role, visited, missing, sheetContext) {
+	// destination to complete). A skipped stop swaps the read-only tick
+	// for the icon-only skipped glyph — the row still opens the sheet,
+	// which is where Undo skip lives.
+	function dayRouteLocationItem(
+		name,
+		role,
+		visited,
+		missing,
+		sheetContext,
+		skipped,
+	) {
 		var li = el("li", { class: "biwa-dayroute-location" });
 		if (missing) li.dataset.missing = "true";
+		if (skipped) li.dataset.skipped = "true";
 		var nameSpan = el("span", { class: "biwa-dayroute-locname" }, [
 			document.createTextNode(name),
 		]);
@@ -4897,8 +5175,13 @@
 			);
 		}
 		// The shared read-only tick — same green/waypoint state the progress
-		// drawers show — or nothing at all when there is no destination.
-		var statusSpan = missing ? null : progressStateTick(visited);
+		// drawers show — the icon-only skipped glyph for a dismissed stop, or
+		// nothing at all when there is no destination.
+		var statusSpan = missing
+			? null
+			: skipped
+				? skippedStateIcon()
+				: progressStateTick(visited);
 		if (sheetContext) {
 			// Stable focus key — the sheet's return-focus fallback finds
 			// this button even after a re-render rebuilds the list.
@@ -4987,6 +5270,9 @@
 					p.visited,
 					false,
 					context,
+					// A skipped row already reports unvisited — the flag
+					// alone decides the neutral status face.
+					!!p.skipped,
 				),
 			);
 		});

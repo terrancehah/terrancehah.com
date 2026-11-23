@@ -39,6 +39,7 @@ function stubGlobals(fetchImpl) {
 
 const TripStore = require('../../projects/biwa-ride/trip-store.js');
 const Offline = require('../../projects/biwa-ride/offline-cache.js');
+const Rules = require('../../projects/biwa-ride/checkpoint-rules.js');
 
 function jsonRes(status, body) {
   return {
@@ -632,5 +633,162 @@ test('discarding a draft offline never emits a false recovery frame', async () =
   assert.ok(
     !toasts.some(m => /restored/.test(m)),
     'the notifier never claimed a recovery'
+  );
+});
+
+// --- checkpoint skips (the third per-occurrence progress map) ------------------
+// skippedStatus rides exactly the same machinery as visitStatus: the instant
+// localStorage mirror, the emit overlay, the personal doc write and the
+// eligibility-bounded merge vocabulary ('skip:' deltas).
+
+test('a skip mirrors locally, overlays the view, and lands in the personal doc', async () => {
+  const server = makeServer();
+  server.trip = tripWithRev(1);
+  server.rev = 1;
+  const store = await makeStore(server);
+  const occ = store.trip.days[0].stops[0].occurrenceId; // day1-s1, official
+
+  const r = await store.applyLocalProgress((d) => {
+    // The real write path: the mutator gets a progress-only draft, so
+    // Rules.applySkip needs the live trip as its eligibility context.
+    Rules.applySkip(d, occ, true, store.trip);
+  });
+  assert.equal(r, 'saved');
+  assert.equal(
+    store.trip.skippedStatus[occ],
+    true,
+    'view shows the dismissal'
+  );
+  assert.equal(
+    server.trip.skippedStatus[occ],
+    true,
+    'skip persisted into the doc'
+  );
+  assert.equal(
+    server.trip.visitStatus[occ],
+    undefined,
+    'a skip is never a visit'
+  );
+  const stored = JSON.parse(
+    globalThis.localStorage.getItem('biwa:v2:local-progress')
+  );
+  assert.equal(
+    stored.skippedStatus[occ],
+    true,
+    'skip persisted to the mirror'
+  );
+});
+
+test('a skipped occurrence cannot be ticked — undo restores check-in', async () => {
+  const server = makeServer();
+  server.trip = tripWithRev(1);
+  server.rev = 1;
+  const store = await makeStore(server);
+  const stop = store.trip.days[0].stops[0];
+  const occ = stop.occurrenceId;
+  const place = store.trip.places.find((p) => p.placeId === stop.placeId);
+
+  await store.applyLocalProgress((d) => {
+    Rules.applySkip(d, occ, true, store.trip);
+  });
+  // A check while skipped is a complete no-op — no visit lands locally or
+  // on the doc, and the dismissal stays put.
+  await store.applyLocalProgress((d) => {
+    Rules.applyArrival(d, occ, place, true);
+  });
+  assert.equal(store.trip.visitStatus[occ], undefined);
+  assert.equal(server.trip.visitStatus[occ], undefined);
+  assert.equal(store.trip.skippedStatus[occ], true);
+  assert.equal(
+    ((store.trip.programmeStatus || {}).official || {})[stop.placeId],
+    undefined,
+    'no programme write slipped through the no-op'
+  );
+  // Undo first — the same tick then lands normally end to end.
+  await store.applyLocalProgress((d) => {
+    Rules.applySkip(d, occ, false, store.trip);
+  });
+  await store.applyLocalProgress((d) => {
+    Rules.applyArrival(d, occ, place, true);
+  });
+  assert.equal(store.trip.visitStatus[occ], true);
+  assert.equal(server.trip.visitStatus[occ], true);
+  assert.equal(store.trip.skippedStatus[occ], undefined);
+});
+
+test('a skip while the backend is down flags locally and retries the doc write', async () => {
+  const server = makeServer();
+  server.trip = tripWithRev(1);
+  server.rev = 1;
+  const store = await makeStore(server);
+  const occ = store.trip.days[0].stops[0].occurrenceId;
+
+  server.down = true;
+  const r = await store.applyLocalProgress((d) => {
+    d.skippedStatus[occ] = true;
+  });
+  assert.equal(r, 'unavailable', 'the flag lands as a recoverable draft');
+  assert.equal(store.trip.skippedStatus[occ], true, 'view still shows it');
+  assert.ok(store.pendingDraft, 'the progress write is recoverable');
+
+  server.down = false;
+  await store.refresh();
+  const retry = await store._retryPendingDraft();
+  assert.equal(retry, 'saved');
+  assert.equal(
+    server.trip.skippedStatus[occ],
+    true,
+    'skip committed once service returned'
+  );
+});
+
+test("a paired device's skip arrives through the doc like any other progress", async () => {
+  const server = makeServer();
+  server.trip = tripWithRev(1);
+  server.rev = 1;
+  const storeA = await makeStore(server);
+  const occ = storeA.trip.days[0].stops[0].occurrenceId;
+  await storeA.applyLocalProgress((d) => {
+    d.skippedStatus[occ] = true;
+  });
+  assert.equal(server.trip.skippedStatus[occ], true);
+
+  const storeB = await makeStore(server);
+  assert.equal(
+    storeB.trip.skippedStatus[occ],
+    true,
+    'doc skip overlays B’s view'
+  );
+  const mirrorB = JSON.parse(
+    globalThis.localStorage.getItem('biwa:v2:local-progress')
+  );
+  assert.equal(
+    mirrorB.skippedStatus[occ],
+    true,
+    'doc progress mirrored into B’s copy'
+  );
+});
+
+test('a pre-skip local progress snapshot defaults skippedStatus to {}', async () => {
+  const server = makeServer();
+  server.trip = tripWithRev(1);
+  server.rev = 1;
+  stubGlobals(makeFetch(server));
+  // A mirror persisted before the field existed carries only the old maps —
+  // loading must default the third map rather than leaving it undefined.
+  globalThis.localStorage.setItem(
+    'biwa:v2:local-progress',
+    JSON.stringify({
+      visitStatus: { 'day1-s1': true },
+      programmeStatus: {}
+    })
+  );
+  const store = new TripStore();
+  await store.init();
+  assert.deepEqual(store.localProgress.skippedStatus, {});
+  assert.ok(
+    store.trip.skippedStatus &&
+      typeof store.trip.skippedStatus === 'object',
+    'the view always exposes the map'
   );
 });

@@ -246,9 +246,10 @@
   // Marker artwork. Every regular icon is an opaque 22px SVG: a solid
   // status-coloured disc carrying a white glyph — camera for official
   // checkpoints
-  // (shore-coloured), a red star for rally stops (shared checkpoints like
-  // Mizudori keep the rally look; the official area still shows on badges),
-  // a bed for accommodation and a small pin for other stops. Status is
+  // (shore-coloured; a shared official+rally record like Mizudori wears its
+  // official shore colour — the rally star is retired with the rally
+  // surface and rally-only records no longer reach the map), a bed for
+  // accommodation and a small pin for other stops. Status is
   // colour, never opacity: visited paints the rich token colour, pending
   // the pale one. Route-waypoint anchors are the exception — a small
   // neutral 10px dot that never takes a status tone.
@@ -264,8 +265,11 @@
   RoutePreview.markerShape = function (place) {
     if (place && place.category === 'route-waypoint') return 'route-waypoint';
     var programmes = (place && place.programmes) || [];
-    if (programmes.indexOf('rally') !== -1) return 'rally';
+    // Official membership wins over rally — a shared checkpoint like
+    // Mizudori is solely official on the active surface; the rally shape
+    // survives only for records no longer surfaced anywhere.
     if (programmes.some(function (p) { return typeof p === 'string' && p.indexOf('official-') === 0; })) return 'official';
+    if (programmes.indexOf('rally') !== -1) return 'rally';
     if (place && place.category === 'accommodation') return 'accommodation';
     return 'extra';
   };

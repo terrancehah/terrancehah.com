@@ -1008,9 +1008,12 @@ body.biwa-page {
 	justify-content: center;
 	text-align: center;
 }
+/* The Skip button guard covers .biwa-btn — its flex display would
+   otherwise beat the UA [hidden] rule for non-official next stops. */
 .biwa-next-actions[hidden],
 .biwa-next-checkins[hidden],
-.biwa-next-credit[hidden] {
+.biwa-next-credit[hidden],
+.biwa-next-actions .biwa-btn[hidden] {
 	display: none;
 }
 .biwa-next-credit {
@@ -1521,6 +1524,54 @@ body.biwa-page {
      highlight so the filled face reads raised, not hollow. */
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
 	color: #fff;
+}
+
+/* Skipped-stop face — same 48px hitbox as the arrival check but a wider
+   30px petal well carrying the 24px bold skip-forward glyph, so the
+   dismissal reads at a glance and can never pass for the green stamp;
+   its only action is Undo skip. */
+.biwa-skip-state {
+	flex: none;
+	width: calc(var(--biwa-tap) - 8px);
+	height: var(--biwa-tap);
+	background: none;
+	border: 0;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+}
+.biwa-skip-box {
+	width: 30px;
+	height: 30px;
+	border-radius: 9px;
+	background: var(--biwa-petal);
+	box-shadow: inset 0 1.5px 3px rgba(var(--biwa-ink-rgb), 0.2);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.biwa-skip-box svg {
+	flex: none;
+}
+/* The map's compact day list reuses the same glyph at the shared status
+   size — icon only, the row's own sheet carries Undo skip. */
+.biwa-dayroute-skip-icon {
+	display: inline-flex;
+	align-items: center;
+}
+.biwa-dayroute-skip-icon svg {
+	width: 18px;
+	height: 18px;
+}
+/* A dismissed stop stays legible but quiet — the neutral check-slot
+   face carries the meaning; the name just softens. */
+.biwa-track-row[data-skipped="true"] .biwa-card-name {
+	color: var(--biwa-ink-soft);
+}
+.biwa-dayroute-location[data-skipped="true"] .biwa-dayroute-locname {
+	color: var(--biwa-ink-soft);
 }
 
 /* Drag handle — a real 44px target, and it never opens the sheet. */

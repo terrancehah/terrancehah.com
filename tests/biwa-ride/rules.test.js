@@ -137,7 +137,11 @@ test('rally requires all ten; official areas count one-per-area', () => {
   }
   assert.strictEqual(Rules.officialAreaProgress(trip).complete, true);
   assert.strictEqual(Rules.rallyProgress(trip).complete, false);
-  assert.strictEqual(Rules.groupChecklist(trip).complete, false);
+  // Checklist completion gates on the official shores alone now that the
+  // rally is retired from the active ride — rally progress stays
+  // informational on the sub-result for compatibility.
+  assert.strictEqual(Rules.groupChecklist(trip).complete, true);
+  assert.strictEqual(Rules.groupChecklist(trip).rally.complete, false);
 
   // Nine of ten rally stops is not enough.
   for (const p of Rules.rallyPlaces(trip).slice(0, 9)) {
@@ -238,31 +242,35 @@ test('reordering stops preserves occurrenceIds and visit flags', () => {
   const trip = freshTrip();
   trip.visitStatus['day1-s1'] = true;
   const stops = trip.days[0].stops;
-  [stops[0], stops[1]] = [stops[1], stops[0]];
+  // Swap two ACTIVE stops — rally-only rows (s2, s3) no longer reach the
+  // queue, so they can't demonstrate the reorder landing.
+  [stops[0], stops[3]] = [stops[3], stops[0]];
   // Start endpoint is still first; after it the swapped-in stop is next.
   trip.visitStatus['day-1-start'] = true;
   const nextAfterStart = Rules.nextUnvisitedStop(trip, trip.days[0]);
-  assert.strictEqual(nextAfterStart.occurrenceId, 'day1-s2');
+  assert.strictEqual(nextAfterStart.occurrenceId, 'day1-s4');
   assert.strictEqual(trip.visitStatus['day1-s1'], true);
 });
 
 test('visits are per occurrence — repeated visits of a place stay distinct', () => {
   const trip = freshTrip();
   // A place can occur twice in one itinerary as separate occurrences, each
-  // with its own visit flag.
-  const occurrences = Rules.occurrencesOf(trip, 'rally-castle');
+  // with its own visit flag. (An official place stands in here: rally-only
+  // records no longer reach the visible itinerary at all.)
+  const occurrences = Rules.occurrencesOf(trip, 'official-east-hikone');
   assert.deepStrictEqual(occurrences,
-    [{ dayId: 'day-2', occurrenceId: 'day2-s1', kind: 'stop' }]);
-  trip.days[1].stops.push({ occurrenceId: 'day2-s9', placeId: 'rally-castle' });
-  // Endpoints and all stops ticked except the second castle occurrence.
+    [{ dayId: 'day-2', occurrenceId: 'day2-s2', kind: 'stop' }]);
+  trip.days[1].stops.push({ occurrenceId: 'day2-s9', placeId: 'official-east-hikone'
+  });
+  // Endpoints and all stops ticked except the second occurrence.
   trip.visitStatus['day-2-start'] = true;
   trip.visitStatus['day-2-end'] = true;
   for (const s of trip.days[1].stops) trip.visitStatus[s.occurrenceId] = true;
   delete trip.visitStatus['day2-s9'];
-  // Only the second castle occurrence is unvisited — the earlier visit stands.
+  // Only the second occurrence is unvisited — the earlier visit stands.
   const next = Rules.nextUnvisitedStop(trip, trip.days[1]);
   assert.strictEqual(next.occurrenceId, 'day2-s9');
-  assert.strictEqual(next.placeId, 'rally-castle');
+  assert.strictEqual(next.placeId, 'official-east-hikone');
 });
 
 test('blueprint endpoints frame every day; missing endpoints skip, never invent', () => {
@@ -389,4 +397,177 @@ test('schematic fallback contains no provider polyline and is honestly labelled'
   // renderSchematic only accepts user stop points — it has no routePath arg,
   // so Google geometry can never reach the fallback by construction.
   assert.strictEqual(Preview.renderSchematic.length, 2); // (container, points) only
+});
+
+// --- rally retirement ---------------------------------------------------------
+
+test('rally-only records leave the active itinerary but stay stored', () => {
+  const trip = freshTrip();
+  const mizudori = trip.places.find((p) => p.placeId === 'mizudori-station');
+  const castle = trip.places.find((p) => p.placeId === 'rally-castle');
+  assert.strictEqual(Rules.isRallyOnly(castle), true);
+  assert.strictEqual(
+    Rules.isRallyOnly(mizudori),
+    false,
+    'a shared checkpoint keeps its official membership'
+  );
+  // dayPoints drops rally-only stops everywhere; the stored rows and the
+  // shared official+rally checkpoint are untouched.
+  const storedBefore = trip.days[1].stops.length;
+  const points = Rules.dayPoints(trip, trip.days[1]);
+  assert.ok(!points.some((p) => p.placeId === 'rally-castle'));
+  assert.strictEqual(
+    trip.days[1].stops.length,
+    storedBefore,
+    'source itinerary preserved'
+  );
+  const mizudoriPoint = points.find((p) => p.placeId === 'mizudori-station');
+  assert.ok(mizudoriPoint, 'the shared checkpoint stays active');
+  assert.deepStrictEqual(Rules.placeBadges(mizudoriPoint.place), [
+    'Official · North'
+  ]);
+  // Route anchors follow the same view — a rally stop can never steer the
+  // road line as a hidden anchor.
+  const routed = Rules.routePoints(trip, trip.days[1]);
+  assert.strictEqual(routed.points.length, points.length);
+  assert.deepStrictEqual(routed.unroutable, []);
+});
+
+// --- checkpoint skipping ------------------------------------------------------
+
+test('skipping an official checkpoint advances Up Next without touching itinerary or route', () => {
+  const trip = freshTrip();
+  const day = trip.days[0];
+  const hana = trip.places.find((p) => p.placeId === 'stay-hana');
+  Rules.applyArrival(trip, 'day-1-start', hana, true);
+  const next = Rules.nextUnvisitedStop(trip, day);
+  assert.strictEqual(next.occurrenceId, 'day1-s1');
+  assert.strictEqual(next.skippable, true);
+  const routeBefore = JSON.stringify(Rules.routePoints(trip, day).points);
+  Rules.applySkip(trip, 'day1-s1', true);
+  assert.strictEqual(trip.skippedStatus['day1-s1'], true);
+  assert.strictEqual(Rules.isSkipped(trip, 'day1-s1'), true);
+  // A skip is never a visit and never awards programme progress.
+  assert.strictEqual(trip.visitStatus['day1-s1'], undefined);
+  assert.strictEqual((trip.programmeStatus || {}).official, undefined);
+  // The queue advances past the dismissal — and past the rally-only rows
+  // that no longer exist in the active view (s2, s3 are rally-only).
+  const after = Rules.nextUnvisitedStop(trip, day);
+  assert.strictEqual(after.occurrenceId, 'day1-s4');
+  // The row keeps its slot and its route geometry — same anchors verbatim.
+  const row = Rules.dayPoints(trip, day).find(
+    (p) => p.occurrenceId === 'day1-s1'
+  );
+  assert.strictEqual(row.skipped, true);
+  assert.strictEqual(row.visited, false);
+  assert.strictEqual(
+    JSON.stringify(Rules.routePoints(trip, day).points),
+    routeBefore
+  );
+});
+
+test('undo skip restores the stop to the unvisited queue', () => {
+  const trip = freshTrip();
+  const day = trip.days[0];
+  // The start endpoint leads the queue — tick it so the assertions land on
+  // the checkpoint, not the boundary row.
+  trip.visitStatus['day-1-start'] = true;
+  Rules.applySkip(trip, 'day1-s1', true);
+  assert.notStrictEqual(
+    Rules.nextUnvisitedStop(trip, day).occurrenceId,
+    'day1-s1'
+  );
+  Rules.applySkip(trip, 'day1-s1', false);
+  assert.strictEqual(trip.skippedStatus['day1-s1'], undefined);
+  assert.strictEqual(
+    Rules.nextUnvisitedStop(trip, day).occurrenceId,
+    'day1-s1'
+  );
+});
+
+test('arrival cannot convert a skipped occurrence — undo restores check-in', () => {
+  const trip = freshTrip();
+  const otsu = trip.places.find((p) => p.placeId === 'official-south-otsu');
+  Rules.applySkip(trip, 'day1-s1', true);
+  // A check while skipped is a complete no-op — no visit flag, no
+  // programme writes, and the dismissal stays. Undo must come first.
+  Rules.applyArrival(trip, 'day1-s1', otsu, true);
+  assert.strictEqual(trip.visitStatus['day1-s1'], undefined);
+  assert.strictEqual(
+    (trip.programmeStatus.official || {})['official-south-otsu'],
+    undefined
+  );
+  assert.strictEqual(trip.skippedStatus['day1-s1'], true);
+  // A shared programme tick elsewhere never converts the dismissal —
+  // the skipped occurrence still reads unvisited and still skipped.
+  Rules.checkProgramme(trip, 'official', 'official-south-otsu', true);
+  assert.strictEqual(Rules.arrivalChecked(trip, 'day1-s1', otsu), false);
+  const row = Rules.dayPoints(trip, trip.days[0]).find(
+    (p) => p.occurrenceId === 'day1-s1'
+  );
+  assert.strictEqual(row.visited, false);
+  assert.strictEqual(row.skipped, true);
+  // Unchecking cannot silently undo either — only applySkip(false) does.
+  Rules.applyArrival(trip, 'day1-s1', otsu, false);
+  assert.strictEqual(trip.skippedStatus['day1-s1'], true);
+  // Undo, then the same arrival lands normally.
+  Rules.applySkip(trip, 'day1-s1', false);
+  Rules.applyArrival(trip, 'day1-s1', otsu, true);
+  assert.strictEqual(trip.visitStatus['day1-s1'], true);
+  assert.strictEqual(trip.skippedStatus['day1-s1'], undefined);
+});
+
+test('only official itinerary stop occurrences are skippable', () => {
+  const trip = freshTrip();
+  // Official stops and the shared official+rally checkpoint qualify.
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day1-s1'), true);
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day2-s4'), true);
+  // Endpoint boundary ids are never stops.
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day-1-start'), false);
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day-1-end'), false);
+  // Rally-only stops and route-waypoint anchors are out.
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day1-s2'), false);
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day1-s8'), false);
+  // Unknown ids and custom-place stops are never eligible either.
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'ghost'), false);
+  trip.days[0].stops.push({
+    occurrenceId: 'day1-s10',
+    placeId: 'extra-ukawa'
+  });
+  assert.strictEqual(Rules.skippableOccurrence(trip, 'day1-s10'), false);
+});
+
+test('applySkip refuses a completed or ineligible occurrence; undo is unconditional', () => {
+  const trip = freshTrip();
+  const otsu = trip.places.find((p) => p.placeId === 'official-south-otsu');
+  // A completed stop can never carry a hidden dismissal — the write is a
+  // no-op, not a flag under the green tick.
+  Rules.applyArrival(trip, 'day1-s1', otsu, true);
+  Rules.applySkip(trip, 'day1-s1', true);
+  assert.strictEqual(Rules.isSkipped(trip, 'day1-s1'), false);
+  // Ineligible ids refuse the same way — endpoint, rally-only, ghost.
+  Rules.applySkip(trip, 'day-1-start', true);
+  Rules.applySkip(trip, 'day1-s2', true);
+  Rules.applySkip(trip, 'ghost', true);
+  assert.deepStrictEqual(trip.skippedStatus, {});
+  // Clearing still reaches a flag whose eligibility lapsed after it was
+  // set — undo is never gated on the current visit/eligibility state.
+  trip.skippedStatus['day1-s1'] = true;
+  Rules.applySkip(trip, 'day1-s1', false);
+  assert.strictEqual(trip.skippedStatus['day1-s1'], undefined);
+  // A stray flag never converts silently: even with a stored visit flag
+  // the row reads skipped — the dismissal stands until undone, and undo
+  // reveals the visit flag preserved underneath.
+  trip.skippedStatus['day1-s1'] = true;
+  const row = Rules.dayPoints(trip, trip.days[0]).find(
+    (p) => p.occurrenceId === 'day1-s1'
+  );
+  assert.strictEqual(row.visited, false);
+  assert.strictEqual(row.skipped, true);
+  Rules.applySkip(trip, 'day1-s1', false);
+  const restored = Rules.dayPoints(trip, trip.days[0]).find(
+    (p) => p.occurrenceId === 'day1-s1'
+  );
+  assert.strictEqual(restored.visited, true);
+  assert.strictEqual(restored.skipped, false);
 });

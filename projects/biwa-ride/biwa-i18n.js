@@ -45,6 +45,20 @@
 		"Day 3 complete. You’re back in Otsu.": "第3天完成。你已回到大津。",
 		"Every stop visited. Time to rest and recharge.":
 			"所有站点均已到访。好好休息，恢复体力吧。",
+		// Completion copy with dismissals — it always names the skipped count
+		// rather than claiming every stop was visited.
+		"Three days around Lake Biwa — ride complete, {n} checkpoint skipped.":
+			"环琵琶湖三日骑行完成——跳过 {n} 个打卡点。",
+		"Three days around Lake Biwa — ride complete, {n} checkpoints skipped.":
+			"环琵琶湖三日骑行完成——跳过 {n} 个打卡点。",
+		"Day 3 complete — {n} checkpoint skipped, and you’re back in Otsu.":
+			"第3天完成——跳过 {n} 个打卡点，你已回到大津。",
+		"Day 3 complete — {n} checkpoints skipped, and you’re back in Otsu.":
+			"第3天完成——跳过 {n} 个打卡点，你已回到大津。",
+		"Day complete — {n} checkpoint skipped. Time to rest and recharge.":
+			"当日完成——跳过 {n} 个打卡点。好好休息，恢复体力吧。",
+		"Day complete — {n} checkpoints skipped. Time to rest and recharge.":
+			"当日完成——跳过 {n} 个打卡点。好好休息，恢复体力吧。",
 		"Your itinerary": "你的行程",
 		"No stops planned for this day yet": "当天还没有安排站点",
 		"Finish your day plan": "完善当日计划",
@@ -70,6 +84,14 @@
 		"Check In on Official Site": "前往官网打卡",
 		"Rally Check-In": "集章打卡",
 		"Check In on Rally Site": "前往集章官网打卡",
+		// Checkpoint skipping — a dismissal, never a visit; always reversible.
+		"Skip checkpoint": "跳过打卡点",
+		"Undo skip": "取消跳过",
+		"Undo skip: {name}": "取消跳过：{name}",
+		Skipped: "已跳过",
+		"Skipped — {name}": "已跳过——{name}",
+		"{name} is back in Up Next": "{name}已回到下一站",
+		"Official checkpoints covered": "官方打卡点已覆盖",
 
 		// Certificate progress accordion (the retired metric labels below are
 		// kept rather than deleted, matching this table's legacy-key habit).
@@ -394,6 +416,14 @@
 		"North shore": "北岸",
 		"West shore": "西岸",
 	};
+	// Badge shore chips use the compact 湖+direction forms — the legend's
+	// 岸-suffixed shore names on AREA_ZH/areaLabel stay unchanged.
+	var BADGE_SHORE_ZH = {
+		east: "湖东",
+		south: "湖南",
+		west: "湖西",
+		north: "湖北",
+	};
 
 	function interpolate(text, vars) {
 		if (!vars) return text;
@@ -443,19 +473,21 @@
 	};
 
 	// Programme badge text from Rules.placeBadges ('Rally', 'Official · South').
+	// Official badges label the shore alone — the programme prefix is implied
+	// by the chip, never spelled out.
 	I18n.badge = function (badge) {
-		if (lang !== "zh") return badge;
+		var m = /^Official · (.+)$/.exec(badge);
+		if (lang !== "zh") return m ? m[1] : badge;
 		// The rally is a limited-time stamp rally, not a motorsport rally.
 		if (badge === "Rally") return "限时集章";
-		var m = /^Official · (.+)$/.exec(badge);
-		if (m) return "官方 · " + (AREA_ZH[m[1].toLowerCase()] || m[1]);
+		if (m) return BADGE_SHORE_ZH[m[1].toLowerCase()] || m[1];
 		return badge;
 	};
 
-	// One placeBadges string can carry two facts — 'Official · South' renders
-	// as two chips: a programme chip (官方) plus a shore chip (南岸) whose
-	// data-area drives the map-marker colour. Non-official badges stay a
-	// single chip. Each part is { text, programme, area? }.
+	// 'Official · South' renders as a single shore chip (South / 湖南) whose
+	// data-area drives the map-marker colour — no separate programme chip.
+	// Non-official badges stay a single chip as well. Each part is
+	// { text, programme, area? }.
 	I18n.badgeParts = function (badge) {
 		var m = /^Official · (.+)$/.exec(badge);
 		if (!m) {
@@ -467,12 +499,8 @@
 			];
 		}
 		var key = m[1].toLowerCase();
-		var programmeText = lang === "zh" ? "官方" : "Official";
-		var shoreText = lang === "zh" ? AREA_ZH[key] || m[1] : m[1];
-		return [
-			{ text: programmeText, programme: "official" },
-			{ text: shoreText, programme: "official", area: key },
-		];
+		var shoreText = lang === "zh" ? BADGE_SHORE_ZH[key] || m[1] : m[1];
+		return [{ text: shoreText, programme: "official", area: key }];
 	};
 
 	I18n.lang = function () {

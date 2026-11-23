@@ -180,6 +180,34 @@ function draftPlaces(storageMap) {
 
 // --- durable draft lifecycle ---------------------------------------------------
 
+test("an unsent offline skip restores with its draft and reseeds the mirror", async () => {
+	const local = new Map();
+	const server = makeServer();
+	const first = await newStore(server, local);
+	server.down = true;
+	const r = await first.store.applyLocalProgress(function (p) {
+		p.skippedStatus["day1-s1"] = true;
+	});
+	assert.notEqual(r, "saved");
+	// The durable draft carries the flag AND the 'skip:' merge delta — a
+	// reload while still offline must show it before any read can succeed.
+	const raw = JSON.parse(local.get(DRAFT_KEY));
+	assert.equal(raw.skippedStatus["day1-s1"], true);
+	assert.ok(
+		raw._biwaLocalProgress.changes.some(
+			(c) => c.kind === "skip" && c.key === "day1-s1" && c.value === true,
+		),
+		"the durable metadata tracks the skip delta",
+	);
+	const second = await newStore(server, local);
+	assert.equal(second.store.trip.skippedStatus["day1-s1"], true);
+	assert.equal(
+		second.store.localProgress.skippedStatus["day1-s1"],
+		true,
+		"the restored draft reseeds the mirror's third map",
+	);
+});
+
 test("a failed write is persisted and a reloaded instance resumes it at its own base", async () => {
 	const local = new Map();
 	const server = makeServer();

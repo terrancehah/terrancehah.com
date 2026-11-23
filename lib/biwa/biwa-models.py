@@ -14,7 +14,9 @@ cross-references. Since this pass, the validator is source-strict:
   * Custom places cannot mint programme memberships, and programmeStatus can
     only be checked for a place that actually belongs to that programme
     family ('rally' needs rally membership, 'official' needs any
-    official-* membership).
+    official-* membership). skippedStatus accepts only true flags on
+    occurrences that are still official checkpoint stops — never endpoints,
+    custom places, route-waypoints or rally-only records.
   * Nested objects use strict key allowlists; malformed shapes (unhashable
     references, non-dict containers) yield 422, never a 500.
 
@@ -59,7 +61,8 @@ CUSTOM_CATEGORIES = {"custom", "parking", "accommodation"}
 
 # Strict key allowlists — anything outside these is rejected, not ignored.
 TRIP_KEYS = {"schemaVersion", "revision", "updatedAt", "provenance",
-             "places", "days", "visitStatus", "programmeStatus"}
+             "places", "days", "visitStatus", "programmeStatus",
+             "skippedStatus"}
 PLACE_KEYS = {"placeId", "label", "lat", "lng", "source", "programmes",
               "category", "nameConfirmed", "notes", "bikeFriendly",
               "googlePlaceId", "address"}
@@ -270,6 +273,9 @@ def validate_trip(trip):
         errors.append(f"days must contain exactly {REQUIRED_DAYS} entries")
     day_ids = set()
     occurrence_ids = set()
+    # occurrenceId -> placeId for every itinerary stop — the eligibility
+    # input skippedStatus is checked against below.
+    stop_place_ids = {}
     for i, day in enumerate(days):
         path = f"days[{i}]"
         if not isinstance(day, dict):
@@ -323,6 +329,19 @@ def validate_trip(trip):
             pid = stop.get("placeId")
             if not isinstance(pid, str) or pid not in place_ids:
                 errors.append(f"{spath}.placeId references an unknown place")
+            if isinstance(oid, str) and isinstance(pid, str):
+                stop_place_ids[oid] = pid
+
+    # Occurrences eligible to carry a skip flag: itinerary stops whose place
+    # still holds official membership. Endpoints are day boundaries (not
+    # stops), and custom places, route-waypoint anchors and rally-only
+    # records can never be skipped.
+    skippable_ids = {
+        oid for oid, pid in stop_place_ids.items()
+        if pid in places_by_id
+        and "official" in _programme_family(
+            places_by_id[pid].get("programmes"))
+    }
 
     # --- visit status: keyed by occurrence, so repeated visits stay distinct ---
     visits = trip.get("visitStatus", {})
@@ -336,6 +355,22 @@ def validate_trip(trip):
             errors.append(f"visitStatus['{key}'] has no matching stop occurrence")
         if value is not True:
             errors.append(f"visitStatus['{key}'] must be true when present")
+
+    # --- skipped stops: per-occurrence dismissal flags, eligibility-bound ---
+    # Optional field — snapshots written before it existed simply omit it.
+    skipped = trip.get("skippedStatus")
+    if skipped is not None:
+        if not isinstance(skipped, dict):
+            errors.append("skippedStatus must be an object")
+        else:
+            if len(skipped) > MAX_OCCURRENCE_VISITS:
+                errors.append(f"skippedStatus exceeds {MAX_OCCURRENCE_VISITS} entries")
+            for key, value in skipped.items():
+                if not isinstance(key, str) or key not in skippable_ids:
+                    errors.append(
+                        f"skippedStatus['{key}'] is not an eligible official checkpoint occurrence")
+                elif value is not True:
+                    errors.append(f"skippedStatus['{key}'] must be true when present")
 
     # --- programme checklist: keyed by family then placeId, membership-bound ---
     status = trip.get("programmeStatus", {})

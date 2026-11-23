@@ -4,7 +4,9 @@ Welcome to my little corner of the internet.
 
 ## Who am I?
 
-I'm Terrance — a tuition teacher by day, and a self-teaching programmer by night.
+I'm Terrance, an educator and self-taught programmer. I've spent about 12 years in education, including teaching hybrid classes and building quizzes, learning materials, and feedback into lessons.
+
+I'm now looking for opportunities in edtech and AI. I'm especially interested in designing evaluation rubrics and bringing what I've learned in the classroom to the way AI tools are built and evaluated.
 
 I started this website because I wanted a space to document my learning, my thoughts, and the things I build along the way.
 It's messy, it's imperfect, and that's exactly how I like it.
@@ -21,9 +23,7 @@ This is where I:
 
 ## The Journey
 
-I studied International Business, then found myself in education.
-Working with students made me realize how broken some parts of our education system are.
-I decided to learn programming, and I hope to help kids embrace technology as a tool for learning, not just entertainment.
+I studied International Business, then found myself in education. Teaching made me curious about how technology could help students practise, get useful feedback, and think for themselves. That curiosity led me to teach myself to code and start building tools of my own, including a Notion syllabus planner for other educators.
 
 ## Tech Stack
 
@@ -98,4 +98,4 @@ If you're reading this, thank you for being part of the journey.
 
 ---
 
-**Last updated: October 2026**
+**Last updated: November 2026**

@@ -14,7 +14,7 @@
  *    pendingDraft / conflict until the user resolves it or a retry
  *    succeeds. With a personal doc the only real conflict surface is two
  *    tabs/devices sharing one owner id; the machinery stays regardless.
- *  - Check-in progress (visitStatus/programmeStatus) now lives INSIDE the
+ *  - Check-in progress (visitStatus/programmeStatus/skippedStatus) lives INSIDE the
  *    personal doc — applyLocalProgress still updates the localStorage
  *    mirror first (instant ticks, offline buffer, and the migration path
  *    for progress made under the old model) and then persists the whole
@@ -125,8 +125,14 @@
 		this._saving = false;
 		// Per-device check-in state — overlaid onto this.trip, never shared.
 		// Seeded once from whatever doc first carries the legacy shared fields
-		// so progress made under the old shared model is not lost.
-		this.localProgress = { visitStatus: {}, programmeStatus: {} };
+		// so progress made under the old shared model is not lost. The skip
+		// map is the third progress field: per-occurrence dismissals that
+		// older snapshots simply never carry.
+		this.localProgress = {
+			visitStatus: {},
+			programmeStatus: {},
+			skippedStatus: {},
+		};
 		this._progressLoaded = false;
 		this._listeners = [];
 		this._writeQueue = Promise.resolve();
@@ -216,6 +222,8 @@
 			this.localProgress = {
 				visitStatus: stored.visitStatus || {},
 				programmeStatus: stored.programmeStatus || {},
+				// Snapshots persisted before the field existed default to empty.
+				skippedStatus: stored.skippedStatus || {},
 			};
 			this._progressLoaded = true;
 			return;
@@ -226,6 +234,7 @@
 			programmeStatus: JSON.parse(
 				JSON.stringify(doc.programmeStatus || {}),
 			),
+			skippedStatus: JSON.parse(JSON.stringify(doc.skippedStatus || {})),
 		};
 		this._progressLoaded = true;
 		this._storageSet(
@@ -244,6 +253,9 @@
 		);
 		doc.programmeStatus = JSON.parse(
 			JSON.stringify(this.localProgress.programmeStatus),
+		);
+		doc.skippedStatus = JSON.parse(
+			JSON.stringify(this.localProgress.skippedStatus || {}),
 		);
 		return doc;
 	};
@@ -282,6 +294,11 @@
 				);
 				draft.programmeStatus = JSON.parse(
 					JSON.stringify(self.localProgress.programmeStatus),
+				);
+				// Skips are per-occurrence progress — same pin, so a merge can
+				// never resurrect a locally-undone skip.
+				draft.skippedStatus = JSON.parse(
+					JSON.stringify(self.localProgress.skippedStatus || {}),
 				);
 			},
 			{ progressChanges: changes },
@@ -340,6 +357,26 @@
 					});
 				}
 			});
+		});
+		// Skip flags are the third mergeable map — same per-occurrence boolean
+		// vocabulary, so a skip or an undo replays through a CAS-409 merge.
+		var sBefore = (before && before.skippedStatus) || {};
+		var sAfter = (after && after.skippedStatus) || {};
+		var skipKeys = {};
+		Object.keys(sBefore).forEach(function (k) {
+			skipKeys[k] = true;
+		});
+		Object.keys(sAfter).forEach(function (k) {
+			skipKeys[k] = true;
+		});
+		Object.keys(skipKeys).forEach(function (k) {
+			if ((sBefore[k] === true) !== (sAfter[k] === true)) {
+				changes.push({
+					kind: "skip",
+					key: k,
+					value: sAfter[k] === true,
+				});
+			}
 		});
 		return changes;
 	}
@@ -548,7 +585,9 @@
 	TripStore.prototype._deltaKey = function (c) {
 		return c.kind === "programme"
 			? "programme:" + c.programme + ":" + c.key
-			: "visit:" + c.key;
+			: c.kind === "skip"
+				? "skip:" + c.key
+				: "visit:" + c.key;
 	};
 
 	TripStore.prototype._pendingDeltaList = function () {
@@ -623,6 +662,9 @@
 			var fam = (doc.programmeStatus || {})[c.programme] || {};
 			return (fam[c.key] === true) === c.value;
 		}
+		if (c.kind === "skip") {
+			return ((doc.skippedStatus || {})[c.key] === true) === c.value;
+		}
 		return ((doc.visitStatus || {})[c.key] === true) === c.value;
 	};
 
@@ -630,9 +672,10 @@
 	// membership checks _applyDelta uses to build merge payloads — a visit
 	// delta applies while its occurrence (a stop, or a live implicit
 	// endpoint) exists, a programme delta only while the place remains a
-	// member of that family. A skipped delta can never be 'reflected' on
-	// the doc, so applicability — not effect — is what lets acknowledgement
-	// retire it instead of tracking it forever.
+	// member of that family, and a skip delta only while the occurrence is
+	// still an official checkpoint stop. An inapplicable delta can never be
+	// 'reflected' on the doc, so applicability — not effect — is what lets
+	// acknowledgement retire it instead of tracking it forever.
 	TripStore.prototype._deltaApplicable = function (doc, c) {
 		if (c.kind === "programme") {
 			var place = (doc.places || []).filter(function (p) {
@@ -641,7 +684,46 @@
 			if (!place) return false;
 			return familiesOf(place.programmes).indexOf(c.programme) !== -1;
 		}
+		if (c.kind === "skip") {
+			return this._skipEligible(doc, c.key, c.value === true);
+		}
 		return this._occurrenceExists(doc, c.key);
+	};
+
+	// A skip flag may only land on an occurrence that is still a day.stops
+	// entry whose place holds official membership — endpoints, custom places,
+	// route-waypoint anchors and rally-only records can never be skipped.
+	// Setting additionally refuses an occurrence whose arrival already
+	// landed (a merged tick always wins the race, so a replayed skip can
+	// never hide under a completed row); clearing stays applicable so a
+	// stray flag can never wedge un-undoable.
+	TripStore.prototype._skipEligible = function (doc, occurrenceId, setting) {
+		var places = {};
+		(doc.places || []).forEach(function (p) {
+			places[p.placeId] = p;
+		});
+		return (doc.days || []).some(function (day) {
+			return (day.stops || []).some(function (stop) {
+				if (stop.occurrenceId !== occurrenceId) return false;
+				var place = places[stop.placeId];
+				if (
+					!(
+						place &&
+						familiesOf(place.programmes).indexOf("official") !== -1
+					)
+				) {
+					return false;
+				}
+				if (setting !== true) return true;
+				var arrived =
+					(doc.visitStatus || {})[occurrenceId] === true ||
+					familiesOf(place.programmes).some(function (f) {
+						var fam = (doc.programmeStatus || {})[f] || {};
+						return fam[place.placeId] === true;
+					});
+				return !arrived;
+			});
+		});
 	};
 
 	// Drop every op the acknowledged doc settles — a recorded delta is
@@ -806,6 +888,11 @@
 					),
 					programmeStatus: JSON.parse(
 						JSON.stringify(restoredDraft.programmeStatus || {}),
+					),
+					// Skips restore with the draft — they are per-occurrence
+					// progress like the other two maps.
+					skippedStatus: JSON.parse(
+						JSON.stringify(restoredDraft.skippedStatus || {}),
 					),
 				};
 				this._progressLoaded = true;
@@ -1048,11 +1135,19 @@
 		// this wipe).
 		var pendingWork =
 			this._pendingDeltaList().length || this._pendingPlanSeqs.length;
-		if (!pendingWork && (trip.visitStatus || trip.programmeStatus)) {
+		if (
+			!pendingWork &&
+			(trip.visitStatus || trip.programmeStatus || trip.skippedStatus)
+		) {
 			this.localProgress = {
 				visitStatus: JSON.parse(JSON.stringify(trip.visitStatus || {})),
 				programmeStatus: JSON.parse(
 					JSON.stringify(trip.programmeStatus || {}),
+				),
+				// The doc is authoritative for skips too — a paired device's
+				// dismissal lands through the same mirror.
+				skippedStatus: JSON.parse(
+					JSON.stringify(trip.skippedStatus || {}),
 				),
 			};
 			this._progressLoaded = true;
@@ -1221,6 +1316,14 @@
 			if (pending && pending.seq <= cap) {
 				delete self._pendingDeltas["visit:" + id];
 			}
+			// Boundary ids are never skip-eligible, but a stray flag or a
+			// superseded pending delta on the same id retires with the clear.
+			if (self.localProgress.skippedStatus)
+				delete self.localProgress.skippedStatus[id];
+			var pendingSkip = self._pendingDeltas["skip:" + id];
+			if (pendingSkip && pendingSkip.seq <= cap) {
+				delete self._pendingDeltas["skip:" + id];
+			}
 		});
 		this._storageSet(
 			LOCAL_PROGRESS_KEY,
@@ -1231,6 +1334,9 @@
 		);
 		draft.programmeStatus = JSON.parse(
 			JSON.stringify(this.localProgress.programmeStatus),
+		);
+		draft.skippedStatus = JSON.parse(
+			JSON.stringify(this.localProgress.skippedStatus || {}),
 		);
 	};
 
@@ -1251,6 +1357,7 @@
 			programmeStatus: JSON.parse(
 				JSON.stringify(doc.programmeStatus || {}),
 			),
+			skippedStatus: JSON.parse(JSON.stringify(doc.skippedStatus || {})),
 		};
 		this._pendingDeltaList().forEach(function (c) {
 			self._applyDeltaToProgress(mirror, c);
@@ -1367,6 +1474,12 @@
 			}
 			return;
 		}
+		if (c.kind === "skip") {
+			progress.skippedStatus = progress.skippedStatus || {};
+			if (c.value) progress.skippedStatus[c.key] = true;
+			else delete progress.skippedStatus[c.key];
+			return;
+		}
 		progress.visitStatus = progress.visitStatus || {};
 		if (c.value) progress.visitStatus[c.key] = true;
 		else delete progress.visitStatus[c.key];
@@ -1399,7 +1512,11 @@
 			JSON.stringify(merged.visitStatus || {}) ===
 				JSON.stringify(server.visitStatus || {}) &&
 			JSON.stringify(merged.programmeStatus || {}) ===
-				JSON.stringify(server.programmeStatus || {});
+				JSON.stringify(server.programmeStatus || {}) &&
+			// Skips compare with the same boolean vocabulary — a replayed skip
+			// delta that already landed must not force a second write.
+			JSON.stringify(merged.skippedStatus || {}) ===
+				JSON.stringify(server.skippedStatus || {});
 		if (progressEqual) {
 			// Everything owed already landed (a paired device wrote it) or its
 			// target is gone — adopt the server doc, no extra write needed.

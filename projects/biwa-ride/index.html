@@ -741,6 +741,18 @@
 										data-i18n="Mark as Completed">
 										Mark as Completed
 									</button>
+									<!-- Skip dismisses only this Up Next target — the stop
+                       stays on the itinerary and route. Hidden for
+                       non-official occurrences; Undo skip lives on the
+                       row's neutral check face and in the sheet. -->
+									<button
+										class="biwa-btn biwa-btn-secondary"
+										id="biwa-next-skip"
+										type="button"
+										data-i18n="Skip checkpoint"
+										hidden>
+										Skip checkpoint
+									</button>
 								</div>
 								<!-- Programme check-in links for the CURRENT next stop only —
                    populated per render by renderNextCard; the row collapses
