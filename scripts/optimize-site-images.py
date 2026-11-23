@@ -593,10 +593,11 @@ def cmd_check():
                                                        "data:")):
                     fails.append(f"{page} L{ln}: unresolvable src {src}")
             for part in (attrs.get("srcset") or "").split(","):
-                part = part.strip()
-                if not part:
+                candidate = part.split(maxsplit=1)
+                if not candidate:
                     continue
-                url, _, wd = part.rpartition(" ")
+                url = candidate[0]
+                wd = candidate[1].strip() if len(candidate) > 1 else ""
                 loc = resolve_local(page, url)
                 if loc is None:
                     fails.append(f"{page} L{ln}: srcset missing {url}")

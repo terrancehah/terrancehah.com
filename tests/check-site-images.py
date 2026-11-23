@@ -117,9 +117,9 @@ for page in sorted(consumers()):
                 FAILS.append(f"{page} L{ln}: generated src orphaned "
                              f"{src[:60]}")
             for part in (a.get("srcset") or "").split(","):
-                part = part.strip()
-                if part:
-                    url = part.rpartition(" ")[0]
+                candidate = part.split(maxsplit=1)
+                if candidate:
+                    url = candidate[0]
                     if resolve_local(page, url) is None:
                         FAILS.append(f"{page} L{ln}: dangling srcset "
                                      f"{url[:60]}")
@@ -149,8 +149,8 @@ for page in sorted(consumers()):
 # the viewer is now a shared owner (js/site-image-viewer.js) consumed by
 # the two photo articles and the Notion syllabus page
 viewer = open("js/site-image-viewer.js", errors="ignore").read()
-if "fullSrc" not in viewer or "currentSrc" not in viewer or \
-        ".src ||" not in viewer:
+if not re.search(r"\benlarged\.src\s*=\s*data\.fullSrc\s*\|\|\s*"
+                 r"img\.currentSrc\s*\|\|\s*img\.src\s*;", viewer):
     FAILS.append("shared viewer lost the full-src → currentSrc → src "
                  "fallback chain")
 for p in ("articles/mount-kinabalu.html",
